@@ -33,6 +33,7 @@ const canvas = document.getElementById('view');
 const renderer = new Renderer(canvas);
 const sound = new Sound();
 const ui = new UI(app, renderer, sound);
+renderer.loadTextures();
 ui.centerOnFront();
 window.addEventListener('resize', () => renderer.resize());
 window.worldwar = { app, renderer, ui }; // handy for debugging in the console

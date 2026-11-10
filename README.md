@@ -34,6 +34,8 @@ as `file://`, because it uses ES modules.
 | **Charge** | Fast, can't be pinned, no firing. Ends in a bayonet fight. |
 | **Capture** | Occupy trench tiles with no enemy nearby. Take the enemy HQ (far east) to win. |
 
+**Textures**: the ground is built from tileable PNG textures with lit relief, blended through noisy masks; trench planks, sandbags and duckboards run along each trench. Replace any PNG in `assets/textures/` with your own art (same name, seamless) and it is used automatically.
+
 **Seasons**: Winter (snow, frozen shell holes), Thaw (patchy snow over mud) and Mud (rain, flooded craters), chosen on the start screen. Shellfire and digging churn the snow into black earth.
 
 **Atmosphere** (purely visual): a day/night cycle with star-shell flares and dynamic light from gunfire and explosions; passing rain showers; drifting ground mist; screen shake; earth-fountain shell bursts; fallen soldiers left on the field; and a 🎞 film-look toggle (colour / sepia / black and white).
@@ -69,6 +71,8 @@ src/ui.js               input + HUD
 src/atmosphere.js       day/night, lighting, flares, rain, fog, grain, screen shake
 src/audio.js            procedural WebAudio sound effects
 src/main.js             game loop
+assets/textures/        generated seamless PNG textures (mud, earth, snow, grass, ice, water, planks, sandbags, duckboards)
+scripts/make-textures.mjs  texture generator: `npm run textures` (no dependencies)
 tests/                  headless simulation tests (node --test)
 ```
 

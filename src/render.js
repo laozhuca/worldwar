@@ -59,6 +59,7 @@ function mixHex(a, b, f) {
   return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * f)).join(',')})`;
 }
 /** Standing water reflecting a grey sky, or cracked ice in the cold. */
+let PAT = null; // texture pattern lookup for the context currently being drawn, or null for vector fallback
 function drawPuddle(g, c, rx, ry, S, h) {
   const blobs = [[0, 0, 1, 1], [rx * 0.55, ry * 0.35, 0.6, 0.7], [-rx * 0.5, -ry * 0.25, 0.55, 0.65]];
   g.save();
@@ -68,8 +69,14 @@ function drawPuddle(g, c, rx, ry, S, h) {
   const gr = g.createLinearGradient(0, -ry, 0, ry);
   if (S > 0.3) { gr.addColorStop(0, 'rgba(176,186,198,0.9)'); gr.addColorStop(1, 'rgba(96,108,122,0.9)'); }
   else { gr.addColorStop(0, 'rgba(138,150,166,0.85)'); gr.addColorStop(1, 'rgba(32,38,46,0.9)'); }
+  if (PAT) {
+    g.fillStyle = PAT(S > 0.3 ? 'ice' : 'water');
+    for (const [x, y, sx, sy] of blobs) { g.beginPath(); g.ellipse(x * (0.9 + h * 0.2), y, rx * sx, ry * sy, 0, 0, TAU); g.fill(); }
+    g.globalAlpha = 0.45;
+  }
   g.fillStyle = gr;
   for (const [x, y, sx, sy] of blobs) { g.beginPath(); g.ellipse(x * (0.9 + h * 0.2), y, rx * sx, ry * sy, 0, 0, TAU); g.fill(); }
+  g.globalAlpha = 1;
   g.strokeStyle = S > 0.3 ? 'rgba(235,240,245,0.45)' : 'rgba(220,228,238,0.45)'; g.lineWidth = 0.8;
   g.beginPath(); g.moveTo(-rx * 0.5, -ry * 0.3); g.lineTo(rx * 0.25, -ry * 0.45);
   if (S > 0.3) { g.moveTo(-rx * 0.1, 0); g.lineTo(rx * 0.2, ry * 0.4); }
@@ -130,6 +137,125 @@ export class Renderer {
 
   // ------------------------------------------------------------ ground layer
 
+  /** Load the PNG textures; until they arrive the vector fallback is drawn. */
+  loadTextures(base = 'assets/textures/') {
+    const names = ['mud', 'earth', 'snow', 'grass', 'ice', 'water', 'planks', 'sandbags', 'duckboard'];
+    return Promise.all(names.map((n) => new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res([n, img]);
+      img.onerror = () => rej(new Error('texture ' + n));
+      img.src = base + n + '.png';
+    }))).then((list) => { this.tex = Object.fromEntries(list); this.groundDrawn = false; })
+      .catch((e) => console.warn('Textures unavailable, using vector ground:', e.message));
+  }
+
+  pattern(ctx, name) {
+    const cache = ctx.__pats || (ctx.__pats = {});
+    return cache[name] || (cache[name] = ctx.createPattern(this.tex[name], 'repeat'));
+  }
+
+  /** Noise used to break up the edges between terrain layers (fixed per map size). */
+  maskNoise(mw, mh, R, k) {
+    const key = mw + 'x' + mh + ':' + k;
+    this._mn = this._mn || {};
+    if (this._mn[key]) return this._mn[key];
+    const out = new Float32Array(mw * mh);
+    const vn = (x, y) => {
+      const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
+      const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+      const a = hash(x0 + k * 97, y0), b = hash(x0 + 1 + k * 97, y0), c = hash(x0 + k * 97, y0 + 1), d = hash(x0 + 1 + k * 97, y0 + 1);
+      return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+    };
+    for (let y = 0; y < mh; y++) for (let x = 0; x < mw; x++) {
+      const u = x / R, v = y / R;
+      out[y * mw + x] = vn(u * 0.7, v * 0.7) * 0.5 + vn(u * 1.9, v * 1.9) * 0.3 + vn(u * 5.3, v * 5.3) * 0.2;
+    }
+    return (this._mn[key] = out);
+  }
+
+  /** Alpha mask (R px per tile) from per-tile amounts, with ragged noisy edges. */
+  buildMask(map, amounts, k, spread = 0.7) {
+    const R = 8, mw = map.w * R, mh = map.h * R;
+    const noise = this.maskNoise(mw, mh, R, k);
+    const c = this._mask || (this._mask = document.createElement('canvas'));
+    c.width = mw; c.height = mh;
+    const mc = c.getContext('2d');
+    const img = mc.createImageData(mw, mh);
+    const A = (x, y) => amounts[Math.max(0, Math.min(map.h - 1, y)) * map.w + Math.max(0, Math.min(map.w - 1, x))];
+    for (let y = 0; y < mh; y++) {
+      const ty = (y + 0.5) / R - 0.5, y0 = Math.floor(ty), fy = ty - y0;
+      for (let x = 0; x < mw; x++) {
+        const tx = (x + 0.5) / R - 0.5, x0 = Math.floor(tx), fx = tx - x0;
+        const a = (A(x0, y0) * (1 - fx) + A(x0 + 1, y0) * fx) * (1 - fy) + (A(x0, y0 + 1) * (1 - fx) + A(x0 + 1, y0 + 1) * fx) * fy;
+        const v = a + (noise[y * mw + x] - 0.5) * spread;
+        const t = Math.max(0, Math.min(1, (v - 0.42) / 0.16));
+        const i = (y * mw + x) * 4;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
+        img.data[i + 3] = t * t * (3 - 2 * t) * 255;
+      }
+    }
+    mc.putImageData(img, 0, 0);
+    return c;
+  }
+
+  /** Ground from PNG textures: mud base, then grass, blasted earth and snow layers through noisy masks. */
+  drawTexturedBase(g, map, S, cover) {
+    const K = 1 / 96; // texture pixels per tile = 96
+    const R = 8;
+    const isoT = (ctx, s) => ctx.setTransform((TW / 2) * s, (TH / 2) * s, (-TW / 2) * s, (TH / 2) * s, this.OX, this.OY);
+    isoT(g, K);
+    g.fillStyle = this.pattern(g, 'mud');
+    g.fillRect(0, 0, map.w / K, map.h / K);
+
+    const L = this.layer || (this.layer = document.createElement('canvas'));
+    L.width = this.ground.width; L.height = this.ground.height;
+    const lc = L.getContext('2d');
+    const n = map.w * map.h;
+    const grassA = new Float32Array(n), earthA = new Float32Array(n);
+    for (const t of map.tiles) {
+      const i = t.y * map.w + t.x;
+      grassA[i] = !t.mud && !t.crater ? 1 : 0;
+      earthA[i] = t.crater ? Math.min(1, 0.4 + t.crater * 0.25) : 0;
+    }
+    const layers = [['grass', grassA, 1, 0.8], ['earth', earthA, 2, 0.6]];
+    if (S > 0) layers.push(['snow', cover, 3, 0.55]);
+    for (const [name, amounts, k, spread] of layers) {
+      const mask = this.buildMask(map, amounts, k, spread);
+      lc.setTransform(1, 0, 0, 1, 0, 0);
+      lc.globalCompositeOperation = 'source-over';
+      lc.clearRect(0, 0, L.width, L.height);
+      isoT(lc, K);
+      lc.fillStyle = this.pattern(lc, name);
+      lc.fillRect(0, 0, map.w / K, map.h / K);
+      lc.globalCompositeOperation = 'destination-in';
+      isoT(lc, 1 / R);
+      lc.imageSmoothingEnabled = true;
+      lc.drawImage(mask, 0, 0);
+      lc.globalCompositeOperation = 'source-over';
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.drawImage(L, 0, 0);
+    }
+
+    // broad light/dark variation so the textures never visibly repeat
+    const field = this.field || (this.field = document.createElement('canvas'));
+    field.width = map.w; field.height = map.h;
+    const fc = field.getContext('2d');
+    const img = fc.createImageData(map.w, map.h);
+    for (const t of map.tiles) {
+      const i = (t.y * map.w + t.x) * 4;
+      const v = 255 * (0.78 + 0.22 * hash(t.x * 0.37, t.y * 0.53)) * (t.crater ? 0.85 : 1);
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
+    }
+    fc.putImageData(img, 0, 0);
+    g.save();
+    g.globalCompositeOperation = 'multiply';
+    isoT(g, 1);
+    g.imageSmoothingEnabled = true;
+    g.drawImage(field, 0, 0);
+    g.restore();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
   groundNoise() {
     if (this._gnoise) return this._gnoise;
     const n = document.createElement('canvas');
@@ -163,7 +289,10 @@ export class Renderer {
     const cover = new Float32Array(map.w * map.h);
     for (const t of map.tiles) cover[t.y * map.w + t.x] = snowCover(t, S);
 
-    // 1. smooth colour field: one pixel per tile, bilinearly stretched into the isometric diamond
+    PAT = this.tex ? (name) => this.pattern(g, name) : null;
+    if (this.tex) this.drawTexturedBase(g, map, S, cover);
+    // 1. (vector fallback) smooth colour field, bilinearly stretched into the isometric diamond
+    else {
     const field = this.field || (this.field = document.createElement('canvas'));
     field.width = map.w; field.height = map.h;
     const fc = field.getContext('2d');
@@ -182,6 +311,7 @@ export class Renderer {
     g.imageSmoothingQuality = 'high';
     g.drawImage(field, 0, 0);
     g.restore();
+    }
 
     g.setTransform(1, 0, 0, 1, this.OX, this.OY);
     g.save();
@@ -189,6 +319,7 @@ export class Renderer {
     g.beginPath(); g.moveTo(c0.x, c0.y); g.lineTo(c1.x, c1.y); g.lineTo(c2.x, c2.y); g.lineTo(c3.x, c3.y); g.closePath();
     g.clip();
 
+    if (!this.tex) {
     // 2. fine texture
     g.fillStyle = g.createPattern(this.groundNoise(), 'repeat');
     g.fillRect(-this.OX, -this.OY, this.ground.width, this.ground.height);
@@ -249,6 +380,12 @@ export class Renderer {
       }
       if (t.mud && h > 0.965 && !t.crater) drawPuddle(g, iso(t.x + 0.5, t.y + 0.5), 9 + h * 5, 3.6, S, h);
     }
+    } else {
+      for (const t of map.tiles) {
+        const h = hash(t.x, t.y);
+        if (t.mud && !t.trench && h > 0.97 && !t.crater) drawPuddle(g, iso(t.x + 0.5, t.y + 0.5), 10 + h * 6, 4, S, h);
+      }
+    }
 
     // 4. shell craters: black earth blasted through the snow, spoil lip, ice or water
     for (const t of map.tiles) {
@@ -259,7 +396,7 @@ export class Renderer {
       g.save();
       g.translate(c.x, c.y); g.scale(1, 0.5);
       let gr;
-      g.fillStyle = 'rgba(20,15,11,0.55)';
+      g.fillStyle = PAT ? PAT('earth') : 'rgba(20,15,11,0.55)';
       for (let i = 0; i < 9; i++) {
         const ang = frac(h * (i + 1) * 5.7) * TAU, dd = r * (0.9 + frac(h * (i + 2) * 3.1) * 0.9);
         g.beginPath(); g.arc(Math.cos(ang) * dd, Math.sin(ang) * dd, r * (0.12 + frac(h * i * 7.3) * 0.25), 0, TAU); g.fill();
@@ -268,14 +405,21 @@ export class Renderer {
       for (let i = 0; i < lumps; i++) {
         const ang = (i / lumps) * TAU + h * 6;
         const lr = r * (0.95 + frac(h * (i + 3) * 7.7) * 0.25);
-        const snowy = S > 0.7 && i % 3 === 0;
-        g.fillStyle = snowy ? 'rgba(200,207,216,0.75)' : (i % 3 ? 'rgba(46,36,28,0.7)' : 'rgba(66,54,42,0.6)');
+        const snowy = !PAT && S > 0.7 && i % 3 === 0;
+        g.fillStyle = PAT ? PAT(snowy ? 'snow' : 'earth') : snowy ? 'rgba(200,207,216,0.75)' : (i % 3 ? 'rgba(46,36,28,0.7)' : 'rgba(66,54,42,0.6)');
         g.beginPath(); g.arc(Math.cos(ang) * lr * 0.6, Math.sin(ang) * lr * 0.6, r * (0.45 + frac(h * i * 3.3) * 0.25), 0, TAU); g.fill();
       }
       gr = g.createRadialGradient(r * 0.1, r * 0.3, 0, 0, 0, r * 0.85);
       gr.addColorStop(0, '#120d09'); gr.addColorStop(0.7, '#1d1610'); gr.addColorStop(1, 'rgba(40,31,24,0.6)');
+      if (PAT) { g.fillStyle = PAT('earth'); g.beginPath(); g.ellipse(0, 0, r * 0.85, r * (0.7 + h * 0.25), h * 2, 0, TAU); g.fill(); gr = g.createRadialGradient(r * 0.1, r * 0.3, 0, 0, 0, r * 0.85); gr.addColorStop(0, 'rgba(8,6,4,0.85)'); gr.addColorStop(1, 'rgba(8,6,4,0.1)'); }
       g.fillStyle = gr;
       g.beginPath(); g.ellipse(0, 0, r * 0.85, r * (0.7 + h * 0.25), h * 2, 0, TAU); g.fill();
+      // lit far rim and shadowed near rim give the hole depth
+      g.lineWidth = Math.max(1.5, r * 0.18);
+      g.strokeStyle = S > 0.3 ? 'rgba(235,240,246,0.35)' : 'rgba(150,135,115,0.35)';
+      g.beginPath(); g.ellipse(0, 0, r * 0.9, r * (0.75 + h * 0.25), h * 2, Math.PI * 0.95, Math.PI * 1.85); g.stroke();
+      g.strokeStyle = 'rgba(0,0,0,0.35)';
+      g.beginPath(); g.ellipse(0, 0, r * 0.8, r * (0.65 + h * 0.25), h * 2, Math.PI * 0.05, Math.PI * 0.9); g.stroke();
       g.restore();
       if ((t.crater >= 3 && h > 0.6) || (t.crater === 2 && h > 0.88)) drawPuddle(g, { x: c.x + r * 0.05, y: c.y + r * 0.1 }, r * 0.5, r * 0.2, S, h);
     }
@@ -296,8 +440,27 @@ export class Renderer {
         g.beginPath(); g.moveTo(c.x, c.y); g.lineTo(m.x + ox, m.y + oy); g.stroke();
       }
     };
-    const berm = mixHex('#3a3028', '#c3cad3', S * 0.85);
-    const bermTop = mixHex('#4d4136', '#e2e7ec', S * 0.9);
+    let berm = mixHex('#3a3028', '#c3cad3', S * 0.85);
+    let bermTop = mixHex('#4d4136', '#e2e7ec', S * 0.9);
+    if (PAT) { berm = PAT(S > 0.6 ? 'snow' : 'earth'); bermTop = S > 0.25 ? PAT('snow') : PAT('mud'); }
+    // a band of texture laid along each trench run, oriented with it
+    const band = (t, width, name, scale, ox = 0, oy = 0) => {
+      const c = iso(t.x + 0.5, t.y + 0.5);
+      c.x += ox; c.y += oy;
+      g.fillStyle = PAT(name);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const n = T(t.x + dx, t.y + dy);
+        if (!n || !n.trench) continue;
+        const m = iso(t.x + 0.5 + dx * 0.5, t.y + 0.5 + dy * 0.5);
+        const ang = Math.atan2(m.y + oy - c.y, m.x + ox - c.x), len = Math.hypot(m.x + ox - c.x, m.y + oy - c.y);
+        g.save(); g.translate(c.x, c.y); g.rotate(ang); g.scale(scale, scale);
+        g.fillRect(0, -width / 2 / scale, (len + 1) / scale, width / scale);
+        g.restore();
+      }
+      g.save(); g.translate(c.x, c.y); g.scale(scale, scale);
+      g.beginPath(); g.arc(0, 0, width / 2 / scale, 0, TAU); g.fill();
+      g.restore();
+    };
     g.lineCap = 'round';
     for (const t of trenches) strokeTrench(t, 46, 'rgba(0,0,0,0.25)', 4, 6);
     for (const t of trenches) strokeTrench(t, 36, berm, 0, -1);
@@ -311,22 +474,31 @@ export class Renderer {
         const rr = 7 + frac(h * (i + 4) * 2.3) * 6;
         g.fillStyle = berm; g.beginPath(); g.ellipse(x, y, rr, rr * 0.55, 0, 0, TAU); g.fill();
         g.fillStyle = bermTop; g.beginPath(); g.ellipse(x - 1, y - rr * 0.2, rr * 0.7, rr * 0.33, 0, 0, TAU); g.fill();
+        if (PAT && S > 0.25 && S < 0.75 && frac(h * i * 3.7) > 0.5) { g.fillStyle = PAT('earth'); g.beginPath(); g.ellipse(x + 1, y, rr * 0.8, rr * 0.4, 0, 0, TAU); g.fill(); }
         if (S > 0.3 && frac(h * i * 6.1) > 0.55) {
           g.fillStyle = 'rgba(34,27,21,0.75)';
           g.beginPath(); g.ellipse(x + 2, y + 1, rr * 0.4, rr * 0.18, 0, 0, TAU); g.fill();
         }
       }
     }
+    if (PAT) {
+      for (const t of trenches) if (t.trench >= 2) { if (t.trench >= 3) strokeTrench(t, 23, '#86857f'); else band(t, 23, 'sandbags', 0.32); }
+      for (const t of trenches) band(t, 16, 'planks', 0.28);
+      for (const t of trenches) strokeTrench(t, 9.5, 'rgba(0,0,0,0.55)', 0, 2.2);
+      for (const t of trenches) band(t, 8, t.trench >= 2 ? 'duckboard' : (S > 0.3 ? 'ice' : 'water'), t.trench >= 2 ? 0.3 : 0.25, 0, 2.2);
+      for (const t of trenches) if (t.trench < 2) strokeTrench(t, 8, 'rgba(10,8,6,0.45)', 0, 2.2);
+    } else {
     for (const t of trenches) if (t.trench >= 2) strokeTrench(t, 23, t.trench >= 3 ? '#86857f' : (S > 0.3 ? '#a9a59b' : '#655d50'));
     for (const t of trenches) strokeTrench(t, 16, '#3c3024');
     g.setLineDash([1.8, 5.5]);
     for (const t of trenches) strokeTrench(t, 16, '#1a140f');
     g.setLineDash([]);
     for (const t of trenches) strokeTrench(t, 8.5, '#140f0b', 0, 2.2);
+    }
     g.setLineDash([5, 7]);
-    for (const t of trenches) if (t.trench < 2) strokeTrench(t, 2, S > 0.3 ? 'rgba(190,205,220,0.55)' : 'rgba(140,156,176,0.5)', 0, 2.2);
+    if (!PAT) for (const t of trenches) if (t.trench < 2) strokeTrench(t, 2, S > 0.3 ? 'rgba(190,205,220,0.55)' : 'rgba(140,156,176,0.5)', 0, 2.2);
     g.setLineDash([2.5, 2]);
-    for (const t of trenches) if (t.trench >= 2) strokeTrench(t, 3, '#5a4630', 0, 2.2);
+    if (!PAT) for (const t of trenches) if (t.trench >= 2) strokeTrench(t, 3, '#5a4630', 0, 2.2);
     g.setLineDash([]);
     // sandbags along both lips (more on reinforced works), snow-capped in winter
     for (const t of trenches) {
@@ -335,7 +507,7 @@ export class Renderer {
       for (let i = 0; i < n; i++) {
         const a = (i / n) * TAU + t.shade * 2;
         const bx = c.x + Math.cos(a) * 10.5, by = c.y + Math.sin(a) * 5.5;
-        g.fillStyle = t.trench >= 3 ? '#8d8b84' : (i % 2 ? '#6b6455' : '#5d5649');
+        g.fillStyle = t.trench >= 3 ? '#8d8b84' : PAT ? PAT('sandbags') : (i % 2 ? '#6b6455' : '#5d5649');
         g.beginPath(); g.ellipse(bx, by, 2.8, 1.6, 0, 0, TAU); g.fill();
         if (S > 0.2) { g.fillStyle = `rgba(228,233,238,${S * 0.9})`; g.beginPath(); g.ellipse(bx, by - 0.7, 2.2, 0.8, 0, 0, TAU); g.fill(); }
       }
