@@ -3,6 +3,7 @@ import { Renderer, iso } from './render.js';
 import { UI } from './ui.js';
 import { Sound } from './audio.js';
 import { PLAYER } from './config.js';
+import { hourOf } from './atmosphere.js';
 
 const STEP = 1 / 30;
 
@@ -51,6 +52,12 @@ document.getElementById('btn-restart').addEventListener('click', () => {
   app.paused = false;
   endShown = false;
 });
+const FILM = ['', 'sepia(0.55) contrast(1.08) saturate(0.85)', 'grayscale(1) contrast(1.15)'];
+let film = 0;
+document.getElementById('btn-film').addEventListener('click', () => {
+  film = (film + 1) % FILM.length;
+  canvas.style.filter = FILM[film];
+});
 document.getElementById('btn-pause').addEventListener('click', () => app.togglePause());
 document.getElementById('btn-help').addEventListener('click', () => app.toggleHelp());
 document.getElementById('btn-speed').addEventListener('click', (e) => {
@@ -80,6 +87,9 @@ function showEnd(state) {
 let last = performance.now();
 let acc = 0;
 let miniTimer = 0;
+let clockTimer = 0;
+const clockEl = document.getElementById('clock');
+const clockIcon = document.getElementById('clock-icon');
 const mini = document.getElementById('minimap');
 const mctx = mini.getContext('2d');
 
@@ -94,12 +104,14 @@ function frame(now) {
     if (n >= 12) acc = 0;
   }
   ui.update(dt);
+  renderer.update(dt, app.paused ? 0 : dt * app.speed, s);
 
   // sounds, attenuated by distance from the camera centre
   const center = renderer.screenToMap(renderer.vw / 2, renderer.vh / 2);
   for (const ev of s.events) {
     const d = ev.x === undefined ? 0 : Math.hypot(ev.x - center.x, ev.y - center.y);
     sound.play(ev.type, Math.max(0, 1 - d / (28 / renderer.cam.zoom)));
+    renderer.onEvent(ev);
   }
   s.events.length = 0;
 
@@ -107,6 +119,15 @@ function frame(now) {
   miniTimer -= dt;
   if (miniTimer <= 0) { miniTimer = 0.25; renderer.drawMinimap(mctx, s, mini.width, mini.height); }
 
+  clockTimer -= dt;
+  if (clockTimer <= 0) {
+    clockTimer = 0.5;
+    const h = hourOf(s.time);
+    const hh = String(Math.floor(h)).padStart(2, '0'), mm = String(Math.floor((h % 1) * 60)).padStart(2, '0');
+    const night = renderer.atmo.darkness(s) > 0.3, rain = renderer.atmo.rain(s) > 0.3;
+    clockEl.textContent = `${hh}:${mm}`;
+    clockIcon.textContent = rain ? '🌧' : night ? '🌙' : '☀';
+  }
   if (s.winner >= 0 && !endShown) showEnd(s);
   requestAnimationFrame(frame);
 }

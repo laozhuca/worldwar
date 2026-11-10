@@ -34,6 +34,8 @@ as `file://`, because it uses ES modules.
 | **Charge** | Fast, can't be pinned, no firing. Ends in a bayonet fight. |
 | **Capture** | Occupy trench tiles with no enemy nearby. Take the enemy HQ (far east) to win. |
 
+**Atmosphere** (purely visual): a day/night cycle with star-shell flares and dynamic light from gunfire and explosions; passing rain showers; drifting ground mist; screen shake; earth-fountain shell bursts; fallen soldiers left on the field; and a 🎞 film-look toggle (colour / sepia / black and white).
+
 The enemy commander garrisons its line, uses defensive and harassing barrages,
 counter-attacks lost trenches, repairs its wire and launches its own offensives.
 
@@ -62,6 +64,7 @@ src/game.js             simulation: movement, fire, suppression, artillery, digg
 src/ai.js               computer commander (works for either side)
 src/render.js           isometric canvas renderer
 src/ui.js               input + HUD
+src/atmosphere.js       day/night, lighting, flares, rain, fog, grain, screen shake
 src/audio.js            procedural WebAudio sound effects
 src/main.js             game loop
 tests/                  headless simulation tests (node --test)

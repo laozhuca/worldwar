@@ -22,6 +22,7 @@ export function createGame(opts = {}) {
     units: [],
     shells: [],
     effects: [],
+    decals: [],
     events: [],
     messages: [],
     resources: [{ ...START_RES }, { ...START_RES }],
@@ -510,6 +511,10 @@ export function damageUnit(state, u, amount) {
   u.hp -= amount;
   u.men = Math.max(0, Math.ceil(u.hp / t.hpPerMan - 1e-6));
   state.stats.lost[u.team] += before - u.men;
+  for (let i = 0; i < Math.min(3, before - u.men); i++) {
+    state.decals.push({ x: u.x + (rand() - 0.5) * 0.7, y: u.y + (rand() - 0.5) * 0.7, team: u.team, t: state.time, rot: (rand() - 0.5) * 1.2 });
+  }
+  if (state.decals.length > 260) state.decals = state.decals.filter((d) => state.time - d.t < 140).slice(-260);
   if (u.hp <= 0) {
     u.dead = true;
     u.men = 0;
@@ -566,7 +571,7 @@ function explode(state, s) {
   }
   map.dirty = true;
   state.effects.push({ type: 'boom', x: s.x, y: s.y, age: 0, life: 0.7 });
-  state.effects.push({ type: 'smoke', x: s.x, y: s.y, age: 0, life: 3 + rand() * 2 });
+  state.effects.push({ type: 'smoke', x: s.x, y: s.y, age: 0, life: 5 + rand() * 4 });
   const parts = [];
   for (let i = 0; i < 10; i++) {
     const a = rand() * Math.PI * 2, sp = 20 + rand() * 50;
