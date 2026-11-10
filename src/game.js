@@ -239,13 +239,18 @@ export function canBuild(state, team, type, x, y) {
   return { ok: true };
 }
 
+function markChanged(map, x, y) {
+  map.dirty = true;
+  (map.changes || (map.changes = [])).push({ x: Math.floor(x), y: Math.floor(y) });
+}
+
 export function placeBuild(state, team, type, x, y) {
   const c = canBuild(state, team, type, x, y);
   if (!c.ok) return c;
   const t = tileAt(state.map, x, y);
   state.resources[team].supplies -= BUILD[type].supplies;
   t.build = { type, team, progress: 0, work: BUILD[type].work };
-  state.map.dirty = true;
+  markChanged(state.map, t.x, t.y);
   return { ok: true };
 }
 
@@ -254,7 +259,7 @@ export function cancelBuild(state, team, x, y) {
   if (!t || !t.build || t.build.team !== team) return false;
   state.resources[team].supplies += Math.floor(BUILD[t.build.type].supplies * 0.5);
   t.build = null;
-  state.map.dirty = true;
+  markChanged(state.map, t.x, t.y);
   return true;
 }
 
@@ -265,6 +270,7 @@ function completeBuild(state, tile) {
   else if (b.type === 'upgrade') { tile.trench = Math.min(3, tile.trench + 1); }
   else if (b.type === 'wire') { tile.wire = 100; tile.decor = null; }
   state.map.dirty = true;
+  (state.map.changes || (state.map.changes = [])).push({ x: tile.x, y: tile.y });
 }
 
 // ---------------------------------------------------------------- simulation
@@ -571,6 +577,7 @@ function explode(state, s) {
     }
   }
   map.dirty = true;
+  (map.changes || (map.changes = [])).push({ x: Math.floor(s.x), y: Math.floor(s.y) });
   state.effects.push({ type: 'boom', x: s.x, y: s.y, age: 0, life: 0.7 });
   state.effects.push({ type: 'smoke', x: s.x, y: s.y, age: 0, life: 5 + rand() * 4 });
   const parts = [];
@@ -600,11 +607,11 @@ function updateCapture(state) {
       if (Math.hypot(u.x - cx, u.y - cy) > 1.0) continue;
       const contested = state.units.some((e) => !e.dead && e.team !== u.team && Math.hypot(e.x - cx, e.y - cy) < 1.5);
       if (contested) continue;
-      if (t.build && t.build.team !== u.team) { t.build = null; map.dirty = true; }
+      if (t.build && t.build.team !== u.team) { t.build = null; markChanged(map, t.x, t.y); }
       if (t.trench && t.owner !== u.team) {
         if (u.team === PLAYER) playerCaptured++; else if (t.owner === PLAYER) playerLost++;
         t.owner = u.team;
-        map.dirty = true;
+        markChanged(map, t.x, t.y);
       }
     }
   }

@@ -63,7 +63,7 @@ export function createMap(seed = 1916) {
     }
   }
 
-  const map = { w, h, tiles, dirty: true, hq: [] };
+  const map = { w, h, tiles, dirty: true, hq: [], changes: [] };
   const T = (x, y) => (x >= 0 && y >= 0 && x < w && y < h ? tiles[y * w + x] : null);
 
   function dig(x, y, owner, level) {

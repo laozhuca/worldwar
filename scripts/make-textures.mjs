@@ -179,17 +179,17 @@ function mud() {
   const tone = fbm(r, [3, 6, 12]);
   t.fill((u, v, x, y) => {
     const h = H.at(x, y);
-    let c = mix([22, 17, 14], [66, 54, 43], clamp(h * 1.15 - 0.05));
-    c = mix(c, [38, 34, 30], tone(u, v) * 0.35);
+    let c = mix([20, 21, 25], [64, 61, 62], clamp(h * 1.15 - 0.05));
+    c = mix(c, [36, 37, 43], tone(u, v) * 0.35);
     let s = H.light(x, y, 16);
     if (h < 0.16) { // water lying in the hollows
       const w = clamp((0.16 - h) * 14);
-      c = mix(c, mix([26, 30, 36], [96, 106, 120], clamp(tone(u * 2 % 1, v) * 1.4 - 0.3)), w * 0.75);
+      c = mix(c, mix([24, 28, 35], [96, 108, 126], clamp(tone(u * 2 % 1, v) * 1.4 - 0.3)), w * 0.75);
       s = lerp(s, 1, w);
     }
     return lit(c, s);
   });
-  for (let i = 0; i < 260; i++) t.disc(r() * W, r() * W, 0.6 + r() * 1.2, [92, 88, 82], 0.5);
+  for (let i = 0; i < 260; i++) t.disc(r() * W, r() * W, 0.6 + r() * 1.2, [84, 86, 92], 0.5);
   t.save('mud');
 }
 
@@ -199,13 +199,13 @@ function earth() {
   const H = new Height(W, W, (u, v) => n(u, v) * 0.6);
   for (let i = 0; i < 2400; i++) H.bump(r() * W, r() * W, 2 + r() * r() * 13, (r() * 0.9 + 0.1) * 0.3);
   H.normalize();
-  t.fill((u, v, x, y) => lit(mix([16, 12, 10], [62, 51, 41], H.at(x, y)), H.light(x, y, 20)));
+  t.fill((u, v, x, y) => lit(mix([13, 13, 16], [56, 52, 52], H.at(x, y)), H.light(x, y, 20)));
   for (let i = 0; i < 90; i++) {
     const x = r() * W, y = r() * W, a = r() * Math.PI * 2, l = 4 + r() * 12;
     t.line(x + 1, y + 1, x + 1 + Math.cos(a) * l, y + 1 + Math.sin(a) * l, 1.4, [10, 8, 6], 0.6);
     t.line(x, y, x + Math.cos(a) * l, y + Math.sin(a) * l, 1.3, [160, 138, 104], 0.85);
   }
-  for (let i = 0; i < 300; i++) t.disc(r() * W, r() * W, 0.8 + r() * 1.6, [96, 94, 90], 0.6);
+  for (let i = 0; i < 300; i++) t.disc(r() * W, r() * W, 0.8 + r() * 1.6, [88, 90, 96], 0.6);
   t.save('earth');
 }
 
@@ -223,8 +223,8 @@ function snow() {
   const fine = fbm(r, [64, 128], 0.6);
   t.fill((u, v, x, y) => {
     const s = H.light(x, y, 22);
-    let c = mix([204, 212, 224], [238, 242, 248], H.at(x, y));
-    c = s < 1 ? mix(c, [120, 136, 162], (1 - s) * 0.9) : mix(c, [255, 255, 255], (s - 1) * 0.6);
+    let c = mix([170, 180, 198], [218, 226, 238], H.at(x, y));
+    c = s < 1 ? mix(c, [108, 120, 144], (1 - s) * 0.95) : mix(c, [240, 244, 250], (s - 1) * 0.6);
     const f = (fine(u, v) - 0.5) * 10;
     return [c[0] + f, c[1] + f, c[2] + f];
   });
@@ -240,8 +240,8 @@ function grass() {
   const tufts = Array.from({ length: 700 }, () => ({ x: r() * W, y: r() * W, s: 4 + r() * 7 }));
   for (const q of tufts) H.bump(q.x, q.y, q.s, 0.25);
   H.normalize();
-  t.fill((u, v, x, y) => lit(mix([30, 29, 23], [74, 70, 54], H.at(x, y)), H.light(x, y, 10)));
-  const cols = [[132, 118, 86], [98, 94, 70], [52, 50, 38], [116, 108, 84], [150, 136, 104], [84, 86, 70]];
+  t.fill((u, v, x, y) => lit(mix([30, 31, 32], [78, 77, 72], H.at(x, y)), H.light(x, y, 10)));
+  const cols = [[124, 118, 104], [94, 92, 86], [50, 50, 50], [112, 108, 98], [146, 140, 126], [80, 82, 80]];
   for (const q of tufts) { // clumps of dead blades radiating from a crown
     const m = 10 + Math.floor(r() * 14);
     for (let i = 0; i < m; i++) {
@@ -262,7 +262,7 @@ function grass() {
 function ice() {
   const r = rng(55), t = new Tex(256, 256);
   const n = fbm(r, [4, 8, 16, 32]);
-  t.fill((u, v) => mix([120, 134, 150], [196, 206, 220], n(u, v)));
+  t.fill((u, v) => mix([118, 130, 148], [192, 202, 218], n(u, v)));
   for (let k = 0; k < 26; k++) {
     let x = r() * 256, y = r() * 256, a = r() * Math.PI * 2;
     for (let s = 0; s < 6 + r() * 10; s++) {
@@ -297,7 +297,7 @@ function planks() {
   t.fill((u, v, x, y) => {
     const p = Math.floor(y / 16);
     const g = grain(u, v);
-    let c = mix([52, 41, 31], [96, 78, 58], clamp(tone[p] * 0.6 + g * 0.6 - 0.1));
+    let c = mix([44, 40, 38], [92, 82, 72], clamp(tone[p] * 0.6 + g * 0.6 - 0.1));
     if (y % 16 === 0) c = [18, 14, 11];
     if (y % 16 === 1) c = mix(c, [120, 100, 76], 0.4);
     const s = stain(u, v);
@@ -330,7 +330,7 @@ function sandbags() {
         if (d > 1) continue;
         const shade = 1 - d * 0.45 - ey * 0.18 - ex * 0.05;
         const b = burlap(((cx + x) % 128 + 128) % 128 / 128, ((cy + y) % 64 + 64) % 64 / 64) - 0.5;
-        const c = [116 * tone * shade + b * 30, 104 * tone * shade + b * 28, 82 * tone * shade + b * 22];
+        const c = [108 * tone * shade + b * 30, 102 * tone * shade + b * 28, 92 * tone * shade + b * 24];
         t.blend(cx + x, cy + y, c, clamp((1 - d) * 6));
       }
     }
@@ -344,7 +344,7 @@ function duckboard() {
   const mudN = fbm(r, [4, 8, 16]);
   t.fill((u, v, x, y) => {
     let c = [16, 12, 10];
-    if (x % 8 < 6) c = mix([58, 46, 34], [92, 74, 54], grain(u, v));
+    if (x % 8 < 6) c = mix([50, 44, 40], [88, 78, 68], grain(u, v));
     if (y > 10 && y < 15 || y > 48 && y < 53) c = mix(c, [34, 27, 20], 0.7); // rails underneath
     return mix(c, [26, 21, 17], clamp((mudN(u, v) - 0.5) * 2.5) * 0.8);
   });

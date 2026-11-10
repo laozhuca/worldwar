@@ -3,6 +3,17 @@ import { TILE_W as TW, TILE_H as TH, MAP_W, MAP_H, PLAYER, ENEMY, UNIT_TYPES, SE
 import { tileAt } from './map.js';
 import { canBuild } from './game.js';
 import { Atmosphere } from './atmosphere.js';
+import { Relief } from './relief.js';
+
+// Ground is rendered supersampled for sharpness when zoomed in (lighter on low-memory devices).
+const GS = typeof navigator !== 'undefined' && navigator.deviceMemory && navigator.deviceMemory < 4 ? 1 : 1.5;
+function supersample(ctx) {
+  if (ctx.__gs) return ctx;
+  const st = ctx.setTransform.bind(ctx);
+  ctx.setTransform = (a, b, c, d, e, f) => st(a * GS, b * GS, c * GS, d * GS, e * GS, f * GS);
+  ctx.__gs = true;
+  return ctx;
+}
 
 const TAU = Math.PI * 2;
 
@@ -92,8 +103,10 @@ export class Renderer {
     this.ground = document.createElement('canvas');
     this.OX = (MAP_H * TW) / 2;
     this.OY = TH * 2;
-    this.ground.width = ((MAP_W + MAP_H) * TW) / 2;
-    this.ground.height = ((MAP_W + MAP_H) * TH) / 2 + TH * 4;
+    this.gw = ((MAP_W + MAP_H) * TW) / 2;
+    this.gh = ((MAP_W + MAP_H) * TH) / 2 + TH * 4;
+    this.ground.width = Math.round(this.gw * GS);
+    this.ground.height = Math.round(this.gh * GS);
     this.lastGround = -1e9;
     this.groundDrawn = false;
     this.atmo = new Atmosphere();
@@ -128,7 +141,7 @@ export class Renderer {
     this.clampCam();
   }
   clampCam() {
-    const minX = -this.OX, maxX = this.ground.width - this.OX;
+    const minX = -this.OX, maxX = this.gw - this.OX;
     const minY = 0, maxY = ((MAP_W + MAP_H) * TH) / 2;
     this.cam.x = Math.max(minX, Math.min(maxX, this.cam.x));
     this.cam.y = Math.max(minY, Math.min(maxY, this.cam.y));
@@ -198,32 +211,48 @@ export class Renderer {
     return c;
   }
 
-  /** Ground from PNG textures: mud base, then grass, blasted earth and snow layers through noisy masks. */
+  /** Ground from PNG textures, sculpted and lit by the battlefield relief. */
   drawTexturedBase(g, map, S, cover) {
     const K = 1 / 96; // texture pixels per tile = 96
-    const R = 8;
     const isoT = (ctx, s) => ctx.setTransform((TW / 2) * s, (TH / 2) * s, (-TW / 2) * s, (TH / 2) * s, this.OX, this.OY);
+
+    // relief: full build once per map/season, then only around changed tiles
+    const ch = map.changes || [];
+    if (!this.relief || this.reliefMap !== map || this.reliefS !== S || ch.length > 80) {
+      this.relief = new Relief(map, 16); this.reliefMap = map; this.reliefS = S;
+      this.relief.update(map, { S, snowTile: cover });
+    } else if (ch.length) {
+      let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+      for (const c of ch) { x0 = Math.min(x0, c.x); y0 = Math.min(y0, c.y); x1 = Math.max(x1, c.x); y1 = Math.max(y1, c.y); }
+      this.relief.update(map, { S, snowTile: cover }, { x0, y0, x1, y1 });
+    }
+    map.changes = [];
+    const rf = this.relief;
+    if (!this.rcv || this.rcv.src !== rf) {
+      const mk = (arr) => { const cv = document.createElement('canvas'); cv.width = rf.mw; cv.height = rf.mh; return { cv, img: new ImageData(arr, rf.mw, rf.mh) }; };
+      this.rcv = { src: rf, shade: mk(rf.shade), snow: mk(rf.snow), earth: mk(rf.earth), water: mk(rf.water) };
+      rf.dirty = { x: 0, y: 0, w: rf.mw, h: rf.mh };
+    }
+    if (rf.dirty) {
+      const d = rf.dirty;
+      for (const k of ['shade', 'snow', 'earth', 'water']) this.rcv[k].cv.getContext('2d').putImageData(this.rcv[k].img, 0, 0, d.x, d.y, d.w, d.h);
+      rf.dirty = null;
+    }
+
     isoT(g, K);
     g.fillStyle = this.pattern(g, 'mud');
     g.fillRect(0, 0, map.w / K, map.h / K);
 
     const L = this.layer || (this.layer = document.createElement('canvas'));
-    L.width = this.ground.width; L.height = this.ground.height;
-    const lc = L.getContext('2d');
-    const n = map.w * map.h;
-    const grassA = new Float32Array(n), earthA = new Float32Array(n);
-    for (const t of map.tiles) {
-      const i = t.y * map.w + t.x;
-      grassA[i] = !t.mud && !t.crater ? 1 : 0;
-      earthA[i] = t.crater ? Math.min(1, 0.4 + t.crater * 0.25) : 0;
-    }
-    const layers = [['grass', grassA, 1, 0.8], ['earth', earthA, 2, 0.6]];
-    if (S > 0) layers.push(['snow', cover, 3, 0.55]);
-    for (const [name, amounts, k, spread] of layers) {
-      const mask = this.buildMask(map, amounts, k, spread);
+    if (L.width !== this.ground.width || L.height !== this.ground.height) { L.width = this.ground.width; L.height = this.ground.height; }
+    const lc = supersample(L.getContext('2d'));
+    const clip = this._clip;
+    const layer = (name, mask, R) => {
+      lc.save();
       lc.setTransform(1, 0, 0, 1, 0, 0);
       lc.globalCompositeOperation = 'source-over';
-      lc.clearRect(0, 0, L.width, L.height);
+      if (clip) { lc.beginPath(); lc.rect(clip.x, clip.y, clip.w, clip.h); lc.clip(); lc.clearRect(clip.x, clip.y, clip.w, clip.h); }
+      else lc.clearRect(0, 0, L.width, L.height);
       isoT(lc, K);
       lc.fillStyle = this.pattern(lc, name);
       lc.fillRect(0, 0, map.w / K, map.h / K);
@@ -231,10 +260,30 @@ export class Renderer {
       isoT(lc, 1 / R);
       lc.imageSmoothingEnabled = true;
       lc.drawImage(mask, 0, 0);
-      lc.globalCompositeOperation = 'source-over';
+      lc.restore();
       g.setTransform(1, 0, 0, 1, 0, 0);
-      g.drawImage(L, 0, 0);
-    }
+      if (clip) {
+        const sx = clip.x * GS, sy = clip.y * GS;
+        g.drawImage(L, sx, sy, clip.w * GS, clip.h * GS, clip.x, clip.y, clip.w, clip.h);
+      } else g.drawImage(L, 0, 0, L.width / GS, L.height / GS);
+    };
+    const grassA = new Float32Array(map.w * map.h);
+    for (const t of map.tiles) grassA[t.y * map.w + t.x] = !t.mud && !t.crater ? 1 : 0;
+    layer('grass', this.buildMask(map, grassA, 1, 0.8), 8);
+    layer('earth', this.rcv.earth.cv, 16);
+    if (S > 0) layer('snow', this.rcv.snow.cv, 16);
+    layer(S > 0.3 ? 'ice' : 'water', this.rcv.water.cv, 16);
+
+    // sculpt everything with the relief light: soft-light for form, a gentler overlay for contrast
+    g.save();
+    isoT(g, 1 / 16);
+    g.imageSmoothingEnabled = true;
+    g.globalCompositeOperation = 'soft-light';
+    g.drawImage(this.rcv.shade.cv, 0, 0);
+    g.globalAlpha = 0.18;
+    g.globalCompositeOperation = 'overlay';
+    g.drawImage(this.rcv.shade.cv, 0, 0);
+    g.restore();
 
     // broad light/dark variation so the textures never visibly repeat
     const field = this.field || (this.field = document.createElement('canvas'));
@@ -243,7 +292,7 @@ export class Renderer {
     const img = fc.createImageData(map.w, map.h);
     for (const t of map.tiles) {
       const i = (t.y * map.w + t.x) * 4;
-      const v = 255 * (0.78 + 0.22 * hash(t.x * 0.37, t.y * 0.53)) * (t.crater ? 0.85 : 1);
+      const v = 255 * (0.84 + 0.16 * hash(t.x * 0.37, t.y * 0.53));
       img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
     }
     fc.putImageData(img, 0, 0);
@@ -282,9 +331,33 @@ export class Renderer {
     const season = SEASONS[seasonKey] || SEASONS.winter;
     const S = season.snow;
     this.S = S;
-    const g = this.ground.getContext('2d');
+    const g = supersample(this.ground.getContext('2d'));
+    // Redraw only around changed tiles when the relief is already built for this map and season.
+    const ch = map.changes || [];
+    let clip = null;
+    if (this.groundDrawn && this.tex && this.relief && this.reliefMap === map && this.reliefS === S && ch.length && ch.length <= 80) {
+      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+      for (const c of ch) { x0 = Math.min(x0, c.x); y0 = Math.min(y0, c.y); x1 = Math.max(x1, c.x); y1 = Math.max(y1, c.y); }
+      x0 -= 3; y0 -= 3; x1 += 4; y1 += 4;
+      const pts = [iso(x0, y0), iso(x1, y0), iso(x0, y1), iso(x1, y1)];
+      const minX = Math.min(...pts.map((p) => p.x)), maxX = Math.max(...pts.map((p) => p.x));
+      const minY = Math.min(...pts.map((p) => p.y)), maxY = Math.max(...pts.map((p) => p.y));
+      clip = { x: Math.floor(minX + this.OX), y: Math.floor(minY + this.OY - 40), w: Math.ceil(maxX - minX), h: Math.ceil(maxY - minY + 60) };
+    }
+    this._clip = clip;
+    g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
-    g.clearRect(0, 0, this.ground.width, this.ground.height);
+    if (clip) { g.beginPath(); g.rect(clip.x, clip.y, clip.w, clip.h); g.clip(); g.clearRect(clip.x, clip.y, clip.w, clip.h); }
+    else g.clearRect(0, 0, this.ground.width, this.ground.height);
+    try {
+      this.drawGroundInner(g, map, S);
+    } finally {
+      g.restore();
+      if (!this.tex) map.changes = [];
+    }
+  }
+
+  drawGroundInner(g, map, S) {
 
     const cover = new Float32Array(map.w * map.h);
     for (const t of map.tiles) cover[t.y * map.w + t.x] = snowCover(t, S);
@@ -383,7 +456,7 @@ export class Renderer {
     } else {
       for (const t of map.tiles) {
         const h = hash(t.x, t.y);
-        if (t.mud && !t.trench && h > 0.97 && !t.crater) drawPuddle(g, iso(t.x + 0.5, t.y + 0.5), 10 + h * 6, 4, S, h);
+        if (!this.relief && t.mud && !t.trench && h > 0.97 && !t.crater) drawPuddle(g, iso(t.x + 0.5, t.y + 0.5), 10 + h * 6, 4, S, h);
       }
     }
 
@@ -393,6 +466,16 @@ export class Renderer {
       const h = hash(t.x * 3.1, t.y * 1.7);
       const c = iso(t.x + 0.25 + t.shade * 0.5, t.y + 0.25 + h * 0.5);
       const r = (5 + t.crater * 4) * (0.8 + h * 0.45);
+      if (this.relief && PAT) {
+        // ejecta: clods of black earth flung over the surrounding ground
+        g.save(); g.translate(c.x, c.y); g.scale(1, 0.5); g.fillStyle = PAT('earth');
+        for (let i = 0; i < 10; i++) {
+          const ang = frac(h * (i + 1) * 5.7) * TAU, dd = r * (1.3 + frac(h * (i + 2) * 3.1) * 1.1);
+          g.beginPath(); g.arc(Math.cos(ang) * dd, Math.sin(ang) * dd, r * (0.06 + frac(h * i * 7.3) * 0.12), 0, TAU); g.fill();
+        }
+        g.restore();
+        continue;
+      }
       g.save();
       g.translate(c.x, c.y); g.scale(1, 0.5);
       let gr;
@@ -462,6 +545,7 @@ export class Renderer {
       g.restore();
     };
     g.lineCap = 'round';
+    if (!this.relief) {
     for (const t of trenches) strokeTrench(t, 46, 'rgba(0,0,0,0.25)', 4, 6);
     for (const t of trenches) strokeTrench(t, 36, berm, 0, -1);
     for (const t of trenches) {
@@ -480,6 +564,7 @@ export class Renderer {
           g.beginPath(); g.ellipse(x + 2, y + 1, rr * 0.4, rr * 0.18, 0, 0, TAU); g.fill();
         }
       }
+    }
     }
     if (PAT) {
       for (const t of trenches) if (t.trench >= 2) { if (t.trench >= 3) strokeTrench(t, 23, '#86857f'); else band(t, 23, 'sandbags', 0.32); }
@@ -503,7 +588,7 @@ export class Renderer {
     // sandbags along both lips (more on reinforced works), snow-capped in winter
     for (const t of trenches) {
       const c = iso(t.x + 0.5, t.y + 0.5);
-      const n = t.trench >= 2 ? 9 : 4;
+      const n = this.relief ? (t.trench >= 2 ? 5 : 0) : t.trench >= 2 ? 9 : 4;
       for (let i = 0; i < n; i++) {
         const a = (i / n) * TAU + t.shade * 2;
         const bx = c.x + Math.cos(a) * 10.5, by = c.y + Math.sin(a) * 5.5;
@@ -576,7 +661,7 @@ export class Renderer {
     ctx.fillRect(0, 0, this.vw, this.vh);
     ctx.setTransform(d * z, 0, 0, d * z, d * (this.vw / 2 - this.cam.x * z + shx), d * (this.vh / 2 - this.cam.y * z + shy));
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(this.ground, -this.OX, -this.OY);
+    ctx.drawImage(this.ground, -this.OX, -this.OY, this.gw, this.gh);
 
     this.updateTracks(state);
     this.drawTracks(ctx, state);
@@ -1096,9 +1181,9 @@ export class Renderer {
   drawMinimap(mctx, state, w, h) {
     mctx.setTransform(1, 0, 0, 1, 0, 0);
     mctx.fillStyle = '#121309'; mctx.fillRect(0, 0, w, h);
-    const s = Math.min(w / this.ground.width, h / this.ground.height);
-    const ox = (w - this.ground.width * s) / 2, oy = (h - this.ground.height * s) / 2;
-    mctx.drawImage(this.ground, ox, oy, this.ground.width * s, this.ground.height * s);
+    const s = Math.min(w / this.gw, h / this.gh);
+    const ox = (w - this.gw * s) / 2, oy = (h - this.gh * s) / 2;
+    mctx.drawImage(this.ground, ox, oy, this.gw * s, this.gh * s);
     this.mini = { s, ox, oy };
     for (const u of state.units) {
       if (!u.visible) continue;
