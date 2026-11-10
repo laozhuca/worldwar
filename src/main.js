@@ -12,6 +12,7 @@ const app = {
   paused: true,
   speed: 1,
   helpOpen: true,
+  season: 'winter',
   overlayOpen() { return !document.getElementById('overlay').classList.contains('hidden'); },
   togglePause() {
     this.paused = !this.paused;
@@ -36,14 +37,24 @@ ui.centerOnFront();
 window.addEventListener('resize', () => renderer.resize());
 window.worldwar = { app, renderer, ui }; // handy for debugging in the console
 
+document.querySelectorAll('[data-season]').forEach((b) => b.addEventListener('click', () => {
+  app.season = b.dataset.season;
+  document.querySelectorAll('[data-season]').forEach((x) => x.classList.toggle('active', x === b));
+}));
 document.getElementById('btn-start').addEventListener('click', () => {
   sound.init();
+  if (app.state.season !== app.season && app.state.time < 1) {
+    app.state = createGame({ season: app.season });
+    renderer.groundDrawn = false;
+    ui.selected.clear();
+    ui.centerOnFront();
+  }
   document.getElementById('overlay').classList.add('hidden');
   app.paused = false;
   document.getElementById('btn-pause').textContent = '❚❚';
 });
 document.getElementById('btn-restart').addEventListener('click', () => {
-  app.state = createGame({ seed: Math.floor(Math.random() * 1e6) });
+  app.state = createGame({ seed: Math.floor(Math.random() * 1e6), season: app.season });
   ui.selected.clear();
   ui.setMode(null);
   renderer.groundDrawn = false;
@@ -126,7 +137,7 @@ function frame(now) {
     const hh = String(Math.floor(h)).padStart(2, '0'), mm = String(Math.floor((h % 1) * 60)).padStart(2, '0');
     const night = renderer.atmo.darkness(s) > 0.3, rain = renderer.atmo.rain(s) > 0.3;
     clockEl.textContent = `${hh}:${mm}`;
-    clockIcon.textContent = rain ? '🌧' : night ? '🌙' : '☀';
+    clockIcon.textContent = rain ? (s.season === 'mud' ? '🌧' : '🌨') : night ? '🌙' : (s.season === 'winter' ? '❄' : '☁');
   }
   if (s.winner >= 0 && !endShown) showEnd(s);
   requestAnimationFrame(frame);

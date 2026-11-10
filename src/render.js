@@ -1,5 +1,5 @@
 // Isometric (2:1, "45 degree") canvas renderer.
-import { TILE_W as TW, TILE_H as TH, MAP_W, MAP_H, PLAYER, ENEMY, UNIT_TYPES } from './config.js';
+import { TILE_W as TW, TILE_H as TH, MAP_W, MAP_H, PLAYER, ENEMY, UNIT_TYPES, SEASONS } from './config.js';
 import { tileAt } from './map.js';
 import { canBuild } from './game.js';
 import { Atmosphere } from './atmosphere.js';
@@ -28,15 +28,54 @@ function hslRGB(h, sat, l) {
   const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
   return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
 }
-function tileRGB(t) {
-  let c;
-  if (t.mud) c = hslRGB(26 + t.shade * 10, 20 + t.shade * 8, 21 + t.shade * 6);
-  else c = hslRGB(64 + t.shade * 20, 24 + t.shade * 10, 26 + t.shade * 7);
-  if (t.crater) c = c.map((v) => v * 0.82);
-  return c;
-}
 const frac = (v) => v - Math.floor(v);
 const hash = (x, y) => frac(Math.sin(x * 127.1 + y * 311.7) * 43758.5453);
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+
+// Cold, desaturated earth: black-brown mud and dead olive-grey grass.
+function earthRGB(t, S) {
+  let c;
+  if (t.mud) c = hslRGB(22 + t.shade * 8, 9 + t.shade * 5, 12 + t.shade * 6);
+  else c = hslRGB(48 + t.shade * 16 + (1 - S) * 8, 9 + t.shade * 7, 21 + t.shade * 7);
+  if (t.crater) c = c.map((v) => v * 0.75);
+  return c;
+}
+function snowRGB(t) {
+  return [204 + t.shade * 16, 212 + t.shade * 14, 223 + t.shade * 12];
+}
+/** How much of a tile is under snow. Shellfire, mud and digging expose the earth. */
+function snowCover(t, S) {
+  if (S <= 0) return 0;
+  const n = (Math.sin(t.x * 0.37 + 1.1) * Math.cos(t.y * 0.29 - 0.4) + Math.sin((t.x + t.y) * 0.17)) * 0.25 + (t.shade - 0.5) * 0.3;
+  let c = S * 1.35 - 0.35 + n;
+  if (t.mud) c -= 0.78 - 0.12 * S;
+  c -= t.crater * 0.35;
+  if (t.trench) c -= 0.5;
+  return clamp01(c);
+}
+function mixHex(a, b, f) {
+  const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const x = p(a), y = p(b);
+  return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * f)).join(',')})`;
+}
+/** Standing water reflecting a grey sky, or cracked ice in the cold. */
+function drawPuddle(g, c, rx, ry, S, h) {
+  const blobs = [[0, 0, 1, 1], [rx * 0.55, ry * 0.35, 0.6, 0.7], [-rx * 0.5, -ry * 0.25, 0.55, 0.65]];
+  g.save();
+  g.translate(c.x, c.y);
+  g.fillStyle = 'rgba(14,10,8,0.6)';
+  for (const [x, y, sx, sy] of blobs) { g.beginPath(); g.ellipse(x, y + 0.8, rx * sx + 1.8, ry * sy + 1.2, 0, 0, TAU); g.fill(); }
+  const gr = g.createLinearGradient(0, -ry, 0, ry);
+  if (S > 0.3) { gr.addColorStop(0, 'rgba(176,186,198,0.9)'); gr.addColorStop(1, 'rgba(96,108,122,0.9)'); }
+  else { gr.addColorStop(0, 'rgba(138,150,166,0.85)'); gr.addColorStop(1, 'rgba(32,38,46,0.9)'); }
+  g.fillStyle = gr;
+  for (const [x, y, sx, sy] of blobs) { g.beginPath(); g.ellipse(x * (0.9 + h * 0.2), y, rx * sx, ry * sy, 0, 0, TAU); g.fill(); }
+  g.strokeStyle = S > 0.3 ? 'rgba(235,240,245,0.45)' : 'rgba(220,228,238,0.45)'; g.lineWidth = 0.8;
+  g.beginPath(); g.moveTo(-rx * 0.5, -ry * 0.3); g.lineTo(rx * 0.25, -ry * 0.45);
+  if (S > 0.3) { g.moveTo(-rx * 0.1, 0); g.lineTo(rx * 0.2, ry * 0.4); }
+  g.stroke();
+  g.restore();
+}
 
 export class Renderer {
   constructor(canvas) {
@@ -113,10 +152,16 @@ export class Renderer {
     return n;
   }
 
-  drawGround(map) {
+  drawGround(map, seasonKey = 'winter') {
+    const season = SEASONS[seasonKey] || SEASONS.winter;
+    const S = season.snow;
+    this.S = S;
     const g = this.ground.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, this.ground.width, this.ground.height);
+
+    const cover = new Float32Array(map.w * map.h);
+    for (const t of map.tiles) cover[t.y * map.w + t.x] = snowCover(t, S);
 
     // 1. smooth colour field: one pixel per tile, bilinearly stretched into the isometric diamond
     const field = this.field || (this.field = document.createElement('canvas'));
@@ -124,9 +169,11 @@ export class Renderer {
     const fc = field.getContext('2d');
     const img = fc.createImageData(map.w, map.h);
     for (const t of map.tiles) {
-      const [r, gg, b] = tileRGB(t);
+      const cv = cover[t.y * map.w + t.x];
+      const a = earthRGB(t, S), b = snowRGB(t);
       const i = (t.y * map.w + t.x) * 4;
-      img.data[i] = r; img.data[i + 1] = gg; img.data[i + 2] = b; img.data[i + 3] = 255;
+      for (let k = 0; k < 3; k++) img.data[i + k] = a[k] + (b[k] - a[k]) * cv;
+      img.data[i + 3] = 255;
     }
     fc.putImageData(img, 0, 0);
     g.save();
@@ -146,39 +193,64 @@ export class Renderer {
     g.fillStyle = g.createPattern(this.groundNoise(), 'repeat');
     g.fillRect(-this.OX, -this.OY, this.ground.width, this.ground.height);
 
-    // 3. per-tile detail: grass tufts, mud clods, puddles
+    // 3. per-tile detail
     for (const t of map.tiles) {
       if (t.trench) continue;
       const h = hash(t.x, t.y);
-      if (!t.mud) {
-        g.lineWidth = 1;
-        for (let i = 0; i < 4; i++) {
-          const q = iso(t.x + frac(h * (i + 1) * 7.1), t.y + frac(h * (i + 1) * 3.7));
-          g.strokeStyle = `hsla(${70 + frac(h * i * 5.3) * 25},${30 + t.shade * 15}%,${18 + frac(h * (i + 2)) * 22}%,0.75)`;
-          g.beginPath();
-          g.moveTo(q.x - 2, q.y - 3); g.lineTo(q.x, q.y); g.lineTo(q.x + 2, q.y - 3.5);
-          g.moveTo(q.x, q.y); g.lineTo(q.x + 0.5, q.y - 4.5);
-          g.stroke();
-        }
-      } else {
-        g.fillStyle = 'rgba(25,17,10,0.35)';
-        for (let i = 0; i < 3; i++) {
-          const q = iso(t.x + frac(h * (i + 1) * 5.9), t.y + frac(h * (i + 1) * 9.3));
-          g.beginPath(); g.ellipse(q.x, q.y, 2 + frac(h * i) * 2, 1, 0, 0, TAU); g.fill();
-        }
-        if (h > 0.955 && !t.crater) {
-          const q = iso(t.x + 0.5, t.y + 0.5);
-          g.fillStyle = 'rgba(30,22,14,0.5)';
-          g.beginPath(); g.ellipse(q.x, q.y, 11, 4.5, 0, 0, TAU); g.fill();
-          g.fillStyle = 'rgba(78,88,92,0.5)';
-          g.beginPath(); g.ellipse(q.x, q.y + 0.5, 9, 3.4, 0, 0, TAU); g.fill();
-          g.strokeStyle = 'rgba(190,200,205,0.22)'; g.lineWidth = 0.8;
-          g.beginPath(); g.moveTo(q.x - 5, q.y - 0.5); g.lineTo(q.x + 2, q.y - 1.2); g.stroke();
+      const cv = cover[t.y * map.w + t.x];
+      const P = (i, a, b) => iso(t.x + frac(h * (i + 1) * a), t.y + frac(h * (i + 1) * b));
+      // broken snow: white patches over earth / earth showing through snow
+      if (cv > 0.12 && cv < 0.9) {
+        for (let i = 0; i < 2; i++) {
+          const q = P(i, 4.3, 8.1);
+          const w = 10 + frac(h * (i + 5) * 3.3) * 12;
+          if (frac(h * i * 9.1) >= cv && cv > 0.6) continue;
+          g.fillStyle = frac(h * i * 9.1) < cv ? `rgba(214,221,230,${0.2 + cv * 0.25})` : 'rgba(24,19,15,0.3)';
+          g.beginPath(); g.ellipse(q.x, q.y, w, w * 0.32, frac(h * i) * 0.6 - 0.3, 0, TAU); g.fill();
         }
       }
+      if (cv > 0.55) {
+        // wind-drift shading on snow
+        const q = P(0, 2.7, 5.3);
+        g.fillStyle = 'rgba(110,126,152,0.08)';
+        g.beginPath(); g.ellipse(q.x + 3, q.y + 2, 14, 4, -0.2, 0, TAU); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.08)';
+        g.beginPath(); g.ellipse(q.x - 2, q.y - 1, 11, 3, -0.2, 0, TAU); g.fill();
+      }
+      if (cv < 0.6 && !t.mud) {
+        // dead, frost-tipped grass tufts
+        g.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+          const q = P(i, 7.1, 3.7);
+          g.strokeStyle = `hsla(${42 + frac(h * i * 5.3) * 18},${10 + t.shade * 8}%,${24 + frac(h * (i + 2)) * 20}%,0.8)`;
+          g.beginPath();
+          g.moveTo(q.x - 2.5, q.y - 3.5); g.lineTo(q.x, q.y); g.lineTo(q.x + 2.5, q.y - 4);
+          g.moveTo(q.x, q.y); g.lineTo(q.x + 0.5, q.y - 5.5);
+          g.stroke();
+          if (S > 0.2) { g.fillStyle = 'rgba(230,236,242,0.6)'; g.fillRect(q.x, q.y - 6, 1, 1); g.fillRect(q.x - 2.5, q.y - 4, 1, 1); }
+        }
+      }
+      if (t.mud && cv < 0.7) {
+        g.fillStyle = 'rgba(14,10,8,0.4)';
+        for (let i = 0; i < 3; i++) {
+          const q = P(i, 5.9, 9.3);
+          g.beginPath(); g.ellipse(q.x, q.y, 2 + frac(h * i) * 2.5, 1.1, 0, 0, TAU); g.fill();
+        }
+        // wet sheen
+        g.strokeStyle = `rgba(185,198,214,${0.12 + (1 - S) * 0.12})`; g.lineWidth = 0.9;
+        const q = P(3, 3.1, 6.7);
+        g.beginPath(); g.moveTo(q.x - 6, q.y); g.lineTo(q.x + 4, q.y - 1.5); g.stroke();
+        // cart/limber ruts
+        if (h > 0.9) {
+          const a = iso(t.x, t.y + 0.2), b = iso(t.x + 1, t.y + 0.8);
+          g.strokeStyle = 'rgba(12,9,7,0.22)'; g.lineWidth = 2.2;
+          for (const o of [-2.5, 2.5]) { g.beginPath(); g.moveTo(a.x, a.y + o); g.quadraticCurveTo((a.x + b.x) / 2 + 6, (a.y + b.y) / 2 + o, b.x, b.y + o); g.stroke(); }
+        }
+      }
+      if (t.mud && h > 0.965 && !t.crater) drawPuddle(g, iso(t.x + 0.5, t.y + 0.5), 9 + h * 5, 3.6, S, h);
     }
 
-    // 4. shell craters: scorch, broken rim, shaded bowl, sometimes standing water
+    // 4. shell craters: black earth blasted through the snow, spoil lip, ice or water
     for (const t of map.tiles) {
       if (!t.crater) continue;
       const h = hash(t.x * 3.1, t.y * 1.7);
@@ -186,34 +258,30 @@ export class Renderer {
       const r = (5 + t.crater * 4) * (0.8 + h * 0.45);
       g.save();
       g.translate(c.x, c.y); g.scale(1, 0.5);
-      let gr = g.createRadialGradient(0, 0, r * 0.6, 0, 0, r * 2.1);
-      gr.addColorStop(0, 'rgba(20,13,7,0.35)'); gr.addColorStop(1, 'rgba(20,13,7,0)');
-      g.fillStyle = gr; g.beginPath(); g.arc(0, 0, r * 2.1, 0, TAU); g.fill();
-      // thrown-up spoil: irregular clumps around the lip
-      const lumps = 6;
+      let gr;
+      g.fillStyle = 'rgba(20,15,11,0.55)';
+      for (let i = 0; i < 9; i++) {
+        const ang = frac(h * (i + 1) * 5.7) * TAU, dd = r * (0.9 + frac(h * (i + 2) * 3.1) * 0.9);
+        g.beginPath(); g.arc(Math.cos(ang) * dd, Math.sin(ang) * dd, r * (0.12 + frac(h * i * 7.3) * 0.25), 0, TAU); g.fill();
+      }
+      const lumps = 7;
       for (let i = 0; i < lumps; i++) {
         const ang = (i / lumps) * TAU + h * 6;
         const lr = r * (0.95 + frac(h * (i + 3) * 7.7) * 0.25);
-        g.fillStyle = i % 2 ? 'rgba(98,80,56,0.45)' : 'rgba(78,63,44,0.45)';
-        g.beginPath(); g.arc(Math.cos(ang) * lr * 0.55, Math.sin(ang) * lr * 0.55, r * (0.5 + frac(h * i * 3.3) * 0.25), 0, TAU); g.fill();
+        const snowy = S > 0.7 && i % 3 === 0;
+        g.fillStyle = snowy ? 'rgba(200,207,216,0.75)' : (i % 3 ? 'rgba(46,36,28,0.7)' : 'rgba(66,54,42,0.6)');
+        g.beginPath(); g.arc(Math.cos(ang) * lr * 0.6, Math.sin(ang) * lr * 0.6, r * (0.45 + frac(h * i * 3.3) * 0.25), 0, TAU); g.fill();
       }
-      // bowl, offset a little so it is never a perfect ring
       gr = g.createRadialGradient(r * 0.1, r * 0.3, 0, 0, 0, r * 0.85);
-      gr.addColorStop(0, '#24180e'); gr.addColorStop(0.7, '#2a1d12'); gr.addColorStop(1, 'rgba(58,42,27,0.6)');
+      gr.addColorStop(0, '#120d09'); gr.addColorStop(0.7, '#1d1610'); gr.addColorStop(1, 'rgba(40,31,24,0.6)');
       g.fillStyle = gr;
       g.beginPath(); g.ellipse(0, 0, r * 0.85, r * (0.7 + h * 0.25), h * 2, 0, TAU); g.fill();
-      if (t.crater >= 3 || (t.crater === 2 && h > 0.55)) {
-        gr = g.createLinearGradient(0, -r * 0.3, 0, r * 0.5);
-        gr.addColorStop(0, 'rgba(105,118,120,0.7)'); gr.addColorStop(1, 'rgba(45,55,58,0.7)');
-        g.fillStyle = gr; g.beginPath(); g.ellipse(r * 0.05, r * 0.2, r * 0.45, r * 0.35, h, 0, TAU); g.fill();
-        g.strokeStyle = 'rgba(210,215,220,0.25)'; g.lineWidth = 1.2;
-        g.beginPath(); g.moveTo(-r * 0.25, 0); g.lineTo(r * 0.1, -r * 0.05); g.stroke();
-      }
       g.restore();
+      if ((t.crater >= 3 && h > 0.6) || (t.crater === 2 && h > 0.88)) drawPuddle(g, { x: c.x + r * 0.05, y: c.y + r * 0.1 }, r * 0.5, r * 0.2, S, h);
     }
     g.restore(); // clip
 
-    // 5. trenches: drop shadow, sandbag band, parapet, walls, floor, duckboards
+    // 5. trenches between spoil heaps: plank revetments, sandbags, duckboards
     const trenches = map.tiles.filter((t) => t.trench > 0);
     const T = (x, y) => (x >= 0 && y >= 0 && x < map.w && y < map.h ? map.tiles[y * map.w + x] : null);
     const strokeTrench = (t, width, style, ox = 0, oy = 0) => {
@@ -228,55 +296,88 @@ export class Renderer {
         g.beginPath(); g.moveTo(c.x, c.y); g.lineTo(m.x + ox, m.y + oy); g.stroke();
       }
     };
+    const berm = mixHex('#3a3028', '#c3cad3', S * 0.85);
+    const bermTop = mixHex('#4d4136', '#e2e7ec', S * 0.9);
     g.lineCap = 'round';
-    for (const t of trenches) strokeTrench(t, 26, 'rgba(0,0,0,0.22)', 2, 3);
-    for (const t of trenches) if (t.trench >= 2) strokeTrench(t, 23, t.trench >= 3 ? '#8f8d85' : '#b9a576');
-    for (const t of trenches) strokeTrench(t, 17, PARAPET[t.owner < 0 ? 2 : t.owner]);
-    for (const t of trenches) strokeTrench(t, 12, '#4a3620');
-    for (const t of trenches) strokeTrench(t, 8, '#1f160d', 0, 1.8);
-    g.setLineDash([2.5, 2]);
-    for (const t of trenches) strokeTrench(t, 2.6, t.trench >= 3 ? '#8a6a42' : '#5b4429', 0, 1.8);
-    g.setLineDash([]);
-    // sandbag rows on reinforced works
+    for (const t of trenches) strokeTrench(t, 46, 'rgba(0,0,0,0.25)', 4, 6);
+    for (const t of trenches) strokeTrench(t, 36, berm, 0, -1);
     for (const t of trenches) {
-      if (t.trench < 2) continue;
       const c = iso(t.x + 0.5, t.y + 0.5);
-      for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * TAU + t.shade;
-        const bx = c.x + Math.cos(a) * 10, by = c.y + Math.sin(a) * 5.2;
-        g.fillStyle = t.trench >= 3 ? '#aaa79b' : (i % 2 ? '#d2bf8e' : '#c2ad7c');
-        g.beginPath(); g.ellipse(bx, by, 2.6, 1.5, 0, 0, TAU); g.fill();
-        g.strokeStyle = 'rgba(60,45,25,0.5)'; g.lineWidth = 0.5; g.stroke();
+      const h = hash(t.x * 4.7, t.y * 2.1);
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * TAU + h * 3;
+        const d = 15 + frac(h * (i + 1) * 3.9) * 6;
+        const x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d * 0.5 - 2;
+        const rr = 7 + frac(h * (i + 4) * 2.3) * 6;
+        g.fillStyle = berm; g.beginPath(); g.ellipse(x, y, rr, rr * 0.55, 0, 0, TAU); g.fill();
+        g.fillStyle = bermTop; g.beginPath(); g.ellipse(x - 1, y - rr * 0.2, rr * 0.7, rr * 0.33, 0, 0, TAU); g.fill();
+        if (S > 0.3 && frac(h * i * 6.1) > 0.55) {
+          g.fillStyle = 'rgba(34,27,21,0.75)';
+          g.beginPath(); g.ellipse(x + 2, y + 1, rr * 0.4, rr * 0.18, 0, 0, TAU); g.fill();
+        }
+      }
+    }
+    for (const t of trenches) if (t.trench >= 2) strokeTrench(t, 23, t.trench >= 3 ? '#86857f' : (S > 0.3 ? '#a9a59b' : '#655d50'));
+    for (const t of trenches) strokeTrench(t, 16, '#3c3024');
+    g.setLineDash([1.8, 5.5]);
+    for (const t of trenches) strokeTrench(t, 16, '#1a140f');
+    g.setLineDash([]);
+    for (const t of trenches) strokeTrench(t, 8.5, '#140f0b', 0, 2.2);
+    g.setLineDash([5, 7]);
+    for (const t of trenches) if (t.trench < 2) strokeTrench(t, 2, S > 0.3 ? 'rgba(190,205,220,0.55)' : 'rgba(140,156,176,0.5)', 0, 2.2);
+    g.setLineDash([2.5, 2]);
+    for (const t of trenches) if (t.trench >= 2) strokeTrench(t, 3, '#5a4630', 0, 2.2);
+    g.setLineDash([]);
+    // sandbags along both lips (more on reinforced works), snow-capped in winter
+    for (const t of trenches) {
+      const c = iso(t.x + 0.5, t.y + 0.5);
+      const n = t.trench >= 2 ? 9 : 4;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * TAU + t.shade * 2;
+        const bx = c.x + Math.cos(a) * 10.5, by = c.y + Math.sin(a) * 5.5;
+        g.fillStyle = t.trench >= 3 ? '#8d8b84' : (i % 2 ? '#6b6455' : '#5d5649');
+        g.beginPath(); g.ellipse(bx, by, 2.8, 1.6, 0, 0, TAU); g.fill();
+        if (S > 0.2) { g.fillStyle = `rgba(228,233,238,${S * 0.9})`; g.beginPath(); g.ellipse(bx, by - 0.7, 2.2, 0.8, 0, 0, TAU); g.fill(); }
+      }
+      // ownership: a faint pennant-coloured stripe on the parapet
+      if (t.owner >= 0) {
+        g.fillStyle = t.owner === PLAYER ? 'rgba(216,190,110,0.75)' : 'rgba(150,175,200,0.75)';
+        g.fillRect(c.x - 1, c.y - 9, 2, 2);
       }
     }
 
-    // 6. barbed wire with shadow
+    // 6. barbed wire on knife-rest frames, rusty coils
     for (const t of map.tiles) {
       if (t.wire <= 0) continue;
       const a = iso(t.x + 0.5, t.y + 0.05), b = iso(t.x + 0.5, t.y + 0.95);
-      const loops = t.wire > 50 ? 7 : 3;
-      for (const pass of [0, 1]) {
-        const ox = pass ? 0 : 2.5, oy = pass ? 0 : 1.5;
-        if (!pass) { g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 1.2; }
-        // stakes
-        if (pass) { g.strokeStyle = '#3a3128'; g.lineWidth = 1.6; }
-        for (let i = 0; i < 3; i++) {
-          if (t.wire < 50 && i === 1) continue;
-          const f = (i + 0.5) / 3;
-          const x = a.x + (b.x - a.x) * f, y = a.y + (b.y - a.y) * f;
-          g.beginPath();
-          if (pass) { g.moveTo(x, y); g.lineTo(x + (t.shade - 0.5) * 2, y - 9); }
-          else { g.moveTo(x, y); g.lineTo(x + 7, y + 2); }
-          g.stroke();
-        }
-        g.strokeStyle = pass ? (t.wire > 50 ? 'rgba(175,175,170,0.9)' : 'rgba(150,150,145,0.6)') : 'rgba(0,0,0,0.22)';
-        g.lineWidth = 0.9;
-        for (let i = 0; i < loops; i++) {
-          const f = (i + 0.5) / loops;
-          const x = a.x + (b.x - a.x) * f + ox * 2, y = a.y + (b.y - a.y) * f + (pass ? -4 : oy);
-          g.beginPath(); g.ellipse(x, y, 3.2, pass ? 4 : 1.8, 0.4, 0, TAU); g.stroke();
-        }
-        if (pass) { g.beginPath(); g.moveTo(a.x, a.y - 7); g.lineTo(b.x, b.y - 7); g.stroke(); }
+      const h = hash(t.x * 1.3, t.y * 2.9);
+      const intact = t.wire > 50;
+      const frames = intact ? [0.2, 0.8] : [0.35];
+      const pts = frames.map((f) => ({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f }));
+      // shadow
+      g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 1.4;
+      g.beginPath(); g.moveTo(pts[0].x + 4, pts[0].y + 2); g.lineTo(pts[pts.length - 1].x + 4, pts[pts.length - 1].y + 2); g.stroke();
+      // X frames
+      g.strokeStyle = '#2b2119'; g.lineWidth = 1.7; g.lineCap = 'round';
+      for (const p of pts) {
+        const tilt = intact ? 0 : (h - 0.5) * 6;
+        g.beginPath();
+        g.moveTo(p.x - 5, p.y + 1); g.lineTo(p.x + 3 + tilt, p.y - 11);
+        g.moveTo(p.x + 5, p.y + 1); g.lineTo(p.x - 3 + tilt, p.y - 11);
+        g.stroke();
+      }
+      if (intact) {
+        g.beginPath(); g.moveTo(pts[0].x, pts[0].y - 6); g.lineTo(pts[1].x, pts[1].y - 6); g.stroke();
+        if (S > 0.2) { g.strokeStyle = `rgba(230,235,240,${0.7 * S})`; g.lineWidth = 0.8; g.beginPath(); g.moveTo(pts[0].x, pts[0].y - 7); g.lineTo(pts[1].x, pts[1].y - 7); g.stroke(); }
+      }
+      // coils
+      g.strokeStyle = intact ? 'rgba(112,74,50,0.9)' : 'rgba(100,70,50,0.6)';
+      g.lineWidth = 0.8;
+      const loops = intact ? 8 : 3;
+      for (let i = 0; i < loops; i++) {
+        const f = (i + 0.5) / loops;
+        const x = a.x + (b.x - a.x) * f, y = a.y + (b.y - a.y) * f;
+        g.beginPath(); g.ellipse(x + (intact ? 0 : (h - 0.5) * 8), y - 5, 3.4, 4.6, 0.45, 0, TAU); g.stroke();
       }
     }
   }
@@ -290,7 +391,7 @@ export class Renderer {
     const ctx = this.ctx;
     const now = performance.now();
     if (!this.groundDrawn || (state.map.dirty && now - this.lastGround > 200)) {
-      this.drawGround(state.map);
+      this.drawGround(state.map, state.season);
       state.map.dirty = false;
       this.groundDrawn = true;
       this.lastGround = now;
@@ -299,12 +400,14 @@ export class Renderer {
     const sh = this.atmo.shake;
     const shx = (Math.random() - 0.5) * sh, shy = (Math.random() - 0.5) * sh;
     ctx.setTransform(d, 0, 0, d, 0, 0);
-    ctx.fillStyle = '#16180f';
+    ctx.fillStyle = '#101215';
     ctx.fillRect(0, 0, this.vw, this.vh);
     ctx.setTransform(d * z, 0, 0, d * z, d * (this.vw / 2 - this.cam.x * z + shx), d * (this.vh / 2 - this.cam.y * z + shy));
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.ground, -this.OX, -this.OY);
 
+    this.updateTracks(state);
+    this.drawTracks(ctx, state);
     this.drawDecals(ctx, state);
     this.drawBuildSites(ctx, state);
     this.drawHover(ctx, state, ui);
@@ -427,54 +530,164 @@ export class Renderer {
   }
 
   drawDecor(ctx, t) {
-    const c = iso(t.x + 0.3 + t.shade * 0.4, t.y + 0.5);
-    if (t.decor === 'tree') {
-      ctx.fillStyle = 'rgba(0,0,0,0.25)';
-      ctx.beginPath(); ctx.ellipse(c.x + 4, c.y, 12, 5, 0, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#3b2c1c'; ctx.fillRect(c.x - 1.5, c.y - 18, 3, 18);
-      ctx.fillStyle = `hsl(${85 + t.shade * 20},30%,${20 + t.shade * 6}%)`;
-      ctx.beginPath(); ctx.arc(c.x, c.y - 24, 10, 0, TAU); ctx.fill();
-      ctx.beginPath(); ctx.arc(c.x - 6, c.y - 19, 7, 0, TAU); ctx.fill();
-      ctx.beginPath(); ctx.arc(c.x + 6, c.y - 20, 7, 0, TAU); ctx.fill();
-    } else if (t.decor === 'stump') {
-      ctx.strokeStyle = '#2b2118'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x + 1, c.y - 12 - t.shade * 8); ctx.stroke();
-      ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.moveTo(c.x + 1, c.y - 9); ctx.lineTo(c.x + 6, c.y - 14); ctx.stroke();
+    const S = this.S ?? 1;
+    const h = hash(t.x * 2.3, t.y * 5.1);
+    const c = iso(t.x + 0.3 + t.shade * 0.4, t.y + 0.3 + h * 0.4);
+    if (t.decor === 'stump' || t.decor === 'tree') {
+      const tall = t.decor === 'tree' ? 34 + h * 14 : 14 + t.shade * 26;
+      const w = t.decor === 'tree' ? 3.4 : 3 + h * 1.5;
+      // long shadow on the ground
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.beginPath(); ctx.moveTo(c.x - w, c.y); ctx.lineTo(c.x + w, c.y); ctx.lineTo(c.x + tall * 0.9 + 2, c.y + tall * 0.3); ctx.lineTo(c.x + tall * 0.9 - 2, c.y + tall * 0.3 + 1); ctx.closePath(); ctx.fill();
+      // splintered trunk
+      ctx.fillStyle = '#251e19';
+      ctx.beginPath();
+      ctx.moveTo(c.x - w, c.y + 1); ctx.lineTo(c.x + w, c.y + 1);
+      ctx.lineTo(c.x + w * 0.7, c.y - tall);
+      ctx.lineTo(c.x + w * 0.3, c.y - tall - 4 - h * 4);
+      ctx.lineTo(c.x, c.y - tall + 1);
+      ctx.lineTo(c.x - w * 0.4, c.y - tall - 6 - t.shade * 5);
+      ctx.lineTo(c.x - w * 0.7, c.y - tall);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#41372e';
+      ctx.fillRect(c.x + w * 0.15, c.y - tall + 1, w * 0.5, tall);
+      // pale splintered wood at the break
+      ctx.fillStyle = '#b39a74';
+      ctx.beginPath(); ctx.moveTo(c.x - w * 0.4, c.y - tall - 6 - t.shade * 5); ctx.lineTo(c.x - w * 0.1, c.y - tall + 2); ctx.lineTo(c.x - w * 0.6, c.y - tall + 1); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(c.x + w * 0.3, c.y - tall - 4 - h * 4); ctx.lineTo(c.x + w * 0.6, c.y - tall + 1); ctx.lineTo(c.x + w * 0.1, c.y - tall + 1); ctx.closePath(); ctx.fill();
+      if (t.decor === 'tree') {
+        ctx.strokeStyle = '#2a221c'; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+        for (let i = 0; i < 4; i++) {
+          const y0 = c.y - tall * (0.45 + i * 0.13), dir = i % 2 ? 1 : -1;
+          const len = 8 + frac(h * (i + 2) * 3.7) * 8;
+          ctx.beginPath(); ctx.moveTo(c.x, y0); ctx.quadraticCurveTo(c.x + dir * len * 0.6, y0 - 3, c.x + dir * len, y0 - 7 - i); ctx.stroke();
+        }
+      }
+      if (S > 0.2) {
+        ctx.fillStyle = `rgba(228,233,238,${0.85 * S})`;
+        ctx.beginPath(); ctx.ellipse(c.x, c.y + 1, w + 3, 2, 0, 0, TAU); ctx.fill();
+      }
+    } else if (t.decor === 'log') {
+      const ang = (h - 0.5) * 1.6 + (t.shade > 0.5 ? Math.PI : 0);
+      const len = 24 + t.shade * 20;
+      const ex = c.x + Math.cos(ang) * len, ey = c.y + Math.sin(ang) * len * 0.5;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(c.x + 2, c.y + 2); ctx.lineTo(ex + 2, ey + 2); ctx.stroke();
+      ctx.strokeStyle = '#2a221c'; ctx.lineWidth = 4.5;
+      ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.strokeStyle = S > 0.2 ? `rgba(226,231,236,${0.85 * S})` : '#4a3f35'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(c.x, c.y - 1.8); ctx.lineTo(ex, ey - 1.8); ctx.stroke();
+      // splintered pale end and a stray branch
+      ctx.fillStyle = '#b8a07a';
+      ctx.beginPath(); ctx.moveTo(ex - 2, ey - 2.5); ctx.lineTo(ex + Math.cos(ang) * 6, ey + Math.sin(ang) * 3 - 1); ctx.lineTo(ex + 1, ey + 2.5); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#2a221c'; ctx.lineWidth = 1;
+      const mx = (c.x + ex) / 2, my = (c.y + ey) / 2;
+      ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(mx + 5, my - 8); ctx.lineTo(mx + 9, my - 10); ctx.stroke();
     } else if (t.decor === 'ruin') {
-      ctx.fillStyle = '#6f6a60';
-      ctx.fillRect(c.x - 10, c.y - 12, 6, 12);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(c.x - 8, c.y - 1, 22, 4);
+      ctx.fillStyle = '#5d5a56';
+      ctx.fillRect(c.x - 10, c.y - 13, 6, 13);
       ctx.fillRect(c.x - 4, c.y - 7, 10, 7);
-      ctx.fillStyle = '#56524a';
+      ctx.fillStyle = '#47443f';
       ctx.fillRect(c.x + 6, c.y - 4, 5, 4);
-      ctx.fillStyle = '#7d776b';
-      ctx.fillRect(c.x - 10, c.y - 12, 6, 2);
+      ctx.fillStyle = S > 0.2 ? '#dde2e7' : '#6d6a64';
+      ctx.fillRect(c.x - 10, c.y - 14, 6, 2); ctx.fillRect(c.x - 4, c.y - 8, 10, 1.5);
     }
   }
 
   drawHQ(ctx, state, q, team) {
+    const S = this.S ?? 1;
     const c = iso(q.x + 0.5, q.y + 0.5);
     const owner = tileAt(state.map, q.x, q.y).owner;
-    // concrete bunker
-    ctx.fillStyle = '#5f5d56';
-    ctx.beginPath();
-    ctx.moveTo(c.x - 22, c.y - 6); ctx.lineTo(c.x, c.y - 17); ctx.lineTo(c.x + 22, c.y - 6);
-    ctx.lineTo(c.x + 22, c.y + 2); ctx.lineTo(c.x, c.y + 13); ctx.lineTo(c.x - 22, c.y + 2); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#7a776e';
-    ctx.beginPath();
-    ctx.moveTo(c.x - 22, c.y - 6); ctx.lineTo(c.x, c.y - 17); ctx.lineTo(c.x + 22, c.y - 6); ctx.lineTo(c.x, c.y + 5); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#1d1c19';
-    ctx.fillRect(c.x - 9, c.y + 1, 7, 3);
-    ctx.fillRect(c.x + 3, c.y + 1, 7, 3);
-    // flag
-    ctx.strokeStyle = '#2a2620'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(c.x, c.y - 12); ctx.lineTo(c.x, c.y - 42); ctx.stroke();
+    const f = team === PLAYER ? 1 : -1;
+    // earth mound
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath(); ctx.ellipse(c.x + 5, c.y + 6, 44, 19, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = mixHex('#3a3028', '#bfc6cf', S * 0.85);
+    ctx.beginPath(); ctx.ellipse(c.x, c.y - 4, 40, 18, 0, 0, TAU); ctx.fill();
+    // log walls (two visible faces)
+    const L = { x: c.x - 24, y: c.y - 6 }, M = { x: c.x, y: c.y + 6 }, R = { x: c.x + 24, y: c.y - 6 };
+    const H = 15;
+    const face = (a, b, col) => {
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y - H); ctx.lineTo(b.x, b.y - H); ctx.lineTo(b.x, b.y); ctx.lineTo(a.x, a.y); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(15,10,6,0.55)'; ctx.lineWidth = 0.8;
+      for (let i = 1; i < 5; i++) { const k = (i / 5) * H; ctx.beginPath(); ctx.moveTo(a.x, a.y - k); ctx.lineTo(b.x, b.y - k); ctx.stroke(); }
+      ctx.fillStyle = '#1e1813';
+      for (const p of [a, b]) ctx.fillRect(p.x - 1.2, p.y - H - 2, 2.4, H + 2);
+    };
+    face(L, M, '#3d3127');
+    face(M, R, '#2f261f');
+    // doorway with a canvas curtain
+    ctx.fillStyle = '#0d0a08';
+    ctx.beginPath(); ctx.moveTo(c.x - 16, c.y - 2); ctx.lineTo(c.x - 8, c.y + 2); ctx.lineTo(c.x - 8, c.y - 9); ctx.lineTo(c.x - 16, c.y - 13); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#4a4a36';
+    ctx.beginPath(); ctx.moveTo(c.x - 16, c.y - 13); ctx.lineTo(c.x - 12, c.y - 11); ctx.lineTo(c.x - 13, c.y - 1); ctx.lineTo(c.x - 16, c.y - 2); ctx.closePath(); ctx.fill();
+    // roof: camouflage net (snowed over in winter) and sandbag lip
+    ctx.fillStyle = S > 0.3 ? '#c8ced6' : '#34342b';
+    ctx.beginPath(); ctx.moveTo(L.x - 2, L.y - H); ctx.lineTo(c.x, c.y - H - 13); ctx.lineTo(R.x + 2, R.y - H); ctx.lineTo(M.x, M.y - H + 1); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = S > 0.3 ? 'rgba(60,62,55,0.55)' : 'rgba(80,80,62,0.8)';
+    for (let i = 0; i < 26; i++) {
+      const u = frac(Math.sin(i * 12.9 + q.x) * 43758), v = frac(Math.sin(i * 78.2 + q.y) * 12345);
+      const px = c.x + (u - v) * 22, py = c.y - H - 6 + (u + v - 1) * 6;
+      ctx.fillRect(px, py, 2, 1.2);
+    }
+    ctx.fillStyle = S > 0.3 ? '#a8a49a' : '#5d5649';
+    for (let i = 0; i < 7; i++) { ctx.beginPath(); ctx.ellipse(c.x + 4 + i * 2.6, c.y - H - 2 - i * 1.3, 2.4, 1.4, 0, 0, TAU); ctx.fill(); }
+    // ammunition crates
+    ctx.fillStyle = '#4b4d38'; ctx.fillRect(c.x + 8, c.y - H - 12, 7, 5); ctx.fillRect(c.x + 12, c.y - H - 16, 6, 4);
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 0.6; ctx.strokeRect(c.x + 8, c.y - H - 12, 7, 5);
+    // telegraph pole with sagging field-telephone wires
+    const px = c.x - 3, py = c.y - H - 8, top = py - 52;
+    ctx.strokeStyle = '#231b15'; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, top); ctx.stroke();
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(px - 9, top + 5); ctx.lineTo(px + 9, top + 5); ctx.moveTo(px - 7, top + 11); ctx.lineTo(px + 7, top + 11); ctx.stroke();
+    ctx.strokeStyle = 'rgba(25,22,20,0.7)'; ctx.lineWidth = 0.6;
+    const ends = [[-70 * f, 40], [-40 * f, 55], [60, 30], [-110 * f, -10], [30, 45]];
+    ends.forEach(([dx, dy], i) => {
+      const sx = px + (i % 2 ? 7 : -9), sy = top + (i < 2 ? 5 : 11);
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.quadraticCurveTo(px + dx * 0.5, sy + 25, px + dx, py + dy); ctx.stroke();
+    });
+    // pennant shows who holds the HQ
     ctx.fillStyle = owner < 0 ? '#999' : TEAM_COLOR[owner];
     const wave = Math.sin(state.time * 3 + team) * 2;
-    ctx.beginPath(); ctx.moveTo(c.x, c.y - 42); ctx.lineTo(c.x + 16, c.y - 38 + wave); ctx.lineTo(c.x, c.y - 33); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px + 15, top + 3 + wave); ctx.lineTo(px, top + 7); ctx.closePath(); ctx.fill();
     ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText('HQ', c.x + 0.5, c.y - 3.5);
-    ctx.fillStyle = '#eee'; ctx.fillText('HQ', c.x, c.y - 4);
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText('HQ', c.x + 12.5, c.y + 0.5);
+    ctx.fillStyle = '#e8e8e0'; ctx.fillText('HQ', c.x + 12, c.y);
+  }
+
+  /** Footprints / ruts left by moving troops. */
+  updateTracks(state) {
+    const tr = this.tracks || (this.tracks = []);
+    const last = this.trackLast || (this.trackLast = new Map());
+    for (const u of state.units) {
+      if (!u.visible || !u.moving) continue;
+      const p = last.get(u.id);
+      if (!p) { last.set(u.id, { x: u.x, y: u.y }); continue; }
+      const d = Math.hypot(u.x - p.x, u.y - p.y);
+      if (d < 0.45) continue;
+      tr.push({ x: u.x, y: u.y, ang: Math.atan2(u.y - p.y, u.x - p.x), t: state.time, w: u.type === 'artillery' ? 2 : 1 });
+      p.x = u.x; p.y = u.y;
+    }
+    if (tr.length > 1600) tr.splice(0, tr.length - 1600);
+  }
+  drawTracks(ctx, state) {
+    if (!this.tracks) return;
+    const snow = (this.S ?? 1) > 0.2;
+    for (const k of this.tracks) {
+      const age = state.time - k.t;
+      if (age > 90 || age < 0) continue;
+      const a = (1 - age / 90) * (snow ? 0.35 : 0.25);
+      const p = iso(k.x, k.y);
+      ctx.fillStyle = snow ? `rgba(70,78,92,${a})` : `rgba(8,6,4,${a})`;
+      const ox = Math.sin(k.ang) * 4, oy = -Math.cos(k.ang) * 2;
+      for (let i = -k.w; i <= k.w; i += 2) {
+        ctx.beginPath(); ctx.ellipse(p.x + ox * i * 0.6, p.y + oy * i * 0.6, 4.5, 2.2, 0, 0, TAU); ctx.fill();
+      }
+    }
   }
 
   drawUnit(ctx, u, selected, time) {

@@ -146,8 +146,9 @@ export function createMap(seed = 1916) {
     if (t.trench || t.wire || t.crater) continue;
     const inNml = t.x > nmlA && t.x < nmlB;
     const r = rnd();
-    if (inNml) { if (r < 0.035) t.decor = 'stump'; }
-    else if (r < 0.05) t.decor = 'tree';
+    if (inNml) { if (r < 0.04) t.decor = 'stump'; else if (r < 0.065) t.decor = 'log'; }
+    else if (r < 0.045) t.decor = 'tree';
+    else if (r < 0.06) t.decor = 'log';
     else if (r < 0.058) t.decor = 'ruin';
   }
   for (const team of [PLAYER, ENEMY]) {

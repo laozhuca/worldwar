@@ -1,7 +1,7 @@
 // Atmosphere: day/night cycle, dynamic lighting, star-shell flares, rain, fog, film grain, screen shake.
 // Purely visual — nothing here affects the simulation.
 import { iso } from './render.js';
-import { UNIT_TYPES } from './config.js';
+import { UNIT_TYPES, SEASONS } from './config.js';
 
 const TAU = Math.PI * 2;
 const DAY_LENGTH = 420; // seconds of game time per 24h
@@ -18,6 +18,7 @@ export class Atmosphere {
     this.flares = [];
     this.flareTimer = 3;
     this.drops = [];
+    this.flakes = [];
     this.shake = 0;
     this.wind = { x: 0.8, y: 0.25 };
     this.fog = [];
@@ -87,8 +88,20 @@ export class Atmosphere {
     for (const f of this.flares) { f.age += simDt; f.x += this.wind.x * simDt * 0.12 + f.drift * simDt; }
     this.flares = this.flares.filter((f) => f.age < f.life);
 
-    // rain (screen space)
-    const want = Math.floor(this.rain(state) * 420);
+    // precipitation (screen space): rain, sleet or snow by season
+    const season = SEASONS[state.season] || SEASONS.winter;
+    const p = this.rain(state);
+    const rainAmt = season.precip === 'rain' ? p : season.precip === 'sleet' ? p * 0.6 : 0;
+    const snowAmt = season.precip === 'snow' ? 0.3 + p * 0.7 : season.precip === 'sleet' ? 0.1 + p * 0.4 : 0;
+    const wantFlakes = Math.floor(snowAmt * 360);
+    while (this.flakes.length < wantFlakes) this.flakes.push(this.newFlake(r, true));
+    if (this.flakes.length > wantFlakes) this.flakes.length = wantFlakes;
+    for (const k of this.flakes) {
+      k.y += k.v * simDt * 60;
+      k.x += (this.wind.x * 0.6 + Math.sin(k.ph + k.y * 0.02) * 0.5) * simDt * 60;
+      if (k.y > r.vh + 10 || k.x > r.vw + 10) Object.assign(k, this.newFlake(r, false));
+    }
+    const want = Math.floor(rainAmt * 420);
     while (this.drops.length < want) this.drops.push(this.newDrop(r, true));
     if (this.drops.length > want) this.drops.length = want;
     for (const d of this.drops) {
@@ -96,6 +109,11 @@ export class Atmosphere {
       d.x += d.v * simDt * 60 * 0.25;
       if (d.y > r.vh + 20 || d.x > r.vw + 20) Object.assign(d, this.newDrop(r, false));
     }
+  }
+
+  newFlake(r, anywhere) {
+    const near = Math.random() < 0.15;
+    return { x: Math.random() * (r.vw + 100) - 100, y: anywhere ? Math.random() * r.vh : -10, v: near ? 1.6 + Math.random() : 0.5 + Math.random() * 0.7, s: near ? 1.8 + Math.random() * 1.2 : 0.7 + Math.random() * 0.8, ph: Math.random() * 6 };
   }
 
   newDrop(r, anywhere) {
@@ -112,12 +130,12 @@ export class Atmosphere {
   drawWorld(ctx, state) {
     // drifting ground mist
     const dark = this.darkness(state);
-    const mist = 0.06 + dark * 0.1 + this.golden(state) * 0.05 + this.rain(state) * 0.06;
+    const mist = 0.08 + dark * 0.1 + this.golden(state) * 0.03 + this.rain(state) * 0.07;
     for (const f of this.fog) {
       const p = iso(f.x, f.y);
       const rx = f.r * 48, ry = f.r * 22;
       const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rx);
-      const c = dark > 0.3 ? '150,160,185' : '205,205,195';
+      const c = dark > 0.3 ? '140,152,180' : '196,204,214';
       g.addColorStop(0, `rgba(${c},${mist * f.a})`);
       g.addColorStop(1, `rgba(${c},0)`);
       ctx.fillStyle = g;
@@ -172,7 +190,9 @@ export class Atmosphere {
 
     // golden hour / rain tint
     const gold = this.golden(state);
-    if (gold > 0.01) { ctx.fillStyle = `rgba(255,150,60,${0.12 * gold})`; ctx.fillRect(0, 0, r.vw, r.vh); }
+    // cold, overcast grade over everything
+    ctx.fillStyle = 'rgba(62,80,110,0.10)'; ctx.fillRect(0, 0, r.vw, r.vh);
+    if (gold > 0.01) { ctx.fillStyle = `rgba(255,160,90,${0.05 * gold})`; ctx.fillRect(0, 0, r.vw, r.vh); }
     const rain = this.rain(state);
     if (rain > 0.01) { ctx.fillStyle = `rgba(40,48,60,${0.18 * rain})`; ctx.fillRect(0, 0, r.vw, r.vh); }
 
@@ -224,6 +244,12 @@ export class Atmosphere {
       ctx.beginPath();
       for (const p of this.drops) { ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.l * 0.25, p.y - p.l); }
       ctx.stroke();
+    }
+
+    // snowflakes
+    if (this.flakes.length) {
+      ctx.fillStyle = 'rgba(235,240,246,0.75)';
+      for (const k of this.flakes) { ctx.beginPath(); ctx.arc(k.x, k.y, k.s, 0, TAU); ctx.fill(); }
     }
 
     // film grain

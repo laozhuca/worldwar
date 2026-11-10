@@ -34,6 +34,8 @@ as `file://`, because it uses ES modules.
 | **Charge** | Fast, can't be pinned, no firing. Ends in a bayonet fight. |
 | **Capture** | Occupy trench tiles with no enemy nearby. Take the enemy HQ (far east) to win. |
 
+**Seasons**: Winter (snow, frozen shell holes), Thaw (patchy snow over mud) and Mud (rain, flooded craters), chosen on the start screen. Shellfire and digging churn the snow into black earth.
+
 **Atmosphere** (purely visual): a day/night cycle with star-shell flares and dynamic light from gunfire and explosions; passing rain showers; drifting ground mist; screen shake; earth-fountain shell bursts; fallen soldiers left on the field; and a 🎞 film-look toggle (colour / sepia / black and white).
 
 The enemy commander garrisons its line, uses defensive and harassing barrages,

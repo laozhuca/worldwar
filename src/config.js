@@ -97,3 +97,10 @@ export const SUPPRESSION_DECAY = 12; // per second
 export const CHARGE_SPEED = 1.6;
 export const MELEE_RANGE = 0.9;
 export const WIRE_SLOW = 0.25;
+
+// Visual seasons (art direction from the concept art: snow / thaw / mud).
+export const SEASONS = {
+  winter: { key: 'winter', name: 'Winter', snow: 1, precip: 'snow', desc: 'Snow-covered fields, frozen shell holes.' },
+  thaw: { key: 'thaw', name: 'Thaw', snow: 0.5, precip: 'sleet', desc: 'Patchy snow over churned mud.' },
+  mud: { key: 'mud', name: 'Mud', snow: 0, precip: 'rain', desc: 'Rain, black mud and flooded craters.' },
+};

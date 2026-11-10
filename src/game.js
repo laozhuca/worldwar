@@ -14,9 +14,10 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export const teamDir = (team) => (team === PLAYER ? 1 : -1);
 
 export function createGame(opts = {}) {
-  const { seed = 1916, aiTeams = [ENEMY] } = opts;
+  const { seed = 1916, aiTeams = [ENEMY], season = 'winter' } = opts;
   const map = createMap(seed);
   const state = {
+    season,
     time: 0,
     map,
     units: [],
@@ -557,7 +558,7 @@ function explode(state, s) {
     if (d > 1.3) continue;
     if (t.wire > 0) t.wire = Math.max(0, t.wire - (d < 0.7 ? 80 : 45));
     if (t.build) { t.build.progress = Math.max(0, t.build.progress - 4); }
-    if (t.decor === 'tree' && rand() < 0.5) t.decor = 'stump';
+    if (t.decor === 'tree' && rand() < 0.5) t.decor = rand() < 0.5 ? 'stump' : 'log';
     else if (t.decor === 'ruin' && d < 0.8 && rand() < 0.3) t.decor = null;
   }
   const center = tileAt(map, s.x, s.y);
