@@ -14,7 +14,7 @@ Runs in any modern browser. Plain JavaScript modules with no build step and no d
 npm start
 ```
 
-Then open http://localhost:8000. Any static file server works too. The page must be
+Then open http://localhost:8000. Or play online at **https://laozhuca.github.io/worldwar/** (deployed automatically from `main` by `.github/workflows/pages.yml`).
 served over HTTP rather than opened as `file://`, because it uses ES modules.
 
 ## Core loop
