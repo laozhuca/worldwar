@@ -1,0 +1,11 @@
+{
+  "name": "worldwar",
+  "version": "0.1.0",
+  "description": "WW1 isometric trench-warfare RTS in the browser",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.mjs"
+  }
+}

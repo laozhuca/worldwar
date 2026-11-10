@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WorldWar — Trench Command</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="view"></canvas>
+
+    <div id="topbar">
+      <div class="title">WORLDWAR <span>Trench Command</span></div>
+      <div class="res" title="Manpower: recruit and reinforce units"><b>👥</b> <span id="res-men">0</span><em>Men</em></div>
+      <div class="res" title="Ammunition: rifles, machine guns and shells"><b>🎯</b> <span id="res-ammo">0</span><em>Ammo</em></div>
+      <div class="res" title="Supplies: recruit, dig, wire, reinforce"><b>📦</b> <span id="res-supplies">0</span><em>Supplies</em></div>
+      <div class="res" title="Next supply convoy from the rear"><b>🚚</b> <span id="supply-timer">20</span><em>Convoy</em></div>
+      <div class="res" title="Enemy trench sections held / casualties (ours : theirs)"><b>⚑</b> <span id="territory">0</span><em>Captured</em></div>
+      <div class="res" title="Casualties ours : theirs"><b>✝</b> <span id="casualties">0 : 0</span><em>Losses</em></div>
+      <div class="spacer"></div>
+      <button id="btn-pause" title="Pause (P)">❚❚</button>
+      <button id="btn-speed" title="Game speed">1×</button>
+      <button id="btn-sound" title="Sound on/off">🔊</button>
+      <button id="btn-help" title="How to play (F1)">?</button>
+    </div>
+
+    <div id="messages"></div>
+    <div id="modehint" class="hidden"></div>
+
+    <div id="bottom">
+      <canvas id="minimap" width="220" height="136"></canvas>
+      <div id="selection-info"><div class="muted">No units selected. Drag to select, right-click to move.</div></div>
+      <div id="commands">
+        <div class="group">
+          <h4>Recruit</h4>
+          <div class="btns">
+            <button data-recruit="rifle"><kbd>1</kbd> Rifle Squad<small></small></button>
+            <button data-recruit="mg"><kbd>2</kbd> MG Team<small></small></button>
+            <button data-recruit="artillery"><kbd>3</kbd> Field Battery<small></small></button>
+          </div>
+        </div>
+        <div class="group">
+          <h4>Orders</h4>
+          <div class="btns">
+            <button data-cmd="charge" title="Go over the top: fast, ignores pinning, no firing"><kbd>C</kbd> Charge</button>
+            <button data-cmd="bombard" title="Artillery barrage on a target area"><kbd>B</kbd> Bombard</button>
+            <button data-cmd="halt" title="Stop moving / cancel barrage"><kbd>H</kbd> Halt</button>
+            <button data-cmd="reinforce" title="Refill depleted squads (in friendly trench or near HQ)"><kbd>R</kbd> Reinforce</button>
+          </div>
+        </div>
+        <div class="group">
+          <h4>Engineering</h4>
+          <div class="btns">
+            <button data-build="trench"><kbd>T</kbd> Dig Trench<small></small></button>
+            <button data-build="upgrade"><kbd>U</kbd> Reinforce<small></small></button>
+            <button data-build="wire"><kbd>X</kbd> Barbed Wire<small></small></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="overlay">
+      <div class="panel" id="help-panel">
+        <h1>WORLDWAR <span>Trench Command</span></h1>
+        <p class="lead">The Western Front, 1916. Between our lines and theirs lies no man's land: mud, craters and wire. Machine guns cover every metre of it. Take the enemy headquarters in the far east, or break their army.</p>
+        <div class="cols">
+          <div>
+            <h3>The war</h3>
+            <ul>
+              <li><b>Supply convoys</b> arrive every 20s with men, ammunition and supplies. Captured enemy trenches increase the flow.</li>
+              <li><b>Machine guns</b> massacre troops in the open. Walking troops under fire get <b>pinned</b> and crawl.</li>
+              <li><b>Barbed wire</b> slows everyone to a crawl. Shellfire cuts it.</li>
+              <li><b>Artillery</b> kills, cuts wire, damages trenches and <b>suppresses</b> defenders, who can barely shoot back. Shells don't care whose side you're on.</li>
+              <li><b>Trenches</b> cut casualties sharply. Reinforced trenches (level 2–3) cut them further.</li>
+            </ul>
+            <h3>How to win ground</h3>
+            <ol>
+              <li>Bombard the enemy wire to cut lanes through it.</li>
+              <li>Bombard the trench you want so the gunners keep their heads down.</li>
+              <li><b>Charge</b> just as the barrage lifts. Charging troops can't be pinned.</li>
+              <li>Hold the trench, reinforce the squads, then dig in and wire the new line.</li>
+            </ol>
+          </div>
+          <div>
+            <h3>Controls</h3>
+            <table>
+              <tr><td>Left-drag / click</td><td>Select units</td></tr>
+              <tr><td>Right-click</td><td>Move (Ctrl+right-click = charge)</td></tr>
+              <tr><td><kbd>C</kbd> then click</td><td>Charge target</td></tr>
+              <tr><td><kbd>B</kbd> then click</td><td>Bombard (selected or all ready batteries)</td></tr>
+              <tr><td><kbd>T</kbd> <kbd>U</kbd> <kbd>X</kbd></td><td>Dig / reinforce trench / lay wire (drag to paint)</td></tr>
+              <tr><td><kbd>R</kbd> <kbd>H</kbd></td><td>Reinforce squads / halt</td></tr>
+              <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Recruit rifle / MG / battery</td></tr>
+              <tr><td><kbd>Q</kbd></td><td>Select all infantry</td></tr>
+              <tr><td>WASD / arrows / edges</td><td>Scroll; mouse wheel zooms</td></tr>
+              <tr><td><kbd>Space</kbd></td><td>Jump to the front line</td></tr>
+              <tr><td><kbd>P</kbd> / <kbd>Esc</kbd></td><td>Pause / cancel</td></tr>
+            </table>
+            <p class="muted">Rifle squads dig works within a few tiles of where they stand. New troops gather at HQ.</p>
+          </div>
+        </div>
+        <button id="btn-start" class="big">Go to the front</button>
+      </div>
+      <div class="panel hidden" id="end-panel">
+        <h1 id="end-title">Victory</h1>
+        <p id="end-text"></p>
+        <button id="btn-restart" class="big">Fight again</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
