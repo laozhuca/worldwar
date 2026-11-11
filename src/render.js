@@ -1386,15 +1386,30 @@ export class Renderer {
     }
   }
 
+  /**
+   * Incoming shells along a ballistic arc from the firing battery: the visible trail is the last part of
+   * the flight, so it comes in from the gun's direction and steepens as it falls.
+   */
   drawShells(ctx, state) {
+    const UP = 39.2; // screen px per tile of height
+    const at = (s, u) => {
+      const d = Math.hypot(s.x - s.fromX, s.y - s.fromY);
+      const z = 4 * (0.16 * d + 1.2) * u * (1 - u); // apex height grows with range
+      const p = iso(s.fromX + (s.x - s.fromX) * u, s.fromY + (s.y - s.fromY) * u);
+      return { x: p.x, y: p.y - z * UP };
+    };
+    ctx.lineCap = 'round';
     for (const s of state.shells) {
-      if (s.t > 0.45) continue;
-      const p = iso(s.x, s.y);
-      const h = (s.t / 0.45) * 260;
-      const g = ctx.createLinearGradient(p.x, p.y - h - 40, p.x, p.y - h);
-      g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(255,240,200,0.8)');
+      const u = 1 - s.t / s.flight;
+      if (u < 0.8) continue; // only the descent near the target is on screen
+      const tail = Math.max(0, u - 0.07), head = at(s, u), back = at(s, tail);
+      const fade = Math.min(1, (u - 0.8) / 0.06);
+      const g = ctx.createLinearGradient(back.x, back.y, head.x, head.y);
+      g.addColorStop(0, 'rgba(255,250,235,0)'); g.addColorStop(1, `rgba(255,238,200,${0.85 * fade})`);
       ctx.strokeStyle = g; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(p.x + 6, p.y - h - 40); ctx.lineTo(p.x, p.y - h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(back.x, back.y);
+      for (let k = 1; k <= 4; k++) { const q = at(s, tail + ((u - tail) * k) / 4); ctx.lineTo(q.x, q.y); }
+      ctx.stroke();
     }
   }
 
