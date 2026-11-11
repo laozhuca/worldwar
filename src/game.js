@@ -193,65 +193,6 @@ export function buyUnit(state, team, type) {
   return u;
 }
 
-/**
- * Trench tiles a team can supply: everything connected to its HQ through trenches it holds.
- * Cached until ownership or the trench network changes.
- */
-export function supplyNetwork(state, team) {
-  const { map } = state;
-  const key = map.netVersion || 0;
-  state.supplyNet = state.supplyNet || [];
-  const c = state.supplyNet[team];
-  if (c && c.key === key) return c.set;
-  const set = new Uint8Array(map.w * map.h);
-  const hq = map.hq[team];
-  const stack = [hq.y * map.w + hq.x];
-  while (stack.length) {
-    const i = stack.pop();
-    if (set[i]) continue;
-    const t = map.tiles[i];
-    if (!t.trench || t.owner !== team) continue;
-    set[i] = 1;
-    const x = i % map.w, y = (i / map.w) | 0;
-    if (x > 0) stack.push(i - 1); if (x < map.w - 1) stack.push(i + 1);
-    if (y > 0) stack.push(i - map.w); if (y < map.h - 1) stack.push(i + map.w);
-  }
-  state.supplyNet[team] = { key, set };
-  return set;
-}
-
-export const CONTACT_RANGE = 3;
-
-/** Why a unit cannot be reinforced right now, or null if it can. */
-export function reinforceBlock(state, u) {
-  if (u.dead) return 'Unit lost';
-  if (u.men >= UNIT_TYPES[u.type].men) return 'Already at full strength';
-  if (state.units.some((e) => !e.dead && e.team !== u.team && Math.hypot(e.x - u.x, e.y - u.y) < CONTACT_RANGE)) return 'Cannot reinforce while in contact with the enemy';
-  const hq = state.map.hq[u.team];
-  if (Math.hypot(u.x - hq.x, u.y - hq.y) < 8) return null;
-  const tile = tileAt(state.map, u.x, u.y);
-  if (!tile || !tile.trench || tile.owner !== u.team) return 'Must be in a friendly trench to reinforce';
-  if (!supplyNetwork(state, u.team)[tile.y * state.map.w + tile.x]) return 'Cut off: this trench has no link back to HQ';
-  return null;
-}
-
-export function canReinforce(state, u) {
-  return !reinforceBlock(state, u);
-}
-
-export function reinforce(state, u) {
-  const why = reinforceBlock(state, u);
-  if (why) return why;
-  const t = UNIT_TYPES[u.type];
-  const res = state.resources[u.team];
-  const missing = t.men - u.men;
-  const n = Math.min(missing, Math.floor(res.men), Math.floor(res.supplies));
-  if (n <= 0) return 'Not enough men or supplies';
-  res.men -= n; res.supplies -= n;
-  u.hp = Math.min(t.men * t.hpPerMan, u.hp + n * t.hpPerMan);
-  u.men = Math.ceil(u.hp / t.hpPerMan - 1e-6);
-  return n;
-}
 
 // ---------------------------------------------------------------- engineering
 

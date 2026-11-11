@@ -1,7 +1,7 @@
 // Computer commander. Works for either team (used for the enemy, and for both in tests).
 import { PLAYER, UNIT_TYPES } from './config.js';
 import { tileAt, frontLine } from './map.js';
-import { buyUnit, orderMove, orderBarrage, placeBuild, reinforce, teamDir } from './game.js';
+import { buyUnit, orderMove, orderBarrage, placeBuild, teamDir } from './game.js';
 
 const rand = Math.random;
 
@@ -56,11 +56,6 @@ export function updateAI(state, ai, dt) {
   if (count.artillery < 2) buyUnit(state, me, 'artillery');
   else if (count.mg < 4) buyUnit(state, me, 'mg');
   else if (count.rifle < 15) buyUnit(state, me, 'rifle');
-
-  // --- reinforce depleted units sitting in our trenches
-  for (const u of mine) {
-    if (!u.order && u.men < UNIT_TYPES[u.type].men * 0.6 && res.men > 12) reinforce(state, u);
-  }
 
   // --- defensive posts along the front trench
   const posts = [];

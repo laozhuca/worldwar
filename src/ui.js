@@ -1,6 +1,6 @@
 // DOM HUD + mouse/keyboard input.
 import { PLAYER, UNIT_TYPES, BUILD, MAP_W, MAP_H } from './config.js';
-import { orderMove, orderBarrage, orderHalt, buyUnit, reinforce, canReinforce, placeBuild, cancelBuild, territory, pushMessage } from './game.js';
+import { orderMove, orderBarrage, orderHalt, buyUnit, placeBuild, cancelBuild, territory, pushMessage } from './game.js';
 import { frontLine, teamDir } from './map.js';
 
 const $ = (id) => document.getElementById(id);
@@ -80,18 +80,6 @@ export class UI {
     const r = buyUnit(this.state, PLAYER, type);
     if (typeof r === 'string') pushMessage(this.state, `${UNIT_TYPES[type].name}: ${r}`, 'warn');
     else pushMessage(this.state, `${UNIT_TYPES[type].name} raised at HQ`, 'info');
-  }
-
-  doReinforce() {
-    const units = this.selectedUnits();
-    if (!units.length) { pushMessage(this.state, 'Select units to reinforce', 'warn'); return; }
-    let total = 0, reason = null;
-    for (const u of units) {
-      const r = reinforce(this.state, u);
-      if (typeof r === 'number') total += r; else reason = r;
-    }
-    if (total) pushMessage(this.state, `${total} replacements sent forward`, 'good');
-    else if (reason) pushMessage(this.state, reason, 'warn');
   }
 
   paint(x, y) {
@@ -232,7 +220,6 @@ export class UI {
           case 'u': this.setMode('build:upgrade'); break;
           case 'x': this.setMode('build:wire'); break;
           case 'h': orderHalt(this.state, this.selectedUnits()); break;
-          case 'r': this.doReinforce(); break;
           case 'q': this.selected = new Set(this.playerUnits().filter((u) => u.type === 'rifle').map((u) => u.id)); break;
           case '1': this.doRecruit('rifle'); break;
           case '2': this.doRecruit('mg'); break;
@@ -254,7 +241,6 @@ export class UI {
     document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => {
       const c = b.dataset.cmd;
       if (c === 'halt') orderHalt(this.state, this.selectedUnits());
-      else if (c === 'reinforce') this.doReinforce();
       else this.setMode(this.mode === c ? null : c);
     }));
     for (const [type, t] of Object.entries(UNIT_TYPES)) {
@@ -334,7 +320,7 @@ export class UI {
       info.innerHTML = '<div class="muted">No units selected. Left-drag to select, right-click to move. Press <kbd>?</kbd> for help.</div>';
     } else {
       const men = sel.reduce((a, u) => a + u.men, 0);
-      const parts = [`<div class="sel-summary">${sel.length} unit${sel.length > 1 ? 's' : ''}, ${men} men${sel.some((u) => canReinforce(s, u)) ? ', can reinforce (R)' : ''}</div>`];
+      const parts = [`<div class="sel-summary">${sel.length} unit${sel.length > 1 ? 's' : ''}, ${men} men</div>`];
       for (const u of sel.slice(0, 12)) {
         const t = UNIT_TYPES[u.type];
         let status = u.pinned ? 'PINNED' : u.order ? (u.order.kind === 'charge' ? 'charging' : 'moving') : u.barrage ? 'firing barrage' : u.digging ? 'digging' : u.inTrench ? 'in trench' : 'in the open';

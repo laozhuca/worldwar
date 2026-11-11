@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, update, orderBarrage, orderMove, placeBuild, buyUnit, reinforce, damageUnit } from '../src/game.js';
+import { createGame, update, orderBarrage, orderMove, placeBuild, buyUnit, damageUnit } from '../src/game.js';
 import { tileAt, frontLine } from '../src/map.js';
 import { PLAYER, ENEMY, UNIT_TYPES, BUILD } from '../src/config.js';
 
@@ -57,19 +57,22 @@ test('digging a trench needs supplies and a working party', () => {
   assert.equal(placeBuild(s, PLAYER, 'trench', 40.5, 20.5).ok, false, 'cannot build far from troops');
 });
 
-test('recruiting and reinforcing consume resources', () => {
-  const s = createGame({ aiTeams: [] });
+test('recruiting costs resources; casualties are permanent (no squad refill)', () => {
+  const s = createGame({ aiTeams: [ENEMY] });
   const res = s.resources[PLAYER];
   const men0 = res.men;
   const u = buyUnit(s, PLAYER, 'rifle');
   assert.equal(typeof u, 'object');
   assert.equal(res.men, men0 - UNIT_TYPES.rifle.cost.men);
-  const sq = s.units.find((x) => x.team === PLAYER && x.type === 'rifle' && x.inTrench);
-  const full = UNIT_TYPES.rifle.men;
-  damageUnit(s, sq, 25); // 2.5 men's worth of wounds -> 2 men lost (a wounded man stays in the line)
-  assert.equal(sq.men, full - 2);
-  assert.equal(reinforce(s, sq), 2);
-  assert.equal(sq.men, full);
+  assert.equal(u.men, UNIT_TYPES.rifle.men);
+  // a squad sitting in its own trench, and an enemy squad in theirs, stay depleted
+  const mine = s.units.find((x) => x.team === PLAYER && x.type === 'rifle' && x.inTrench);
+  const theirs = s.units.find((x) => x.team === ENEMY && x.type === 'rifle' && x.inTrench);
+  damageUnit(s, mine, 25); damageUnit(s, theirs, 25);
+  const m0 = mine.men, t0 = theirs.men;
+  assert.ok(m0 < UNIT_TYPES.rifle.men && t0 < UNIT_TYPES.rifle.men);
+  for (let t = 0; t < 60; t += 0.1) update(s, 0.1);
+  assert.ok(mine.men <= m0 && theirs.men <= t0, 'no refill for either side');
 });
 
 test('AI vs AI: ten minutes of war runs without errors and things happen', () => {
@@ -84,31 +87,6 @@ test('AI vs AI: ten minutes of war runs without errors and things happen', () =>
   }
   assert.ok(s.stats.lost[0] + s.stats.lost[1] > 20, `casualties: ${s.stats.lost}`);
   console.log('casualties', s.stats.lost, 'winner', s.winner, 'time', s.time.toFixed(0), 'units', s.units.length);
-});
-
-test('reinforcement needs a trench linked to HQ and no enemy in contact', async () => {
-  const { reinforceBlock, supplyNetwork } = await import('../src/game.js');
-  const s = createGame({ aiTeams: [] });
-  const sq = s.units.find((u) => u.team === PLAYER && u.type === 'rifle' && u.inTrench);
-  damageUnit(s, sq, 40);
-  assert.equal(reinforceBlock(s, sq), null, 'own front line is supplied');
-
-  // an enemy squad that has seized a section of our front line is cut off from its own HQ
-  const foe = s.units.find((u) => u.team === ENEMY && u.type === 'rifle');
-  const fl = frontLine(s.map, PLAYER), ty = Math.floor(sq.y) + 8 < s.map.h - 2 ? Math.floor(sq.y) + 8 : Math.floor(sq.y) - 8;
-  const t = tileAt(s.map, fl[ty], ty);
-  assert.ok(t.trench);
-  foe.x = t.x + 0.5; foe.y = t.y + 0.5; t.owner = ENEMY; s.map.netVersion = (s.map.netVersion || 0) + 1;
-  damageUnit(s, foe, 40);
-  assert.ok(!supplyNetwork(s, ENEMY)[t.y * s.map.w + t.x], 'captured section is not on the enemy network');
-  assert.match(reinforceBlock(s, foe), /contact|Cut off/);
-  for (const u of s.units) if (u.team === PLAYER && Math.hypot(u.x - foe.x, u.y - foe.y) < 4) u.x = 5.5;
-  assert.match(reinforceBlock(s, foe), /Cut off/);
-  assert.equal(typeof reinforce(s, foe), 'string', 'reinforce refuses');
-
-  // our squad in contact with that enemy cannot refill either
-  sq.x = foe.x; sq.y = foe.y - 1;
-  assert.match(reinforceBlock(s, sq), /contact/);
 });
 
 test('player can start on the east line', () => {

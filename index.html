@@ -12,9 +12,9 @@
 
     <div id="topbar">
       <div class="title">WORLDWAR <span id="matchup">Trench Command</span></div>
-      <div class="res" title="Manpower: recruit and reinforce units"><b>👥</b> <span id="res-men">0</span><em>Men</em></div>
+      <div class="res" title="Manpower: recruit new units"><b>👥</b> <span id="res-men">0</span><em>Men</em></div>
       <div class="res" title="Ammunition: rifles, machine guns and shells"><b>🎯</b> <span id="res-ammo">0</span><em>Ammo</em></div>
-      <div class="res" title="Supplies: recruit, dig, wire, reinforce"><b>📦</b> <span id="res-supplies">0</span><em>Supplies</em></div>
+      <div class="res" title="Supplies: recruit, dig, wire, reinforce trenches"><b>📦</b> <span id="res-supplies">0</span><em>Supplies</em></div>
       <div class="res" title="Next supply convoy from the rear"><b>🚚</b> <span id="supply-timer">20</span><em>Convoy</em></div>
       <div class="res" title="Enemy trench sections held / casualties (ours : theirs)"><b>⚑</b> <span id="territory">0</span><em>Captured</em></div>
       <div class="res" title="Casualties ours : theirs"><b>✝</b> <span id="casualties">0 : 0</span><em>Losses</em></div>
@@ -49,7 +49,6 @@
             <button data-cmd="charge" title="Go over the top: fast, ignores pinning, no firing"><kbd>C</kbd> Charge</button>
             <button data-cmd="bombard" title="Artillery barrage on a target area"><kbd>B</kbd> Bombard</button>
             <button data-cmd="halt" title="Stop moving / cancel barrage"><kbd>H</kbd> Halt</button>
-            <button data-cmd="reinforce" title="Refill depleted squads (in friendly trench or near HQ)"><kbd>R</kbd> Reinforce</button>
           </div>
         </div>
         <div class="group">
@@ -75,7 +74,6 @@
               <li><b>Machine guns</b> massacre troops in the open. Walking troops under fire get <b>pinned</b> and crawl.</li>
               <li><b>Barbed wire</b> slows everyone to a crawl. Shellfire cuts it.</li>
               <li><b>Artillery</b> kills, cuts wire, damages trenches and <b>suppresses</b> defenders, who can barely shoot back. Shells don't care whose side you're on.</li>
-              <li><b>Replacements</b> only reach squads in trenches linked back to their HQ, and not while in contact with the enemy. A captured stretch of enemy line must be joined up to your own trenches (dig a communication trench) before it can be reinforced.</li>
               <li><b>Trenches</b> cut casualties sharply. Reinforced trenches (level 2–3) cut them further.</li>
             </ul>
             <h3>How to win ground</h3>
@@ -83,7 +81,7 @@
               <li>Bombard the enemy wire to cut lanes through it.</li>
               <li>Bombard the trench you want so the gunners keep their heads down.</li>
               <li><b>Charge</b> while the shells are still falling (guns fire every few seconds), so you reach the trench as the barrage lifts. Charging troops can't be pinned, and run much faster than they walk.</li>
-              <li>Hold the trench, reinforce the squads, then dig in and wire the new line.</li>
+              <li>Hold the trench, bring up fresh squads, then dig in and wire the new line. Worn-down squads are not refilled: recruit new ones.</li>
             </ol>
           </div>
           <div>
@@ -94,7 +92,7 @@
               <tr><td><kbd>C</kbd> then click</td><td>Charge target</td></tr>
               <tr><td><kbd>B</kbd> then click</td><td>Bombard (selected or all ready batteries)</td></tr>
               <tr><td><kbd>T</kbd> <kbd>U</kbd> <kbd>X</kbd></td><td>Dig / reinforce trench / lay wire (drag to paint)</td></tr>
-              <tr><td><kbd>R</kbd> <kbd>H</kbd></td><td>Reinforce squads / halt</td></tr>
+              <tr><td><kbd>H</kbd></td><td>Halt</td></tr>
               <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Recruit rifle / MG / battery</td></tr>
               <tr><td><kbd>Q</kbd></td><td>Select all infantry</td></tr>
               <tr><td>WASD / arrows / edges</td><td>Scroll; mouse wheel zooms</td></tr>

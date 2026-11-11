@@ -24,9 +24,9 @@ as `file://`, because it uses ES modules.
 | System | What it does |
 |---|---|
 | **Supply convoys** | Every 20s you receive men, ammunition and supplies. Each captured enemy trench section increases the flow. |
-| **Men** | Recruit rifle squads, MG teams and field batteries, and replace casualties (Reinforce). |
+| **Men** | Recruit rifle squads, MG teams and field batteries. Squads are not refilled: casualties are permanent, so worn-down squads are replaced by new ones. |
 | **Ammunition** | Every rifle volley, MG burst and shell uses ammo. Without it fire drops to a trickle. |
-| **Supplies** | Recruiting, digging trenches, reinforcing trenches (levels 1–3), laying barbed wire, replacements. |
+| **Supplies** | Recruiting, digging trenches, reinforcing trenches (levels 1–3), laying barbed wire. |
 | **Trenches** | Cut small-arms damage to 40% / 28% / 18% (by level), and shell damage less so. |
 | **Machine guns** | Short setup time, then murderous fire on troops in the open. Fire pins walking troops. |
 | **Barbed wire** | Slows anyone crossing it to a quarter speed. Shellfire cuts it. |
@@ -58,7 +58,7 @@ counter-attacks lost trenches, repairs its wire and launches its own offensives.
 | `C`, then click | Charge |
 | `B`, then click | Bombard: uses the selected batteries, or the next ready battery (Shift keeps the mode on) |
 | `T` / `U` / `X` | Dig trench / reinforce trench / lay wire. Click or drag to paint; Alt-click cancels a site |
-| `R` / `H` | Reinforce selected units / halt |
+| `H` | Halt |
 | `1` `2` `3` | Recruit rifle squad / MG team / field battery |
 | `Q` | Select all rifle squads |
 | WASD, arrows, screen edges, middle-drag | Scroll; mouse wheel zooms |
