@@ -4,7 +4,6 @@ import { tileAt } from './map.js';
 import { canBuild } from './game.js';
 import { Atmosphere } from './atmosphere.js';
 import { Relief } from './relief.js';
-import { prepareFrames, sampleImpact } from './impact.js';
 
 // Ground is rendered supersampled for sharpness when zoomed in (lighter on low-memory devices).
 const GS = typeof navigator !== 'undefined' && navigator.deviceMemory && navigator.deviceMemory < 4 ? 1 : 1.5;
@@ -85,8 +84,6 @@ function loadImage(src, timeout = 30000) {
 function retry(fn, tries = 4) {
   return fn(0).catch((e) => (tries > 1 ? new Promise((r) => setTimeout(r, 800 * (5 - tries))).then(() => retry((n) => fn(n + 1), tries - 1)) : Promise.reject(e)));
 }
-
-const IMPACT_SIZE = 125; // world px for a 320 px impact frame (the column is ~2 tiles wide)
 
 let PAT = null; // texture pattern lookup for the context currently being drawn, or null for vector fallback
 function drawPuddle(g, c, rx, ry, S, h) {
@@ -188,37 +185,6 @@ export class Renderer {
     return p;
   }
 
-  /** Load the animated shell-impact sprite sheet (36 frames, prepared once). */
-  loadImpact() {
-    if (this.impactFrames || this.impactLoading) return this.impactLoading;
-    this.impactLoading = retry((n) => loadImage(`assets/fx/earth-impact.png${n ? '?r=' + n : ''}`))
-      .then((img) => {
-        this.impactFrames = prepareFrames(img);
-        this.impactBuf = document.createElement('canvas');
-        this.impactBuf.width = this.impactBuf.height = 320;
-      })
-      .catch((e) => { this.impactLoading = null; console.warn('Impact animation unavailable:', e.message); });
-    return this.impactLoading;
-  }
-
-  /** One shell impact: crossfade the two nearest frames in a buffer, then draw anchored on the ground. */
-  drawImpact(ctx, e) {
-    const smp = sampleImpact(e.age);
-    if (!smp) return;
-    const b = this.impactBuf.getContext('2d'), F = this.impactFrames;
-    b.globalCompositeOperation = 'source-over'; b.globalAlpha = 1;
-    b.clearRect(0, 0, 320, 320);
-    b.globalAlpha = 1 - smp.blend; b.drawImage(F[smp.index], 0, 0);
-    if (smp.next !== smp.index) { b.globalCompositeOperation = 'lighter'; b.globalAlpha = smp.blend; b.drawImage(F[smp.next], 0, 0); }
-    b.globalAlpha = 1; b.globalCompositeOperation = 'source-over';
-    const p = iso(e.x, e.y), size = IMPACT_SIZE * (e.scale || 1);
-    ctx.save();
-    ctx.translate(p.x, p.y); ctx.scale(e.flip ? -1 : 1, 1);
-    ctx.globalAlpha *= smp.opacity;
-    ctx.drawImage(this.impactBuf, -size * 0.5, -size * 0.95, size, size);
-    ctx.restore();
-  }
-
   /** Props for the given snow amount (only the set the season needs is downloaded). */
   propGroup(S = this.S ?? 1) { return S > 0.7 ? 'props-snow' : 'props-bare'; }
   loadProps(season) {
@@ -275,18 +241,50 @@ export class Renderer {
     return (this._mn[key] = out);
   }
 
+  /** Tile bounds (inclusive, clamped) of the area being redrawn, or null for a full redraw. */
+  clipTiles(map) {
+    const c = this._clip;
+    if (!c) return null;
+    const pts = [[c.x, c.y], [c.x + c.w, c.y], [c.x, c.y + c.h], [c.x + c.w, c.y + c.h]].map(([x, y]) => unIso(x - this.OX, y - this.OY));
+    const cl = (v, m) => Math.max(0, Math.min(m, v));
+    return {
+      x0: cl(Math.floor(Math.min(...pts.map((p) => p.x))) - 1, map.w - 1), x1: cl(Math.ceil(Math.max(...pts.map((p) => p.x))) + 1, map.w - 1),
+      y0: cl(Math.floor(Math.min(...pts.map((p) => p.y))) - 1, map.h - 1), y1: cl(Math.ceil(Math.max(...pts.map((p) => p.y))) + 1, map.h - 1),
+    };
+  }
+
+  /** Draw only the part of a per-tile image (R px per tile, already in iso-tile transform) that the redraw needs. */
+  drawTileImage(ctx, img, R, tb, data = null) {
+    if (!tb) { ctx.drawImage(img, 0, 0); return; }
+    const sx = tb.x0 * R, sy = tb.y0 * R, sw = (tb.x1 - tb.x0 + 1) * R, sh = (tb.y1 - tb.y0 + 1) * R;
+    if (data) {
+      // copy just this region of the pixel data: drawing a large canvas that was just written to
+      // forces the browser to snapshot all of it
+      const t = this._tileTmp || (this._tileTmp = document.createElement('canvas'));
+      if (t.width < sw || t.height < sh) { t.width = Math.max(t.width, sw); t.height = Math.max(t.height, sh); }
+      const tc = t.getContext('2d');
+      tc.clearRect(0, 0, sw, sh);
+      tc.putImageData(data, -sx, -sy, sx, sy, sw, sh);
+      ctx.drawImage(t, 0, 0, sw, sh, sx, sy, sw, sh);
+      return;
+    }
+    ctx.drawImage(img, sx, sy, sw, sh, sx, sy, sw, sh);
+  }
+
   /** Alpha mask (R px per tile) from per-tile amounts, with ragged noisy edges. */
-  buildMask(map, amounts, k, spread = 0.7) {
+  buildMask(map, amounts, k, spread = 0.7, tb = null) {
     const R = 8, mw = map.w * R, mh = map.h * R;
     const noise = this.maskNoise(mw, mh, R, k);
-    const c = this._mask || (this._mask = document.createElement('canvas'));
-    c.width = mw; c.height = mh;
+    let c = this._mask;
+    const fresh = !c || c.width !== mw || c.height !== mh || !this._maskImg;
+    if (fresh) { c = this._mask = document.createElement('canvas'); c.width = mw; c.height = mh; this._maskImg = c.getContext('2d').createImageData(mw, mh); tb = null; }
     const mc = c.getContext('2d');
-    const img = mc.createImageData(mw, mh);
+    const img = this._maskImg;
+    const py0 = tb ? tb.y0 * R : 0, py1 = tb ? (tb.y1 + 1) * R : mh, px0 = tb ? tb.x0 * R : 0, px1 = tb ? (tb.x1 + 1) * R : mw;
     const A = (x, y) => amounts[Math.max(0, Math.min(map.h - 1, y)) * map.w + Math.max(0, Math.min(map.w - 1, x))];
-    for (let y = 0; y < mh; y++) {
+    for (let y = py0; y < py1; y++) {
       const ty = (y + 0.5) / R - 0.5, y0 = Math.floor(ty), fy = ty - y0;
-      for (let x = 0; x < mw; x++) {
+      for (let x = px0; x < px1; x++) {
         const tx = (x + 0.5) / R - 0.5, x0 = Math.floor(tx), fx = tx - x0;
         const a = (A(x0, y0) * (1 - fx) + A(x0 + 1, y0) * fx) * (1 - fy) + (A(x0, y0 + 1) * (1 - fx) + A(x0 + 1, y0 + 1) * fx) * fy;
         const v = a + (noise[y * mw + x] - 0.5) * spread;
@@ -296,12 +294,14 @@ export class Renderer {
         img.data[i + 3] = t * t * (3 - 2 * t) * 255;
       }
     }
-    mc.putImageData(img, 0, 0);
+    if (tb) mc.putImageData(img, 0, 0, px0, py0, px1 - px0, py1 - py0); else mc.putImageData(img, 0, 0);
     return c;
   }
 
   /** Ground from PNG textures, sculpted and lit by the battlefield relief. */
   drawTexturedBase(g, map, S, cover) {
+    const tb = this.clipTiles(map);
+    const fillMap = (ctx) => (tb ? ctx.fillRect(tb.x0 / K, tb.y0 / K, (tb.x1 - tb.x0 + 1) / K, (tb.y1 - tb.y0 + 1) / K) : ctx.fillRect(0, 0, map.w / K, map.h / K));
     const K = 1 / 96; // texture pixels per tile = 96
     const isoT = (ctx, s) => ctx.setTransform((TW / 2) * s, (TH / 2) * s, (-TW / 2) * s, (TH / 2) * s, this.OX, this.OY);
 
@@ -318,7 +318,7 @@ export class Renderer {
     map.changes = [];
     const rf = this.relief;
     if (!this.rcv || this.rcv.src !== rf) {
-      const mk = (arr) => { const cv = document.createElement('canvas'); cv.width = rf.mw; cv.height = rf.mh; return { cv, img: new ImageData(arr, rf.mw, rf.mh) }; };
+      const mk = (arr) => { const cv = document.createElement('canvas'); cv.width = rf.mw; cv.height = rf.mh; const img = new ImageData(arr, rf.mw, rf.mh); cv.__data = img; return { cv, img }; };
       this.rcv = { src: rf, shade: mk(rf.shade), snow: mk(rf.snow), earth: mk(rf.earth), water: mk(rf.water) };
       rf.dirty = { x: 0, y: 0, w: rf.mw, h: rf.mh };
     }
@@ -330,7 +330,7 @@ export class Renderer {
 
     isoT(g, K);
     g.fillStyle = this.pattern(g, 'mud');
-    g.fillRect(0, 0, map.w / K, map.h / K);
+    fillMap(g);
 
     const L = this.layer || (this.layer = document.createElement('canvas'));
     if (L.width !== this.ground.width || L.height !== this.ground.height) { L.width = this.ground.width; L.height = this.ground.height; }
@@ -344,11 +344,11 @@ export class Renderer {
       else lc.clearRect(0, 0, L.width, L.height);
       isoT(lc, K);
       lc.fillStyle = this.pattern(lc, name);
-      lc.fillRect(0, 0, map.w / K, map.h / K);
+      fillMap(lc);
       lc.globalCompositeOperation = 'destination-in';
       isoT(lc, 1 / R);
       lc.imageSmoothingEnabled = true;
-      lc.drawImage(mask, 0, 0);
+      this.drawTileImage(lc, mask, R, tb, mask.__data);
       lc.restore();
       g.setTransform(1, 0, 0, 1, 0, 0);
       if (clip) {
@@ -358,7 +358,8 @@ export class Renderer {
     };
     const grassA = new Float32Array(map.w * map.h);
     for (const t of map.tiles) grassA[t.y * map.w + t.x] = !t.mud && !t.crater ? 1 : 0;
-    layer('grass', this.buildMask(map, grassA, 1, 0.8), 8);
+    const gm = this.buildMask(map, grassA, 1, 0.8, tb); gm.__data = this._maskImg;
+    layer('grass', gm, 8);
     layer('earth', this.rcv.earth.cv, 16);
     if (S > 0) layer('snow', this.rcv.snow.cv, 16);
     layer(S > 0.3 ? 'ice' : 'water', this.rcv.water.cv, 16);
@@ -368,10 +369,10 @@ export class Renderer {
     isoT(g, 1 / 16);
     g.imageSmoothingEnabled = true;
     g.globalCompositeOperation = 'soft-light';
-    g.drawImage(this.rcv.shade.cv, 0, 0);
+    this.drawTileImage(g, this.rcv.shade.cv, 16, tb, this.rcv.shade.img);
     g.globalAlpha = 0.18;
     g.globalCompositeOperation = 'overlay';
-    g.drawImage(this.rcv.shade.cv, 0, 0);
+    this.drawTileImage(g, this.rcv.shade.cv, 16, tb, this.rcv.shade.img);
     g.restore();
 
     // broad light/dark variation so the textures never visibly repeat
@@ -389,7 +390,7 @@ export class Renderer {
     g.globalCompositeOperation = 'multiply';
     isoT(g, 1);
     g.imageSmoothingEnabled = true;
-    g.drawImage(field, 0, 0);
+    this.drawTileImage(g, field, 1, tb);
     g.restore();
     g.setTransform(1, 0, 0, 1, 0, 0);
   }
@@ -427,17 +428,41 @@ export class Renderer {
     if (this.groundDrawn && this.tex && this.relief && this.reliefMap === map && this.reliefS === S && ch.length && ch.length <= 80) {
       let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
       for (const c of ch) { x0 = Math.min(x0, c.x); y0 = Math.min(y0, c.y); x1 = Math.max(x1, c.x); y1 = Math.max(y1, c.y); }
-      x0 -= 3; y0 -= 3; x1 += 4; y1 += 4;
+      x0 -= 2; y0 -= 2; x1 += 3; y1 += 3;
       const pts = [iso(x0, y0), iso(x1, y0), iso(x0, y1), iso(x1, y1)];
       const minX = Math.min(...pts.map((p) => p.x)), maxX = Math.max(...pts.map((p) => p.x));
       const minY = Math.min(...pts.map((p) => p.y)), maxY = Math.max(...pts.map((p) => p.y));
       clip = { x: Math.floor(minX + this.OX), y: Math.floor(minY + this.OY - 40), w: Math.ceil(maxX - minX), h: Math.ceil(maxY - minY + 60) };
     }
-    this._clip = clip;
+    if (clip) {
+      // Incremental: draw the changed area into a small patch canvas (cheap), then copy it in.
+      const patch = this.patch || (this.patch = document.createElement('canvas'));
+      const pw = Math.ceil(clip.w * GS), ph = Math.ceil(clip.h * GS);
+      if (patch.width !== pw || patch.height !== ph) { patch.width = pw; patch.height = ph; }
+      const save = { ground: this.ground, layer: this.layer, OX: this.OX, OY: this.OY };
+      this.ground = patch; this.layer = this.patchLayer || (this.patchLayer = document.createElement('canvas'));
+      this.OX = save.OX - clip.x; this.OY = save.OY - clip.y;
+      this._clip = { x: 0, y: 0, w: clip.w, h: clip.h, real: clip };
+      const pg = supersample(patch.getContext('2d'));
+      pg.save(); pg.setTransform(1, 0, 0, 1, 0, 0); pg.clearRect(0, 0, clip.w, clip.h);
+      try {
+        this.drawGroundInner(pg, map, S);
+      } finally {
+        pg.restore();
+        Object.assign(this, save);
+      }
+      g.save();
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.clearRect(clip.x, clip.y, clip.w, clip.h);
+      g.drawImage(patch, clip.x, clip.y, clip.w, clip.h);
+      g.restore();
+      this._clip = null;
+      return;
+    }
+    this._clip = null;
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
-    if (clip) { g.beginPath(); g.rect(clip.x, clip.y, clip.w, clip.h); g.clip(); g.clearRect(clip.x, clip.y, clip.w, clip.h); }
-    else g.clearRect(0, 0, this.ground.width, this.ground.height);
+    g.clearRect(0, 0, this.ground.width, this.ground.height);
     try {
       this.drawGroundInner(g, map, S);
     } finally {
@@ -798,7 +823,8 @@ export class Renderer {
   draw(state, ui) {
     const ctx = this.ctx;
     const now = performance.now();
-    if (!this.groundDrawn || (state.map.dirty && now - this.lastGround > 200)) {
+    // craters are batched: they appear under the shell smoke, so ~0.7 s of latency is invisible
+    if (!this.groundDrawn || (state.map.dirty && now - this.lastGround > 1000)) {
       this.drawGround(state.map, state.season);
       state.map.dirty = false;
       this.groundDrawn = true;
@@ -1373,8 +1399,8 @@ export class Renderer {
   }
 
   drawEffects(ctx, state) {
-    const anim = !!this.impactFrames;
-    if (anim) for (const e of state.effects.filter((q) => q.type === 'impact').sort((a, b) => a.x + a.y - (b.x + b.y))) this.drawImpact(ctx, e);
+    const anim = true; // shell bursts are drawn by drawBlast; the older boom/dirt/smoke visuals are skipped
+    for (const e of state.effects.filter((q) => q.type === 'impact').sort((a, b) => a.x + a.y - (b.x + b.y))) this.drawBlast(ctx, e);
     const wind = this.atmo.wind;
     for (const e of state.effects) {
       const k = e.age / e.life;
@@ -1480,6 +1506,121 @@ export class Renderer {
         }
       }
     }
+  }
+
+  // ------------------------------------------------------------ shell bursts
+
+  /** Soft, lumpy puff sprites in the battlefield palette (generated once). */
+  blastSprites() {
+    if (this._blast) return this._blast;
+    const rnd = ((a) => () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; })(77);
+    // tones measured from the concept art: churned black-grey earth -> cold grey smoke
+    const TONES = [[34, 31, 30], [52, 50, 50], [84, 86, 92], [118, 122, 130]];
+    const puff = (tone) => {
+      const S = 96, c = document.createElement('canvas'); c.width = c.height = S;
+      const g = c.getContext('2d');
+      for (let i = 0; i < 14; i++) { // lumpy silhouette from overlapping soft blobs
+        const a = rnd() * Math.PI * 2, d = rnd() * S * 0.2, r = S * (0.16 + rnd() * 0.16);
+        const x = S / 2 + Math.cos(a) * d, y = S / 2 + Math.sin(a) * d * 0.85;
+        const gr = g.createRadialGradient(x, y, 0, x, y, r);
+        gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.55, 'rgba(255,255,255,0.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+      }
+      // tint, then light from the upper left like the rest of the scene
+      g.globalCompositeOperation = 'source-in';
+      const [r, gg, b] = tone;
+      const lg = g.createLinearGradient(S * 0.2, S * 0.15, S * 0.8, S * 0.9);
+      lg.addColorStop(0, `rgb(${Math.min(255, r * 1.35 + 14)},${Math.min(255, gg * 1.35 + 14)},${Math.min(255, b * 1.35 + 18)})`);
+      lg.addColorStop(1, `rgb(${r * 0.7},${gg * 0.7},${b * 0.72})`);
+      g.fillStyle = lg; g.fillRect(0, 0, S, S);
+      return c;
+    };
+    const steps = [];
+    for (let i = 0; i <= 6; i++) { const f = i / 2, lo = Math.min(2, Math.floor(f)), w = f - lo; steps.push(TONES[lo].map((v, c) => v + (TONES[lo + 1][c] - v) * w)); }
+    const sets = steps.map((t) => [0, 1, 2].map(() => puff(t)));
+    const flash = document.createElement('canvas'); flash.width = flash.height = 64;
+    const fg = flash.getContext('2d'), fr = fg.createRadialGradient(32, 32, 0, 32, 32, 32);
+    fr.addColorStop(0, 'rgba(255,246,226,1)'); fr.addColorStop(0.25, 'rgba(255,214,160,0.75)'); fr.addColorStop(1, 'rgba(255,170,110,0)');
+    fg.fillStyle = fr; fg.fillRect(0, 0, 64, 64);
+    return (this._blast = { sets, flash });
+  }
+
+  /**
+   * One shell burst, evaluated analytically from its age (smooth at any frame rate):
+   * flash, mud clods on ballistic arcs that splatter where they land, a dark earth column that
+   * turns into cold grey smoke and drifts with the wind, and a low dust skirt rolling outward.
+   */
+  drawBlast(ctx, e) {
+    const B = this.blastSprites();
+    const t = e.age, k = e.scale || 1, snow = (this.S ?? 0) > 0.7;
+    const wind = this.atmo.wind;
+    if (!e.fx) { // per-burst randomness, fixed for its lifetime
+      let a = Math.floor((e.seed || Math.random()) * 4294967296) >>> 0;
+      const rnd = () => { a = (a + 0x6d2b79f5) >>> 0; let q = a; q = Math.imul(q ^ (q >>> 15), q | 1); q ^= q + Math.imul(q ^ (q >>> 7), q | 61); return ((q ^ (q >>> 14)) >>> 0) / 4294967296; };
+      const clods = Array.from({ length: 34 }, () => {
+        const ang = rnd() * TAU, steep = rnd();
+        return { ang, h: (18 + rnd() * 70) * (1 - steep * 0.6), vz: 120 + steep * 230 + rnd() * 40, s: 0.9 + rnd() * rnd() * 3.2, snow: snow && rnd() < 0.15, tone: rnd() };
+      });
+      const column = Array.from({ length: 9 }, (_, i) => ({ vz: 60 + rnd() * 200, dx: (rnd() - 0.5) * 22, dy: (rnd() - 0.5) * 6, r0: 6 + rnd() * 5, gr: 19 + rnd() * 22, v: Math.floor(rnd() * 3), ph: rnd() * 6, late: i / 9 }));
+      const skirt = Array.from({ length: 6 }, () => ({ ang: rnd() * TAU, sp: 70 + rnd() * 80, r0: 4 + rnd() * 3, gr: 10 + rnd() * 12, v: Math.floor(rnd() * 3) }));
+      e.fx = { clods, column, skirt };
+    }
+    const p = iso(e.x, e.y);
+    const sp = this.worldToScreen(p.x, p.y), m = 160 * this.cam.zoom;
+    if (sp.x < -m || sp.x > this.vw + m || sp.y < -m * 0.5 || sp.y > this.vh + m * 1.6) return;
+    const sm = (a, b, v) => { const q = Math.max(0, Math.min(1, (v - a) / (b - a))); return q * q * (3 - 2 * q); };
+    const drawPuff = (x, y, r, toneF, alpha, v) => {
+      if (alpha <= 0.03 || r <= 0) return;
+      const i = Math.max(0, Math.min(6, Math.round(toneF * 2)));
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(B.sets[i][v], x - r, y - r, r * 2, r * 2);
+    };
+    // (no save/restore: it forces the canvas to flush; state is reset explicitly at the end)
+    // dust skirt rolling outward along the ground (drag: x = v/c (1 - e^-ct))
+    for (const q of e.fx.skirt) {
+      const d = (q.sp / 3.2) * (1 - Math.exp(-3.2 * t)) * k;
+      const x = p.x + Math.cos(q.ang) * d + wind.x * t * 5, y = p.y + Math.sin(q.ang) * d * 0.5 + wind.y * t * 3;
+      const r = (q.r0 + q.gr * (1 - Math.exp(-1.4 * t))) * k;
+      drawPuff(x, y - r * 0.45, r, 1 + sm(0.2, 2.5, t) * 1.2, 0.55 * sm(0, 0.06, t) * (1 - sm(1.2, 3.6, t)), q.v);
+    }
+    // earth column -> rising smoke (strong drag, then buoyancy and wind)
+    const col = [...e.fx.column].sort((a, b) => a.vz - b.vz);
+    for (const q of col) {
+      const z = ((q.vz / 2.4) * (1 - Math.exp(-2.4 * t)) + 7 * t) * k;
+      const spread = 1 + z / (28 * k);
+      const x = p.x + (q.dx * spread + Math.sin(t * 0.9 + q.ph) * 3) * k + wind.x * t * 11, y = p.y + q.dy * k + wind.y * t * 4;
+      const r = (q.r0 + q.gr * (1 - Math.exp(-1.1 * t)) + t * 2.5) * k;
+      const tone = sm(0.05, 0.6, t) * 1.2 + sm(0.8, 3.5, t) * 1.0 + q.late * 0.4;
+      const alpha = 0.85 * sm(0, 0.04 + q.late * 0.05, t) * (1 - sm(1.8 + q.late * 1.4, 6.2, t));
+      drawPuff(x, y - z - r * 0.4, r, tone, alpha, q.v);
+    }
+    // mud (and snow) clods on ballistic arcs; they splatter and fade where they land
+    const G = 520;
+    for (const q of e.fx.clods) {
+      const tl = (2 * q.vz) / G, tt = Math.min(t, tl);
+      const x = p.x + Math.cos(q.ang) * q.h * tt * k, y = p.y + Math.sin(q.ang) * q.h * tt * 0.5 * k;
+      const z = Math.max(0, q.vz * tt - 0.5 * G * tt * tt) * k;
+      const landed = t >= tl, fade = landed ? 1 - sm(tl, tl + 1.6, t) : 1;
+      if (fade <= 0) continue;
+      const s = q.s * k * (landed ? 1.25 : 1) * (q.snow ? 0.7 : 1);
+      ctx.globalAlpha = fade * 0.95;
+      const c = q.snow ? 210 + q.tone * 30 : 22 + q.tone * 30;
+      ctx.fillStyle = q.snow ? `rgb(${c - 8},${c - 2},${c + 6})` : `rgb(${c},${c - 2},${c - 1})`;
+      if (landed) { ctx.beginPath(); ctx.ellipse(x, y, s * 1.4, s * 0.6, 0, 0, TAU); ctx.fill(); continue; }
+      // motion streak in the direction of travel
+      const vz = q.vz - G * tt, vx = Math.cos(q.ang) * q.h, vy = Math.sin(q.ang) * q.h * 0.5;
+      ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = s * 1.3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x, y - z); ctx.lineTo(x - vx * 0.016 * k, y - z + (vz * 0.016 - vy * 0.016) * k); ctx.stroke();
+    }
+    // flash: brief, desaturated, low on the ground
+    if (t < 0.14) {
+      ctx.globalCompositeOperation = 'lighter';
+      const f = 1 - t / 0.14, r = (14 + 30 * (t / 0.14)) * k;
+      ctx.globalAlpha = f * 0.9;
+      ctx.drawImage(B.flash, p.x - r, p.y - r * 0.75 - 6 * k, r * 2, r * 1.5);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.globalAlpha = 1;
   }
 
   // ------------------------------------------------------------ minimap
