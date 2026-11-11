@@ -189,18 +189,55 @@ export function buyUnit(state, team, type) {
   return u;
 }
 
-export function canReinforce(state, u) {
-  if (u.dead) return false;
-  const full = UNIT_TYPES[u.type].men;
-  if (u.men >= full) return false;
-  const tile = tileAt(state.map, u.x, u.y);
+/**
+ * Trench tiles a team can supply: everything connected to its HQ through trenches it holds.
+ * Cached until ownership or the trench network changes.
+ */
+export function supplyNetwork(state, team) {
+  const { map } = state;
+  const key = map.netVersion || 0;
+  state.supplyNet = state.supplyNet || [];
+  const c = state.supplyNet[team];
+  if (c && c.key === key) return c.set;
+  const set = new Uint8Array(map.w * map.h);
+  const hq = map.hq[team];
+  const stack = [hq.y * map.w + hq.x];
+  while (stack.length) {
+    const i = stack.pop();
+    if (set[i]) continue;
+    const t = map.tiles[i];
+    if (!t.trench || t.owner !== team) continue;
+    set[i] = 1;
+    const x = i % map.w, y = (i / map.w) | 0;
+    if (x > 0) stack.push(i - 1); if (x < map.w - 1) stack.push(i + 1);
+    if (y > 0) stack.push(i - map.w); if (y < map.h - 1) stack.push(i + map.w);
+  }
+  state.supplyNet[team] = { key, set };
+  return set;
+}
+
+export const CONTACT_RANGE = 3;
+
+/** Why a unit cannot be reinforced right now, or null if it can. */
+export function reinforceBlock(state, u) {
+  if (u.dead) return 'Unit lost';
+  if (u.men >= UNIT_TYPES[u.type].men) return 'Already at full strength';
+  if (state.units.some((e) => !e.dead && e.team !== u.team && Math.hypot(e.x - u.x, e.y - u.y) < CONTACT_RANGE)) return 'Cannot reinforce while in contact with the enemy';
   const hq = state.map.hq[u.team];
-  const nearHq = Math.hypot(u.x - hq.x, u.y - hq.y) < 8;
-  return nearHq || !!(tile && tile.trench && tile.owner === u.team);
+  if (Math.hypot(u.x - hq.x, u.y - hq.y) < 8) return null;
+  const tile = tileAt(state.map, u.x, u.y);
+  if (!tile || !tile.trench || tile.owner !== u.team) return 'Must be in a friendly trench to reinforce';
+  if (!supplyNetwork(state, u.team)[tile.y * state.map.w + tile.x]) return 'Cut off: this trench has no link back to HQ';
+  return null;
+}
+
+export function canReinforce(state, u) {
+  return !reinforceBlock(state, u);
 }
 
 export function reinforce(state, u) {
-  if (!canReinforce(state, u)) return 'Must be in a friendly trench to reinforce';
+  const why = reinforceBlock(state, u);
+  if (why) return why;
   const t = UNIT_TYPES[u.type];
   const res = state.resources[u.team];
   const missing = t.men - u.men;
@@ -244,6 +281,7 @@ export function canBuild(state, team, type, x, y) {
 
 function markChanged(map, x, y) {
   map.dirty = true;
+  map.netVersion = (map.netVersion || 0) + 1;
   (map.changes || (map.changes = [])).push({ x: Math.floor(x), y: Math.floor(y) });
 }
 
@@ -274,6 +312,7 @@ function completeBuild(state, tile) {
   else if (b.type === 'wire') { tile.wire = 100; tile.decor = null; }
   state.map.dirty = true;
   (state.map.changes || (state.map.changes = [])).push({ x: tile.x, y: tile.y });
+  state.map.netVersion = (state.map.netVersion || 0) + 1;
 }
 
 // ---------------------------------------------------------------- simulation

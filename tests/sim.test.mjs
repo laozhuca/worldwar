@@ -82,3 +82,28 @@ test('AI vs AI: ten minutes of war runs without errors and things happen', () =>
   assert.ok(s.stats.lost[0] + s.stats.lost[1] > 20, `casualties: ${s.stats.lost}`);
   console.log('casualties', s.stats.lost, 'winner', s.winner, 'time', s.time.toFixed(0), 'units', s.units.length);
 });
+
+test('reinforcement needs a trench linked to HQ and no enemy in contact', async () => {
+  const { reinforceBlock, supplyNetwork } = await import('../src/game.js');
+  const s = createGame({ aiTeams: [] });
+  const sq = s.units.find((u) => u.team === PLAYER && u.type === 'rifle' && u.inTrench);
+  damageUnit(s, sq, 40);
+  assert.equal(reinforceBlock(s, sq), null, 'own front line is supplied');
+
+  // an enemy squad that has seized a section of our front line is cut off from its own HQ
+  const foe = s.units.find((u) => u.team === ENEMY && u.type === 'rifle');
+  const fl = frontLine(s.map, PLAYER), ty = Math.floor(sq.y) + 8 < s.map.h - 2 ? Math.floor(sq.y) + 8 : Math.floor(sq.y) - 8;
+  const t = tileAt(s.map, fl[ty], ty);
+  assert.ok(t.trench);
+  foe.x = t.x + 0.5; foe.y = t.y + 0.5; t.owner = ENEMY; s.map.netVersion = (s.map.netVersion || 0) + 1;
+  damageUnit(s, foe, 40);
+  assert.ok(!supplyNetwork(s, ENEMY)[t.y * s.map.w + t.x], 'captured section is not on the enemy network');
+  assert.match(reinforceBlock(s, foe), /contact|Cut off/);
+  for (const u of s.units) if (u.team === PLAYER && Math.hypot(u.x - foe.x, u.y - foe.y) < 4) u.x = 5.5;
+  assert.match(reinforceBlock(s, foe), /Cut off/);
+  assert.equal(typeof reinforce(s, foe), 'string', 'reinforce refuses');
+
+  // our squad in contact with that enemy cannot refill either
+  sq.x = foe.x; sq.y = foe.y - 1;
+  assert.match(reinforceBlock(s, sq), /contact/);
+});
