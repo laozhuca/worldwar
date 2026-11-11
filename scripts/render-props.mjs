@@ -10,7 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { deflateSync } from 'node:zlib';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const OUT = join(here, '..', 'assets', 'props');
+const ASSETS = join(here, '..', 'assets');
+const { NATIONS, SOLDIER_POSES } = await import('../tools/render3d/soldier.mjs');
 export const SCALE = 3; // render at 3x so props stay crisp when zoomed in
 
 function jobs() {
@@ -27,6 +28,10 @@ function jobs() {
     for (let v = 0; v < 3; v++) list.push({ name: `log${v}${s}`, kind: 'log', args: [v, snow] });
     for (let v = 0; v < 3; v++) list.push({ name: `debris${v}${s}`, kind: 'debris', args: [v, snow] });
   }
+  for (const view of ['a', 'b']) list.push({ name: `mg_${view}`, kind: 'mg', args: [view] });
+  for (const nation of Object.keys(NATIONS)) for (const [pose, frames] of SOLDIER_POSES) for (let f = 0; f < frames; f++) for (const view of ['a', 'b'])
+    list.push({ name: `${pose}${f}_${view}`, dir: `soldiers/${nation}`, kind: 'soldier', args: [nation, pose, f, view], scale: 4 });
+  for (const nation of Object.keys(NATIONS)) list.push({ name: 'portrait', dir: `soldiers/${nation}`, kind: 'soldier', args: [nation, 'stand', 0, 'a', true], scale: 16 });
   return list;
 }
 
@@ -48,11 +53,13 @@ function png(w, h, rgba) {
 }
 
 if (isMainThread) {
-  mkdirSync(OUT, { recursive: true });
   const prefix = process.argv[2] || '';
-  const todo = jobs().filter((j) => j.name.startsWith(prefix));
-  const manifestPath = join(OUT, 'manifest.json');
-  const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {};
+  const todo = jobs().filter((j) => ((j.dir ? j.dir + '/' : '') + j.name).startsWith(prefix));
+  const manifests = {};
+  const man = (dir) => {
+    if (!manifests[dir]) { const p = join(ASSETS, dir, 'manifest.json'); mkdirSync(join(ASSETS, dir), { recursive: true }); manifests[dir] = existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : {}; }
+    return manifests[dir];
+  };
   const t0 = Date.now();
   let next = 0, done = 0, bytes = 0;
   const n = Math.max(1, Math.min(cpus().length, todo.length));
@@ -60,10 +67,12 @@ if (isMainThread) {
     for (let k = 0; k < n; k++) {
       const w = new Worker(fileURLToPath(import.meta.url), { workerData: {} });
       const feed = () => { if (next < todo.length) w.postMessage(todo[next++]); else w.terminate(); };
-      w.on('message', ({ name, w: W, h: H, ax, ay, data }) => {
+      w.on('message', ({ name, dir, scale, w: W, h: H, ax, ay, data }) => {
         const buf = png(W, H, new Uint8ClampedArray(data));
-        writeFileSync(join(OUT, name + '.png'), buf);
-        manifest[name] = { w: W, h: H, ax, ay, scale: SCALE };
+        const d = dir || 'props';
+        man(d);
+        writeFileSync(join(ASSETS, d, name + '.png'), buf);
+        man(d)[name] = { w: W, h: H, ax, ay, scale };
         bytes += buf.length;
         done++;
         process.stdout.write(`\r${done}/${todo.length} ${name}                `);
@@ -73,16 +82,16 @@ if (isMainThread) {
       feed();
     }
   });
-  const sorted = Object.fromEntries(Object.keys(manifest).sort().map((k) => [k, manifest[k]]));
-  writeFileSync(manifestPath, JSON.stringify(sorted, null, 1) + '\n');
+  for (const [d, m] of Object.entries(manifests)) writeFileSync(join(ASSETS, d, 'manifest.json'), JSON.stringify(Object.fromEntries(Object.keys(m).sort().map((k) => [k, m[k]])), null, 1) + '\n');
   console.log(`\nrendered ${todo.length} props (${(bytes / 1024).toFixed(0)} KB) in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 } else {
   const core = await import('../tools/render3d/core.mjs');
   const scenes = await import('../tools/render3d/scenes.mjs');
-  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene };
+  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, soldier: (await import('../tools/render3d/soldier.mjs')).soldierScene };
   parentPort.on('message', (job) => {
-    const r = core.render(make[job.kind](...job.args), core.PX_PER_UNIT * SCALE);
-    parentPort.postMessage({ name: job.name, w: r.w, h: r.h, ax: r.ax, ay: r.ay, data: r.data.buffer }, [r.data.buffer]);
+    const scale = job.scale || SCALE;
+    const r = core.render(make[job.kind](...job.args), core.PX_PER_UNIT * scale);
+    parentPort.postMessage({ name: job.name, dir: job.dir, scale, w: r.w, h: r.h, ax: r.ax, ay: r.ay, data: r.data.buffer }, [r.data.buffer]);
   });
   void workerData;
 }

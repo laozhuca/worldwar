@@ -11,7 +11,7 @@
     <canvas id="view"></canvas>
 
     <div id="topbar">
-      <div class="title">WORLDWAR <span>Trench Command</span></div>
+      <div class="title">WORLDWAR <span id="matchup">Trench Command</span></div>
       <div class="res" title="Manpower: recruit and reinforce units"><b>👥</b> <span id="res-men">0</span><em>Men</em></div>
       <div class="res" title="Ammunition: rifles, machine guns and shells"><b>🎯</b> <span id="res-ammo">0</span><em>Ammo</em></div>
       <div class="res" title="Supplies: recruit, dig, wire, reinforce"><b>📦</b> <span id="res-supplies">0</span><em>Supplies</em></div>
@@ -101,6 +101,12 @@
             </table>
             <p class="muted">Rifle squads dig works within a few tiles of where they stand. New troops gather at HQ.</p>
           </div>
+        </div>
+        <div class="nation-pick">
+          <h3>Your nation</h3>
+          <div id="nation-btns" class="nation-row"></div>
+          <h3>The enemy</h3>
+          <div id="enemy-btns" class="nation-row"></div>
         </div>
         <div class="season-pick">
           <h3>Season</h3>

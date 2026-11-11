@@ -397,4 +397,32 @@ export function debrisScene(variant, snow) {
   return { bounds: [-0.32, -0.32, -0.01, 0.38, 0.38, 0.05], sdf, shade, supersample: 2 };
 }
 
+// ===================================================================== machine gun on tripod
+export function mgScene(view) {
+  const th = view === 'a' ? 0 : -Math.PI / 2, c = Math.cos(th), s = Math.sin(th);
+  const L = (x, y) => [x * c + y * s, -x * s + y * c];
+  const parts = (x, y, z) => {
+    const [f, q] = L(x, y);
+    const jacket = sdCapsule(f, q, z, -0.02, 0, 0.1, 0.17, 0, 0.105, 0.022, 0.022);
+    const muzzle = sdCapsule(f, q, z, 0.17, 0, 0.105, 0.22, 0, 0.105, 0.008, 0.008);
+    const body = sdRoundBox(f + 0.06, q, z - 0.1, 0.05, 0.018, 0.02, 0.005);
+    const grips = sdCapsule(f, q, z, -0.11, -0.012, 0.1, -0.13, 0.012, 0.1, 0.006, 0.006);
+    const box = sdRoundBox(f + 0.03, q - 0.04, z - 0.09, 0.025, 0.018, 0.018, 0.003);
+    const legs = Math.min(
+      sdCapsule(f, q, z, 0.0, 0, 0.085, 0.12, 0.02, 0, 0.007, 0.006),
+      sdCapsule(f, q, z, 0.0, 0, 0.085, -0.1, 0.08, 0, 0.007, 0.006),
+      sdCapsule(f, q, z, 0.0, 0, 0.085, -0.1, -0.08, 0, 0.007, 0.006));
+    const metal = Math.min(jacket, muzzle, body, grips, legs);
+    return [Math.min(metal, box), box < metal ? 'box' : 'metal'];
+  };
+  const sdf = (x, y, z) => Math.min(z, parts(x, y, z)[0]);
+  const shade = (x, y, z) => {
+    const [d, m] = parts(x, y, z);
+    if (z < d) return { kind: 'catcher' };
+    if (m === 'box') return { kind: 'solid', col: [0.24, 0.26, 0.17], spec: 0.05 };
+    return { kind: 'solid', col: mix3([0.12, 0.12, 0.12], [0.24, 0.24, 0.23], fbm(x * 90, y * 90, z * 90, 2)), spec: 0.6, shin: 40 };
+  };
+  return { bounds: [-0.3, -0.3, -0.01, 0.4, 0.4, 0.16], sdf, shade, supersample: 3 };
+}
+
 void smin; void mix;

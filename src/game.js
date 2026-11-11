@@ -14,10 +14,11 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export const teamDir = (team) => (team === PLAYER ? 1 : -1);
 
 export function createGame(opts = {}) {
-  const { seed = 1916, aiTeams = [ENEMY], season = 'winter' } = opts;
+  const { seed = 1916, aiTeams = [ENEMY], season = 'winter', nations = ['uk', 'germany'] } = opts;
   const map = createMap(seed);
   const state = {
     season,
+    nations,
     time: 0,
     map,
     units: [],
@@ -96,6 +97,8 @@ export function spawnUnit(state, type, team, x, y) {
     firing: 0,
     chargeBonus: 0,
     facing: teamDir(team),
+    hx: teamDir(team), // heading on the ground (unit vector), for sprite facing
+    hy: 0,
     seed: rand(),
     dead: false,
     ai: {},
@@ -383,6 +386,7 @@ function updateUnit(state, u, dt) {
     } else {
       u.x += (dx / d) * step; u.y += (dy / d) * step;
       u.moving = true;
+      u.hx = dx / d; u.hy = dy / d;
       const sx = dx - dy; // screen-space horizontal direction
       if (Math.abs(sx) > 0.05) u.facing = Math.sign(sx);
     }
@@ -507,6 +511,7 @@ function fire(state, u, target, t) {
   u.firing = t.burst ? 0.4 : 0.15;
   const sx = (target.x - u.x) - (target.y - u.y);
   if (Math.abs(sx) > 0.05) u.facing = Math.sign(sx);
+  if (d > 0.01) { u.hx = (target.x - u.x) / d; u.hy = (target.y - u.y) / d; }
   state.effects.push({ type: t.burst ? 'tracer' : 'volley', x: u.x, y: u.y, tx: target.x, ty: target.y, age: 0, life: t.burst ? 0.35 : 0.18, team: u.team, n: shots * ammoFactor });
   state.events.push({ type: t.burst ? 'mg' : 'rifle', x: u.x, y: u.y });
 }
@@ -519,7 +524,7 @@ export function damageUnit(state, u, amount) {
   u.men = Math.max(0, Math.ceil(u.hp / t.hpPerMan - 1e-6));
   state.stats.lost[u.team] += before - u.men;
   for (let i = 0; i < Math.min(3, before - u.men); i++) {
-    state.decals.push({ x: u.x + (rand() - 0.5) * 0.7, y: u.y + (rand() - 0.5) * 0.7, team: u.team, t: state.time, rot: (rand() - 0.5) * 1.2 });
+    state.decals.push({ x: u.x + (rand() - 0.5) * 0.7, y: u.y + (rand() - 0.5) * 0.7, team: u.team, t: state.time, rot: (rand() - 0.5) * 1.2, view: Math.floor(rand() * 4) });
   }
   if (state.decals.length > 260) state.decals = state.decals.filter((d) => state.time - d.t < 140).slice(-260);
   if (u.hp <= 0) {
@@ -537,7 +542,8 @@ function launchShell(state, u, tx, ty) {
   const r = Math.pow(rand(), 0.7) * spread;
   const flight = 1.2 + d * 0.05;
   state.shells.push({ x: tx + Math.cos(a) * r, y: ty + Math.sin(a) * r, t: flight, flight, team: u.team, fromX: u.x, fromY: u.y });
-  state.effects.push({ type: 'gunflash', x: u.x, y: u.y, age: 0, life: 0.35, facing: u.facing });
+  if (d > 0.01) { u.hx = (tx - u.x) / d; u.hy = (ty - u.y) / d; }
+  state.effects.push({ type: 'gunflash', x: u.x, y: u.y, age: 0, life: 0.35, facing: u.facing, hx: u.hx, hy: u.hy });
   state.events.push({ type: 'artyfire', x: u.x, y: u.y });
 }
 

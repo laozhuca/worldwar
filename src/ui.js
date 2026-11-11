@@ -340,7 +340,8 @@ export class UI {
         let status = u.pinned ? 'PINNED' : u.order ? (u.order.kind === 'charge' ? 'charging' : 'moving') : u.barrage ? 'firing barrage' : u.digging ? 'digging' : u.inTrench ? 'in trench' : 'in the open';
         if (u.type === 'artillery' && u.cooldown > 0 && !u.barrage) status = `reloading ${Math.ceil(u.cooldown)}s`;
         if (u.type === 'mg' && u.setup > 0 && !u.order) status = 'setting up';
-        parts.push(`<div class="ucard"><span class="n">${t.name}</span><br>${u.men}/${t.men} men · ${status}
+        const por = this.r.portraitOf && s.nations ? `<img class="portrait" src="${this.r.portraitOf(s.nations[PLAYER])}" alt="">` : '';
+        parts.push(`<div class="ucard">${por}<span class="n">${t.name}</span><br>${u.men}/${t.men} men · ${status}
           <div class="bar"><i style="width:${(100 * u.hp) / (t.men * t.hpPerMan)}%"></i></div>
           <div class="bar sup"><i style="width:${u.suppression}%"></i></div></div>`);
       }

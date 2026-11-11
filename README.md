@@ -38,6 +38,8 @@ as `file://`, because it uses ES modules.
 
 **Props & trenches**: trenches, barbed wire, stumps, dead trees, logs and debris are 3D models pre-rendered to PNG from the game's exact isometric camera, with the terrain's sun, soft shadows and ambient occlusion (the classic isometric-game pipeline). Trenches are tiles chosen by which neighbours connect (16 shapes x 3 levels x 3 random variants: hasty with sloping clay walls and a flooded floor, revetted with duckboards and double sandbags, concrete), each with a snow variant. Every variant is deliberately untidy: wobbly wall lines, slumped earth, lumpy spoil heaps, jittered/burst/missing sandbags, missing boards and slats, cracked concrete, mud stains, and clutter such as ammo crates, shell casings, leaning planks and fallen sandbags; randomness fades out at tile edges so neighbours always join. Wire is concertina coil on knife-rest frames, intact or shell-cut, for both belt directions. Replace any PNG in `assets/props/` with your own render of the same name and it is used automatically.
 
+**Nations**: pick your army and the enemy on the start screen: Britain, France, the United States, Italy or Russia against Germany, Austria-Hungary or the Ottoman Empire. Each army's soldiers are 3D-rendered in their own uniform and headgear (Brodie and Adrian helmets, Pickelhaube, fez, peaked cap, Austrian field cap, greatcoats), modelled on the reference art in `art-src/`, with poses for standing, walking, charging with bayonets, firing, aiming over the parapet, lying prone, digging and falling. Batteries use the supplied howitzer art; machine guns are a rendered water-cooled gun on a tripod.
+
 **Seasons**: Winter (snow, frozen shell holes), Thaw (patchy snow over mud) and Mud (rain, flooded craters), chosen on the start screen. Shellfire and digging churn the snow into black earth.
 
 **Atmosphere** (purely visual): a day/night cycle with star-shell flares and dynamic light from gunfire and explosions; passing rain showers; drifting ground mist; screen shake; earth-fountain shell bursts; fallen soldiers left on the field; and a 🎞 film-look toggle (colour / sepia / black and white).
@@ -76,6 +78,8 @@ src/audio.js            procedural WebAudio sound effects
 src/main.js             game loop
 assets/textures/        generated seamless PNG textures (mud, earth, snow, grass, ice, water, planks, sandbags, duckboards)
 scripts/make-textures.mjs  texture generator: `npm run textures` (no dependencies)
+assets/soldiers/<nation>/ pre-rendered soldier sprites (8 poses, 2 views, mirrored in game) + portrait
+assets/art/             cut-out howitzer art and soldier portraits (from art-src/ via `node scripts/process-art.mjs`)
 assets/props/           pre-rendered 3D props: 144 trench tiles x snow, wire belts, stumps, trees, logs, debris
 tools/render3d/         offline ray-marching renderer + 3D models; `npm run props` re-renders assets/props (no dependencies)
 tests/                  headless simulation tests (node --test)
@@ -88,3 +92,8 @@ npm test
 ```
 
 The tests cover barrages, MG lethality, digging, recruiting and reinforcing, plus a 10-minute AI-vs-AI battle.
+
+## Adding art
+
+Drop transparent-background PNG/WebP files into `art-src/` and run `node scripts/process-art.mjs` (needs Playwright).
+Nation portraits use `art-src/soldier-<nation>.webp` when present (`uk`, `france`, `usa`, `italy`, `russia`, `germany`, `austria`, `ottoman`); otherwise the rendered 3D portrait is shown.

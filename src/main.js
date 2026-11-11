@@ -2,7 +2,7 @@ import { createGame, update } from './game.js';
 import { Renderer, iso } from './render.js';
 import { UI } from './ui.js';
 import { Sound } from './audio.js';
-import { PLAYER } from './config.js';
+import { PLAYER, NATIONS } from './config.js';
 import { hourOf } from './atmosphere.js';
 
 const STEP = 1 / 30;
@@ -13,6 +13,7 @@ const app = {
   speed: 1,
   helpOpen: true,
   season: 'winter',
+  nations: ['uk', 'germany'],
   overlayOpen() { return !document.getElementById('overlay').classList.contains('hidden'); },
   togglePause() {
     this.paused = !this.paused;
@@ -35,6 +36,26 @@ const sound = new Sound();
 const ui = new UI(app, renderer, sound);
 renderer.loadTextures();
 renderer.loadProps();
+let artKeys = {};
+const portraitOf = (n) => (artKeys[`soldier-${n}`] ? `assets/art/soldier-${n}.png` : `assets/soldiers/${n}/portrait.png`);
+renderer.portraitOf = portraitOf;
+function useArmies(state) {
+  renderer.nations = state.nations;
+  renderer.loadArmies(state.nations);
+  const [a, b] = state.nations.map((n) => NATIONS[n].name);
+  document.getElementById('matchup').textContent = `${a} vs ${b}`;
+}
+useArmies(app.state);
+function nationButtons() {
+  const mine = document.getElementById('nation-btns'), foe = document.getElementById('enemy-btns');
+  const myAlliance = NATIONS[app.nations[0]].alliance;
+  if (NATIONS[app.nations[1]].alliance === myAlliance) app.nations[1] = Object.keys(NATIONS).find((k) => NATIONS[k].alliance !== myAlliance);
+  const btn = (k, active, onClick) => { const b = document.createElement('button'); b.className = active ? 'active' : ''; b.innerHTML = `<img src="${portraitOf(k)}" alt=""><span>${NATIONS[k].name}</span>`; b.onclick = onClick; return b; };
+  mine.replaceChildren(...Object.keys(NATIONS).map((k) => btn(k, k === app.nations[0], () => { app.nations[0] = k; nationButtons(); })));
+  foe.replaceChildren(...Object.keys(NATIONS).filter((k) => NATIONS[k].alliance !== myAlliance).map((k) => btn(k, k === app.nations[1], () => { app.nations[1] = k; nationButtons(); })));
+}
+nationButtons();
+fetch('assets/art/manifest.json').then((r) => r.json()).then((m) => { artKeys = m; nationButtons(); }).catch(() => {});
 ui.centerOnFront();
 window.addEventListener('resize', () => renderer.resize());
 window.worldwar = { app, renderer, ui }; // handy for debugging in the console
@@ -45,8 +66,10 @@ document.querySelectorAll('[data-season]').forEach((b) => b.addEventListener('cl
 }));
 document.getElementById('btn-start').addEventListener('click', () => {
   sound.init();
-  if (app.state.season !== app.season && app.state.time < 1) {
-    app.state = createGame({ season: app.season });
+  const sameNations = app.state.nations.join() === app.nations.join();
+  if ((app.state.season !== app.season || !sameNations) && app.state.time < 1) {
+    app.state = createGame({ season: app.season, nations: [...app.nations] });
+    useArmies(app.state);
     renderer.groundDrawn = false;
     ui.selected.clear();
     ui.centerOnFront();
@@ -56,7 +79,8 @@ document.getElementById('btn-start').addEventListener('click', () => {
   document.getElementById('btn-pause').textContent = '❚❚';
 });
 document.getElementById('btn-restart').addEventListener('click', () => {
-  app.state = createGame({ seed: Math.floor(Math.random() * 1e6), season: app.season });
+  app.state = createGame({ seed: Math.floor(Math.random() * 1e6), season: app.season, nations: [...app.nations] });
+  useArmies(app.state);
   ui.selected.clear();
   ui.setMode(null);
   renderer.groundDrawn = false;

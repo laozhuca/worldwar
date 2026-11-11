@@ -104,3 +104,15 @@ export const SEASONS = {
   thaw: { key: 'thaw', name: 'Thaw', snow: 0.5, precip: 'sleet', desc: 'Patchy snow over churned mud.' },
   mud: { key: 'mud', name: 'Mud', snow: 0, precip: 'rain', desc: 'Rain, black mud and flooded craters.' },
 };
+
+// Playable nations (uniform art: assets/soldiers/<key>/, portraits: assets/art/soldier-<key>.png when supplied).
+export const NATIONS = {
+  uk: { name: 'Britain', alliance: 'allied' },
+  france: { name: 'France', alliance: 'allied' },
+  usa: { name: 'United States', alliance: 'allied' },
+  italy: { name: 'Italy', alliance: 'allied' },
+  russia: { name: 'Russia', alliance: 'allied' },
+  germany: { name: 'Germany', alliance: 'central' },
+  austria: { name: 'Austria-Hungary', alliance: 'central' },
+  ottoman: { name: 'Ottoman Empire', alliance: 'central' },
+};

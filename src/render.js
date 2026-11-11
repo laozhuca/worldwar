@@ -788,7 +788,12 @@ export class Renderer {
       const a = age < 100 ? 1 : Math.max(0, 1 - (age - 100) / 40);
       if (a <= 0) continue;
       const p = iso(b.x, b.y);
-      ctx.globalAlpha = a * 0.85;
+      ctx.globalAlpha = a * 0.9;
+      const nat = this.nations && this.nations[b.team];
+      if (nat && this.sold && this.sold[nat]) {
+        const v = b.view || 0;
+        if (this.drawSoldier(ctx, nat, 'dead', 0, [1, 0, -1, 0][v], [0, -1, 0, 1][v], p.x, p.y)) continue;
+      }
       ctx.save();
       ctx.translate(p.x, p.y); ctx.rotate(b.rot);
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -1032,6 +1037,64 @@ export class Renderer {
     }
   }
 
+  /** Load soldier sprites for the nations in play, plus the artillery art. */
+  loadArmies(nations) {
+    this.sold = this.sold || {};
+    const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error(src)); i.src = src; });
+    const jobs = [...new Set(nations)].filter((n) => !this.sold[n]).map((n) =>
+      fetch(`assets/soldiers/${n}/manifest.json`).then((r) => r.json()).then((meta) =>
+        Promise.all(Object.keys(meta).filter((k) => k !== 'portrait').map((k) => loadImg(`assets/soldiers/${n}/${k}.png`).then((img) => [k, img])))
+          .then((list) => { this.sold[n] = { meta, img: Object.fromEntries(list) }; })));
+    if (!this.gunArt) {
+      jobs.push(Promise.all(['gun-a', 'gun-b'].map((k) => loadImg(`assets/art/${k}.png`))).then(([a, b]) => { this.gunArt = { a, b }; }));
+    }
+    return Promise.all(jobs).catch((e) => console.warn('Army sprites unavailable, using drawn figures:', e.message));
+  }
+
+  /** Pick a rendered view for a ground heading: a = +x, b = -y, mirrored for +y / -x. */
+  static viewFor(hx, hy) {
+    const opts = [[hx, 'a', false], [-hy, 'b', false], [hy, 'a', true], [-hx, 'b', true]];
+    let best = opts[0];
+    for (const o of opts) if (o[0] > best[0]) best = o;
+    return { view: best[1], mirror: best[2] };
+  }
+
+  drawSoldier(ctx, nation, poseName, frame, hx, hy, x, y) {
+    const S = this.sold && this.sold[nation];
+    if (!S) return false;
+    const { view, mirror } = Renderer.viewFor(hx, hy);
+    const key = `${poseName}${frame}_${view}`;
+    const img = S.img[key], m = S.meta[key];
+    if (!img) return false;
+    const s = 1.35 / m.scale; // units are drawn slightly larger than life for legibility
+    if (mirror) { ctx.save(); ctx.translate(x, y); ctx.scale(-1, 1); ctx.drawImage(img, -m.ax * s, -m.ay * s, m.w * s, m.h * s); ctx.restore(); }
+    else ctx.drawImage(img, x - m.ax * s, y - m.ay * s, m.w * s, m.h * s);
+    return true;
+  }
+
+  /** Howitzer from the supplied art: a faces -x, b faces +y; mirrored for -y / +x. */
+  drawGunArt(ctx, p, u) {
+    if (!this.gunArt) return false;
+    const opts = [[u.hx, 'b', true], [u.hy, 'b', false], [-u.hx, 'a', false], [-u.hy, 'a', true]];
+    let best = opts[0];
+    for (const o of opts) if (o[0] > best[0]) best = o;
+    const [, which, mirror] = best;
+    const img = this.gunArt[which];
+    // ground point under the axle, in source pixels
+    const anchor = which === 'a' ? [156, 270] : [136, 258];
+    const k = 0.13;
+    const recoil = u.firing > 0 ? u.firing * 8 : 0;
+    const d = iso(u.hx, u.hy), dl = Math.hypot(d.x, d.y) || 1;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(p.x + 4, p.y + 1, 24, 9, 0, 0, TAU); ctx.fill();
+    ctx.translate(p.x - (d.x / dl) * recoil, p.y - (d.y / dl) * recoil);
+    if (mirror) ctx.scale(-1, 1);
+    ctx.drawImage(img, -anchor[0] * k, -anchor[1] * k, img.width * k, img.height * k);
+    ctx.restore();
+    return true;
+  }
+
   drawUnit(ctx, u, selected, time) {
     const t = UNIT_TYPES[u.type];
     const p = iso(u.x, u.y);
@@ -1048,7 +1111,7 @@ export class Renderer {
       const col = i % 5, row = Math.floor(i / 5);
       const jx = Math.sin(u.seed * 100 + i * 7.3) * 0.06, jy = Math.cos(u.seed * 77 + i * 3.1) * 0.06;
       let ox, oy;
-      if (u.type === 'artillery') { ox = -dir * (0.18 + (i % 3) * 0.12); oy = (Math.floor(i / 3) - 0.5) * 0.28 + ((i % 3) - 1) * 0.1; }
+      if (u.type === 'artillery') { ox = -dir * (0.4 + (i % 3) * 0.14); oy = (Math.floor(i / 3) - 0.5) * 0.28 + ((i % 3) - 1) * 0.1; }
       else if (u.type === 'mg') { ox = -dir * (0.1 + (i % 2) * 0.12); oy = (Math.floor(i / 2) - 0.5) * 0.22 + 0.15; }
       else { ox = (row - 0.5) * 0.22 * -dir; oy = (col - 2) * 0.17; }
       const s = iso(u.x + ox + jx, u.y + oy + jy);
@@ -1056,13 +1119,48 @@ export class Renderer {
     }
     men.sort((a, b) => a.y - b.y);
     const phase = time * (charging ? 14 : 9) + u.seed * 10;
-    if (u.type === 'artillery') this.drawGun(ctx, p, u, time);
-    if (u.type === 'mg') this.drawMG(ctx, p, u, time);
+    const nation = this.nations && this.nations[u.team];
+    const useSpr = !!(nation && this.sold && this.sold[nation]);
+    let gunDrawn = u.type !== 'artillery';
+    const drawGunNow = () => { if (!gunDrawn) { gunDrawn = true; if (!this.drawGunArt(ctx, p, u)) this.drawGun(ctx, p, u, time); } };
+    if (!useSpr) drawGunNow();
+    if (u.type === 'mg') {
+      const { view, mirror } = Renderer.viewFor(u.hx, u.hy);
+      const g = iso(u.x + u.hx * 0.12, u.y + u.hy * 0.12);
+      let ok = false;
+      if (this.props && this.props['mg_' + view]) {
+        if (mirror) { ctx.save(); ctx.translate(g.x, g.y); ctx.scale(-1, 1); ok = this.drawProp(ctx, 'mg_' + view, 0, 0); ctx.restore(); }
+        else ok = this.drawProp(ctx, 'mg_' + view, g.x, g.y);
+      }
+      if (!ok) this.drawMG(ctx, p, u, time);
+      if (u.firing > 0) {
+        const d = iso(u.hx, u.hy), dl = Math.hypot(d.x, d.y) || 1;
+        ctx.fillStyle = 'rgba(255,220,120,0.95)';
+        ctx.beginPath(); ctx.arc(g.x + (d.x / dl) * 9, g.y + (d.y / dl) * 9 - 4.5, 2 + Math.random() * 2, 0, TAU); ctx.fill();
+      }
+    }
+    if (useSpr) {
+      const fr4 = Math.floor(phase / 1.6) % 4;
+      men.forEach((s, i) => {
+        if (s.y >= p.y) drawGunNow(); // crew behind the gun first, the rest in front
+        let pn = pose, fr = 0;
+        if (pose === 'walk' || pose === 'charge') fr = (fr4 + i) % 4;
+        else if (pose === 'stand') {
+          if (u.digging && i % 2 === 0) { pn = 'dig'; fr = Math.floor(phase / 2 + i) % 2; }
+          else if (u.type === 'mg') pn = 'prone';
+          else if (u.target && (u.firing > 0 || u.type === 'rifle')) pn = 'fire';
+        }
+        if (!this.drawSoldier(ctx, nation, pn, fr, u.hx, u.hy, s.x, s.y)) drawMan(ctx, s.x, s.y, u.team, pose, u.facing, phase + i * 1.7, false);
+      });
+      drawGunNow();
+    }
+    if (useSpr) { /* figures drawn above */ } else {
     if (pose !== 'trench') {
       ctx.fillStyle = 'rgba(0,0,0,0.22)';
       for (const s of men) { ctx.beginPath(); ctx.ellipse(s.x + 2, s.y, pose === 'prone' ? 6 : 3.5, 1.5, 0, 0, TAU); ctx.fill(); }
     }
     men.forEach((s, i) => drawMan(ctx, s.x, s.y, u.team, pose, u.facing, phase + i * 1.7, u.digging && i % 2 === 0));
+    }
 
     // small-arms muzzle flashes
     if (u.firing > 0 && u.type === 'rifle' && pose !== 'charge') {
@@ -1070,7 +1168,8 @@ export class Renderer {
       for (let i = 0; i < men.length; i += 2) {
         if (Math.sin(time * 40 + i) < 0.2) continue;
         const s = men[i];
-        const fx = s.x + u.facing * 7.5, fy = s.y - (pose === 'trench' ? 7 : 11);
+        const hd = iso(u.hx, u.hy), hl = Math.hypot(hd.x, hd.y) || 1;
+        const fx = s.x + (useSpr ? (hd.x / hl) * 9 : u.facing * 7.5), fy = s.y + (useSpr ? (hd.y / hl) * 9 : 0) - (pose === 'trench' ? (useSpr ? 2 : 7) : 11);
         const gr = ctx.createRadialGradient(fx, fy, 0, fx, fy, 5);
         gr.addColorStop(0, 'rgba(255,240,180,0.95)'); gr.addColorStop(1, 'rgba(255,150,50,0)');
         ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(fx, fy, 5, 0, TAU); ctx.fill();
@@ -1247,6 +1346,13 @@ export class Renderer {
       } else if (e.type === 'gunflash') {
         const p = iso(e.x, e.y);
         const f = e.facing || 1;
+        if (e.hx !== undefined && this.gunArt) {
+          const d = iso(e.hx, e.hy), dl = Math.hypot(d.x, d.y) || 1, mx = p.x + (d.x / dl) * 16, my = p.y + (d.y / dl) * 16 - 14;
+          ctx.fillStyle = `rgba(200,200,190,${0.45 * (1 - k)})`;
+          ctx.beginPath(); ctx.arc(mx + (d.x / dl) * k * 12 + wind.x * k * 10, my - k * 14, 6 + k * 16, 0, TAU); ctx.fill();
+          if (k < 0.5) { ctx.globalCompositeOperation = 'lighter'; const gr = ctx.createRadialGradient(mx, my, 0, mx, my, 14); gr.addColorStop(0, `rgba(255,245,200,${1 - k * 2})`); gr.addColorStop(1, 'rgba(255,140,40,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(mx, my, 14, 0, TAU); ctx.fill(); ctx.globalCompositeOperation = 'source-over'; }
+          continue;
+        }
         ctx.fillStyle = `rgba(200,200,190,${0.45 * (1 - k)})`;
         ctx.beginPath(); ctx.arc(p.x + f * (22 + k * 14) + wind.x * k * 10, p.y - 18 - k * 14, 6 + k * 16, 0, TAU); ctx.fill();
         if (k < 0.5) {
