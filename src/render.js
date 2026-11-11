@@ -693,7 +693,8 @@ export class Renderer {
       const has = (dx, dy) => { const n = T(t.x + dx, t.y + dy); return n && n.trench ? 1 : 0; };
       const mask = has(0, -1) | (has(1, 0) << 1) | (has(0, 1) << 2) | (has(-1, 0) << 3);
       const p = iso(t.x + 0.5, t.y + 0.5);
-      this.drawProp(g, `trench_m${mask}_l${Math.max(1, Math.min(3, t.trench))}${snow}`, p.x, p.y);
+      const v = Math.floor(hash(t.x * 3.3, t.y * 7.1) * 3) % 3;
+      this.drawProp(g, `trench_m${mask}_l${Math.max(1, Math.min(3, t.trench))}_v${v}${snow}`, p.x, p.y);
     }
     // pennant posts showing who holds each stretch of trench
     for (const t of trenches) {

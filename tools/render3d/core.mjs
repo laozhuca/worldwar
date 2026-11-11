@@ -164,7 +164,8 @@ export function render(scene, scale) {
         if (m.kind === 'water') {
           const ndv = Math.max(0, -(nx * FX + ny * FY + nz * FZ));
           const fres = 0.04 + 0.96 * Math.pow(1 - ndv, 5);
-          for (let k = 0; k < 3; k++) c[k] = mix(c[k], SKY[k] * 0.55 * ao, clamp(fres + 0.3, 0, 1)) + Math.pow(ndh, 90) * sh * 0.9;
+          const murk = 0.5 + 0.5 * fbm(px * 30, py * 30, 1, 3); // brown silt and scum on the water
+          for (let k = 0; k < 3; k++) c[k] = mix(c[k] * murk, SKY[k] * 0.09 * ao, clamp(fres + 0.1, 0, 1)) + Math.pow(ndh, 140) * sh * 0.35;
         }
         const al = m.alpha ?? 1;
         accR += lin2srgb(c[0]) * al; accG += lin2srgb(c[1]) * al; accB += lin2srgb(c[2]) * al; accA += al;

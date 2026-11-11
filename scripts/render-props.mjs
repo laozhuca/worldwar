@@ -17,7 +17,7 @@ function jobs() {
   const list = [];
   for (const snow of [false, true]) {
     const s = snow ? '_s' : '';
-    for (let mask = 0; mask < 16; mask++) for (const lvl of [1, 2, 3]) list.push({ name: `trench_m${mask}_l${lvl}${s}`, kind: 'trench', args: [mask, lvl, snow] });
+    for (let mask = 0; mask < 16; mask++) for (const lvl of [1, 2, 3]) for (let v = 0; v < 3; v++) list.push({ name: `trench_m${mask}_l${lvl}_v${v}${s}`, kind: 'trench', args: [mask, lvl, snow, v] });
     for (const dir of ['x', 'y']) {
       for (let v = 0; v < 2; v++) list.push({ name: `wire_${dir}${v}${s}`, kind: 'wire', args: [dir, v, false, snow] });
       for (let v = 0; v < 2; v++) list.push({ name: `wired_${dir}${v}${s}`, kind: 'wire', args: [dir, v, true, snow] });
