@@ -1,6 +1,6 @@
 // Soldier voice lines ("barks") when the player selects or commands units, spoken with the browser's
 // speech synthesis in each army's own language, plus a speech bubble over the unit.
-// Falls back to the English line when the device has no voice for that language.
+// Only male voices are used; without a male voice for the language a male English voice speaks the English line.
 
 const LINES = {
   uk: { lang: 'en-GB',
@@ -61,6 +61,30 @@ const ENGLISH = {
   halt: ['Halt!'],
 };
 
+// Speech synthesis does not report a voice's sex, so male voices are recognised by name: "Male" in the
+// name, or a known male voice of Windows / Edge (Microsoft ...), macOS / iOS or Chrome. Voices that are not
+// known to be male are never used: soldiers then only show their speech bubble.
+const MALE_NAMES = new Set([
+  // Windows desktop and Edge "Online (Natural)" voices
+  'david', 'mark', 'george', 'james', 'richard', 'sean', 'guy', 'ryan', 'thomas', 'christopher', 'eric', 'roger',
+  'steffan', 'brandon', 'andrew', 'brian', 'davis', 'jason', 'tony', 'alfie', 'elliot', 'ethan', 'noah', 'william',
+  'liam', 'connor', 'mitchell', 'prabhat', 'paul', 'claude', 'henri', 'alain', 'jerome', 'yves', 'remy', 'antoine',
+  'jean', 'fabrice', 'gerard', 'florian', 'stefan', 'michael', 'conrad', 'killian', 'jonas', 'ralf', 'bernd', 'christoph',
+  'kasper', 'klaus', 'cosimo', 'diego', 'giuseppe', 'benigno', 'gianni', 'lisandro', 'rinaldo', 'calimero', 'pavel',
+  'dmitry', 'tolga', 'ahmet',
+  // macOS / iOS
+  'daniel', 'alex', 'fred', 'arthur', 'oliver', 'aaron', 'gordon', 'rishi', 'nicolas', 'jacques', 'markus', 'yannick',
+  'luca', 'yuri', 'reed', 'rocko', 'eddy', 'grandpa', 'ralph', 'albert', 'bruce', 'junior', 'evan', 'nathan', 'tom',
+  'malcolm', 'lee', 'oskar', 'martin',
+]);
+export const isMale = (v) => {
+  const n = (v.name || '').toLowerCase();
+  if (/\bfemale\b|\bwoman\b|\bfrau\b/.test(n)) return false;
+  if (/\bmale\b|\bman\b|männlich|masculin/.test(n)) return true;
+  const words = n.replace(/^(microsoft|apple|google)\s+/, '').split(/[^a-zäöüéèçğış]+/).filter(Boolean);
+  return words.length > 0 && MALE_NAMES.has(words[0]);
+};
+
 export class Voices {
   constructor() {
     this.on = (() => { try { return localStorage.getItem('ww-voice') !== 'off'; } catch { return true; } })();
@@ -90,11 +114,12 @@ export class Voices {
     if (!on && this.synth) this.synth.cancel();
   }
 
-  /** The best installed voice for a language ('de-AT' falls back to any 'de' voice), or null. */
+  /** A male voice for a language ('de-AT' falls back to any German male voice), or null. */
   voiceFor(lang) {
-    const v = this.voices;
-    return v.find((x) => x.lang === lang) || v.find((x) => x.lang && x.lang.replace('_', '-').toLowerCase() === lang.toLowerCase())
-      || v.find((x) => x.lang && x.lang.toLowerCase().startsWith(lang.slice(0, 2).toLowerCase())) || null;
+    const v = this.voices.filter(isMale);
+    const norm = (x) => (x.lang || '').replace('_', '-').toLowerCase();
+    return v.find((x) => norm(x) === lang.toLowerCase())
+      || v.find((x) => norm(x).startsWith(lang.slice(0, 2).toLowerCase() + '-') || norm(x) === lang.slice(0, 2).toLowerCase()) || null;
   }
 
   /**
@@ -107,22 +132,25 @@ export class Voices {
     if (kind === 'select' && now - this.last < 700) return null; // orders always get an answer
     const time = now / 1000;
     this.last = now;
-    const voice = this.synth ? this.voiceFor(N.lang) : null;
-    const native = !this.synth || voice; // without a voice for the language, speak English instead
+    // a male voice in the army's language; failing that a male English voice speaking the English line;
+    // failing that, silence (never a female voice): the bubble still shows the words
+    let voice = this.synth ? this.voiceFor(N.lang) : null;
+    const native = !this.synth || !!voice;
+    if (!voice && this.synth) voice = this.voiceFor('en-GB') || this.voiceFor('en-US');
     const pool = (native ? N[kind] : ENGLISH[kind]) || ENGLISH.select;
     const text = pool[Math.floor(Math.random() * pool.length)];
     // the bubble always shows the army's own words
     const shown = native ? text : (N[kind] || pool)[0];
     this.barks = this.barks.filter((b) => b.id !== unit.id);
     this.barks.push({ id: unit.id, text: shown, t: time });
-    if (this.synth && this.on && this.enabled) {
+    if (this.synth && voice && this.on && this.enabled) {
       this.synth.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = native ? N.lang : 'en-GB';
-      if (voice && native) u.voice = voice;
+      u.voice = voice;
+      u.lang = voice.lang;
       // each unit has its own voice: pitch and pace from its seed; commands are shouted a bit faster
       const s = unit.seed || 0.5;
-      u.pitch = 0.75 + s * 0.4;
+      u.pitch = 0.7 + s * 0.3; // kept low: men's voices
       u.rate = (kind === 'charge' ? 1.15 : kind === 'select' ? 1.0 : 1.08) + (s - 0.5) * 0.12;
       u.volume = 0.9;
       this.synth.speak(u);

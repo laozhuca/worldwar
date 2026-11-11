@@ -46,7 +46,7 @@ as `file://`, because it uses ES modules.
 
 **Atmosphere** (purely visual): a day/night cycle with star-shell flares and dynamic light from gunfire and explosions; passing rain showers; drifting ground mist; screen shake; hand-drawn shell-impact animation (the supplied 36-frame artwork, colour-graded into the battlefield palette, with continuous drift, swelling and wind between frames, a ground shadow and an impact flash); fallen soldiers left on the field; and a 🎞 film-look toggle (colour / sepia / black and white).
 
-**Voices**: units answer when you select them or give an order (move, charge, bombard, halt) in their army's own language ("Over the top, lads!", "En avant ! À la baïonnette !", "Sturm! Hurra!", "Ура! В атаку!", "Allah Allah! Hücum!"), spoken by the browser's built-in speech synthesis with a pitch and pace of their own, and shown in a speech bubble over the unit. If the device has no voice for that language the line is spoken in English (the bubble keeps the original). 🗣 toggles voices; 🔊 mutes everything.
+**Voices**: units answer when you select them or give an order (move, charge, bombard, halt) in their army's own language ("Over the top, lads!", "En avant ! À la baïonnette !", "Sturm! Hurra!", "Ура! В атаку!", "Allah Allah! Hücum!"), spoken by the browser's built-in speech synthesis with a pitch and pace of their own, and shown in a speech bubble over the unit. All voices are male: speech synthesis doesn't report a voice's sex, so only voices known to be male (by name: Windows/Edge, macOS/iOS, Chrome's "UK English Male") are used. With no male voice for the language a male English voice speaks the English line (the bubble keeps the original); with no male voice at all the soldiers stay silent and only the bubble shows. 🗣 toggles voices; 🔊 mutes everything.
 
 The enemy commander garrisons its line, uses defensive and harassing barrages,
 counter-attacks lost trenches, repairs its wire and launches its own offensives.
@@ -115,7 +115,7 @@ The simulation has no DOM dependencies, so it is tested headlessly:
 npm test
 ```
 
-The tests cover barrages, MG lethality, digging, recruiting and reinforcing, plus a 10-minute AI-vs-AI battle.
+The tests cover male-only voice selection, barrages, MG lethality, digging, recruiting and reinforcing, plus a 10-minute AI-vs-AI battle.
 
 ## Adding art
 
