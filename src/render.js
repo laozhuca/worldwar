@@ -1245,7 +1245,7 @@ export class Renderer {
     const men = [];
     const count = u.type === 'artillery' ? u.men : u.men;
     for (let i = 0; i < count; i++) {
-      const col = i % 5, row = Math.floor(i / 5);
+      const col = i % 3, row = Math.floor(i / 3); // rifle squads: two ranks of three
       const jx = Math.sin(u.seed * 100 + i * 7.3) * 0.06, jy = Math.cos(u.seed * 77 + i * 3.1) * 0.06;
       let ox, oy;
       if (u.type === 'artillery') {
@@ -1255,7 +1255,7 @@ export class Renderer {
         ox = gx * cf - gy * cs; oy = gy * cf + gx * cs;
       }
       else if (u.type === 'mg') { ox = -dir * (0.1 + (i % 2) * 0.12); oy = (Math.floor(i / 2) - 0.5) * 0.22 + 0.15; }
-      else { ox = (row - 0.5) * 0.22 * -dir; oy = (col - 2) * 0.17; }
+      else { ox = (row - 0.5) * 0.24 * -dir; oy = (col - 1) * 0.2; }
       let mx = u.x + ox + jx, my = u.y + oy + jy;
       if (moving && u.type !== 'artillery') {
         // loose order on the move: each man weaves a little and keeps his own place in the file;

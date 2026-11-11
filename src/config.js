@@ -14,7 +14,7 @@ export const UNIT_TYPES = {
   rifle: {
     key: 'rifle',
     name: 'Rifle Squad',
-    men: 10,
+    men: 6,
     hpPerMan: 10,
     range: 6,
     sight: 9,
@@ -23,10 +23,10 @@ export const UNIT_TYPES = {
     damage: 6,
     suppressPerShot: 1.2,
     ammoPerShot: 0.05,
-    speed: 1.1,
+    speed: 0.85,
     melee: 1.6,
     canDig: true,
-    cost: { men: 10, ammo: 0, supplies: 10 },
+    cost: { men: 6, ammo: 0, supplies: 6 },
     hotkey: '1',
     desc: 'Riflemen. Hold trenches, dig works, and go over the top with fixed bayonets.',
   },
@@ -43,7 +43,7 @@ export const UNIT_TYPES = {
     damage: 6,
     suppressPerShot: 2.2,
     ammoPerShot: 0.07,
-    speed: 0.75,
+    speed: 0.6,
     setup: 3,
     melee: 0.8,
     cost: { men: 4, ammo: 30, supplies: 25 },
@@ -57,11 +57,11 @@ export const UNIT_TYPES = {
     hpPerMan: 10,
     range: 0,
     sight: 6,
-    speed: 0.45,
+    speed: 0.35,
     melee: 0.5,
     artyRange: 36,
     barrageShells: 8,
-    shellInterval: 1.2,
+    shellInterval: 6, // a gun fires every ~6 s (was 1.2)
     cooldown: 14,
     shellAmmo: 4,
     cost: { men: 6, ammo: 0, supplies: 60 },
@@ -94,7 +94,7 @@ export const CAPTURE_BONUS = { men: 0.5, ammo: 2, supplies: 1.5 }; // per captur
 export const START_RES = { men: 30, ammo: 350, supplies: 200 };
 
 export const SUPPRESSION_DECAY = 12; // per second
-export const CHARGE_SPEED = 1.6;
+export const CHARGE_SPEED = 2.0; // a run is much faster than the walk
 export const MELEE_RANGE = 0.9;
 export const WIRE_SLOW = 0.25;
 

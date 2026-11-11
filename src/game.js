@@ -395,6 +395,7 @@ function updateUnit(state, u, dt) {
   const tile = tileAt(state.map, u.x, u.y);
   u.inTrench = !!tile && tile.trench > 0;
   u.suppression = Math.max(0, u.suppression - dt * SUPPRESSION_DECAY);
+  if (u.shock > 0) { u.shock -= dt; u.suppression = Math.max(u.suppression, 75); }
   const charging = !!(u.order && u.order.kind === 'charge');
   if (charging || u.inTrench) u.pinned = false;
   else if (u.suppression > 60) u.pinned = true;
@@ -599,10 +600,13 @@ function explode(state, s) {
     if (d < 1.6) {
       const tt = tileAt(map, u.x, u.y);
       const cover = u.inTrench && tt ? TRENCH_ARTY[tt.trench] : (u.pinned ? 0.8 : 1);
-      damageUnit(state, u, 45 * (1 - (d / 1.6) * 0.6) * cover);
+      damageUnit(state, u, 90 * (1 - (d / 1.6) * 0.6) * cover); // heavy shell: twice the old blast
     }
     if (d < 3.2) {
-      let sup = 60 * (1 - d / 3.2) + 15;
+      // shell shock: men near a heavy impact stay down for several seconds, so a slow but steady
+      // bombardment keeps a trench quiet between shells
+      u.shock = Math.max(u.shock || 0, 2 + 6 * (1 - d / 3.2));
+      let sup = 120 * (1 - d / 3.2) + 30;
       if (u.order && u.order.kind === 'charge') sup *= 0.5;
       u.suppression = Math.min(100, u.suppression + sup);
     }
@@ -612,7 +616,7 @@ function explode(state, s) {
     if (!t) continue;
     const d = Math.hypot(t.x + 0.5 - s.x, t.y + 0.5 - s.y);
     if (d > 1.3) continue;
-    if (t.wire > 0) t.wire = Math.max(0, t.wire - (d < 0.7 ? 80 : 45));
+    if (t.wire > 0) t.wire = Math.max(0, t.wire - (d < 0.7 ? 160 : 90));
     if (t.build) { t.build.progress = Math.max(0, t.build.progress - 4); }
     if (t.decor === 'tree' && rand() < 0.5) t.decor = rand() < 0.5 ? 'stump' : 'log';
     else if (t.decor === 'ruin' && d < 0.8 && rand() < 0.3) t.decor = null;
@@ -620,7 +624,7 @@ function explode(state, s) {
   const center = tileAt(map, s.x, s.y);
   if (center) {
     if (center.trench) {
-      if (center.trench > 1 && rand() < 0.3) center.trench--;
+      if (center.trench > 1 && rand() < 0.5) center.trench--;
     } else {
       center.crater = Math.min(3, center.crater + 1);
       center.mud = 1;

@@ -22,13 +22,15 @@ test('artillery barrage suppresses, damages, cuts wire and costs ammo', () => {
   const s = createGame({ aiTeams: [] });
   const gun = s.units.find((u) => u.team === PLAYER && u.type === 'artillery');
   const wireTile = s.map.tiles.find((t) => t.origWire === ENEMY && Math.hypot(t.x - gun.x, t.y - gun.y) < 35);
+  s.supplyTimer = 1e9; // no convoys during the measurement
   const ammo0 = s.resources[PLAYER].ammo;
   assert.equal(orderBarrage(s, [gun], wireTile.x + 0.5, wireTile.y + 0.5), 1);
-  step(s, 15);
+  const A = UNIT_TYPES.artillery;
+  step(s, A.barrageShells * A.shellInterval * 1.2 + 4); // whole barrage plus the last shell's flight
   assert.ok(s.resources[PLAYER].ammo <= ammo0 - UNIT_TYPES.artillery.shellAmmo * UNIT_TYPES.artillery.barrageShells + 5);
   const nearby = s.map.tiles.filter((t) => t.origWire === ENEMY && Math.hypot(t.x - wireTile.x, t.y - wireTile.y) < 2);
   assert.ok(nearby.some((t) => t.wire < 100), 'some wire was cut');
-  assert.ok(gun.cooldown > 0, 'battery reloading');
+  assert.equal(gun.barrage, null, 'barrage finished');
 });
 
 test('machine gun shreds infantry walking across the open', () => {
@@ -61,12 +63,13 @@ test('recruiting and reinforcing consume resources', () => {
   const men0 = res.men;
   const u = buyUnit(s, PLAYER, 'rifle');
   assert.equal(typeof u, 'object');
-  assert.equal(res.men, men0 - 10);
+  assert.equal(res.men, men0 - UNIT_TYPES.rifle.cost.men);
   const sq = s.units.find((x) => x.team === PLAYER && x.type === 'rifle' && x.inTrench);
-  damageUnit(s, sq, 35);
-  assert.equal(sq.men, 7);
-  assert.equal(reinforce(s, sq), 3);
-  assert.equal(sq.men, 10);
+  const full = UNIT_TYPES.rifle.men;
+  damageUnit(s, sq, 25); // 2.5 men's worth of wounds -> 2 men lost (a wounded man stays in the line)
+  assert.equal(sq.men, full - 2);
+  assert.equal(reinforce(s, sq), 2);
+  assert.equal(sq.men, full);
 });
 
 test('AI vs AI: ten minutes of war runs without errors and things happen', () => {
