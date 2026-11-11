@@ -495,9 +495,9 @@ export class UI {
         if (u.type === 'artillery' && u.cooldown > 0 && !u.barrage) status = `reloading ${Math.ceil(u.cooldown)}s`;
         if (u.type === 'mg' && u.setup > 0 && !u.order) status = 'setting up';
         const por = this.r.portraitOf && s.nations ? `<img class="portrait" src="${this.r.portraitOf(s.nations[PLAYER])}" alt="">` : '';
-        parts.push(`<div class="ucard">${por}<span class="n">${t.name}</span><br>${u.men}/${t.men} men · ${status}
-          <div class="bar"><i style="width:${(100 * u.hp) / (t.men * t.hpPerMan)}%"></i></div>
-          <div class="bar sup"><i style="width:${u.suppression}%"></i></div></div>`);
+        parts.push(`<div class="ucard">${por}<div class="ubody"><div class="n">${t.name}</div><div>${u.men}/${t.men} men</div><div class="st">${status}</div>
+          <div class="bar" title="Strength"><i style="width:${(100 * u.hp) / (t.men * t.hpPerMan)}%"></i></div>
+          <div class="bar sup" title="Suppression"><i style="width:${u.suppression}%"></i></div></div></div>`);
       }
       if (sel.length > 12) parts.push(`<div class="muted">+${sel.length - 12} more</div>`);
       info.innerHTML = parts.join('');
