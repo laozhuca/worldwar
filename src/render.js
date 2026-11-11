@@ -70,6 +70,21 @@ function mixHex(a, b, f) {
   return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * f)).join(',')})`;
 }
 /** Standing water reflecting a grey sky, or cracked ice in the cold. */
+/** Load an image; rejects on error or after a timeout. */
+function loadImage(src, timeout = 30000) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    const t = setTimeout(() => { img.src = ''; rej(new Error('timeout ' + src)); }, timeout);
+    img.onload = () => { clearTimeout(t); res(img); };
+    img.onerror = () => { clearTimeout(t); rej(new Error(src)); };
+    img.src = src;
+  });
+}
+/** Retry an async step with back-off (fn receives the attempt number). */
+function retry(fn, tries = 4) {
+  return fn(0).catch((e) => (tries > 1 ? new Promise((r) => setTimeout(r, 800 * (5 - tries))).then(() => retry((n) => fn(n + 1), tries - 1)) : Promise.reject(e)));
+}
+
 let PAT = null; // texture pattern lookup for the context currently being drawn, or null for vector fallback
 function drawPuddle(g, c, rx, ry, S, h) {
   const blobs = [[0, 0, 1, 1], [rx * 0.55, ry * 0.35, 0.6, 0.7], [-rx * 0.5, -ry * 0.25, 0.55, 0.65]];
@@ -150,20 +165,47 @@ export class Renderer {
 
   // ------------------------------------------------------------ ground layer
 
-  /** Load the PNG textures; until they arrive the vector fallback is drawn. */
-  loadProps(base = 'assets/props/') {
-    return fetch(base + 'manifest.json').then((r) => r.json()).then((m) => {
-      this.propMeta = m;
-      return Promise.all(Object.keys(m).map((n) => new Promise((res, rej) => {
-        const img = new Image();
-        img.onload = () => res([n, img]);
-        img.onerror = () => rej(new Error('prop ' + n));
-        img.src = base + n + '.png';
-      })));
-    }).then((list) => { this.props = Object.fromEntries(list); this.groundDrawn = false; })
-      .catch((e) => console.warn('Props unavailable, using drawn props:', e.message));
+  /**
+   * Load one sprite-sheet group (assets/atlas/<group>.json + sheets). Each group loads independently,
+   * with retries, so one slow or failed download never blocks the others.
+   */
+  loadAtlas(group) {
+    this.atlas = this.atlas || {};
+    this.atlasLoading = this.atlasLoading || {};
+    if (this.atlas[group] || this.atlasLoading[group]) return this.atlasLoading[group];
+    const base = 'assets/atlas/';
+    const p = retry(() => fetch(base + group + '.json').then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }))
+      .then((meta) => Promise.all(Array.from({ length: meta.sheets }, (_, i) => retry((n) => loadImage(`${base}${group}-${i}.webp${n ? '?r=' + n : ''}`))))
+        .then((sheets) => {
+          this.atlas[group] = { frames: meta.frames, sheets };
+          if (group.startsWith('props')) this.groundDrawn = false; // redraw the ground with the real props
+        }))
+      .catch((e) => { console.warn('Sprite sheet unavailable:', group, e.message); delete this.atlasLoading[group]; });
+    this.atlasLoading[group] = p;
+    return p;
   }
 
+  /** Props for the given snow amount (only the set the season needs is downloaded). */
+  propGroup(S = this.S ?? 1) { return S > 0.7 ? 'props-snow' : 'props-bare'; }
+  loadProps(season) {
+    const S = (SEASONS[season] || SEASONS.winter).snow;
+    this.loadAtlas('units');
+    return this.loadAtlas(this.propGroup(S));
+  }
+  get props() { return this.atlas && this.atlas[this.propGroup()]; }
+
+  /** Draw an atlas frame with its ground anchor at (x, y); k scales relative to life size. */
+  drawFrame(ctx, group, name, x, y, k = 1, mirror = false) {
+    const A = this.atlas && this.atlas[group], f = A && A.frames[name];
+    if (!f) return false;
+    const s = k / f.scale;
+    if (mirror) { ctx.save(); ctx.translate(x, y); ctx.scale(-1, 1); x = 0; y = 0; }
+    ctx.drawImage(A.sheets[f.s], f.x, f.y, f.w, f.h, x - f.ax * s, y - f.ay * s, f.w * s, f.h * s);
+    if (mirror) ctx.restore();
+    return true;
+  }
+
+  /** Load the PNG textures; until they arrive the vector fallback is drawn. */
   loadTextures(base = 'assets/textures/') {
     const names = ['mud', 'earth', 'snow', 'grass', 'ice', 'water', 'planks', 'sandbags', 'duckboard'];
     return Promise.all(names.map((n) => new Promise((res, rej) => {
@@ -666,12 +708,9 @@ export class Renderer {
   }
 
   /** Draw a pre-rendered 3D prop with its origin (ground point) at (x, y) in the current space. */
-  drawProp(ctx, name, x, y) {
-    const img = this.props && this.props[name], m = img && this.propMeta[name];
-    if (!img) return false;
-    const s = 1 / m.scale;
-    ctx.drawImage(img, x - m.ax * s, y - m.ay * s, m.w * s, m.h * s);
-    return true;
+  drawProp(ctx, name, x, y, mirror = false) {
+    if (name.startsWith('mg_')) return this.drawFrame(ctx, 'units', name, x, y, 1, mirror);
+    return this.drawFrame(ctx, this.propGroup(), name, x, y, 1, mirror);
   }
 
   /** Trenches, wire and debris from the pre-rendered 3D tiles, baked into the ground image. */
@@ -790,7 +829,7 @@ export class Renderer {
       const p = iso(b.x, b.y);
       ctx.globalAlpha = a * 0.9;
       const nat = this.nations && this.nations[b.team];
-      if (nat && this.sold && this.sold[nat]) {
+      if (this.hasArmy(nat)) {
         const v = b.view || 0;
         if (this.drawSoldier(ctx, nat, 'dead', 0, [1, 0, -1, 0][v], [0, -1, 0, 1][v], p.x, p.y)) continue;
       }
@@ -1037,19 +1076,16 @@ export class Renderer {
     }
   }
 
-  /** Load soldier sprites for the nations in play, plus the artillery art. */
+  /** Load soldier sheets for the nations in play, plus the artillery art. */
   loadArmies(nations) {
-    this.sold = this.sold || {};
-    const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error(src)); i.src = src; });
-    const jobs = [...new Set(nations)].filter((n) => !this.sold[n]).map((n) =>
-      fetch(`assets/soldiers/${n}/manifest.json`).then((r) => r.json()).then((meta) =>
-        Promise.all(Object.keys(meta).filter((k) => k !== 'portrait').map((k) => loadImg(`assets/soldiers/${n}/${k}.png`).then((img) => [k, img])))
-          .then((list) => { this.sold[n] = { meta, img: Object.fromEntries(list) }; })));
-    if (!this.gunArt) {
-      jobs.push(Promise.all(['gun-a', 'gun-b'].map((k) => loadImg(`assets/art/${k}.png`))).then(([a, b]) => { this.gunArt = { a, b }; }));
+    for (const n of new Set(nations)) this.loadAtlas('soldiers-' + n);
+    if (!this.gunArt && !this.gunLoading) {
+      this.gunLoading = Promise.all(['gun-a', 'gun-b'].map((k) => retry((n) => loadImage(`assets/art/${k}.png${n ? '?r=' + n : ''}`))))
+        .then(([a, b]) => { this.gunArt = { a, b }; })
+        .catch((e) => { this.gunLoading = null; console.warn('Gun art unavailable:', e.message); });
     }
-    return Promise.all(jobs).catch((e) => console.warn('Army sprites unavailable, using drawn figures:', e.message));
   }
+  hasArmy(nation) { return !!(nation && this.atlas && this.atlas['soldiers-' + nation]); }
 
   /** Pick a rendered view for a ground heading: a = +x, b = -y, mirrored for +y / -x. */
   static viewFor(hx, hy) {
@@ -1060,16 +1096,9 @@ export class Renderer {
   }
 
   drawSoldier(ctx, nation, poseName, frame, hx, hy, x, y) {
-    const S = this.sold && this.sold[nation];
-    if (!S) return false;
     const { view, mirror } = Renderer.viewFor(hx, hy);
-    const key = `${poseName}${frame}_${view}`;
-    const img = S.img[key], m = S.meta[key];
-    if (!img) return false;
-    const s = 1.35 / m.scale; // units are drawn slightly larger than life for legibility
-    if (mirror) { ctx.save(); ctx.translate(x, y); ctx.scale(-1, 1); ctx.drawImage(img, -m.ax * s, -m.ay * s, m.w * s, m.h * s); ctx.restore(); }
-    else ctx.drawImage(img, x - m.ax * s, y - m.ay * s, m.w * s, m.h * s);
-    return true;
+    // units are drawn slightly larger than life for legibility
+    return this.drawFrame(ctx, 'soldiers-' + nation, `${poseName}${frame}_${view}`, x, y, 1.35, mirror);
   }
 
   /** Howitzer from the supplied art: a faces -x, b faces +y; mirrored for -y / +x. */
@@ -1120,7 +1149,7 @@ export class Renderer {
     men.sort((a, b) => a.y - b.y);
     const phase = time * (charging ? 14 : 9) + u.seed * 10;
     const nation = this.nations && this.nations[u.team];
-    const useSpr = !!(nation && this.sold && this.sold[nation]);
+    const useSpr = this.hasArmy(nation);
     let gunDrawn = u.type !== 'artillery';
     const drawGunNow = () => { if (!gunDrawn) { gunDrawn = true; if (!this.drawGunArt(ctx, p, u)) this.drawGun(ctx, p, u, time); } };
     if (!useSpr) drawGunNow();
@@ -1128,10 +1157,7 @@ export class Renderer {
       const { view, mirror } = Renderer.viewFor(u.hx, u.hy);
       const g = iso(u.x + u.hx * 0.12, u.y + u.hy * 0.12);
       let ok = false;
-      if (this.props && this.props['mg_' + view]) {
-        if (mirror) { ctx.save(); ctx.translate(g.x, g.y); ctx.scale(-1, 1); ok = this.drawProp(ctx, 'mg_' + view, 0, 0); ctx.restore(); }
-        else ok = this.drawProp(ctx, 'mg_' + view, g.x, g.y);
-      }
+      ok = this.drawProp(ctx, 'mg_' + view, g.x, g.y, mirror);
       if (!ok) this.drawMG(ctx, p, u, time);
       if (u.firing > 0) {
         const d = iso(u.hx, u.hy), dl = Math.hypot(d.x, d.y) || 1;

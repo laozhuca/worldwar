@@ -8,6 +8,7 @@
     "start": "node scripts/serve.mjs",
     "test": "node --test tests/*.test.mjs",
     "textures": "node scripts/make-textures.mjs",
-    "props": "node scripts/render-props.mjs"
+    "props": "node scripts/render-props.mjs",
+    "atlas": "node scripts/pack-atlases.mjs"
   }
 }

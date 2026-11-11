@@ -80,6 +80,7 @@ assets/textures/        generated seamless PNG textures (mud, earth, snow, grass
 scripts/make-textures.mjs  texture generator: `npm run textures` (no dependencies)
 assets/soldiers/<nation>/ pre-rendered soldier sprites (8 poses, 2 views, mirrored in game) + portrait
 assets/art/             cut-out howitzer art and soldier portraits (from art-src/ via `node scripts/process-art.mjs`)
+assets/atlas/           WebP sprite sheets the game actually loads (built by `npm run atlas` from assets/props + assets/soldiers)
 assets/props/           pre-rendered 3D props: 144 trench tiles x snow, wire belts, stumps, trees, logs, debris
 tools/render3d/         offline ray-marching renderer + 3D models; `npm run props` re-renders assets/props (no dependencies)
 tests/                  headless simulation tests (node --test)
@@ -97,3 +98,5 @@ The tests cover barrages, MG lethality, digging, recruiting and reinforcing, plu
 
 Drop transparent-background PNG/WebP files into `art-src/` and run `node scripts/process-art.mjs` (needs Playwright).
 Nation portraits use `art-src/soldier-<nation>.webp` when present (`uk`, `france`, `usa`, `italy`, `russia`, `germany`, `austria`, `ottoman`); otherwise the rendered 3D portrait is shown.
+
+After re-rendering props or soldiers (`npm run props`), rebuild the sprite sheets with `npm run atlas` (needs Playwright). The game downloads only the sheets for the current season and the two nations in play, each with retries, so one slow download never leaves the battlefield on the fallback drawings.

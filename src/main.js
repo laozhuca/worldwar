@@ -35,11 +35,11 @@ const renderer = new Renderer(canvas);
 const sound = new Sound();
 const ui = new UI(app, renderer, sound);
 renderer.loadTextures();
-renderer.loadProps();
 let artKeys = {};
 const portraitOf = (n) => (artKeys[`soldier-${n}`] ? `assets/art/soldier-${n}.png` : `assets/soldiers/${n}/portrait.png`);
 renderer.portraitOf = portraitOf;
 function useArmies(state) {
+  renderer.loadProps(state.season);
   renderer.nations = state.nations;
   renderer.loadArmies(state.nations);
   const [a, b] = state.nations.map((n) => NATIONS[n].name);
