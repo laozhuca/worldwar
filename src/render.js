@@ -987,6 +987,37 @@ export class Renderer {
     const c = iso(q.x + 0.5, q.y + 0.5);
     const owner = tileAt(state.map, q.x, q.y).owner;
     const f = team === PLAYER ? 1 : -1;
+    const HQK = 1.6; // the command post is drawn larger than life so it reads as the objective
+    if (this.drawFrame(ctx, this.propGroup(), 'hq' + (S > 0.7 ? '_s' : ''), c.x, c.y, HQK)) {
+      const UP = 39.2; // screen px per world unit of height (45.25 * cos 30deg)
+      const at = (dx, dy, z) => { const p = iso(q.x + 0.5 + dx * HQK, q.y + 0.5 + dy * HQK); return { x: p.x, y: p.y - z * UP * HQK }; };
+      // stovepipe smoke
+      const pipe = at(-0.15, -0.12, 0.44);
+      for (let i = 0; i < 5; i++) {
+        const k = ((state.time * 0.25 + i / 5) % 1);
+        ctx.fillStyle = `rgba(90,88,84,${0.28 * (1 - k)})`;
+        ctx.beginPath(); ctx.arc(pipe.x + k * 14 + Math.sin(k * 6 + i) * 2, pipe.y - k * 30, 2.5 + k * 7, 0, TAU); ctx.fill();
+      }
+      // field-telephone wires sagging away from the pole
+      const top = at(-0.62, -0.52, 0.72);
+      ctx.strokeStyle = 'rgba(20,18,16,0.75)'; ctx.lineWidth = 0.6;
+      for (const [dx, dy, sag] of [[1.6, -2.2, 14], [2.8, -1.4, 18], [-1.8, 1.5, 12]]) {
+        const e = at(-0.62 + dx * f, -0.52 + dy, 0.55);
+        ctx.beginPath(); ctx.moveTo(top.x, top.y); ctx.quadraticCurveTo((top.x + e.x) / 2, (top.y + e.y) / 2 + sag, e.x, e.y); ctx.stroke();
+      }
+      // flag by the entrance shows who holds the HQ
+      const base = at(0.5, -0.2, 0), head = at(0.5, -0.2, 0.95);
+      ctx.strokeStyle = '#1e1a16'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(head.x, head.y); ctx.stroke();
+      ctx.fillStyle = owner < 0 ? '#999' : TEAM_COLOR[owner];
+      const wave = Math.sin(state.time * 3 + team) * 2;
+      ctx.beginPath(); ctx.moveTo(head.x, head.y); ctx.quadraticCurveTo(head.x + 8, head.y + wave, head.x + 17, head.y + 3 + wave);
+      ctx.lineTo(head.x + 17, head.y + 9 + wave); ctx.quadraticCurveTo(head.x + 8, head.y + 7 - wave, head.x, head.y + 9); ctx.closePath(); ctx.fill();
+      ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText('HQ', c.x + 0.5, c.y + 34.5);
+      ctx.fillStyle = '#e8e8e0'; ctx.fillText('HQ', c.x, c.y + 34);
+      return;
+    }
     // earth mound
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.beginPath(); ctx.ellipse(c.x + 5, c.y + 6, 44, 19, 0, 0, TAU); ctx.fill();

@@ -29,6 +29,7 @@ function jobs() {
     for (let v = 0; v < 3; v++) list.push({ name: `debris${v}${s}`, kind: 'debris', args: [v, snow] });
   }
   for (const view of ['a', 'b']) list.push({ name: `mg_${view}`, kind: 'mg', args: [view] });
+  for (const snow of [false, true]) list.push({ name: `hq${snow ? '_s' : ''}`, kind: 'hq', args: [snow] });
   for (const nation of Object.keys(NATIONS)) for (const [pose, frames] of SOLDIER_POSES) for (let f = 0; f < frames; f++) for (const view of ['a', 'b'])
     list.push({ name: `${pose}${f}_${view}`, dir: `soldiers/${nation}`, kind: 'soldier', args: [nation, pose, f, view], scale: 4 });
   for (const nation of Object.keys(NATIONS)) list.push({ name: 'portrait', dir: `soldiers/${nation}`, kind: 'soldier', args: [nation, 'stand', 0, 'a', true], scale: 16 });
@@ -87,7 +88,7 @@ if (isMainThread) {
 } else {
   const core = await import('../tools/render3d/core.mjs');
   const scenes = await import('../tools/render3d/scenes.mjs');
-  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, soldier: (await import('../tools/render3d/soldier.mjs')).soldierScene };
+  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, soldier: (await import('../tools/render3d/soldier.mjs')).soldierScene };
   parentPort.on('message', (job) => {
     const scale = job.scale || SCALE;
     const r = core.render(make[job.kind](...job.args), core.PX_PER_UNIT * scale);

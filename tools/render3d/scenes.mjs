@@ -425,4 +425,134 @@ export function mgScene(view) {
   return { bounds: [-0.3, -0.3, -0.01, 0.4, 0.4, 0.16], sdf, shade, supersample: 3 };
 }
 
+// ===================================================================== HQ command bunker
+/**
+ * Dug-in command post: earth mound with a log-and-earth roof, sandbag walls, timber-framed entrance with
+ * steps on the +x side (towards the camera), a firing slit on +y, stovepipe, crates and a telephone pole.
+ * Footprint ~1.6 tiles. The flag and telephone wires are drawn live by the game.
+ */
+export function hqScene(snow) {
+  const HX = 0.36, HY = 0.3, WALL = 0.19; // bunker half-sizes and wall height
+  const mound = (x, y, z) => {
+    const r = Math.hypot(x / 0.8, y / 0.68);
+    const h = 0.13 * Math.max(0, 1 - r * r) + 0.05 * Math.max(0, 1 - Math.max(0, sdBox2(x, y, HX, HY)) / 0.12) + (fbm(x * 9, y * 9, 1.3, 3) - 0.5) * 0.04 * Math.max(0, 1 - r);
+    return (z - h) * 0.7;
+  };
+  // entrance cut: ramp descending along +x into the doorway
+  const rampD = (x, y, z) => {
+    const inside = Math.max(Math.abs(y - 0.02) - 0.085, -(x - HX + 0.02), x - 0.78);
+    const floor = -0.06 + (x - HX) * -0.05;
+    return Math.max(inside, -(z - floor) + 0.0);
+  };
+  const ground = (x, y, z) => Math.max(Math.min(z, mound(x, y, z)), -rampD(x, y, z) - 0.002);
+  // sandbag walls around the bunker body
+  const bagWall = (x, y, z) => {
+    const e = sdBox2(x, y, HX, HY);
+    if (e > 0.1 || e < -0.1 || z > WALL + 0.03) return Math.max(Math.abs(e) - 0.06, z - WALL - 0.02, 0.01);
+    const onX = Math.abs(Math.abs(x) - HX) < Math.abs(Math.abs(y) - HY);
+    const s = onX ? y : x, q = e;
+    let d = 1;
+    for (let row = 0; row < 4; row++) {
+      const zc = 0.024 + row * 0.044, off = row % 2 ? 0.055 : 0;
+      const idx = Math.floor((s + off) / 0.11);
+      const s1 = s + off - (idx + 0.5) * 0.11;
+      const j = hash(idx, row, onX ? 1 : 2);
+      d = Math.min(d, sdRoundBox(s1 + (j - 0.5) * 0.012, q - 0.005, z - zc, 0.05, 0.036, 0.021, 0.019) + (vnoise(x * 70, y * 70, z * 70) - 0.5) * 0.008);
+    }
+    // doorway and firing slit openings
+    if (onX && x > 0) d = Math.max(d, -(Math.max(Math.abs(y - 0.02) - 0.075, z - 0.17)));
+    if (!onX && y > 0) d = Math.max(d, -(Math.max(Math.abs(x + 0.08) - 0.12, Math.abs(z - 0.13) - 0.022)));
+    return d;
+  };
+  // log roof (logs across y) with earth and sandbags piled on top
+  const logs = (x, y, z) => {
+    const idx = Math.round(x / 0.052), xc = idx * 0.052;
+    if (Math.abs(xc) > HX + 0.02) return Math.max(Math.abs(x) - HX - 0.09, Math.abs(z - WALL - 0.03) - 0.04, Math.abs(y) - HY - 0.12, 0.01);
+    const len = HY + 0.015 + hash(idx, 7) * 0.03;
+    return Math.max(Math.hypot(x - xc, z - WALL - 0.028) - 0.025, Math.abs(y + (hash(idx, 3) - 0.5) * 0.03) - len);
+  };
+  const roofEarth = (x, y, z) => {
+    const r = Math.hypot(x / (HX + 0.02), y / (HY + 0.01));
+    const top = WALL + 0.065 + 0.08 * Math.max(0, 1 - r * r) + (fbm(x * 12, y * 12, 4.2, 3) - 0.5) * 0.03;
+    return Math.max((z - top) * 0.7, sdBox2(x, y, HX + 0.01, HY - 0.005) - 0.01, WALL + 0.03 - z);
+  };
+  const roofBags = (x, y, z) => {
+    let d = 1;
+    for (let k = 0; k < 5; k++) {
+      const cx = -0.2 + k * 0.1 + (hash(k, 11) - 0.5) * 0.03, cy = 0.12 + (hash(k, 12) - 0.5) * 0.05;
+      d = Math.min(d, sdRoundBox(x - cx, y - cy, z - (WALL + 0.115 - Math.abs(cx) * 0.18), 0.036, 0.05, 0.021, 0.019));
+    }
+    return d;
+  };
+  // timber door frame, steps, stovepipe, crates, telephone pole
+  const timber = (x, y, z) => Math.min(
+    sdRoundBox(x - HX - 0.02, y - 0.105, z - 0.09, 0.016, 0.016, 0.1, 0.004),
+    sdRoundBox(x - HX - 0.02, y + 0.065, z - 0.09, 0.016, 0.016, 0.1, 0.004),
+    sdRoundBox(x - HX - 0.02, y - 0.02, z - 0.19, 0.018, 0.11, 0.016, 0.004),
+    sdRoundBox(x + 0.08, y - HY - 0.03, z - 0.155, 0.15, 0.014, 0.012, 0.003)); // lintel over the slit
+  const steps = (x, y, z) => {
+    let d = 1;
+    for (let k = 0; k < 4; k++) d = Math.min(d, sdRoundBox(x - (HX + 0.06 + k * 0.085), y - 0.02, z - (-0.05 + k * 0.012), 0.03, 0.08, 0.01, 0.003));
+    return d;
+  };
+  const pipe = (x, y, z) => Math.min(sdCapsule(x, y, z, -0.18, -0.12, WALL + 0.1, -0.18, -0.12, WALL + 0.22, 0.018), sdCapsule(x, y, z, -0.18, -0.12, WALL + 0.22, -0.15, -0.12, WALL + 0.25, 0.02));
+  const crates = (x, y, z) => Math.min(
+    sdRoundBox(x - 0.5, y - 0.26, z - 0.035, 0.05, 0.035, 0.035, 0.004),
+    sdRoundBox(x - 0.505, y - 0.255, z - 0.105, 0.045, 0.032, 0.033, 0.004),
+    sdRoundBox(x - 0.43, y - 0.33, z - 0.03, 0.035, 0.05, 0.03, 0.004),
+    sdCapsule(x, y, z, 0.6, -0.2, 0.02, 0.6, -0.2, 0.07, 0.03)); // water drum
+  const pole = (x, y, z) => Math.min(
+    sdCapsule(x, y, z, -0.62, -0.52, 0, -0.62, -0.52, 0.74, 0.016, 0.012),
+    sdRoundBox(x + 0.62, y + 0.52, z - 0.7, 0.012, 0.09, 0.008, 0.003),
+    sdRoundBox(x + 0.62, y + 0.52, z - 0.64, 0.012, 0.07, 0.008, 0.003));
+  const parts = (x, y, z) => {
+    const list = [['ground', ground(x, y, z)], ['bags', bagWall(x, y, z)], ['logs', logs(x, y, z)], ['roof', roofEarth(x, y, z)],
+      ['bags', roofBags(x, y, z)], ['timber', timber(x, y, z)], ['steps', steps(x, y, z)], ['pipe', pipe(x, y, z)], ['crate', crates(x, y, z)], ['pole', pole(x, y, z)]];
+    let best = list[0];
+    for (const p of list) if (p[1] < best[1]) best = p;
+    return best;
+  };
+  // interior void behind the doorway and slit (so the openings read as dark holes)
+  const interior = (x, y, z) => sdRoundBox(x, y, z - 0.08, HX - 0.05, HY - 0.05, 0.11, 0.01);
+  const sdf = (x, y, z) => Math.max(parts(x, y, z)[1], -interior(x, y, z));
+  const shade = (x, y, z, nx, ny, nz) => {
+    if (interior(x, y, z) < 0.012) return { kind: 'solid', col: [0.025, 0.022, 0.02] };
+    const [m] = parts(x, y, z);
+    const n = fbm(x * 60, y * 60, z * 60, 3);
+    const snowy = snowAt(x, y, z, nz, snow, 0.55);
+    switch (m) {
+      case 'ground': {
+        const r = Math.hypot(x / 0.8, y / 0.68);
+        const inRamp = rampD(x, y, z) < 0.01;
+        if (z < -0.004 && !inRamp) return { kind: 'none' }; // side of the render volume
+        if (r > 0.97 && !inRamp) return { kind: 'catcher' };
+        if (snowy && rampD(x, y, z) > 0.01) return { kind: 'solid', col: mix3(C.snow, [0.66, 0.7, 0.77], 0.35), spec: 0.05, alpha: clamp((0.97 - r) * 2.6, 0.05, 1) };
+        return { kind: 'solid', col: mix3([0.07, 0.065, 0.06], [0.22, 0.2, 0.18], n), spec: 0.08, alpha: clamp((0.97 - r) * 2.6, 0.05, 1) };
+      }
+      case 'roof': return snowy ? { kind: 'solid', col: C.snow, spec: 0.1 } : { kind: 'solid', col: mix3([0.08, 0.07, 0.06], [0.24, 0.21, 0.18], n), spec: 0.06 };
+      case 'bags': {
+        if (snowy) return { kind: 'solid', col: C.snow, spec: 0.12 };
+        let col = mix3(C.burlapDark, C.burlap, 0.25 + fbm(x * 120, y * 120, z * 120, 3) * 0.7);
+        col = mix3(col, [0.13, 0.11, 0.09], clamp(fbm(x * 20 + 3, y * 20, z * 20, 2) * 1.6 - 0.7, 0, 0.8) + clamp((0.06 - z) * 8, 0, 0.5));
+        return { kind: 'solid', col, spec: 0.04 };
+      }
+      case 'logs': {
+        if (snowy) return { kind: 'solid', col: C.snow };
+        const endGrain = Math.abs(ny) > 0.75;
+        return { kind: 'solid', col: endGrain ? mix3(C.woodDark, C.wood, n) : mix3(C.barkDark, C.bark, n * 1.2), spec: 0.04 };
+      }
+      case 'timber': case 'steps': return { kind: 'solid', col: mix3(C.post, C.plank, fbm(x * 10, y * 10, z * 80, 3)), spec: 0.05 };
+      case 'pipe': return { kind: 'solid', col: mix3([0.1, 0.09, 0.09], [0.28, 0.18, 0.12], n), spec: 0.4, shin: 30 };
+      case 'crate': {
+        if (snowy) return { kind: 'solid', col: C.snow };
+        const slat = ((z * 60) % 1) < 0.12;
+        return { kind: 'solid', col: slat ? [0.12, 0.1, 0.08] : mix3([0.27, 0.27, 0.19], [0.4, 0.38, 0.27], n), spec: 0.05 };
+      }
+      case 'pole': return { kind: 'solid', col: mix3(C.barkDark, C.post, n), spec: 0.03 };
+    }
+    return { kind: 'none' };
+  };
+  return { bounds: [-0.85, -0.75, -0.1, 0.9, 0.75, 0.78], sdf, shade, supersample: 2 };
+}
+
 void smin; void mix;
