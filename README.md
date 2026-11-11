@@ -40,7 +40,7 @@ as `file://`, because it uses ES modules.
 
 **Sides & nations**: on the start screen choose to fight for the Allies (Britain, France, the United States, Italy, Russia) or the Central Powers (Germany, Austria-Hungary, the Ottoman Empire), then your nation and the enemy's, or pick Random to be assigned a side and both nations when the battle starts (each restart draws again). Each army's soldiers are 3D-rendered in their own uniform and headgear (Brodie and Adrian helmets, Pickelhaube, fez, peaked cap, Austrian field cap, greatcoats), modelled on the reference art in `art-src/`, with poses for standing, walking, charging with bayonets, firing, aiming over the parapet, lying prone, digging and falling. Batteries are a 3D model of the supplied howitzer art, rendered in 8 directions with turning wheels (towed trail-first when moving, laid on the target when firing); machine guns are a rendered water-cooled gun on a tripod.
 
-**Starting position**: hold the west line (lighter works with sally ports in the wire, built to attack) or the east line (sandbagged trenches behind deep wire belts, built to hold), or let it be drawn at random. The map, AI, formations and camera all follow whichever side you start on.
+**Starting position**: start in the upper left or lower right of the map, or at random. Fortifications go with the army, not the position: your side always holds the lighter works with sally ports in its wire, the enemy the heavier ones.
 
 **Seasons**: Winter (snow, frozen shell holes), Thaw (patchy snow over mud) and Mud (rain, flooded craters), chosen on the start screen. Shellfire and digging churn the snow into black earth.
 

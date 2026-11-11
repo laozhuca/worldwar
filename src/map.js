@@ -106,37 +106,35 @@ export function createMap(seed = 1916, westTeam = PLAYER) {
 
   const midY = Math.floor(h / 2);
 
-  // ---- West line (lighter works) ----
-  line(FRONT_X[WT], WT, 1, -1);
-  line(11, WT, 1, -1);
-  line(5, WT, 2, 0, 6, h - 7);
-  for (const y of [7, 19, 31]) comm(5, FRONT_X[WT] - 1, y, WT, 1);
-  map.hq[WT] = { x: 2, y: midY };
-  comm(2, 5, midY, WT, 2);
-  dig(2, midY, WT, 3);
-
-  // ---- East line (heavier works) ----
-  line(FRONT_X[ET], ET, 2, 1);
-  line(w - 12, ET, 2, 1);
-  line(w - 6, ET, 2, 0, 6, h - 7);
-  for (const y of [8, 20, 32]) comm(FRONT_X[ET] + 1, w - 6, y, ET, 1);
-  map.hq[ET] = { x: w - 3, y: midY };
-  comm(w - 6, w - 3, midY, ET, 2);
-  dig(w - 3, midY, ET, 3);
+  // ---- Trench systems ----
+  // One template, mirrored for the side a team starts on (west = upper left on screen, east = lower right).
+  // Fortification style follows the team, not the position: the player's army holds lighter works with
+  // sally ports in its wire (built to attack); the enemy holds sandbagged trenches behind deep wire.
+  const system = (team) => {
+    const west = team === WT, X = (x) => (west ? x : w - 1 - x), sgn = west ? 1 : -1;
+    const heavy = team === ENEMY, lvl = heavy ? 2 : 1;
+    line(X(WEST_FRONT), team, lvl, -sgn);
+    line(X(11), team, lvl, -sgn);
+    line(X(5), team, 2, 0, 6, h - 7);
+    for (const y of heavy ? [8, 20, 32] : [7, 19, 31]) comm(X(5), X(WEST_FRONT - 1), y, team, 1);
+    map.hq[team] = { x: X(2), y: midY };
+    comm(X(2), X(5), midY, team, 2);
+    dig(X(2), midY, team, 3);
+    return { X, heavy };
+  };
+  const sys = [system(PLAYER), system(ENEMY)];
 
   // ---- Barbed wire belts ----
   for (let y = 1; y < h - 1; y++) {
-    // Player belt: sally-port gaps every 9 rows.
-    if (y % 9 !== 4 && y % 9 !== 5) {
-      for (const [x, p] of [[FRONT_X[WT] + 2, 0.92], [FRONT_X[WT] + 3, 0.55]]) {
-        const t = T(x, y);
-        if (t && !t.trench && rnd() < p) { t.wire = 100; t.origWire = WT; }
+    for (const team of [PLAYER, ENEMY]) {
+      const { X, heavy } = sys[team];
+      // light works leave sally-port gaps every 9 rows; heavy works are deeper and denser
+      if (!heavy && (y % 9 === 4 || y % 9 === 5)) continue;
+      const belts = heavy ? [[2, 0.97], [3, 0.85], [4, 0.4]] : [[2, 0.92], [3, 0.55]];
+      for (const [dx, p] of belts) {
+        const t = T(X(WEST_FRONT + dx), y);
+        if (t && !t.trench && rnd() < p) { t.wire = 100; t.origWire = team; }
       }
-    }
-    // Enemy belt: deeper and denser.
-    for (const [x, p] of [[FRONT_X[ET] - 2, 0.97], [FRONT_X[ET] - 3, 0.85], [FRONT_X[ET] - 4, 0.4]]) {
-      const t = T(x, y);
-      if (t && !t.trench && rnd() < p) { t.wire = 100; t.origWire = ET; }
     }
   }
 
