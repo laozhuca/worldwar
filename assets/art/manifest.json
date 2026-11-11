@@ -7,12 +7,32 @@
   "w": 384,
   "h": 295
  },
+ "soldier-austria": {
+  "w": 362,
+  "h": 720
+ },
+ "soldier-france": {
+  "w": 366,
+  "h": 720
+ },
+ "soldier-germany": {
+  "w": 338,
+  "h": 720
+ },
  "soldier-italy": {
   "w": 345,
   "h": 720
  },
  "soldier-ottoman": {
   "w": 369,
+  "h": 720
+ },
+ "soldier-russia": {
+  "w": 341,
+  "h": 720
+ },
+ "soldier-uk": {
+  "w": 411,
   "h": 720
  },
  "soldier-usa": {
