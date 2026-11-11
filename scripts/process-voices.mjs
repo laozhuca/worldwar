@@ -1,6 +1,6 @@
-// Soldier voice recordings: art-src/voice/*.mp3 (named "<speaker>-<date>-<spoken text>.mp3") ->
+// Soldier voice recordings: art-src/voice/*.mp3 (named "<nation>-<n>-<date>-<spoken text>.mp3") ->
 // assets/voice/<nation>/<kind>-<n>.mp3 (silence trimmed, loudness-matched, mono) + assets/voice/manifest.json.
-// Each recording is matched to its line in src/voice.js by its text, and to its army by its speaker.
+// Each recording is named "<nation>-<speaker number>-<date>-<spoken text>.mp3" and matched to its line in src/voice.js by its text.
 // Usage: node scripts/process-voices.mjs   (needs ffmpeg)
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,12 +8,6 @@ import { execFileSync } from 'node:child_process';
 import { LINES } from '../src/voice.js';
 
 const SRC = 'art-src/voice', OUT = 'assets/voice';
-const SPEAKERS = {
-  'British-soldier': 'uk', 'soldier': 'usa', 'Adrien-french': 'france', 'Scared-French-Soldier': 'france',
-  'Angelo-Bronte': 'italy', 'Меллстрой': 'russia', 'Soldier-boy-2.0': 'russia', 'Soldier-Boy-(RHS)': 'russia',
-  'Prussian-soldier': 'germany', 'Polat-alemdar': 'ottoman', 'TURKCE5': 'ottoman', 'Recep-Tayyip-Erdoğan': 'ottoman',
-  'ataturk': 'ottoman',
-};
 // armies without recordings of their own borrow another's
 const BORROW = { austria: 'germany' };
 
@@ -26,8 +20,8 @@ fs.rmSync(OUT, { recursive: true, force: true });
 for (const f of fs.readdirSync(SRC).filter((x) => x.endsWith('.mp3')).sort()) {
   const name = decode(f).replace(/ \(\d+\)\.mp3$|\.mp3$/, '');
   const m = name.match(/^(.*?)-(\d{4}-\d\d-\d\d-\d\d-\d\d)-(.*)$/);
-  const nation = m && SPEAKERS[m[1]];
-  if (!nation) { unmatched.push(f + ' (speaker)'); continue; }
+  const nation = m && m[1].replace(/-\d+$/, '');
+  if (!nation || !LINES[nation]) { unmatched.push(f + ' (army)'); continue; }
   const said = norm(m[3].replace(/\[[^\]]*\]?/g, ' ').replace(/·/g, ' ').replace(/-/g, ' '));
   // kinds whose lines this recording says: exact text, or (for names cut short) the start of a line;
   // a recording of two lines ("Ready. Sir?") belongs with their kind too
