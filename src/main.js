@@ -15,6 +15,7 @@ const app = {
   season: 'winter',
   nations: ['uk', 'germany'],
   side: 'allied', // 'allied' | 'central' | 'random'
+  start: 'west', // 'west' | 'east' | 'random'
   overlayOpen() { return !document.getElementById('overlay').classList.contains('hidden'); },
   togglePause() {
     this.paused = !this.paused;
@@ -58,7 +59,7 @@ function chosenNations() {
 }
 /** Tell the player which army they lead (once per battle, when it starts). */
 function announce(state) {
-  if (!state.messages.some((m) => m.kind === 'side')) pushMessage(state, `You command the army of ${NATIONS[state.nations[0]].name} against ${NATIONS[state.nations[1]].name}.`, 'side');
+  if (!state.messages.some((m) => m.kind === 'side')) pushMessage(state, `You command the army of ${NATIONS[state.nations[0]].name}, holding the ${state.start === 'east' ? 'east' : 'west'} line, against ${NATIONS[state.nations[1]].name}.`, 'side');
 }
 function nationButtons() {
   const mine = document.getElementById('nation-btns'), foe = document.getElementById('enemy-btns');
@@ -74,6 +75,11 @@ function nationButtons() {
   mine.replaceChildren(...ofSide(myAlliance).map((k) => btn(k, k === app.nations[0], () => { app.nations[0] = k; nationButtons(); })));
   foe.replaceChildren(...Object.keys(NATIONS).filter((k) => NATIONS[k].alliance !== myAlliance).map((k) => btn(k, k === app.nations[1], () => { app.nations[1] = k; nationButtons(); })));
 }
+const chosenStart = () => (app.start === 'random' ? (Math.random() < 0.5 ? 'west' : 'east') : app.start);
+document.querySelectorAll('[data-start]').forEach((b) => b.addEventListener('click', () => {
+  app.start = b.dataset.start;
+  document.querySelectorAll('[data-start]').forEach((x) => x.classList.toggle('active', x === b));
+}));
 document.querySelectorAll('[data-side]').forEach((b) => b.addEventListener('click', () => { app.side = b.dataset.side; nationButtons(); }));
 nationButtons();
 fetch('assets/art/manifest.json').then((r) => r.json()).then((m) => { artKeys = m; nationButtons(); }).catch(() => {});
@@ -88,8 +94,9 @@ document.querySelectorAll('[data-season]').forEach((b) => b.addEventListener('cl
 document.getElementById('btn-start').addEventListener('click', () => {
   sound.init();
   const sameNations = app.side !== 'random' && app.state.nations.join() === app.nations.join();
-  if ((app.state.season !== app.season || !sameNations) && app.state.time < 1) {
-    app.state = createGame({ season: app.season, nations: chosenNations() });
+  const sameStart = app.start !== 'random' && app.state.start === app.start;
+  if ((app.state.season !== app.season || !sameNations || !sameStart) && app.state.time < 1) {
+    app.state = createGame({ season: app.season, nations: chosenNations(), start: chosenStart() });
     useArmies(app.state);
     renderer.groundDrawn = false;
     ui.selected.clear();
@@ -101,7 +108,7 @@ document.getElementById('btn-start').addEventListener('click', () => {
   document.getElementById('btn-pause').textContent = '❚❚';
 });
 document.getElementById('btn-restart').addEventListener('click', () => {
-  app.state = createGame({ seed: Math.floor(Math.random() * 1e6), season: app.season, nations: chosenNations() });
+  app.state = createGame({ seed: Math.floor(Math.random() * 1e6), season: app.season, nations: chosenNations(), start: chosenStart() });
   useArmies(app.state);
   ui.selected.clear();
   ui.setMode(null);

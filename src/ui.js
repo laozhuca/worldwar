@@ -1,7 +1,7 @@
 // DOM HUD + mouse/keyboard input.
 import { PLAYER, UNIT_TYPES, BUILD, MAP_W, MAP_H } from './config.js';
 import { orderMove, orderBarrage, orderHalt, buyUnit, reinforce, canReinforce, placeBuild, cancelBuild, territory, pushMessage } from './game.js';
-import { frontLine } from './map.js';
+import { frontLine, teamDir } from './map.js';
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Math.floor(n).toString();
@@ -129,8 +129,8 @@ export class UI {
   centerOnFront() {
     const f = frontLine(this.state.map, PLAYER);
     const xs = f.filter((x) => x >= 0);
-    const x = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 18;
-    this.r.centerOn(x + 6, MAP_H / 2);
+    const x = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : (teamDir(PLAYER) > 0 ? 18 : 45);
+    this.r.centerOn(x + 6 * teamDir(PLAYER), MAP_H / 2);
   }
 
   // ------------------------------------------------------------ input

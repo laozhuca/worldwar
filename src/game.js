@@ -4,20 +4,21 @@ import {
   BASE_INCOME, CAPTURE_BONUS, START_RES, SUPPRESSION_DECAY, CHARGE_SPEED, MELEE_RANGE,
   WIRE_SLOW, BUILD_RADIUS_FRIENDLY, BUILD_RADIUS_ENEMY, DIG_RADIUS, DIG_RATE,
 } from './config.js';
-import { createMap, tileAt, frontLine } from './map.js';
+import { createMap, tileAt, frontLine, teamDir } from './map.js';
 import { createAI, updateAI } from './ai.js';
 
 let nextId = 1;
 const rand = Math.random;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-export const teamDir = (team) => (team === PLAYER ? 1 : -1);
+export { teamDir };
 
 export function createGame(opts = {}) {
-  const { seed = 1916, aiTeams = [ENEMY], season = 'winter', nations = ['uk', 'germany'] } = opts;
-  const map = createMap(seed);
+  const { seed = 1916, aiTeams = [ENEMY], season = 'winter', nations = ['uk', 'germany'], start = 'west' } = opts;
+  const map = createMap(seed, start === 'east' ? ENEMY : PLAYER);
   const state = {
     season,
+    start,
     nations,
     time: 0,
     map,

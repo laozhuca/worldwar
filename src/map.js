@@ -11,8 +11,12 @@ export function mulberry32(seed) {
   };
 }
 
-// Initial front-line columns for each side.
-export const FRONT_X = { [PLAYER]: 18, [ENEMY]: MAP_W - 19 };
+/** Which team holds the west half of the current battlefield (set by createMap). */
+export let WEST_TEAM = PLAYER;
+/** +1 if the team advances towards +x (it starts in the west), -1 otherwise. */
+export const teamDir = (team) => (team === WEST_TEAM ? 1 : -1);
+// Initial front-line columns for the west and east lines.
+const WEST_FRONT = 18, EAST_FRONT = MAP_W - 19;
 
 export function tileAt(map, x, y) {
   const ix = Math.floor(x), iy = Math.floor(y);
@@ -28,18 +32,21 @@ export function frontLine(map, team) {
       const t = map.tiles[y * map.w + x];
       if (t.trench > 0 && t.owner === team) {
         if (out[y] < 0) out[y] = x;
-        else if (team === PLAYER ? x > out[y] : x < out[y]) out[y] = x;
+        else if (teamDir(team) > 0 ? x > out[y] : x < out[y]) out[y] = x;
       }
     }
   }
   return out;
 }
 
-export function createMap(seed = 1916) {
+export function createMap(seed = 1916, westTeam = PLAYER) {
+  WEST_TEAM = westTeam;
+  const WT = westTeam, ET = 1 - westTeam;
+  const FRONT_X = { [WT]: WEST_FRONT, [ET]: EAST_FRONT };
   const rnd = mulberry32(seed);
   const w = MAP_W, h = MAP_H;
   const tiles = new Array(w * h);
-  const nmlA = FRONT_X[PLAYER] + 1, nmlB = FRONT_X[ENEMY] - 1;
+  const nmlA = FRONT_X[WT] + 1, nmlB = FRONT_X[ET] - 1;
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -63,7 +70,7 @@ export function createMap(seed = 1916) {
     }
   }
 
-  const map = { w, h, tiles, dirty: true, hq: [], changes: [] };
+  const map = { w, h, tiles, dirty: true, hq: [], changes: [], west: westTeam };
   const T = (x, y) => (x >= 0 && y >= 0 && x < w && y < h ? tiles[y * w + x] : null);
 
   function dig(x, y, owner, level) {
@@ -99,37 +106,37 @@ export function createMap(seed = 1916) {
 
   const midY = Math.floor(h / 2);
 
-  // ---- Player (west) ----
-  line(FRONT_X[PLAYER], PLAYER, 1, -1);
-  line(11, PLAYER, 1, -1);
-  line(5, PLAYER, 2, 0, 6, h - 7);
-  for (const y of [7, 19, 31]) comm(5, FRONT_X[PLAYER] - 1, y, PLAYER, 1);
-  map.hq[PLAYER] = { x: 2, y: midY };
-  comm(2, 5, midY, PLAYER, 2);
-  dig(2, midY, PLAYER, 3);
+  // ---- West line (lighter works) ----
+  line(FRONT_X[WT], WT, 1, -1);
+  line(11, WT, 1, -1);
+  line(5, WT, 2, 0, 6, h - 7);
+  for (const y of [7, 19, 31]) comm(5, FRONT_X[WT] - 1, y, WT, 1);
+  map.hq[WT] = { x: 2, y: midY };
+  comm(2, 5, midY, WT, 2);
+  dig(2, midY, WT, 3);
 
-  // ---- Enemy (east) ----
-  line(FRONT_X[ENEMY], ENEMY, 2, 1);
-  line(w - 12, ENEMY, 2, 1);
-  line(w - 6, ENEMY, 2, 0, 6, h - 7);
-  for (const y of [8, 20, 32]) comm(FRONT_X[ENEMY] + 1, w - 6, y, ENEMY, 1);
-  map.hq[ENEMY] = { x: w - 3, y: midY };
-  comm(w - 6, w - 3, midY, ENEMY, 2);
-  dig(w - 3, midY, ENEMY, 3);
+  // ---- East line (heavier works) ----
+  line(FRONT_X[ET], ET, 2, 1);
+  line(w - 12, ET, 2, 1);
+  line(w - 6, ET, 2, 0, 6, h - 7);
+  for (const y of [8, 20, 32]) comm(FRONT_X[ET] + 1, w - 6, y, ET, 1);
+  map.hq[ET] = { x: w - 3, y: midY };
+  comm(w - 6, w - 3, midY, ET, 2);
+  dig(w - 3, midY, ET, 3);
 
   // ---- Barbed wire belts ----
   for (let y = 1; y < h - 1; y++) {
     // Player belt: sally-port gaps every 9 rows.
     if (y % 9 !== 4 && y % 9 !== 5) {
-      for (const [x, p] of [[FRONT_X[PLAYER] + 2, 0.92], [FRONT_X[PLAYER] + 3, 0.55]]) {
+      for (const [x, p] of [[FRONT_X[WT] + 2, 0.92], [FRONT_X[WT] + 3, 0.55]]) {
         const t = T(x, y);
-        if (t && !t.trench && rnd() < p) { t.wire = 100; t.origWire = PLAYER; }
+        if (t && !t.trench && rnd() < p) { t.wire = 100; t.origWire = WT; }
       }
     }
     // Enemy belt: deeper and denser.
-    for (const [x, p] of [[FRONT_X[ENEMY] - 2, 0.97], [FRONT_X[ENEMY] - 3, 0.85], [FRONT_X[ENEMY] - 4, 0.4]]) {
+    for (const [x, p] of [[FRONT_X[ET] - 2, 0.97], [FRONT_X[ET] - 3, 0.85], [FRONT_X[ET] - 4, 0.4]]) {
       const t = T(x, y);
-      if (t && !t.trench && rnd() < p) { t.wire = 100; t.origWire = ENEMY; }
+      if (t && !t.trench && rnd() < p) { t.wire = 100; t.origWire = ET; }
     }
   }
 

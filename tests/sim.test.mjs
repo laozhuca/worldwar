@@ -107,3 +107,19 @@ test('reinforcement needs a trench linked to HQ and no enemy in contact', async 
   sq.x = foe.x; sq.y = foe.y - 1;
   assert.match(reinforceBlock(s, sq), /contact/);
 });
+
+test('player can start on the east line', () => {
+  const s = createGame({ start: 'east', aiTeams: [PLAYER, ENEMY] });
+  assert.ok(s.map.hq[PLAYER].x > s.map.w / 2, 'player HQ in the east');
+  assert.ok(s.map.hq[ENEMY].x < s.map.w / 2, 'enemy HQ in the west');
+  const mine = s.units.filter((u) => u.team === PLAYER);
+  assert.ok(mine.every((u) => u.x > s.map.w / 2), 'player army deployed in the east');
+  const pf = frontLine(s.map, PLAYER).filter((x) => x >= 0), ef = frontLine(s.map, ENEMY).filter((x) => x >= 0);
+  assert.ok(Math.min(...pf) > Math.max(...ef), 'player front is east of the enemy front');
+  // the player\'s units face west and the war runs normally
+  assert.ok(mine.every((u) => u.hx < 0));
+  for (let t = 0; t < 300; t += 0.1) update(s, 0.1);
+  assert.ok(s.stats.lost[0] + s.stats.lost[1] > 5);
+  for (const u of s.units) assert.ok(Number.isFinite(u.x) && u.x >= 0 && u.x <= s.map.w);
+  createGame(); // restore the default west start for any later tests
+});

@@ -1,6 +1,6 @@
 // Isometric (2:1, "45 degree") canvas renderer.
 import { TILE_W as TW, TILE_H as TH, MAP_W, MAP_H, PLAYER, ENEMY, UNIT_TYPES, SEASONS } from './config.js';
-import { tileAt } from './map.js';
+import { tileAt, teamDir } from './map.js';
 import { canBuild } from './game.js';
 import { Atmosphere } from './atmosphere.js';
 import { Relief } from './relief.js';
@@ -1046,7 +1046,7 @@ export class Renderer {
     const S = this.S ?? 1;
     const c = iso(q.x + 0.5, q.y + 0.5);
     const owner = tileAt(state.map, q.x, q.y).owner;
-    const f = team === PLAYER ? 1 : -1;
+    const f = teamDir(team);
     const HQK = 1.6; // the command post is drawn larger than life so it reads as the objective
     if (this.drawFrame(ctx, this.propGroup(), 'hq' + (S > 0.7 ? '_s' : ''), c.x, c.y, HQK)) {
       const UP = 39.2; // screen px per world unit of height (45.25 * cos 30deg)
@@ -1236,7 +1236,7 @@ export class Renderer {
       ctx.strokeStyle = 'rgba(160,255,110,0.95)'; ctx.lineWidth = 1.6;
       ctx.beginPath(); ctx.ellipse(p.x, p.y, 22, 11, 0, 0, TAU); ctx.stroke();
     }
-    const dir = u.team === PLAYER ? 1 : -1;
+    const dir = teamDir(u.team);
     const charging = !!(u.order && u.order.kind === 'charge');
     const pose = u.inTrench ? 'trench' : u.pinned ? 'prone' : charging ? 'charge' : u.order ? 'walk' : 'stand';
     const men = [];
