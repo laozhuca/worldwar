@@ -405,7 +405,7 @@ function updateUnit(state, u, dt) {
   // --- melee (bayonets, clubs, grenades)
   if (u.closest && closeD < MELEE_RANGE) {
     let dmg = u.men * t.melee * dt * 1.5;
-    if (u.chargeBonus > 0) dmg *= 1.5;
+    if (u.chargeBonus > 0) dmg *= 2.0; // the shock of a bayonet charge
     if (u.suppression > 50) dmg *= 0.5;
     damageUnit(state, u.closest, dmg);
     u.closest.suppression = Math.min(100, u.closest.suppression + dt * 10);

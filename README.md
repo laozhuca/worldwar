@@ -31,7 +31,7 @@ as `file://`, because it uses ES modules.
 | **Machine guns** | Short setup time, then murderous fire on troops in the open. Fire pins walking troops. |
 | **Barbed wire** | Slows anyone crossing it to a quarter speed. Shellfire cuts it. |
 | **Artillery** | 8-shell barrages: kill, suppress, cut wire, collapse trench works, churn the ground. Friendly fire is real. |
-| **Charge** | Fast, can't be pinned, no firing. Ends in a bayonet fight. |
+| **Charge** | Fast, can't be pinned, no firing. Ends in a bayonet fight: rifle squads are deadly at close quarters, and the shock of the charge doubles their bayonet damage for the first seconds. |
 | **Capture** | Occupy trench tiles with no enemy nearby. Take the enemy HQ (far east) to win. |
 
 **Textures & relief**: the ground is built from tileable PNG textures (palette sampled from the concept art), sculpted by a 16 px-per-tile height field of the whole battlefield: crater bowls with raised lips, trench spoil ridges, wheel ruts and rolling ground, lit by a soft low light with ambient occlusion and wet glints on the mud. Snow settles on crests and flats, earth shows on steep blasted faces, water and ice collect in the hollows. Shell impacts update the relief locally; trench planks, sandbags and duckboards run along each trench. Replace any PNG in `assets/textures/` with your own art (same name, seamless) and it is used automatically.

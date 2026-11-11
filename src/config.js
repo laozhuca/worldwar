@@ -24,7 +24,7 @@ export const UNIT_TYPES = {
     suppressPerShot: 1.2,
     ammoPerShot: 0.05,
     speed: 0.85,
-    melee: 1.6,
+    melee: 3.2, // fixed bayonets: rifle squads are deadly at close quarters
     canDig: true,
     cost: { men: 6, ammo: 0, supplies: 6 },
     hotkey: '1',

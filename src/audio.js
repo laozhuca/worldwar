@@ -37,7 +37,9 @@ export class Sound {
     const src = c.createBufferSource(), g = c.createGain();
     src.buffer = bufs[Math.floor(Math.random() * bufs.length)];
     src.playbackRate.value = 0.92 + Math.random() * 0.14; // slight pitch variety
-    g.gain.value = vol * ({ boom: 0.9, artyfire: 0.75, rifle: 0.5 }[type] || 0.7);
+    // shell bursts are heard from far off: louder, and they fade less with distance
+    if (type === 'boom') vol = Math.sqrt(vol);
+    g.gain.value = vol * ({ boom: 1.9, artyfire: 0.75, rifle: 0.5 }[type] || 0.7);
     src.connect(g); g.connect(this.master);
     const voice = { src, g };
     act.push(voice);
@@ -54,7 +56,11 @@ export class Sound {
       this.ctx = new AC();
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.5;
-      this.master.connect(this.ctx.destination);
+      // a gentle limiter, so a heavy barrage stacking several loud bursts doesn't clip
+      const comp = this.ctx.createDynamicsCompressor();
+      comp.threshold.value = -10; comp.knee.value = 8; comp.ratio.value = 6; comp.attack.value = 0.004; comp.release.value = 0.25;
+      this.master.connect(comp);
+      comp.connect(this.ctx.destination);
       const len = this.ctx.sampleRate * 1.5;
       this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
       const d = this.noise.getChannelData(0);
@@ -170,7 +176,7 @@ export class Sound {
     if (this.playSample(type, vol)) return;
     switch (type) {
       case 'boom':
-        this.burst({ dur: 1.1, freq: 260, vol: 0.9 * vol });
+        this.burst({ dur: 1.1, freq: 260, vol: 1.6 * vol });
         this.burst({ dur: 0.25, freq: 1400, vol: 0.35 * vol });
         break;
       case 'artyfire':
