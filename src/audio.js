@@ -1,4 +1,6 @@
 // Sound effects via WebAudio: recorded artillery samples (assets/sfx) plus procedural fallbacks.
+const MUSIC_LEVEL = 0.32; // relative to the effects (which sit at 0.5-0.9)
+
 export class Sound {
   constructor() {
     this.ctx = null;
@@ -9,6 +11,7 @@ export class Sound {
     this.voices = {}; // type -> currently playing count
     this.active = {}; // type -> [{ src, g }] oldest first
     this.guns = new Map(); // MG unit id -> { src, g, last } sustained burst
+    this.musicOn = (() => { try { return localStorage.getItem('ww-music') !== 'off'; } catch { return true; } })();
   }
 
   /** Recorded sound effects (assets/sfx), decoded once audio is unlocked. */
@@ -102,9 +105,51 @@ export class Sound {
     src.start();
   }
 
+  // ------------------------------------------------------------ background music
+  /** Streamed through an <audio> element (no up-front decode), mixed under the effects. */
+  startMusic() {
+    if (!this.ctx || this.music) return;
+    const el = new Audio('assets/music/ombra-di-guerra.mp3');
+    el.preload = 'auto';
+    const g = this.ctx.createGain();
+    g.gain.value = 0;
+    this.ctx.createMediaElementSource(el).connect(g);
+    g.connect(this.master);
+    this.music = { el, g, fading: false };
+    if (this.musicOn) this.playMusic();
+  }
+  playMusic() {
+    const m = this.music;
+    if (!m) return;
+    m.el.play().catch(() => {});
+    m.g.gain.cancelScheduledValues(this.ctx.currentTime);
+    m.g.gain.setTargetAtTime(MUSIC_LEVEL, this.ctx.currentTime, 1.2); // gentle fade in
+  }
+  setMusic(on) {
+    this.musicOn = on;
+    try { localStorage.setItem('ww-music', on ? 'on' : 'off'); } catch {}
+    const m = this.music;
+    if (!m) return;
+    if (on) this.playMusic();
+    else { m.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3); setTimeout(() => { if (!this.musicOn) m.el.pause(); }, 1500); }
+  }
+  /** The track ends mid-phrase, so fade the last 3 s out and fade back in from the top. */
+  tickMusic() {
+    const m = this.music;
+    if (!m || !this.musicOn || m.el.paused || !m.el.duration) return;
+    const left = m.el.duration - m.el.currentTime;
+    if (left < 3 && !m.fading) { m.fading = true; m.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.8); }
+    if (m.fading && (left < 0.15 || m.el.ended)) {
+      m.fading = false;
+      m.el.currentTime = 0;
+      this.playMusic();
+    }
+  }
+
   /** Per-frame: silence guns that have stopped firing (or everything while paused). */
   tick(paused) {
     if (!this.ctx) return;
+    this.tickMusic();
     const now = this.ctx.currentTime;
     for (const [id, v] of this.guns) {
       if (paused || now - v.last > 0.8) {

@@ -93,6 +93,7 @@ document.querySelectorAll('[data-season]').forEach((b) => b.addEventListener('cl
 }));
 document.getElementById('btn-start').addEventListener('click', () => {
   sound.init();
+  sound.startMusic();
   const sameNations = app.side !== 'random' && app.state.nations.join() === app.nations.join();
   const sameStart = app.start !== 'random' && app.state.start === app.start;
   if ((app.state.season !== app.season || !sameNations || !sameStart) && app.state.time < 1) {
@@ -131,6 +132,10 @@ document.getElementById('btn-speed').addEventListener('click', (e) => {
   app.speed = app.speed === 1 ? 2 : app.speed === 2 ? 3 : 1;
   e.target.textContent = app.speed + '×';
 });
+const musicBtn = document.getElementById('btn-music');
+const showMusic = () => { musicBtn.style.opacity = sound.musicOn ? '1' : '0.4'; };
+showMusic();
+musicBtn.addEventListener('click', () => { sound.init(); sound.startMusic(); sound.setMusic(!sound.musicOn); showMusic(); });
 document.getElementById('btn-sound').addEventListener('click', (e) => {
   sound.init();
   sound.setEnabled(!sound.enabled);
