@@ -17,10 +17,16 @@ export class Sound {
   /** Recorded sound effects (assets/sfx), decoded once audio is unlocked. */
   loadSamples() {
     if (this.sampleLoad || !this.ctx) return;
-    const SETS = { artyfire: ['fire'], boom: ['shell-2', 'shell-3', 'shell-4'], rifle: ['rifle-1', 'rifle-2', 'rifle-3', 'rifle-4', 'rifle-5'], mg: ['mg-1', 'mg-2', 'mg-3', 'mg-4'] };
+    const SETS = { artyfire: ['fire'], boom: ['shell-2', 'shell-3', 'shell-4'], rifle: ['rifle-1', 'rifle-2', 'rifle-3', 'rifle-4', 'rifle-5'], mg: ['mg-1', 'mg-2', 'mg-3', 'mg-4'], whistle: ['whistle'], cry: ['battle-cry'] };
     this.sampleLoad = Promise.all(Object.entries(SETS).map(([type, names]) => Promise.all(names.map((n) =>
       fetch(`assets/sfx/${n}.mp3`).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a)).catch(() => null)))
       .then((bufs) => { const ok = bufs.filter(Boolean); if (ok.length) this.samples[type] = ok; })));
+  }
+
+  /** Going over the top: the officer's whistle and the men's battle cry (under the charge voice line). */
+  charge() {
+    this.play('whistle', 1);
+    this.play('cry', 1);
   }
 
   playSample(type, vol) {
@@ -39,7 +45,7 @@ export class Sound {
     src.playbackRate.value = 0.92 + Math.random() * 0.14; // slight pitch variety
     // shell bursts are heard from far off: louder, and they fade less with distance
     if (type === 'boom') vol = Math.sqrt(vol);
-    g.gain.value = vol * ({ boom: 1.9, artyfire: 0.75, rifle: 0.5 }[type] || 0.7);
+    g.gain.value = vol * ({ boom: 1.9, artyfire: 0.75, rifle: 0.5, whistle: 0.8, cry: 0.9 }[type] || 0.7);
     src.connect(g); g.connect(this.master);
     const voice = { src, g };
     act.push(voice);
@@ -170,7 +176,7 @@ export class Sound {
     if (!this.ctx || !this.enabled || vol <= 0.02) return;
     if (type === 'mg' && this.samples.mg && id !== undefined) { this.playGun(id, vol); return; }
     const now = performance.now();
-    const gap = { boom: 60, artyfire: 90, mg: 110, rifle: 70, supply: 500 }[type] || 80;
+    const gap = { boom: 60, artyfire: 90, mg: 110, rifle: 70, supply: 500, whistle: 2500, cry: 2500 }[type] || 80;
     if (now - (this.last[type] || 0) < gap) return;
     this.last[type] = now;
     if (this.playSample(type, vol)) return;

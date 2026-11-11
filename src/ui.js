@@ -83,7 +83,9 @@ export class UI {
 
   /** One of the units answers the order (voice + speech bubble). */
   speak(kind, units) {
-    if (!this.voices || !units || !units.length) return;
+    if (!units || !units.length) return;
+    if (kind === 'charge') this.sound.charge();
+    if (!this.voices) return;
     // the unit nearest the middle of the screen answers, so its speech bubble is in view
     const cx = this.r.vw / 2, cy = this.r.vh / 2;
     let u = units[0], bd = Infinity;
