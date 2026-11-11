@@ -104,10 +104,19 @@
           </div>
         </div>
         <div class="nation-pick">
+          <h3>Your side</h3>
+          <div id="side-btns" class="side-row">
+            <button data-side="allied" class="active">Allies<small>Britain · France · USA · Italy · Russia</small></button>
+            <button data-side="central">Central Powers<small>Germany · Austria-Hungary · Ottoman Empire</small></button>
+            <button data-side="random">🎲 Random<small>Side and nations drawn when the battle starts</small></button>
+          </div>
+          <div id="random-note" class="muted hidden">You will be assigned a side and nation at random. Restarting draws again.</div>
+          <div id="nation-lists">
           <h3>Your nation</h3>
           <div id="nation-btns" class="nation-row"></div>
           <h3>The enemy</h3>
           <div id="enemy-btns" class="nation-row"></div>
+          </div>
         </div>
         <div class="season-pick">
           <h3>Season</h3>

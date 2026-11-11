@@ -1,4 +1,4 @@
-import { createGame, update } from './game.js';
+import { createGame, update, pushMessage } from './game.js';
 import { Renderer, iso } from './render.js';
 import { UI } from './ui.js';
 import { Sound } from './audio.js';
@@ -14,6 +14,7 @@ const app = {
   helpOpen: true,
   season: 'winter',
   nations: ['uk', 'germany'],
+  side: 'allied', // 'allied' | 'central' | 'random'
   overlayOpen() { return !document.getElementById('overlay').classList.contains('hidden'); },
   togglePause() {
     this.paused = !this.paused;
@@ -47,14 +48,33 @@ function useArmies(state) {
   document.getElementById('matchup').textContent = `${a} vs ${b}`;
 }
 useArmies(app.state);
+const ofSide = (side) => Object.keys(NATIONS).filter((k) => NATIONS[k].alliance === side);
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+/** Nations to play with: the chosen ones, or a fresh random draw of side and nations. */
+function chosenNations() {
+  if (app.side !== 'random') return [...app.nations];
+  const side = Math.random() < 0.5 ? 'allied' : 'central';
+  return [pick(ofSide(side)), pick(ofSide(side === 'allied' ? 'central' : 'allied'))];
+}
+/** Tell the player which army they lead (once per battle, when it starts). */
+function announce(state) {
+  if (!state.messages.some((m) => m.kind === 'side')) pushMessage(state, `You command the army of ${NATIONS[state.nations[0]].name} against ${NATIONS[state.nations[1]].name}.`, 'side');
+}
 function nationButtons() {
   const mine = document.getElementById('nation-btns'), foe = document.getElementById('enemy-btns');
-  const myAlliance = NATIONS[app.nations[0]].alliance;
+  const random = app.side === 'random';
+  document.querySelectorAll('[data-side]').forEach((x) => x.classList.toggle('active', x.dataset.side === app.side));
+  document.getElementById('nation-lists').classList.toggle('hidden', random);
+  document.getElementById('random-note').classList.toggle('hidden', !random);
+  if (random) return;
+  if (NATIONS[app.nations[0]].alliance !== app.side) app.nations[0] = ofSide(app.side)[0];
+  const myAlliance = app.side;
   if (NATIONS[app.nations[1]].alliance === myAlliance) app.nations[1] = Object.keys(NATIONS).find((k) => NATIONS[k].alliance !== myAlliance);
   const btn = (k, active, onClick) => { const b = document.createElement('button'); b.className = active ? 'active' : ''; b.innerHTML = `<img src="${portraitOf(k)}" alt=""><span>${NATIONS[k].name}</span>`; b.onclick = onClick; return b; };
-  mine.replaceChildren(...Object.keys(NATIONS).map((k) => btn(k, k === app.nations[0], () => { app.nations[0] = k; nationButtons(); })));
+  mine.replaceChildren(...ofSide(myAlliance).map((k) => btn(k, k === app.nations[0], () => { app.nations[0] = k; nationButtons(); })));
   foe.replaceChildren(...Object.keys(NATIONS).filter((k) => NATIONS[k].alliance !== myAlliance).map((k) => btn(k, k === app.nations[1], () => { app.nations[1] = k; nationButtons(); })));
 }
+document.querySelectorAll('[data-side]').forEach((b) => b.addEventListener('click', () => { app.side = b.dataset.side; nationButtons(); }));
 nationButtons();
 fetch('assets/art/manifest.json').then((r) => r.json()).then((m) => { artKeys = m; nationButtons(); }).catch(() => {});
 ui.centerOnFront();
@@ -67,26 +87,28 @@ document.querySelectorAll('[data-season]').forEach((b) => b.addEventListener('cl
 }));
 document.getElementById('btn-start').addEventListener('click', () => {
   sound.init();
-  const sameNations = app.state.nations.join() === app.nations.join();
+  const sameNations = app.side !== 'random' && app.state.nations.join() === app.nations.join();
   if ((app.state.season !== app.season || !sameNations) && app.state.time < 1) {
-    app.state = createGame({ season: app.season, nations: [...app.nations] });
+    app.state = createGame({ season: app.season, nations: chosenNations() });
     useArmies(app.state);
     renderer.groundDrawn = false;
     ui.selected.clear();
     ui.centerOnFront();
   }
   document.getElementById('overlay').classList.add('hidden');
+  announce(app.state);
   app.paused = false;
   document.getElementById('btn-pause').textContent = '❚❚';
 });
 document.getElementById('btn-restart').addEventListener('click', () => {
-  app.state = createGame({ seed: Math.floor(Math.random() * 1e6), season: app.season, nations: [...app.nations] });
+  app.state = createGame({ seed: Math.floor(Math.random() * 1e6), season: app.season, nations: chosenNations() });
   useArmies(app.state);
   ui.selected.clear();
   ui.setMode(null);
   renderer.groundDrawn = false;
   ui.centerOnFront();
   document.getElementById('overlay').classList.add('hidden');
+  announce(app.state);
   app.paused = false;
   endShown = false;
 });

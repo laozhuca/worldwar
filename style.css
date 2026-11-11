@@ -88,3 +88,8 @@ button.big { margin-top: 16px; font-size: 16px; padding: 8px 22px; background: #
 .nation-row button.active { outline: 2px solid var(--accent); }
 .ucard .portrait { float: left; height: 30px; width: 22px; object-fit: contain; object-position: top; margin-right: 4px; }
 #topbar .title { white-space: nowrap; }
+.side-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.side-row button { text-align: left; min-width: 180px; }
+.side-row button small { display: block; color: var(--muted); font-size: 11px; }
+#random-note { margin: 6px 0; }
+#messages .side { border-color: var(--accent); }
