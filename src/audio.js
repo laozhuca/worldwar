@@ -26,10 +26,10 @@ export class Sound {
   /** Going over the top: the officer's whistle and the men's battle cry (under the charge voice line). */
   charge() {
     this.play('whistle', 1);
-    this.play('cry', 1);
+    this.play('cry', 1, undefined, 1.5); // the men roar 1.5 s after the whistle blows
   }
 
-  playSample(type, vol) {
+  playSample(type, vol, delay = 0) {
     const bufs = this.samples[type];
     if (!bufs) return false;
     const MAX = { boom: 8, artyfire: 4, rifle: 6 }[type] || 4; // cap overlapping long tails in a heavy barrage
@@ -51,7 +51,7 @@ export class Sound {
     act.push(voice);
     this.voices[type] = act.length;
     src.onended = () => { const i = act.indexOf(voice); if (i >= 0) act.splice(i, 1); this.voices[type] = act.length; };
-    src.start();
+    src.start(c.currentTime + delay);
     return true;
   }
 
@@ -172,14 +172,14 @@ export class Sound {
     }
   }
 
-  play(type, vol = 1, id) {
+  play(type, vol = 1, id, delay = 0) {
     if (!this.ctx || !this.enabled || vol <= 0.02) return;
     if (type === 'mg' && this.samples.mg && id !== undefined) { this.playGun(id, vol); return; }
     const now = performance.now();
     const gap = { boom: 60, artyfire: 90, mg: 110, rifle: 70, supply: 500, whistle: 2500, cry: 2500 }[type] || 80;
     if (now - (this.last[type] || 0) < gap) return;
     this.last[type] = now;
-    if (this.playSample(type, vol)) return;
+    if (this.playSample(type, vol, delay)) return;
     switch (type) {
       case 'boom':
         this.burst({ dur: 1.1, freq: 260, vol: 1.6 * vol });
