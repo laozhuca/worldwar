@@ -16,7 +16,7 @@ const SHEET = 2048, PAD = 2, QUALITY = 0.9;
 const groups = {};
 const props = JSON.parse(readFileSync(join(A, 'props', 'manifest.json'), 'utf8'));
 for (const [k, m] of Object.entries(props)) {
-  const g = k.startsWith('mg_') ? 'units' : k.endsWith('_s') ? 'props-snow' : 'props-bare';
+  const g = k.startsWith('mg_') || k.startsWith('gun_') ? 'units' : k.endsWith('_s') ? 'props-snow' : 'props-bare';
   (groups[g] ||= []).push({ name: k, file: join(A, 'props', k + '.png'), ...m });
 }
 for (const nation of readdirSync(join(A, 'soldiers'))) {

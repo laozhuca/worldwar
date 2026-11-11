@@ -98,6 +98,9 @@ export function spawnUnit(state, type, team, x, y) {
     chargeBonus: 0,
     facing: teamDir(team),
     hx: teamDir(team), // heading on the ground (unit vector), for sprite facing
+    aimX: teamDir(team), // where a gun is laid (towards the enemy until it fires)
+    aimY: 0,
+    roll: 0, // distance travelled, for wheel animation
     hy: 0,
     seed: rand(),
     dead: false,
@@ -426,6 +429,7 @@ function updateUnit(state, u, dt) {
       u.x += (dx / d) * step; u.y += (dy / d) * step;
       u.moving = true;
       u.hx = dx / d; u.hy = dy / d;
+      u.roll += step;
       const sx = dx - dy; // screen-space horizontal direction
       if (Math.abs(sx) > 0.05) u.facing = Math.sign(sx);
     }
@@ -581,7 +585,7 @@ function launchShell(state, u, tx, ty) {
   const r = Math.pow(rand(), 0.7) * spread;
   const flight = 1.2 + d * 0.05;
   state.shells.push({ x: tx + Math.cos(a) * r, y: ty + Math.sin(a) * r, t: flight, flight, team: u.team, fromX: u.x, fromY: u.y });
-  if (d > 0.01) { u.hx = (tx - u.x) / d; u.hy = (ty - u.y) / d; }
+  if (d > 0.01) { u.hx = u.aimX = (tx - u.x) / d; u.hy = u.aimY = (ty - u.y) / d; }
   state.effects.push({ type: 'gunflash', x: u.x, y: u.y, age: 0, life: 0.35, facing: u.facing, hx: u.hx, hy: u.hy });
   state.events.push({ type: 'artyfire', x: u.x, y: u.y });
 }

@@ -709,7 +709,7 @@ export class Renderer {
 
   /** Draw a pre-rendered 3D prop with its origin (ground point) at (x, y) in the current space. */
   drawProp(ctx, name, x, y, mirror = false) {
-    if (name.startsWith('mg_')) return this.drawFrame(ctx, 'units', name, x, y, 1, mirror);
+    if (name.startsWith('mg_') || name.startsWith('gun_')) return this.drawFrame(ctx, 'units', name, x, y, 1, mirror);
     return this.drawFrame(ctx, this.propGroup(), name, x, y, 1, mirror);
   }
 
@@ -1133,6 +1133,20 @@ export class Renderer {
   }
 
   /** Howitzer from the supplied art: a faces -x, b faces +y; mirrored for -y / +x. */
+  /** Heading a gun is drawn with: trail-first while being moved, otherwise laid on its target. */
+  static gunHeading(u) { return u.moving ? [-u.hx, -u.hy] : [u.aimX ?? u.hx, u.aimY ?? u.hy]; }
+
+  /** Pre-rendered 3D howitzer: 8 directions, wheels turning while it moves. */
+  drawGun3D(ctx, p, u, time) {
+    const [hx, hy] = Renderer.gunHeading(u);
+    const dir = ((Math.round(Math.atan2(hy, hx) / (Math.PI / 4)) % 8) + 8) % 8;
+    // 2 spoke-passes per second while moving: smooth rolling without wagon-wheel strobing
+    const frame = u.moving ? Math.floor(time * 16 + u.seed * 8) % 8 : 0;
+    const recoil = u.firing > 0 && !u.moving ? u.firing * 0.08 : 0;
+    const q = iso(u.x - hx * recoil, u.y - hy * recoil);
+    return this.drawFrame(ctx, 'units', `gun_d${dir}_f${frame}`, q.x, q.y, 1.5);
+  }
+
   drawGunArt(ctx, p, u) {
     if (!this.gunArt) return false;
     const opts = [[u.hx, 'b', true], [u.hy, 'b', false], [-u.hx, 'a', false], [-u.hy, 'a', true]];
@@ -1171,7 +1185,12 @@ export class Renderer {
       const col = i % 5, row = Math.floor(i / 5);
       const jx = Math.sin(u.seed * 100 + i * 7.3) * 0.06, jy = Math.cos(u.seed * 77 + i * 3.1) * 0.06;
       let ox, oy;
-      if (u.type === 'artillery') { ox = -dir * (0.4 + (i % 3) * 0.14); oy = (Math.floor(i / 3) - 0.5) * 0.28 + ((i % 3) - 1) * 0.1; }
+      if (u.type === 'artillery') {
+        const [gx, gy] = Renderer.gunHeading(u);
+        const CREW = [[-0.25, 0.42], [-0.25, -0.42], [-0.6, 0.34], [-0.6, -0.34], [-0.95, 0.24], [-0.95, -0.24]];
+        const [cf, cs] = CREW[i % CREW.length];
+        ox = gx * cf - gy * cs; oy = gy * cf + gx * cs;
+      }
       else if (u.type === 'mg') { ox = -dir * (0.1 + (i % 2) * 0.12); oy = (Math.floor(i / 2) - 0.5) * 0.22 + 0.15; }
       else { ox = (row - 0.5) * 0.22 * -dir; oy = (col - 2) * 0.17; }
       const s = iso(u.x + ox + jx, u.y + oy + jy);
@@ -1182,7 +1201,7 @@ export class Renderer {
     const nation = this.nations && this.nations[u.team];
     const useSpr = this.hasArmy(nation);
     let gunDrawn = u.type !== 'artillery';
-    const drawGunNow = () => { if (!gunDrawn) { gunDrawn = true; if (!this.drawGunArt(ctx, p, u)) this.drawGun(ctx, p, u, time); } };
+    const drawGunNow = () => { if (!gunDrawn) { gunDrawn = true; if (!this.drawGun3D(ctx, p, u, time) && !this.drawGunArt(ctx, p, u)) this.drawGun(ctx, p, u, time); } };
     if (!useSpr) drawGunNow();
     if (u.type === 'mg') {
       const { view, mirror } = Renderer.viewFor(u.hx, u.hy);
@@ -1403,8 +1422,8 @@ export class Renderer {
       } else if (e.type === 'gunflash') {
         const p = iso(e.x, e.y);
         const f = e.facing || 1;
-        if (e.hx !== undefined && this.gunArt) {
-          const d = iso(e.hx, e.hy), dl = Math.hypot(d.x, d.y) || 1, mx = p.x + (d.x / dl) * 16, my = p.y + (d.y / dl) * 16 - 14;
+        if (e.hx !== undefined) {
+          const d = iso(e.hx, e.hy), dl = Math.hypot(d.x, d.y) || 1, mz = iso(e.x + e.hx * 0.33, e.y + e.hy * 0.33), mx = mz.x, my = mz.y - 15;
           ctx.fillStyle = `rgba(200,200,190,${0.45 * (1 - k)})`;
           ctx.beginPath(); ctx.arc(mx + (d.x / dl) * k * 12 + wind.x * k * 10, my - k * 14, 6 + k * 16, 0, TAU); ctx.fill();
           if (k < 0.5) { ctx.globalCompositeOperation = 'lighter'; const gr = ctx.createRadialGradient(mx, my, 0, mx, my, 14); gr.addColorStop(0, `rgba(255,245,200,${1 - k * 2})`); gr.addColorStop(1, 'rgba(255,140,40,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(mx, my, 14, 0, TAU); ctx.fill(); ctx.globalCompositeOperation = 'source-over'; }

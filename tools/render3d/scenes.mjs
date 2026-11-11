@@ -555,4 +555,76 @@ export function hqScene(snow) {
   return { bounds: [-0.85, -0.75, -0.1, 0.9, 0.75, 0.78], sdf, shade, supersample: 2 };
 }
 
+// ===================================================================== field howitzer (8 directions x wheel frames)
+/**
+ * WW1 light field howitzer modelled on the reference art: armoured shield with sight window, short barrel
+ * over recoil cylinders, spoked wooden wheels with steel tyres, box trail with spade and lunette.
+ * dir: heading index 0..7 (angle dir*45deg in map space, 0 = +x). frame: wheel rotation step 0..7.
+ */
+export function gunScene(dir, frame) {
+  const M = 0.195; // metres -> tiles (same scale as the soldiers)
+  const th = (dir * Math.PI) / 4, ct = Math.cos(th), st = Math.sin(th);
+  const SPOKES = 14, WR = 0.74, TRACK = 0.84;
+  const rot = (frame / 8) * ((Math.PI * 2) / SPOKES);
+  const EL = 0.42; // barrel elevation (rad)
+  const piv = [0.15, 0, 1.0], bdir = [Math.cos(EL), 0, Math.sin(EL)];
+  const along = (k) => [piv[0] + bdir[0] * k, 0, piv[2] + bdir[2] * k];
+  const B0 = along(-0.7), B1 = along(1.15), B2 = along(1.3);
+  const R0 = along(-0.55), R1 = along(0.9);
+
+  const wheel = (f, s, z) => {
+    const u = f, v = z - WR, w = Math.abs(s) - TRACK;
+    const r = Math.hypot(u, v);
+    const tyre = Math.max(Math.abs(r - WR + 0.045) - 0.045, Math.abs(w) - 0.05);
+    const felloe = Math.max(Math.abs(r - WR + 0.11) - 0.035, Math.abs(w) - 0.04);
+    const hub = Math.min(Math.max(r - 0.13, Math.abs(w) - 0.11), Math.max(r - 0.07, Math.abs(w + 0.0) - 0.16));
+    const a = Math.atan2(v, u) - rot, per = (Math.PI * 2) / SPOKES;
+    const da = a - Math.round(a / per) * per;
+    const spoke = Math.max(Math.hypot(r * Math.sin(da), w) - 0.03 + r * 0.012, r - WR + 0.1, 0.1 - r);
+    return [Math.min(tyre, felloe, hub, spoke), tyre < Math.min(felloe, hub, spoke) ? 'tyre' : hub < Math.min(felloe, spoke) ? 'steel' : 'wood'];
+  };
+  const steel = (f, s, z) => {
+    const axle = sdCapsule(f, s, z, 0, -TRACK, WR, 0, TRACK, WR, 0.055);
+    // trail: box beam sloping from the axle down to the spade
+    const tl = -3.0, t = clamp(f / tl, 0, 1);
+    const trail = Math.max(sdRoundBox(f - tl / 2, s, z - mix(0.62, 0.12, t), 1.55, mix(0.2, 0.1, t), mix(0.13, 0.08, t), 0.02), -f - 3.05);
+    const spade = sdRoundBox(f + 3.0, s, z - 0.08, 0.05, 0.16, 0.12, 0.01);
+    const lunette = Math.max(Math.abs(Math.hypot(f + 3.22, s) - 0.1) - 0.035, Math.abs(z - 0.13) - 0.03);
+    // cradle cheeks either side of the barrel, and the shield
+    const cradle = sdRoundBox(f - 0.05, Math.abs(s) - 0.2, z - 0.82, 0.38, 0.03, 0.26, 0.01);
+    const sx = f - 0.42 + (z - 1.0) * 0.08; // shield leans back slightly
+    let shield = sdRoundBox(sx, s, z - 1.08, 0.014, 0.8, 0.55, 0.01);
+    shield = Math.max(shield, -(sdRoundBox(sx, s - 0.28, z - 1.18, 0.1, 0.1, 0.06, 0.01))); // sight window
+    shield = Math.max(shield, (Math.abs(s) - 0.8) + (z - 1.6) * 0.9); // bevelled top corners
+    const barrel = Math.min(sdCapsule(f, s, z, B0[0], 0, B0[2], B1[0], 0, B1[2], 0.16, 0.14), sdCapsule(f, s, z, B1[0], 0, B1[2], B2[0], 0, B2[2], 0.155, 0.155));
+    const breech = sdRoundBox(f - B0[0] + 0.05, s, z - B0[2] + 0.02, 0.14, 0.15, 0.15, 0.03);
+    const recoil = Math.min(sdCapsule(f, s, z, R0[0], 0.07, R0[2] - 0.17, R1[0], 0.07, R1[2] - 0.17, 0.055), sdCapsule(f, s, z, R0[0], -0.07, R0[2] - 0.17, R1[0], -0.07, R1[2] - 0.17, 0.055));
+    const hw = Math.max(Math.abs(Math.hypot(f + 0.25, z - 0.78) - 0.11) - 0.012, Math.abs(s - 0.32) - 0.012); // elevating handwheel
+    return Math.min(axle, trail, spade, lunette, cradle, shield, barrel, breech, recoil, hw);
+  };
+  const local = (x, y, z) => [(x * ct + y * st) / M, (-x * st + y * ct) / M, z / M];
+  const parts = (x, y, z) => {
+    const [f, s, zz] = local(x, y, z);
+    const [dw, wm] = wheel(f, s, zz);
+    const ds = steel(f, s, zz);
+    return dw < ds ? [dw * M, wm, f, s, zz] : [ds * M, 'paint', f, s, zz];
+  };
+  const sdf = (x, y, z) => Math.min(z, parts(x, y, z)[0]);
+  const shade = (x, y, z, nx, ny, nz) => {
+    const [d, m, f, s, zz] = parts(x, y, z);
+    if (z < d) return { kind: 'catcher' };
+    const n = fbm(f * 6, s * 6, zz * 6, 3), fine = vnoise(f * 40, s * 40, zz * 40);
+    if (m === 'tyre') return { kind: 'solid', col: mix3([0.16, 0.12, 0.09], [0.34, 0.24, 0.16], n), spec: 0.25, shin: 30 };
+    if (m === 'wood') return { kind: 'solid', col: mix3([0.22, 0.17, 0.12], [0.4, 0.32, 0.23], n * 0.7 + fine * 0.3), spec: 0.05 };
+    if (m === 'steel') return { kind: 'solid', col: [0.22, 0.23, 0.19], spec: 0.5, shin: 40 };
+    // olive-drab paint, worn to dark steel on edges, with mud low down
+    let col = mix3([0.22, 0.24, 0.18], [0.36, 0.38, 0.29], n);
+    if (fine > 0.8) col = mix3(col, [0.17, 0.17, 0.16], 0.6);
+    col = mix3(col, [0.2, 0.15, 0.1], clamp((0.45 - zz) * 1.5, 0, 0.6));
+    return { kind: 'solid', col, spec: 0.28, shin: 28 };
+  };
+  const E = 3.4 * M;
+  return { bounds: [-E, -E, -0.01, E + 0.15, E + 0.12, 1.9 * M], sdf, shade, supersample: 3 };
+}
+
 void smin; void mix;
