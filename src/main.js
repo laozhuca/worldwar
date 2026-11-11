@@ -177,11 +177,12 @@ function frame(now) {
   const center = renderer.screenToMap(renderer.vw / 2, renderer.vh / 2);
   for (const ev of s.events) {
     const d = ev.x === undefined ? 0 : Math.hypot(ev.x - center.x, ev.y - center.y);
-    sound.play(ev.type, Math.max(0, 1 - d / (28 / renderer.cam.zoom)));
+    sound.play(ev.type, Math.max(0, 1 - d / (28 / renderer.cam.zoom)), ev.id);
     renderer.onEvent(ev);
   }
   s.events.length = 0;
 
+  sound.tick(app.paused);
   renderer.draw(s, ui);
   miniTimer -= dt;
   if (miniTimer <= 0) { miniTimer = 0.25; renderer.drawMinimap(mctx, s, mini.width, mini.height); }

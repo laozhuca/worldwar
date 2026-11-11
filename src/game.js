@@ -557,7 +557,7 @@ function fire(state, u, target, t) {
   if (Math.abs(sx) > 0.05) u.facing = Math.sign(sx);
   if (d > 0.01) { u.hx = (target.x - u.x) / d; u.hy = (target.y - u.y) / d; }
   state.effects.push({ type: t.burst ? 'tracer' : 'volley', x: u.x, y: u.y, tx: target.x, ty: target.y, age: 0, life: t.burst ? 0.35 : 0.18, team: u.team, n: shots * ammoFactor });
-  state.events.push({ type: t.burst ? 'mg' : 'rifle', x: u.x, y: u.y });
+  state.events.push({ type: t.burst ? 'mg' : 'rifle', x: u.x, y: u.y, id: u.id });
 }
 
 export function damageUnit(state, u, amount) {

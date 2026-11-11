@@ -8,12 +8,13 @@ export class Sound {
     this.samples = {}; // type -> [AudioBuffer]
     this.voices = {}; // type -> currently playing count
     this.active = {}; // type -> [{ src, g }] oldest first
+    this.guns = new Map(); // MG unit id -> { src, g, last } sustained burst
   }
 
   /** Recorded sound effects (assets/sfx), decoded once audio is unlocked. */
   loadSamples() {
     if (this.sampleLoad || !this.ctx) return;
-    const SETS = { artyfire: ['fire'], boom: ['shell-1', 'shell-2', 'shell-3', 'shell-4'], rifle: ['rifle-1', 'rifle-2', 'rifle-3', 'rifle-4', 'rifle-5'] };
+    const SETS = { artyfire: ['fire'], boom: ['shell-1', 'shell-2', 'shell-3', 'shell-4'], rifle: ['rifle-1', 'rifle-2', 'rifle-3', 'rifle-4', 'rifle-5'], mg: ['mg-1', 'mg-2', 'mg-3', 'mg-4'] };
     this.sampleLoad = Promise.all(Object.entries(SETS).map(([type, names]) => Promise.all(names.map((n) =>
       fetch(`assets/sfx/${n}.mp3`).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a)).catch(() => null)))
       .then((bufs) => { const ok = bufs.filter(Boolean); if (ok.length) this.samples[type] = ok; })));
@@ -81,8 +82,42 @@ export class Sound {
     src.start(t0, Math.random() * 0.5, dur + 0.05);
   }
 
-  play(type, vol = 1) {
+  /**
+   * Machine guns: one continuous recording per firing gun. It keeps playing while the gun keeps firing,
+   * a new one starts if it runs out, and it is cut with a short fade once the gun falls silent.
+   */
+  playGun(id, vol) {
+    const bufs = this.samples.mg, c = this.ctx;
+    const now = c.currentTime, cur = this.guns.get(id);
+    if (cur && !cur.ended) { cur.last = now; cur.g.gain.setTargetAtTime(vol * 0.6, now, 0.1); return; }
+    if (this.guns.size >= 4 && !cur) return; // at most four guns heard at once
+    const src = c.createBufferSource(), g = c.createGain();
+    src.buffer = bufs[Math.floor(Math.random() * bufs.length)];
+    src.playbackRate.value = 0.95 + Math.random() * 0.1;
+    g.gain.value = vol * 0.6;
+    src.connect(g); g.connect(this.master);
+    const voice = { src, g, last: now, ended: false };
+    src.onended = () => { voice.ended = true; if (this.guns.get(id) === voice) this.guns.delete(id); };
+    this.guns.set(id, voice);
+    src.start();
+  }
+
+  /** Per-frame: silence guns that have stopped firing (or everything while paused). */
+  tick(paused) {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    for (const [id, v] of this.guns) {
+      if (paused || now - v.last > 0.8) {
+        v.g.gain.setTargetAtTime(0, now, 0.05);
+        v.src.stop(now + 0.15);
+        this.guns.delete(id);
+      }
+    }
+  }
+
+  play(type, vol = 1, id) {
     if (!this.ctx || !this.enabled || vol <= 0.02) return;
+    if (type === 'mg' && this.samples.mg && id !== undefined) { this.playGun(id, vol); return; }
     const now = performance.now();
     const gap = { boom: 60, artyfire: 90, mg: 110, rifle: 70, supply: 500 }[type] || 80;
     if (now - (this.last[type] || 0) < gap) return;
