@@ -1238,7 +1238,10 @@ export class Renderer {
     }
     const dir = teamDir(u.team);
     const charging = !!(u.order && u.order.kind === 'charge');
-    const pose = u.inTrench ? 'trench' : u.pinned ? 'prone' : charging ? 'charge' : u.order ? 'walk' : 'stand';
+    // pinned men keep moving by crawling; otherwise walk, or run when charging
+    const pose = u.inTrench ? 'trench' : u.pinned ? (u.moving ? 'crawl' : 'prone') : charging ? 'charge' : u.order ? 'walk' : 'stand';
+    const moving = u.moving && pose !== 'trench';
+    const hsh = (k, j) => { const v = Math.sin(u.seed * 1000 + k * 12.9898 + j * 78.233) * 43758.5453; return v - Math.floor(v); };
     const men = [];
     const count = u.type === 'artillery' ? u.men : u.men;
     for (let i = 0; i < count; i++) {
@@ -1253,7 +1256,17 @@ export class Renderer {
       }
       else if (u.type === 'mg') { ox = -dir * (0.1 + (i % 2) * 0.12); oy = (Math.floor(i / 2) - 0.5) * 0.22 + 0.15; }
       else { ox = (row - 0.5) * 0.22 * -dir; oy = (col - 2) * 0.17; }
-      const s = iso(u.x + ox + jx, u.y + oy + jy);
+      let mx = u.x + ox + jx, my = u.y + oy + jy;
+      if (moving && u.type !== 'artillery') {
+        // loose order on the move: each man weaves a little and keeps his own place in the file;
+        // a charge turns into a ragged rush with men surging ahead and falling behind
+        const run = pose === 'charge', crawl = pose === 'crawl';
+        const lat = Math.sin(time * (run ? 1.5 : 0.9) + i * 1.7 + u.seed * 9) * (run ? 0.07 : 0.045);
+        const lag = (hsh(i, 1) - 0.5) * (run ? 0.42 : crawl ? 0.2 : 0.12) + Math.sin(time * (run ? 1.1 : 0.6) + i * 2.3) * (run ? 0.06 : 0.025);
+        mx += -u.hy * lat + u.hx * lag; my += u.hx * lat + u.hy * lag;
+      }
+      const s = iso(mx, my);
+      s.k = i;
       men.push(s);
     }
     men.sort((a, b) => a.y - b.y);
@@ -1276,17 +1289,23 @@ export class Renderer {
       }
     }
     if (useSpr) {
-      const fr4 = Math.floor(phase / 1.6) % 4;
+      // Steps advance with ground actually covered (so men slow their stride in wire and mud) rather than
+      // on a clock; each man has his own phase and a slightly different stride, so a squad never marches in lockstep.
+      const GAIT = { walk: [8, 0.55], charge: [8, 1.0], crawl: [6, 0.3] };
       men.forEach((s, i) => {
         if (s.y >= p.y) drawGunNow(); // crew behind the gun first, the rest in front
         let pn = pose, fr = 0;
-        if (pose === 'walk' || pose === 'charge') fr = (fr4 + i) % 4;
+        const g = GAIT[pose];
+        if (g) {
+          const k = s.k, cyc = (u.roll || 0) / (g[1] * (0.92 + 0.16 * hsh(k, 2))) + hsh(k, 3);
+          fr = Math.floor((cyc - Math.floor(cyc)) * g[0]) % g[0];
+        }
         else if (pose === 'stand') {
           if (u.digging && i % 2 === 0) { pn = 'dig'; fr = Math.floor(phase / 2 + i) % 2; }
           else if (u.type === 'mg') pn = 'prone';
           else if (u.target && (u.firing > 0 || u.type === 'rifle')) pn = 'fire';
         }
-        if (!this.drawSoldier(ctx, nation, pn, fr, u.hx, u.hy, s.x, s.y)) drawMan(ctx, s.x, s.y, u.team, pose, u.facing, phase + i * 1.7, false);
+        if (!this.drawSoldier(ctx, nation, pn, fr, u.hx, u.hy, s.x, s.y)) drawMan(ctx, s.x, s.y, u.team, pose === 'crawl' ? 'prone' : pose, u.facing, phase + i * 1.7, false);
       });
       drawGunNow();
     }

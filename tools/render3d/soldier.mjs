@@ -42,13 +42,26 @@ function elbow(sh, hand, side) {
 export function pose(name, frame = 0) {
   let P = [0, 0, 0.94], lean = 0.04, legs, hands, rifleMode = 'port', head = null, tool = null;
   const hipL = (p) => add(p, [0, 0.1, 0]), hipR = (p) => add(p, [0, -0.1, 0]);
+  let sway = 0, carry = [0, 0, 0];
   if (name === 'walk' || name === 'charge') {
-    const ph = (frame / 4) * Math.PI * 2, amp = name === 'charge' ? 0.62 : 0.38, kn = name === 'charge' ? 0.9 : 0.45;
-    lean = name === 'charge' ? 0.38 : 0.08;
-    P = [0, 0, 0.94 - (name === 'charge' ? 0.08 : 0.02) + Math.abs(Math.cos(ph)) * 0.025];
-    const tL = Math.sin(ph) * amp, tR = -Math.sin(ph) * amp;
-    legs = [leg(hipL(P), tL, Math.max(0, -Math.cos(ph)) * kn + 0.08), leg(hipR(P), tR, Math.max(0, Math.cos(ph)) * kn + 0.08)];
-    if (name === 'charge') rifleMode = 'charge';
+    // Gait cycle (8 frames). Per leg: thigh swings sinusoidally; the knee is nearly straight through
+    // stance and flexes during swing (peaking just after toe-off). Pelvis is highest at mid-stance and
+    // lowest at heel strike (walk); a run is highest in the flight phase, with a deeper knee bend.
+    const run = name === 'charge', ph = (frame / 8) * Math.PI * 2;
+    const amp = run ? 0.72 : 0.36, kSwing = run ? 1.45 : 0.62, kStance = run ? 0.32 : 0.1;
+    const legAt = (q) => {
+      const thigh = Math.sin(q) * amp;
+      const swing = Math.max(0, Math.sin(q - 0.9)); // swing phase follows toe-off
+      return [thigh, kStance + kSwing * swing * swing];
+    };
+    const [tL, kL] = legAt(ph), [tR, kR] = legAt(ph + Math.PI);
+    lean = run ? 0.4 + 0.04 * Math.cos(2 * ph) : 0.07;
+    const bob = run ? 0.05 * Math.max(0, Math.cos(2 * ph)) - 0.1 : 0.022 * Math.abs(Math.cos(ph)) - 0.025;
+    sway = (run ? 0.018 : 0.028) * Math.sin(ph); // weight shifts over the stance leg
+    P = [0, sway, 0.94 + bob];
+    legs = [leg(hipL(P), tL, kL), leg(hipR(P), tR, kR)];
+    carry = run ? [0.05 * Math.sin(ph), 0.02 * Math.sin(ph), 0.02 * Math.cos(2 * ph)] : [0.015 * Math.sin(ph), 0.015 * Math.sin(ph), 0.01 * Math.cos(2 * ph)];
+    if (run) rifleMode = 'charge';
   } else if (name === 'stand' || name === 'fire') {
     legs = [leg(hipL(P), 0.12, 0.05), leg(hipR(P), -0.1, 0.04)];
     if (name === 'fire') { rifleMode = 'aim'; lean = 0.1; }
@@ -63,14 +76,16 @@ export function pose(name, frame = 0) {
     tool = { a: [0.25, -0.12, up ? 1.0 : 0.82], b: [up ? 0.7 : 0.85, -0.02, up ? 0.35 : 0.04] };
   } else if (name === 'prone' || name === 'dead') {
     return lying(name);
+  } else if (name === 'crawl') {
+    return crawling(frame);
   }
   const up = [Math.sin(lean), 0, Math.cos(lean)];
   const chest = add(P, mul(up, 0.42)), neck = add(P, mul(up, 0.56));
   head = head || add(P, mul(up, 0.71));
   const shL = add(add(P, mul(up, 0.5)), [0, 0.2, 0]), shR = add(add(P, mul(up, 0.5)), [0, -0.2, 0]);
   let hR, hL, rifle = null;
-  if (rifleMode === 'port') { hR = add(P, [0.22, -0.16, 0.08]); hL = add(P, [0.38, 0.06, 0.26]); }
-  else if (rifleMode === 'charge') { hR = add(P, [0.3, -0.14, 0.05]); hL = add(P, [0.66, -0.06, 0.13]); }
+  if (rifleMode === 'port') { hR = add(add(P, [0.22, -0.16, 0.08]), carry); hL = add(add(P, [0.38, 0.06, 0.26]), carry); }
+  else if (rifleMode === 'charge') { hR = add(add(P, [0.3 + lean * 0.3, -0.14, 0.05 + lean * 0.15]), carry); hL = add(add(P, [0.66 + lean * 0.4, -0.06, 0.13 + lean * 0.2]), carry); }
   else if (rifleMode === 'aim') { hR = add(neck, [0.16, -0.14, -0.12]); hL = add(neck, [0.52, -0.06, -0.15]); head = add(head, [0.05, -0.03, -0.03]); }
   else { hR = tool.a; hL = add(tool.a, mul(norm(sub(tool.b, tool.a)), 0.35)); }
   if (rifleMode !== 'none') {
@@ -78,6 +93,24 @@ export function pose(name, frame = 0) {
     rifle = { butt: add(hR, mul(dir, rifleMode === 'aim' ? -0.18 : -0.32)), muzzle: add(hR, mul(dir, 0.95)), bayonet: rifleMode === 'charge' };
   }
   return { P, up, chest, neck, head, shL, shR, elL: elbow(shL, hL, 1), elR: elbow(shR, hR, -1), hL, hR, legs, rifle, tool, cut: name === 'trench' ? 1.12 : null };
+}
+
+/** Leopard crawl (6 frames): one knee drawn up and the opposite elbow reaching forward, alternating;
+ *  the rifle is cradled across the forearms and the body rocks slightly. */
+function crawling(frame) {
+  const ph = (frame / 6) * Math.PI * 2, z = 0.12, a = Math.sin(ph);
+  const surge = 0.04 * Math.cos(ph), roll = 0.02 * a;
+  const P = [surge, 0, z], up = [1, 0, 0.05];
+  const chest = [0.42 + surge, roll, z + 0.035], neck = [0.56 + surge, roll, z + 0.05], head = [0.72 + surge, roll, z + 0.12];
+  const shL = [0.5 + surge, 0.2, z + 0.05], shR = [0.5 + surge, -0.2, z + 0.05];
+  const kn = (s, side) => { const d = Math.max(0, s); return { knee: [-0.42 + 0.22 * d, side * (0.15 + 0.16 * d), 0.09], ankle: [-0.85 + 0.12 * d, side * (0.2 + 0.06 * d), 0.08], toe: [-0.93 + 0.12 * d, side * (0.24 + 0.06 * d), 0.15] }; };
+  const legs = [{ hip: [surge, 0.1, z], ...kn(a, 1) }, { hip: [surge, -0.1, z], ...kn(-a, -1) }];
+  const reachL = 0.12 * Math.max(0, -a), reachR = 0.12 * Math.max(0, a);
+  const hL = [0.92 + surge + reachL, 0.08, 0.13], hR = [0.74 + surge + reachR, -0.1, 0.12];
+  const dir = norm(sub(hL, hR));
+  const rifle = { butt: add(hR, mul(dir, -0.25)), muzzle: add(hR, mul(dir, 0.9)), bayonet: false };
+  const elL = [0.66 + surge + reachL * 0.6, 0.27, 0.05], elR = [0.6 + surge + reachR * 0.6, -0.27, 0.05];
+  return { P, up, chest, neck, head, shL, shR, elL, elR, hL, hR, legs, rifle, tool: null, cut: null, lying: true, dead: false };
 }
 
 function lying(name) {
@@ -274,6 +307,6 @@ export function soldierScene(nationKey, poseName, frame, view, portrait = false)
 }
 
 /** All sprite jobs: [name, args]. */
-export const SOLDIER_POSES = [['stand', 1], ['walk', 4], ['charge', 4], ['fire', 1], ['trench', 1], ['prone', 1], ['dig', 2], ['dead', 1]];
+export const SOLDIER_POSES = [['stand', 1], ['walk', 8], ['charge', 8], ['crawl', 6], ['fire', 1], ['trench', 1], ['prone', 1], ['dig', 2], ['dead', 1]];
 
 void vnoise;
