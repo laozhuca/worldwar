@@ -869,6 +869,7 @@ export class Renderer {
     // screen-space overlays
     ctx.setTransform(d, 0, 0, d, 0, 0);
     this.atmo.drawScreen(ctx, state, this);
+    this.drawBarks(ctx, state);
     if (ui.dragBox) {
       const b = ui.dragBox;
       ctx.strokeStyle = 'rgba(220,230,150,0.9)'; ctx.fillStyle = 'rgba(220,230,150,0.12)'; ctx.lineWidth = 1;
@@ -879,6 +880,42 @@ export class Renderer {
     const grd = ctx.createRadialGradient(this.vw / 2, this.vh / 2, Math.min(this.vw, this.vh) * 0.35, this.vw / 2, this.vh / 2, Math.max(this.vw, this.vh) * 0.75);
     grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(1, 'rgba(10,8,4,0.5)');
     ctx.fillStyle = grd; ctx.fillRect(0, 0, this.vw, this.vh);
+  }
+
+  /** Speech bubbles over units that just answered the player (screen space, so they stay legible at any zoom). */
+  drawBarks(ctx, state) {
+    const v = this.voices;
+    if (!v || !v.barks.length) return;
+    const now = performance.now() / 1000, LIFE = 2.4;
+    v.barks = v.barks.filter((b) => now - b.t < LIFE);
+    ctx.font = 'italic 13px Georgia, "Times New Roman", serif';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    for (const b of v.barks) {
+      const u = state.units.find((x) => x.id === b.id);
+      if (!u || u.dead) continue;
+      const age = now - b.t;
+      const a = Math.min(1, age / 0.12) * Math.min(1, (LIFE - age) / 0.5);
+      const p = this.mapToScreen(u.x, u.y, 26 + age * 3);
+      const w = ctx.measureText(b.text).width + 14, h = 22;
+      const x = Math.round(Math.max(4, Math.min(this.vw - w - 4, p.x - w / 2))), y = Math.round(p.y - h - 8);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = 'rgba(236, 228, 206, 0.93)';
+      ctx.strokeStyle = 'rgba(40, 34, 24, 0.85)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x + 0.5, y + 0.5, w, h, 6); else ctx.rect(x + 0.5, y + 0.5, w, h);
+      ctx.fill(); ctx.stroke();
+      // tail pointing at the unit
+      const tx = Math.max(x + 8, Math.min(x + w - 8, p.x));
+      ctx.beginPath();
+      ctx.moveTo(tx - 5, y + h); ctx.lineTo(tx, y + h + 7); ctx.lineTo(tx + 5, y + h);
+      ctx.fill();
+      ctx.beginPath(); ctx.moveTo(tx - 5, y + h + 0.5); ctx.lineTo(tx, y + h + 7); ctx.lineTo(tx + 5, y + h + 0.5); ctx.stroke();
+      ctx.fillStyle = '#2a241a';
+      ctx.fillText(b.text, x + 7, y + h / 2 + 1);
+    }
+    ctx.globalAlpha = 1;
   }
 
   drawDecals(ctx, state) {

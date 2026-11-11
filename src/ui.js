@@ -7,8 +7,10 @@ const $ = (id) => document.getElementById(id);
 const fmt = (n) => Math.floor(n).toString();
 
 export class UI {
-  constructor(app, renderer, sound) {
+  constructor(app, renderer, sound, voices = null) {
     this.app = app;
+    this.voices = voices;
+    this.prevSel = new Set();
     this.r = renderer;
     this.sound = sound;
     this.selected = new Set();
@@ -66,6 +68,7 @@ export class UI {
     const ready = cands.filter((u) => u.cooldown <= 0 && !u.barrage && Math.hypot(u.x - x, u.y - y) <= UNIT_TYPES.artillery.artyRange);
     const use = explicit ? ready : ready.slice(0, 1);
     const n = orderBarrage(this.state, use, x, y);
+    if (n) this.speak('bombard', use);
     if (n) pushMessage(this.state, `${n} batter${n > 1 ? 'ies' : 'y'} opening fire`, 'info');
     else if (!cands.length) pushMessage(this.state, 'We have no artillery', 'warn');
     else pushMessage(this.state, 'No battery ready and in range', 'warn');
@@ -75,6 +78,27 @@ export class UI {
     const units = this.selectedUnits().filter((u) => u.type !== 'artillery');
     if (!units.length) { pushMessage(this.state, 'Select infantry to charge', 'warn'); return; }
     orderMove(this.state, units, x, y, 'charge');
+    this.speak('charge', units);
+  }
+
+  /** One of the units answers the order (voice + speech bubble). */
+  speak(kind, units) {
+    if (!this.voices || !units || !units.length) return;
+    // the unit nearest the middle of the screen answers, so its speech bubble is in view
+    const cx = this.r.vw / 2, cy = this.r.vh / 2;
+    let u = units[0], bd = Infinity;
+    for (const x of units) {
+      const p = this.r.mapToScreen(x.x, x.y, 8);
+      const d = Math.hypot(p.x - cx, p.y - cy);
+      if (d < bd) { bd = d; u = x; }
+    }
+    this.voices.bark(u, this.state.nations[PLAYER], kind);
+  }
+
+  halt() {
+    const units = this.selectedUnits();
+    orderHalt(this.state, units);
+    this.speak('halt', units);
   }
 
   doRecruit(type) {
@@ -139,6 +163,7 @@ export class UI {
     if (!units.length) return false;
     const mv = kind === 'charge' ? units.filter((u) => u.type !== 'artillery') : units;
     orderMove(this.state, mv, x, y, kind);
+    this.speak(kind === 'charge' ? 'charge' : 'move', mv);
     this.state.effects.push({ type: 'boom', x, y, age: 0.55, life: 0.7 });
     return true;
   }
@@ -343,7 +368,7 @@ export class UI {
           case 't': this.setMode('build:trench'); break;
           case 'u': this.setMode('build:upgrade'); break;
           case 'x': this.setMode('build:wire'); break;
-          case 'h': orderHalt(this.state, this.selectedUnits()); break;
+          case 'h': this.halt(); break;
           case 'q': this.selected = new Set(this.playerUnits().filter((u) => u.type === 'rifle').map((u) => u.id)); break;
           case '1': this.doRecruit('rifle'); break;
           case '2': this.doRecruit('mg'); break;
@@ -364,7 +389,7 @@ export class UI {
     }));
     document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => {
       const c = b.dataset.cmd;
-      if (c === 'halt') orderHalt(this.state, this.selectedUnits());
+      if (c === 'halt') this.halt();
       else if (c === 'deselect') { this.setMode(null); this.selected.clear(); }
       else if (c === 'allinf') this.selected = new Set(this.playerUnits().filter((u) => u.type === 'rifle').map((u) => u.id));
       else this.setMode(this.mode === c ? null : c);
@@ -403,6 +428,10 @@ export class UI {
 
     // prune dead selections
     for (const id of this.selected) if (!this.state.units.some((u) => u.id === id)) this.selected.delete(id);
+    // newly selected units answer (whichever way they were selected: click, tap, box, keys, buttons)
+    const added = [...this.selected].filter((id) => !this.prevSel.has(id));
+    if (added.length) this.speak('select', added.map((id) => this.state.units.find((u) => u.id === id)).filter(Boolean));
+    this.prevSel = new Set(this.selected);
 
     this.hudTimer -= dt;
     if (this.hudTimer <= 0) { this.hudTimer = 0.15; this.updateHud(); }

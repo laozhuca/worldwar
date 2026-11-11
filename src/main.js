@@ -1,6 +1,7 @@
 import { createGame, update, pushMessage } from './game.js';
 import { Renderer, iso } from './render.js';
 import { UI } from './ui.js';
+import { Voices } from './voice.js';
 import { Sound } from './audio.js';
 import { PLAYER, NATIONS } from './config.js';
 import { hourOf } from './atmosphere.js';
@@ -35,7 +36,9 @@ const app = {
 const canvas = document.getElementById('view');
 const renderer = new Renderer(canvas);
 const sound = new Sound();
-const ui = new UI(app, renderer, sound);
+const voices = new Voices();
+renderer.voices = voices;
+const ui = new UI(app, renderer, sound, voices);
 renderer.loadTextures();
 let artKeys = {};
 const portraitOf = (n) => (artKeys[`soldier-${n}`] ? `assets/art/soldier-${n}.png` : `assets/soldiers/${n}/portrait.png`);
@@ -132,6 +135,10 @@ document.getElementById('btn-speed').addEventListener('click', (e) => {
   app.speed = app.speed === 1 ? 2 : app.speed === 2 ? 3 : 1;
   e.target.textContent = app.speed + '×';
 });
+const voiceBtn = document.getElementById('btn-voice');
+const showVoice = () => { voiceBtn.style.opacity = voices.on ? '1' : '0.4'; };
+showVoice();
+voiceBtn.addEventListener('click', () => { voices.setOn(!voices.on); showVoice(); });
 const musicBtn = document.getElementById('btn-music');
 const showMusic = () => { musicBtn.style.opacity = sound.musicOn ? '1' : '0.4'; };
 showMusic();
@@ -139,6 +146,8 @@ musicBtn.addEventListener('click', () => { sound.init(); sound.startMusic(); sou
 document.getElementById('btn-sound').addEventListener('click', (e) => {
   sound.init();
   sound.setEnabled(!sound.enabled);
+  voices.enabled = sound.enabled;
+  if (!sound.enabled && voices.synth) voices.synth.cancel();
   e.target.textContent = sound.enabled ? '🔊' : '🔇';
 });
 

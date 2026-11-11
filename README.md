@@ -46,6 +46,8 @@ as `file://`, because it uses ES modules.
 
 **Atmosphere** (purely visual): a day/night cycle with star-shell flares and dynamic light from gunfire and explosions; passing rain showers; drifting ground mist; screen shake; hand-drawn shell-impact animation (the supplied 36-frame artwork, colour-graded into the battlefield palette, with continuous drift, swelling and wind between frames, a ground shadow and an impact flash); fallen soldiers left on the field; and a 🎞 film-look toggle (colour / sepia / black and white).
 
+**Voices**: units answer when you select them or give an order (move, charge, bombard, halt) in their army's own language ("Over the top, lads!", "En avant ! À la baïonnette !", "Sturm! Hurra!", "Ура! В атаку!", "Allah Allah! Hücum!"), spoken by the browser's built-in speech synthesis with a pitch and pace of their own, and shown in a speech bubble over the unit. If the device has no voice for that language the line is spoken in English (the bubble keeps the original). 🗣 toggles voices; 🔊 mutes everything.
+
 The enemy commander garrisons its line, uses defensive and harassing barrages,
 counter-attacks lost trenches, repairs its wire and launches its own offensives.
 
@@ -91,6 +93,7 @@ src/render.js           isometric canvas renderer
 src/ui.js               input + HUD
 src/relief.js           battlefield height field: lighting, occlusion, snow/earth/water placement
 src/atmosphere.js       day/night, lighting, flares, rain, fog, grain, screen shake
+src/voice.js            soldier voice lines (speech synthesis per nation) and speech bubbles
 src/audio.js            WebAudio: recorded artillery samples + procedural fallbacks
 assets/sfx/             artillery fire (first 3.5 s) and three full-length 8 s shell-explosion recordings, five rifle-volley recordings, four machine-gun bursts (sources in art-src/sfx/)
 assets/music/           background music (Ombra di guerra), looped with a fade; 🎵 toggles it
