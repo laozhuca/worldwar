@@ -21,7 +21,8 @@ catch { ({ chromium } = createRequire(import.meta.url)('playwright')); }
 const browser = await chromium.launch();
 const page = await browser.newPage();
 const src = 'data:image/png;base64,' + readFileSync(join(SRC, 'earth-impact.png')).toString('base64');
-const url = await page.evaluate(async ({ src, CELL }) => {
+const ANCHOR_Y = 0.8; // ground point in the output frame (room below it for the footprint)
+const url = await page.evaluate(async ({ src, CELL, ANCHOR_Y }) => {
   const atlas = new Image(); atlas.src = src; await atlas.decode();
   const N = 36, cell = atlas.width / 6;
   // 1. cut, feather edges, and find each frame's ground-contact point (as in the impact pack)
@@ -61,7 +62,7 @@ const url = await page.evaluate(async ({ src, CELL }) => {
     }
     return STOPS[STOPS.length - 1][1];
   };
-  const alphas = [];
+  const alphas = [], graded = [], halfW = [];
   const out = document.createElement('canvas'); out.width = out.height = CELL * 6;
   const og = out.getContext('2d');
   for (let i = 0; i < N; i++) {
@@ -88,17 +89,51 @@ const url = await page.evaluate(async ({ src, CELL }) => {
       if (i < 4 && l > 150 && r > gg) { const f = sm(150, 215, l) * (1 - i / 4); c3 = [lerp(c3[0], r * 0.85 + l * 0.15, f), lerp(c3[1], gg * 0.8 + l * 0.2, f), lerp(c3[2], b * 0.7 + l * 0.3, f)]; }
       d[p] = c3[0]; d[p + 1] = c3[1]; d[p + 2] = c3[2];
     }
-    g.putImageData(im, 0, 0);
+    graded.push(im);
+    // half-width of the cloud's base (rows just above the ground line), for the ground footprint
+    const yb = Math.round(CELL * 0.95);
+    let hw = 0;
+    for (let y = yb - 14; y <= yb; y++) for (let x = 0; x < CELL; x++) if (d[(y * CELL + x) * 4 + 3] > 64) hw = Math.max(hw, Math.abs(x - CELL / 2));
+    halfW.push(hw);
+  }
+  // 3. tilt towards the battlefield camera (looking down ~30deg): the frames are drawn from eye level,
+  //    so squash heights slightly and curve the flat base forward into an elliptical ground footprint.
+  //    Footprint widths are smoothed across frames so the warp cannot introduce jitter.
+  const V = 0.9, RY = 0.35, YB = CELL * 0.95, YD = CELL * ANCHOR_Y;
+  const rxs = halfW.map((_, i) => { let s2 = 0, w2 = 0; for (let q = -3; q <= 3; q++) { const k = i + q; if (k < 0 || k >= N) continue; const w = Math.exp(-(q * q) / 4.5); s2 += halfW[k] * w; w2 += w; } return Math.max(6, s2 / w2); });
+  for (let i = 0; i < N; i++) {
+    const src = graded[i].data, outIm = new ImageData(CELL, CELL), o = outIm.data;
+    const rx = rxs[i], hs = Math.max(12, 0.45 * rx);
+    for (let y = 0; y < CELL; y++) {
+      const h = YD - y;
+      for (let x = 0; x < CELL; x++) {
+        const uu = (x + 0.5 - CELL / 2) / rx;
+        const e = Math.abs(uu) < 1 ? RY * rx * Math.sqrt(1 - uu * uu) : 0;
+        if (h < -e) continue;
+        const hsrc = h >= hs ? h / V : ((h + e) / (hs + e)) * (hs / V);
+        const sy = YB - hsrc - 0.5, sx = x;
+        const y0 = Math.floor(sy), fy = sy - y0;
+        if (y0 < 0 || y0 + 1 >= CELL) continue;
+        const k0 = (y0 * CELL + sx) * 4, k1 = k0 + CELL * 4, ko = (y * CELL + x) * 4;
+        // bilinear (vertical) in premultiplied space
+        const a0 = src[k0 + 3] * (1 - fy), a1 = src[k1 + 3] * fy, a = a0 + a1;
+        if (a <= 0) continue;
+        for (let ch = 0; ch < 3; ch++) o[ko + ch] = (src[k0 + ch] * a0 + src[k1 + ch] * a1) / a;
+        o[ko + 3] = a;
+      }
+    }
+    const c = document.createElement('canvas'); c.width = c.height = CELL;
+    c.getContext('2d').putImageData(outIm, 0, 0);
     og.drawImage(c, (i % 6) * CELL, Math.floor(i / 6) * CELL);
     const al = new Float32Array((CELL / 4) * (CELL / 4));
-    for (let y = 0; y < CELL / 4; y++) for (let x = 0; x < CELL / 4; x++) al[y * (CELL / 4) + x] = d[((y * 4) * CELL + x * 4) * 4 + 3] / 255;
+    for (let y = 0; y < CELL / 4; y++) for (let x = 0; x < CELL / 4; x++) al[y * (CELL / 4) + x] = o[((y * 4) * CELL + x * 4) * 4 + 3] / 255;
     alphas.push(al);
   }
   // visual difference between neighbouring frames (mean absolute alpha change)
   const pairDiff = [];
   for (let i = 0; i < N - 1; i++) { let e = 0; const a = alphas[i], b = alphas[i + 1]; for (let k = 0; k < a.length; k++) e += Math.abs(a[k] - b[k]); pairDiff.push(e / a.length); }
   return { url: out.toDataURL('image/webp', 0.92), pairDiff };
-}, { src, CELL });
+}, { src, CELL, ANCHOR_Y });
 const { pairDiff } = url;
 await browser.close();
 writeFileSync(join(OUT, 'impact.webp'), Buffer.from(url.url.split(',')[1], 'base64'));
@@ -117,6 +152,6 @@ const frameTimes = [0]; for (const v of dts) frameTimes.push(+(frameTimes[frameT
 console.log('pair diffs', pairDiff.map((v) => v.toFixed(3)).join(' '));
 console.log('re-timed', frameTimes.join(' '));
 writeFileSync(join(OUT, 'impact.json'), JSON.stringify({
-  columns: 6, frameSize: CELL, frameCount: 36, frameTimes, sourceFrameTimes: meta.frameTimesSeconds, duration: meta.durationSeconds, anchor: { x: 0.5, y: 0.95 },
+  columns: 6, frameSize: CELL, frameCount: 36, frameTimes, sourceFrameTimes: meta.frameTimesSeconds, duration: meta.durationSeconds, anchor: { x: 0.5, y: ANCHOR_Y },
 }, null, 1) + '\n');
 console.log('wrote assets/fx/impact.webp');
