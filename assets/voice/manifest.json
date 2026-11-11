@@ -1,0 +1,954 @@
+{
+ "russia": {
+  "charge": [
+   {
+    "file": "russia/0.mp3",
+    "text": "В штыки! Ура!"
+   },
+   {
+    "file": "russia/8.mp3",
+    "text": "Ура! В атаку!"
+   }
+  ],
+  "bombard": [
+   {
+    "file": "russia/1.mp3",
+    "text": "Огонь!"
+   },
+   {
+    "file": "russia/3.mp3",
+    "text": "Батарея, огонь!"
+   }
+  ],
+  "halt": [
+   {
+    "file": "russia/2.mp3",
+    "text": "Стой!"
+   }
+  ],
+  "recruit": [
+   {
+    "file": "russia/4.mp3",
+    "text": "Прибыли!"
+   },
+   {
+    "file": "russia/6.mp3",
+    "text": "Пополнение прибыло!"
+   }
+  ],
+  "pinned": [
+   {
+    "file": "russia/5.mp3",
+    "text": "Ложись!"
+   },
+   {
+    "file": "russia/7.mp3",
+    "text": "Прижали!"
+   }
+  ],
+  "select": [
+   {
+    "file": "russia/9.mp3",
+    "text": "Готовы."
+   },
+   {
+    "file": "russia/11.mp3",
+    "text": "Слушаю!"
+   },
+   {
+    "file": "russia/13.mp3",
+    "text": "Так точно?"
+   }
+  ],
+  "select_rifle": [
+   {
+    "file": "russia/10.mp3",
+    "text": "Отделение на месте."
+   },
+   {
+    "file": "russia/12.mp3",
+    "text": "Стрелки готовы."
+   }
+  ],
+  "select_artillery": [
+   {
+    "file": "russia/14.mp3",
+    "text": "Батарея готова."
+   },
+   {
+    "file": "russia/17.mp3",
+    "text": "Орудия наведены."
+   }
+  ],
+  "move": [
+   {
+    "file": "russia/15.mp3",
+    "text": "Вперёд!"
+   },
+   {
+    "file": "russia/19.mp3",
+    "text": "Выполняем."
+   },
+   {
+    "file": "russia/20.mp3",
+    "text": "Есть!"
+   }
+  ],
+  "select_mg": [
+   {
+    "file": "russia/16.mp3",
+    "text": "Максим заряжен."
+   },
+   {
+    "file": "russia/18.mp3",
+    "text": "Пулемёт готов."
+   }
+  ]
+ },
+ "france": {
+  "select": [
+   {
+    "file": "france/0.mp3",
+    "text": "À vos ordres."
+   },
+   {
+    "file": "france/1.mp3",
+    "text": "Oui, mon lieutenant ?"
+   },
+   {
+    "file": "france/5.mp3",
+    "text": "Prêts."
+   }
+  ],
+  "select_mg": [
+   {
+    "file": "france/2.mp3",
+    "text": "Hotchkiss en batterie."
+   },
+   {
+    "file": "france/4.mp3",
+    "text": "Mitrailleuse prête."
+   }
+  ],
+  "select_rifle": [
+   {
+    "file": "france/3.mp3",
+    "text": "Les poilus sont là."
+   },
+   {
+    "file": "france/6.mp3",
+    "text": "Section prête."
+   }
+  ],
+  "select_artillery": [
+   {
+    "file": "france/7.mp3",
+    "text": "Batterie prête."
+   },
+   {
+    "file": "france/10.mp3",
+    "text": "Les 75 sont pointés."
+   }
+  ],
+  "move": [
+   {
+    "file": "france/8.mp3",
+    "text": "Compris."
+   },
+   {
+    "file": "france/9.mp3",
+    "text": "En avant."
+   },
+   {
+    "file": "france/11.mp3",
+    "text": "On y va !"
+   }
+  ],
+  "charge": [
+   {
+    "file": "france/12.mp3",
+    "text": "Chargez !"
+   },
+   {
+    "file": "france/13.mp3",
+    "text": "En avant ! À la baïonnette !"
+   },
+   {
+    "file": "france/14.mp3",
+    "text": "En avant ! À la baïonnette !"
+   }
+  ],
+  "bombard": [
+   {
+    "file": "france/15.mp3",
+    "text": "Feu !"
+   },
+   {
+    "file": "france/19.mp3",
+    "text": "Batterie, feu !"
+   },
+   {
+    "file": "france/20.mp3",
+    "text": "Feu !"
+   }
+  ],
+  "halt": [
+   {
+    "file": "france/16.mp3",
+    "text": "Halte !"
+   }
+  ],
+  "recruit": [
+   {
+    "file": "france/17.mp3",
+    "text": "Présents !"
+   },
+   {
+    "file": "france/18.mp3",
+    "text": "Renforts arrivés !"
+   }
+  ],
+  "pinned": [
+   {
+    "file": "france/21.mp3",
+    "text": "On est cloués !"
+   },
+   {
+    "file": "france/22.mp3",
+    "text": "À terre !"
+   }
+  ]
+ },
+ "italy": {
+  "select": [
+   {
+    "file": "italy/0.mp3",
+    "text": "Signorsì?"
+   },
+   {
+    "file": "italy/1.mp3",
+    "text": "Agli ordini."
+   },
+   {
+    "file": "italy/6.mp3",
+    "text": "Pronti."
+   },
+   {
+    "file": "italy/7.mp3",
+    "text": "Agli ordini."
+   }
+  ],
+  "move": [
+   {
+    "file": "italy/1.mp3",
+    "text": "Agli ordini."
+   },
+   {
+    "file": "italy/7.mp3",
+    "text": "Agli ordini."
+   },
+   {
+    "file": "italy/10.mp3",
+    "text": "Avanti!"
+   },
+   {
+    "file": "italy/11.mp3",
+    "text": "Avanti!"
+   },
+   {
+    "file": "italy/15.mp3",
+    "text": "Andiamo."
+   }
+  ],
+  "select_rifle": [
+   {
+    "file": "italy/3.mp3",
+    "text": "Fanti pronti."
+   },
+   {
+    "file": "italy/5.mp3",
+    "text": "Squadra pronta."
+   }
+  ],
+  "select_mg": [
+   {
+    "file": "italy/4.mp3",
+    "text": "Mitragliatrice pronta."
+   },
+   {
+    "file": "italy/9.mp3",
+    "text": "Arma carica."
+   }
+  ],
+  "select_artillery": [
+   {
+    "file": "italy/12.mp3",
+    "text": "Batteria pronta."
+   },
+   {
+    "file": "italy/13.mp3",
+    "text": "Batteria pronta."
+   },
+   {
+    "file": "italy/14.mp3",
+    "text": "Pezzi puntati."
+   }
+  ],
+  "charge": [
+   {
+    "file": "italy/16.mp3",
+    "text": "Savoia! All'attacco!"
+   },
+   {
+    "file": "italy/18.mp3",
+    "text": "Avanti, alla baionetta!"
+   }
+  ],
+  "bombard": [
+   {
+    "file": "italy/17.mp3",
+    "text": "Batteria, fuoco!"
+   },
+   {
+    "file": "italy/19.mp3",
+    "text": "Fuoco!"
+   }
+  ],
+  "halt": [
+   {
+    "file": "italy/20.mp3",
+    "text": "Alt!"
+   }
+  ],
+  "pinned": [
+   {
+    "file": "italy/21.mp3",
+    "text": "Siamo inchiodati!"
+   },
+   {
+    "file": "italy/24.mp3",
+    "text": "A terra!"
+   }
+  ],
+  "recruit": [
+   {
+    "file": "italy/22.mp3",
+    "text": "Presente!"
+   },
+   {
+    "file": "italy/23.mp3",
+    "text": "Rinforzi arrivati!"
+   }
+  ]
+ },
+ "uk": {
+  "select": [
+   {
+    "file": "uk/0.mp3",
+    "text": "Awaiting orders."
+   },
+   {
+    "file": "uk/1.mp3",
+    "text": "Awaiting orders."
+   },
+   {
+    "file": "uk/2.mp3",
+    "text": "Ready, sir."
+   },
+   {
+    "file": "uk/3.mp3",
+    "text": "Sir?"
+   },
+   {
+    "file": "uk/4.mp3",
+    "text": "Sir?"
+   },
+   {
+    "file": "uk/10.mp3",
+    "text": "Yes, sir?"
+   },
+   {
+    "file": "uk/11.mp3",
+    "text": "Yes, sir?"
+   }
+  ],
+  "select_rifle": [
+   {
+    "file": "uk/5.mp3",
+    "text": "Bayonets fixed, sir."
+   },
+   {
+    "file": "uk/6.mp3",
+    "text": "Bayonets fixed, sir."
+   },
+   {
+    "file": "uk/7.mp3",
+    "text": "Rifles ready, sir."
+   },
+   {
+    "file": "uk/8.mp3",
+    "text": "Rifles ready, sir."
+   }
+  ],
+  "select_mg": [
+   {
+    "file": "uk/9.mp3",
+    "text": "Vickers team ready."
+   },
+   {
+    "file": "uk/13.mp3",
+    "text": "Belt in, sir."
+   },
+   {
+    "file": "uk/14.mp3",
+    "text": "Gun's loaded, sir."
+   }
+  ],
+  "select_artillery": [
+   {
+    "file": "uk/12.mp3",
+    "text": "Battery standing by."
+   },
+   {
+    "file": "uk/15.mp3",
+    "text": "Guns laid, sir."
+   },
+   {
+    "file": "uk/16.mp3",
+    "text": "Awaiting a target."
+   }
+  ],
+  "move": [
+   {
+    "file": "uk/17.mp3",
+    "text": "Moving up."
+   },
+   {
+    "file": "uk/18.mp3",
+    "text": "On our way."
+   },
+   {
+    "file": "uk/19.mp3",
+    "text": "Right away, sir."
+   },
+   {
+    "file": "uk/20.mp3",
+    "text": "Very good, sir."
+   }
+  ],
+  "charge": [
+   {
+    "file": "uk/21.mp3",
+    "text": "Over the top, lads!"
+   },
+   {
+    "file": "uk/22.mp3",
+    "text": "Fix bayonets! Charge!"
+   },
+   {
+    "file": "uk/23.mp3",
+    "text": "Fix bayonets! Charge!"
+   },
+   {
+    "file": "uk/26.mp3",
+    "text": "Come on, lads!"
+   }
+  ],
+  "bombard": [
+   {
+    "file": "uk/24.mp3",
+    "text": "Fire!"
+   },
+   {
+    "file": "uk/25.mp3",
+    "text": "Range set. Fire!"
+   },
+   {
+    "file": "uk/27.mp3",
+    "text": "Battery, fire!"
+   }
+  ],
+  "halt": [
+   {
+    "file": "uk/28.mp3",
+    "text": "Halt!"
+   },
+   {
+    "file": "uk/29.mp3",
+    "text": "Hold here!"
+   }
+  ],
+  "recruit": [
+   {
+    "file": "uk/30.mp3",
+    "text": "Reporting for duty!"
+   },
+   {
+    "file": "uk/31.mp3",
+    "text": "Fresh from the depot, sir."
+   }
+  ],
+  "pinned": [
+   {
+    "file": "uk/32.mp3",
+    "text": "We're pinned!"
+   },
+   {
+    "file": "uk/33.mp3",
+    "text": "Keep your heads down!"
+   }
+  ]
+ },
+ "ottoman": {
+  "move": [
+   {
+    "file": "ottoman/0.mp3",
+    "text": "İleri!"
+   },
+   {
+    "file": "ottoman/1.mp3",
+    "text": "Baş üstüne!"
+   },
+   {
+    "file": "ottoman/3.mp3",
+    "text": "Emredersiniz!"
+   },
+   {
+    "file": "ottoman/9.mp3",
+    "text": "Emredersiniz!"
+   }
+  ],
+  "select_artillery": [
+   {
+    "file": "ottoman/2.mp3",
+    "text": "Batarya hazır."
+   }
+  ],
+  "select": [
+   {
+    "file": "ottoman/3.mp3",
+    "text": "Emredersiniz!"
+   },
+   {
+    "file": "ottoman/8.mp3",
+    "text": "Buyurun komutanım?"
+   },
+   {
+    "file": "ottoman/9.mp3",
+    "text": "Emredersiniz!"
+   },
+   {
+    "file": "ottoman/11.mp3",
+    "text": "Hazırız."
+   }
+  ],
+  "recruit": [
+   {
+    "file": "ottoman/5.mp3",
+    "text": "Takviye geldi!"
+   },
+   {
+    "file": "ottoman/19.mp3",
+    "text": "Emrinizdeyiz!"
+   }
+  ],
+  "pinned": [
+   {
+    "file": "ottoman/6.mp3",
+    "text": "Kıpırdayamıyoruz!"
+   },
+   {
+    "file": "ottoman/7.mp3",
+    "text": "Yere yat!"
+   }
+  ],
+  "select_mg": [
+   {
+    "file": "ottoman/12.mp3",
+    "text": "Makineli hazır."
+   }
+  ],
+  "select_rifle": [
+   {
+    "file": "ottoman/13.mp3",
+    "text": "Piyadeler hazır."
+   }
+  ],
+  "charge": [
+   {
+    "file": "ottoman/14.mp3",
+    "text": "Allah Allah! Hücum!"
+   },
+   {
+    "file": "ottoman/15.mp3",
+    "text": "Süngü tak! Hücum!"
+   }
+  ],
+  "bombard": [
+   {
+    "file": "ottoman/16.mp3",
+    "text": "Ateş!"
+   },
+   {
+    "file": "ottoman/17.mp3",
+    "text": "Batarya, ateş!"
+   }
+  ],
+  "halt": [
+   {
+    "file": "ottoman/18.mp3",
+    "text": "Dur!"
+   }
+  ]
+ },
+ "germany": {
+  "select": [
+   {
+    "file": "germany/0.mp3",
+    "text": "Bereit."
+   },
+   {
+    "file": "germany/2.mp3",
+    "text": "Jawohl?"
+   },
+   {
+    "file": "germany/5.mp3",
+    "text": "Zu Befehl?"
+   },
+   {
+    "file": "germany/11.mp3",
+    "text": "Jawohl?"
+   }
+  ],
+  "select_rifle": [
+   {
+    "file": "germany/1.mp3",
+    "text": "Gruppe bereit."
+   },
+   {
+    "file": "germany/4.mp3",
+    "text": "Schützen zur Stelle."
+   }
+  ],
+  "move": [
+   {
+    "file": "germany/2.mp3",
+    "text": "Jawohl?"
+   },
+   {
+    "file": "germany/10.mp3",
+    "text": "Vorwärts!"
+   },
+   {
+    "file": "germany/11.mp3",
+    "text": "Jawohl?"
+   },
+   {
+    "file": "germany/13.mp3",
+    "text": "Wird gemacht."
+   }
+  ],
+  "select_artillery": [
+   {
+    "file": "germany/6.mp3",
+    "text": "Batterie bereit."
+   },
+   {
+    "file": "germany/7.mp3",
+    "text": "Geschütze gerichtet."
+   }
+  ],
+  "select_mg": [
+   {
+    "file": "germany/8.mp3",
+    "text": "MG bereit."
+   },
+   {
+    "file": "germany/9.mp3",
+    "text": "MG geladen."
+   }
+  ],
+  "charge": [
+   {
+    "file": "germany/14.mp3",
+    "text": "Seitengewehr pflanzt auf! Angriff!"
+   },
+   {
+    "file": "germany/15.mp3",
+    "text": "Sturm! Hurra!"
+   },
+   {
+    "file": "germany/20.mp3",
+    "text": "Seitengewehr pflanzt auf! Angriff!"
+   }
+  ],
+  "bombard": [
+   {
+    "file": "germany/16.mp3",
+    "text": "Feuer!"
+   },
+   {
+    "file": "germany/19.mp3",
+    "text": "Batterie, Feuer!"
+   }
+  ],
+  "halt": [
+   {
+    "file": "germany/17.mp3",
+    "text": "Halt!"
+   }
+  ],
+  "recruit": [
+   {
+    "file": "germany/18.mp3",
+    "text": "Zur Stelle!"
+   },
+   {
+    "file": "germany/21.mp3",
+    "text": "Ersatz eingetroffen!"
+   }
+  ],
+  "pinned": [
+   {
+    "file": "germany/22.mp3",
+    "text": "Wir sind festgenagelt!"
+   },
+   {
+    "file": "germany/23.mp3",
+    "text": "Volle Deckung!"
+   }
+  ]
+ },
+ "usa": {
+  "select": [
+   {
+    "file": "usa/0.mp3",
+    "text": "Ready. Sir"
+   },
+   {
+    "file": "usa/1.mp3",
+    "text": "Yes, sir?"
+   },
+   {
+    "file": "usa/8.mp3",
+    "text": "Standing by."
+   }
+  ],
+  "select_artillery": [
+   {
+    "file": "usa/2.mp3",
+    "text": "Battery standing by."
+   },
+   {
+    "file": "usa/3.mp3",
+    "text": "Give us a target."
+   }
+  ],
+  "select_mg": [
+   {
+    "file": "usa/4.mp3",
+    "text": "Gun's loaded, sir."
+   },
+   {
+    "file": "usa/5.mp3",
+    "text": "Machine gun ready."
+   }
+  ],
+  "select_rifle": [
+   {
+    "file": "usa/6.mp3",
+    "text": "Riflemen ready."
+   },
+   {
+    "file": "usa/7.mp3",
+    "text": "Squad's here, sir."
+   }
+  ],
+  "charge": [
+   {
+    "file": "usa/9.mp3",
+    "text": "Fix bayonets! Forward!"
+   },
+   {
+    "file": "usa/13.mp3",
+    "text": "Let's go, boys!"
+   },
+   {
+    "file": "usa/16.mp3",
+    "text": "Charge!"
+   }
+  ],
+  "move": [
+   {
+    "file": "usa/10.mp3",
+    "text": "Moving out."
+   },
+   {
+    "file": "usa/11.mp3",
+    "text": "On the way, sir."
+   },
+   {
+    "file": "usa/12.mp3",
+    "text": "You got it."
+   }
+  ],
+  "halt": [
+   {
+    "file": "usa/14.mp3",
+    "text": "Halt!"
+   },
+   {
+    "file": "usa/18.mp3",
+    "text": "Hold up!"
+   }
+  ],
+  "bombard": [
+   {
+    "file": "usa/15.mp3",
+    "text": "Fire for effect!"
+   },
+   {
+    "file": "usa/17.mp3",
+    "text": "Fire!"
+   }
+  ],
+  "recruit": [
+   {
+    "file": "usa/19.mp3",
+    "text": "Ready to go, sir!"
+   },
+   {
+    "file": "usa/20.mp3",
+    "text": "Reporting for duty, sir!"
+   }
+  ],
+  "pinned": [
+   {
+    "file": "usa/21.mp3",
+    "text": "We're pinned down!"
+   },
+   {
+    "file": "usa/22.mp3",
+    "text": "Hit the dirt!"
+   }
+  ]
+ },
+ "austria": {
+  "select": [
+   {
+    "file": "germany/0.mp3",
+    "text": "Bereit."
+   },
+   {
+    "file": "germany/2.mp3",
+    "text": "Jawohl?"
+   },
+   {
+    "file": "germany/5.mp3",
+    "text": "Zu Befehl?"
+   },
+   {
+    "file": "germany/11.mp3",
+    "text": "Jawohl?"
+   }
+  ],
+  "select_rifle": [
+   {
+    "file": "germany/1.mp3",
+    "text": "Gruppe bereit."
+   },
+   {
+    "file": "germany/4.mp3",
+    "text": "Schützen zur Stelle."
+   }
+  ],
+  "move": [
+   {
+    "file": "germany/2.mp3",
+    "text": "Jawohl?"
+   },
+   {
+    "file": "germany/10.mp3",
+    "text": "Vorwärts!"
+   },
+   {
+    "file": "germany/11.mp3",
+    "text": "Jawohl?"
+   },
+   {
+    "file": "germany/13.mp3",
+    "text": "Wird gemacht."
+   }
+  ],
+  "select_artillery": [
+   {
+    "file": "germany/6.mp3",
+    "text": "Batterie bereit."
+   },
+   {
+    "file": "germany/7.mp3",
+    "text": "Geschütze gerichtet."
+   }
+  ],
+  "select_mg": [
+   {
+    "file": "germany/8.mp3",
+    "text": "MG bereit."
+   },
+   {
+    "file": "germany/9.mp3",
+    "text": "MG geladen."
+   }
+  ],
+  "charge": [
+   {
+    "file": "germany/14.mp3",
+    "text": "Seitengewehr pflanzt auf! Angriff!"
+   },
+   {
+    "file": "germany/15.mp3",
+    "text": "Sturm! Hurra!"
+   },
+   {
+    "file": "germany/20.mp3",
+    "text": "Seitengewehr pflanzt auf! Angriff!"
+   }
+  ],
+  "bombard": [
+   {
+    "file": "germany/16.mp3",
+    "text": "Feuer!"
+   },
+   {
+    "file": "germany/19.mp3",
+    "text": "Batterie, Feuer!"
+   }
+  ],
+  "halt": [
+   {
+    "file": "germany/17.mp3",
+    "text": "Halt!"
+   }
+  ],
+  "recruit": [
+   {
+    "file": "germany/18.mp3",
+    "text": "Zur Stelle!"
+   },
+   {
+    "file": "germany/21.mp3",
+    "text": "Ersatz eingetroffen!"
+   }
+  ],
+  "pinned": [
+   {
+    "file": "germany/22.mp3",
+    "text": "Wir sind festgenagelt!"
+   },
+   {
+    "file": "germany/23.mp3",
+    "text": "Volle Deckung!"
+   }
+  ]
+ }
+}

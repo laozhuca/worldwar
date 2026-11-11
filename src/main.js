@@ -37,6 +37,8 @@ const canvas = document.getElementById('view');
 const renderer = new Renderer(canvas);
 const sound = new Sound();
 const voices = new Voices();
+voices.sound = sound;
+voices.loadRecordings();
 renderer.voices = voices;
 const ui = new UI(app, renderer, sound, voices);
 renderer.loadTextures();
@@ -47,6 +49,7 @@ function useArmies(state) {
   renderer.loadImpact();
   renderer.loadProps(state.season);
   renderer.nations = state.nations;
+  voices.prepare(state.nations[PLAYER]);
   renderer.loadArmies(state.nations);
   const [a, b] = state.nations.map((n) => NATIONS[n].name);
   document.getElementById('matchup').textContent = `${a} vs ${b}`;
@@ -96,6 +99,7 @@ document.querySelectorAll('[data-season]').forEach((b) => b.addEventListener('cl
 }));
 document.getElementById('btn-start').addEventListener('click', () => {
   sound.init();
+  voices.prepare();
   sound.startMusic();
   const sameNations = app.side !== 'random' && app.state.nations.join() === app.nations.join();
   const sameStart = app.start !== 'random' && app.state.start === app.start;
@@ -148,6 +152,7 @@ document.getElementById('btn-sound').addEventListener('click', (e) => {
   sound.setEnabled(!sound.enabled);
   voices.enabled = sound.enabled;
   if (!sound.enabled && voices.synth) voices.synth.cancel();
+  if (!sound.enabled) voices.stopClip();
   e.target.textContent = sound.enabled ? '🔊' : '🔇';
 });
 

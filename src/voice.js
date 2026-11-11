@@ -1,8 +1,9 @@
 // Soldier voice lines ("barks") when the player selects or commands units, spoken with the browser's
 // speech synthesis in each army's own language, plus a speech bubble over the unit.
-// Only male voices are used; without a male voice for the language a male English voice speaks the English line.
+// Recorded voices (assets/voice, built by scripts/process-voices.mjs) are used when available.
+// Otherwise only male synthesized voices are used; without a male voice for the language a male English voice speaks the English line.
 
-const LINES = {
+export const LINES = {
   uk: { lang: 'en-GB',
     select: ['Sir?', 'Ready, sir.', 'Awaiting orders.', 'Yes, sir?'],
     move: ['Moving up.', 'Right away, sir.', 'On our way.', 'Very good, sir.'],
@@ -163,6 +164,7 @@ export class Voices {
     this.on = on;
     try { localStorage.setItem('ww-voice', on ? 'on' : 'off'); } catch {}
     if (!on && this.synth) this.synth.cancel();
+    if (!on) this.stopClip();
   }
 
   /** A male voice for a language ('de-AT' falls back to any German male voice), or null. */
@@ -182,11 +184,19 @@ export class Voices {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     if (kind === 'select' && now - this.last < 700) return null; // orders always get an answer
     // unprompted lines (pinned) never talk over a reply, and are rare
-    if (kind === 'pinned' && ((this.synth && this.synth.speaking) || now - this.lastPinned < 8000 || now - this.last < 1500)) return null;
+    if (kind === 'pinned' && (this.talking(now) || now - this.lastPinned < 8000 || now - this.last < 1500)) return null;
     const time = now / 1000;
     if (kind === 'pinned') this.lastPinned = now; else this.last = now;
-    // a male voice in the army's language; failing that a male English voice speaking the English line;
-    // failing that, silence (never a female voice): the bubble still shows the words
+    // recorded voices first (assets/voice)
+    const clips = this.clipsFor(nation, kind, unit);
+    if (clips.length) {
+      const c = clips[Math.floor(Math.random() * clips.length)];
+      this.show(unit, c.text, time);
+      if (this.on && this.enabled) this.playClip(c.buf, unit);
+      return c.text;
+    }
+    // speech synthesis: a male voice in the army's language; failing that a male English voice speaking the
+    // English line; failing that, silence (never a female voice): the bubble still shows the words
     let voice = this.synth ? this.voiceFor(N.lang) : null;
     const native = !this.synth || !!voice;
     if (!voice && this.synth) voice = this.voiceFor('en-GB') || this.voiceFor('en-US');
@@ -196,10 +206,9 @@ export class Voices {
     const i = Math.floor(Math.random() * pool.length);
     const text = pool[i];
     // the bubble always shows the army's own words
-    const shown = native ? text : own[Math.min(i, own.length - 1)] || text;
-    this.barks = this.barks.filter((b) => b.id !== unit.id);
-    this.barks.push({ id: unit.id, text: shown, t: time });
+    this.show(unit, native ? text : own[Math.min(i, own.length - 1)] || text, time);
     if (this.synth && voice && this.on && this.enabled) {
+      this.stopClip();
       this.synth.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.voice = voice;
@@ -212,5 +221,69 @@ export class Voices {
       this.synth.speak(u);
     }
     return text;
+  }
+
+  show(unit, text, time) {
+    this.barks = this.barks.filter((b) => b.id !== unit.id);
+    this.barks.push({ id: unit.id, text, t: time });
+  }
+
+  talking(now) {
+    return (this.synth && this.synth.speaking) || (this.clip && now < this.clip.end);
+  }
+
+  // ------------------------------------------------------------ recorded voices
+
+  /** Load the recording list; the clips of an army are decoded when it is first played (see prepare). */
+  loadRecordings(url = 'assets/voice/manifest.json') {
+    this.recordings = null;
+    this.decoded = {}; // file -> AudioBuffer | Promise
+    return fetch(url).then((r) => r.json()).then((m) => { this.recordings = m; this.prepare(); }).catch(() => {});
+  }
+
+  /** Decode the recordings of the player's army (needs the audio context, which a first click creates). */
+  prepare(nation = this.nation) {
+    this.nation = nation;
+    const ctx = this.sound && this.sound.ctx;
+    if (!ctx || !this.recordings || !nation || !this.recordings[nation]) return;
+    for (const list of Object.values(this.recordings[nation])) {
+      for (const c of list) {
+        if (this.decoded[c.file]) continue;
+        this.decoded[c.file] = fetch('assets/voice/' + c.file).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a))
+          .then((b) => { this.decoded[c.file] = b; }).catch(() => { delete this.decoded[c.file]; });
+      }
+    }
+  }
+
+  /** Decoded recordings for this kind of line; a selected unit mixes general and unit-type replies. */
+  clipsFor(nation, kind, unit) {
+    const R = this.recordings && this.recordings[nation];
+    if (!R) return [];
+    if (nation !== this.nation || !this.sound || !this.sound.ctx) this.prepare(nation);
+    const list = kind === 'select' ? (R.select || []).concat(R['select_' + unit.type] || []) : (R[kind] || []);
+    return list.map((c) => ({ text: c.text, buf: this.decoded[c.file] })).filter((c) => c.buf instanceof AudioBuffer);
+  }
+
+  playClip(buf, unit) {
+    const S = this.sound, c = S && S.ctx;
+    if (!c) return;
+    this.stopClip();
+    if (this.synth) this.synth.cancel();
+    const src = c.createBufferSource(), g = c.createGain();
+    src.buffer = buf;
+    // the same recording sounds a little different from squad to squad
+    src.playbackRate.value = 0.96 + (unit.seed || 0.5) * 0.08;
+    g.gain.value = 1.1;
+    src.connect(g); g.connect(S.master);
+    src.start();
+    this.clip = { src, g, end: performance.now() + (buf.duration / src.playbackRate.value) * 1000 };
+  }
+
+  stopClip() {
+    if (!this.clip) return;
+    const c = this.sound.ctx, { src, g } = this.clip;
+    g.gain.setTargetAtTime(0, c.currentTime, 0.03);
+    try { src.stop(c.currentTime + 0.12); } catch {}
+    this.clip = null;
   }
 }
