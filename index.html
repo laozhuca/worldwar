@@ -45,10 +45,12 @@
         </div>
         <div class="group">
           <h4>Orders</h4>
-          <div class="btns">
+          <div class="btns two">
             <button data-cmd="charge" title="Go over the top: fast, ignores pinning, no firing"><kbd>C</kbd> Charge</button>
             <button data-cmd="bombard" title="Artillery barrage on a target area"><kbd>B</kbd> Bombard</button>
             <button data-cmd="halt" title="Stop moving / cancel barrage"><kbd>H</kbd> Halt</button>
+            <button data-cmd="allinf" title="Select all rifle squads"><kbd>Q</kbd> All infantry</button>
+            <button data-cmd="deselect" title="Clear the selection and cancel the current mode"><kbd>Esc</kbd> Deselect</button>
           </div>
         </div>
         <div class="group">
@@ -98,6 +100,17 @@
               <tr><td>WASD / arrows / edges</td><td>Scroll; mouse wheel zooms</td></tr>
               <tr><td><kbd>Space</kbd></td><td>Jump to the front line</td></tr>
               <tr><td><kbd>P</kbd> / <kbd>Esc</kbd></td><td>Pause / cancel</td></tr>
+            </table>
+            <h3>Touch screens</h3>
+            <table>
+              <tr><td>Tap a unit</td><td>Select it</td></tr>
+              <tr><td>Tap the ground</td><td>Move the selected units there</td></tr>
+              <tr><td>Press and hold, drag</td><td>Select every unit in the box</td></tr>
+              <tr><td>Drag</td><td>Scroll the map</td></tr>
+              <tr><td>Pinch</td><td>Zoom</td></tr>
+              <tr><td>Charge / Bombard, then tap</td><td>Choose the target (press the button again to cancel)</td></tr>
+              <tr><td>Build button, then tap or drag</td><td>Dig / reinforce trench / lay wire</td></tr>
+              <tr><td>Deselect · All infantry</td><td>Buttons under Orders</td></tr>
             </table>
             <p class="muted">Rifle squads dig works within a few tiles of where they stand. New troops gather at HQ.</p>
           </div>

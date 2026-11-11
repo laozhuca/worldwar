@@ -64,6 +64,21 @@ counter-attacks lost trenches, repairs its wire and launches its own offensives.
 | WASD, arrows, screen edges, middle-drag | Scroll; mouse wheel zooms |
 | `Space` / `P` / `Esc` / `F1` | Jump to front / pause / cancel / help |
 
+**Touch screens** (phones and tablets):
+
+| Touch | Action |
+|---|---|
+| Tap a unit | Select it |
+| Tap the ground | Move the selected units there |
+| Press and hold, then drag | Box-select |
+| Drag one finger | Scroll the map |
+| Pinch / two fingers | Zoom and scroll |
+| Charge or Bombard, then tap | Choose the target (press the button again to cancel) |
+| Build button, then tap or drag | Dig / reinforce trench / lay wire |
+| Tap or drag the minimap | Move the camera |
+
+**Deselect** and **All infantry** buttons sit under Orders. On phones the commands become one scrollable strip and the top bar wraps.
+
 ## Project layout
 
 ```

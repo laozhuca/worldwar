@@ -93,3 +93,51 @@ button.big { margin-top: 16px; font-size: 16px; padding: 8px 22px; background: #
 .side-row button small { display: block; color: var(--muted); font-size: 11px; }
 #random-note { margin: 6px 0; }
 #messages .side { border-color: var(--accent); }
+
+/* ---------- touch screens ---------- */
+#view, #minimap { touch-action: none; }
+html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+@media (pointer: coarse) {
+  button { min-height: 40px; }
+  .group button { padding: 6px 8px; }
+  kbd { display: none; }                 /* keyboard hints are noise on a touch screen */
+  #topbar button { min-width: 40px; }
+}
+/* phones (narrow, or short in landscape): one compact, horizontally scrollable command strip */
+@media (max-width: 700px), (max-height: 500px) {
+  #topbar { gap: 8px; padding: 0 6px; overflow-x: auto; }
+  #bottom { flex-wrap: nowrap; flex-direction: column; gap: 4px; padding: 4px 6px; }
+  #selection-info { max-height: 44px; overflow: hidden; }
+  #selection-info .ucard { display: none; }
+  #commands { flex-wrap: nowrap; overflow-x: auto; gap: 6px; -webkit-overflow-scrolling: touch; }
+  .group { flex: none; }
+  .group h4 { display: none; }
+  .group .btns { grid-auto-flow: column; grid-template-columns: none; grid-template-rows: auto; }
+  .group button { width: auto; white-space: nowrap; }
+  .group button small { display: none; }
+  #modehint { top: 44px; width: calc(100% - 24px); font-size: 12px; }
+  #messages { top: 44px; }
+}
+.group .btns.two { grid-template-columns: 1fr 1fr; }
+.group .btns.two button { width: 118px; }
+@media (pointer: coarse) { #bottom { height: auto; min-height: 150px; } }
+/* narrow phones: let the top bar wrap so the pause / speed / sound / help buttons stay on screen */
+@media (max-width: 700px) {
+  #topbar { height: auto; flex-wrap: wrap; row-gap: 2px; padding: 4px 6px; overflow-x: visible; }
+  #topbar .spacer { display: none; }
+  #topbar button { min-height: 34px; min-width: 36px; padding: 2px 6px; }
+  #messages, #modehint { top: 92px; }
+}
+/* short landscape phones: smaller top bar */
+@media (max-height: 500px) {
+  #topbar { height: 34px; }
+  #topbar button { min-height: 30px; }
+  #messages, #modehint { top: 40px; }
+  #messages div:nth-child(n+3) { display: none; }
+}
+@media (max-width: 700px), (max-height: 500px) {
+  #bottom { min-height: 0; }
+}
+@media (max-height: 500px) {
+  #selection-info { max-height: 20px; font-size: 12px; }
+}

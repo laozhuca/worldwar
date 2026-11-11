@@ -22,6 +22,7 @@ export class UI {
     this.hudTimer = 0;
     this.lastPainted = null;
     this.bindInput();
+    this.bindTouch();
     this.bindButtons();
   }
 
@@ -38,8 +39,8 @@ export class UI {
     });
     const hint = $('modehint');
     const text = {
-      charge: 'CHARGE: click a target. Troops run, ignore pinning, and fight hand-to-hand on arrival. Right-click to cancel.',
-      bombard: 'BOMBARD: click a target area for a barrage. Shift-click to keep the mode on. Right-click to cancel.',
+      charge: 'CHARGE: click or tap a target. Troops run, ignore pinning, and fight hand-to-hand on arrival. Right-click or press Charge again to cancel.',
+      bombard: 'BOMBARD: click or tap a target area for a barrage. Shift-click to keep the mode on. Right-click or press Bombard again to cancel.',
       'build:trench': `DIG TRENCH (${BUILD.trench.supplies} supplies/tile): click or drag. Rifle squads nearby do the digging.`,
       'build:upgrade': `REINFORCE TRENCH (${BUILD.upgrade.supplies} supplies/tile): click our trench tiles. Max level 3.`,
       'build:wire': `BARBED WIRE (${BUILD.wire.supplies} supplies/tile): click or drag. Leave gaps for your own attacks!`,
@@ -121,12 +122,141 @@ export class UI {
     this.r.centerOn(x + 6 * teamDir(PLAYER), MAP_H / 2);
   }
 
+  /** Player unit under a screen point (touch uses a larger radius), or null. */
+  unitAt(sx, sy, radius = 22) {
+    let best = null, bd = radius;
+    for (const u of this.playerUnits()) {
+      const p = this.r.mapToScreen(u.x, u.y, 8);
+      const d = Math.hypot(p.x - sx, p.y - sy) / this.r.cam.zoom;
+      if (d < bd) { bd = d; best = u; }
+    }
+    return best;
+  }
+
+  /** Order selected units to (x, y) with a ground marker, as a right-click does. */
+  moveSelected(x, y, kind = 'move') {
+    const units = this.selectedUnits();
+    if (!units.length) return false;
+    const mv = kind === 'charge' ? units.filter((u) => u.type !== 'artillery') : units;
+    orderMove(this.state, mv, x, y, kind);
+    this.state.effects.push({ type: 'boom', x, y, age: 0.55, life: 0.7 });
+    return true;
+  }
+
+  /**
+   * Touch: tap = select a unit, or move the selection to the tapped ground; one-finger drag = scroll;
+   * pinch / two fingers = zoom and scroll; press and hold then drag = box-select; in Charge / Bombard /
+   * build modes a tap (or drag, for building) acts on the map as a left click does.
+   */
+  bindTouch() {
+    const cv = this.r.canvas;
+    const HOLD = 420, SLOP = 10;
+    let t = null; // gesture state
+    const pt = (touch) => { const r = cv.getBoundingClientRect(); return { x: touch.clientX - r.left, y: touch.clientY - r.top }; };
+    const pinchInfo = (e) => {
+      const a = pt(e.touches[0]), b = pt(e.touches[1]);
+      return { mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, dist: Math.hypot(a.x - b.x, a.y - b.y) || 1 };
+    };
+    const startPinch = (e) => {
+      clearTimeout(t && t.timer);
+      const p = pinchInfo(e);
+      this.dragBox = null; this.painting = false;
+      t = { pinch: true, d0: p.dist, z0: this.r.cam.zoom, anchor: this.r.screenToWorld(p.mid.x, p.mid.y) };
+    };
+    cv.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      this.touchMode = true;
+      this.sound.init();
+      if (e.touches.length >= 2) { startPinch(e); return; }
+      const p = pt(e.touches[0]);
+      const m = this.r.screenToMap(p.x, p.y);
+      this.hover = m;
+      t = { x0: p.x, y0: p.y, x: p.x, y: p.y, cx: this.r.cam.x, cy: this.r.cam.y, moved: false, box: false, held: false };
+      if (this.mode && this.mode.startsWith('build:')) {
+        this.lastPainted = null; this.paint(m.x, m.y); this.painting = true; t.build = true;
+        return;
+      }
+      // press and hold (without moving) starts a selection box
+      t.timer = setTimeout(() => {
+        if (!t || t.moved || t.pinch) return;
+        t.held = true; t.box = true;
+        this.dragBox = { x0: t.x, y0: t.y, x1: t.x, y1: t.y, shift: false };
+        if (navigator.vibrate) navigator.vibrate(15);
+      }, HOLD);
+    }, { passive: false });
+    cv.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (!t) return;
+      if (e.touches.length >= 2) {
+        if (!t.pinch) startPinch(e);
+        const p = pinchInfo(e);
+        this.r.cam.zoom = t.z0 * (p.dist / t.d0);
+        this.r.clampCam();
+        // keep the world point that was under the fingers under their midpoint (zoom + pan together)
+        const now = this.r.screenToWorld(p.mid.x, p.mid.y);
+        this.r.cam.x += t.anchor.x - now.x; this.r.cam.y += t.anchor.y - now.y;
+        this.r.clampCam();
+        return;
+      }
+      if (t.pinch) return; // lifting one finger of a pinch should not start a pan
+      const p = pt(e.touches[0]);
+      t.x = p.x; t.y = p.y;
+      if (Math.hypot(p.x - t.x0, p.y - t.y0) > SLOP) t.moved = true;
+      this.hover = this.r.screenToMap(p.x, p.y);
+      if (t.build) { this.paint(this.hover.x, this.hover.y); return; }
+      if (t.box) { this.dragBox.x1 = p.x; this.dragBox.y1 = p.y; return; }
+      if (t.moved) {
+        clearTimeout(t.timer);
+        this.r.cam.x = t.cx - (p.x - t.x0) / this.r.cam.zoom;
+        this.r.cam.y = t.cy - (p.y - t.y0) / this.r.cam.zoom;
+        this.r.clampCam();
+      }
+    }, { passive: false });
+    const end = (e) => {
+      e.preventDefault();
+      if (!t || e.touches.length > 0) return; // wait until every finger is up
+      clearTimeout(t.timer);
+      const g = t; t = null;
+      this.painting = false;
+      this.hover = null;
+      if (g.pinch || g.build) return;
+      if (g.box) {
+        const b = this.dragBox; this.dragBox = null;
+        if (Math.abs(b.x1 - b.x0) > 8 || Math.abs(b.y1 - b.y0) > 8) this.selectBox(b, false);
+        else { const u = this.unitAt(g.x0, g.y0, 34); if (u) this.selected.add(u.id); } // hold on a unit: add it
+        return;
+      }
+      if (g.moved) return; // it was a scroll
+      // a tap
+      const m = this.r.screenToMap(g.x0, g.y0);
+      if (this.mode === 'bombard') { this.doBombard(m.x, m.y); this.setMode(null); return; }
+      if (this.mode === 'charge') { this.doCharge(m.x, m.y); this.setMode(null); return; }
+      const u = this.unitAt(g.x0, g.y0, 34);
+      if (u) { this.selected.clear(); this.selected.add(u.id); return; }
+      this.moveSelected(m.x, m.y);
+    };
+    cv.addEventListener('touchend', end, { passive: false });
+    cv.addEventListener('touchcancel', (e) => { if (t) clearTimeout(t.timer); t = null; this.dragBox = null; this.painting = false; e.preventDefault(); }, { passive: false });
+
+    // minimap: tap or drag to move the camera
+    const mm = $('minimap');
+    const mmTouch = (e) => {
+      e.preventDefault();
+      const r = mm.getBoundingClientRect(), p = e.touches[0];
+      const w = this.r.minimapToWorld((p.clientX - r.left) * (mm.width / mm.clientWidth), (p.clientY - r.top) * (mm.height / mm.clientHeight));
+      if (w) { this.r.cam.x = w.x; this.r.cam.y = w.y; this.r.clampCam(); }
+    };
+    mm.addEventListener('touchstart', mmTouch, { passive: false });
+    mm.addEventListener('touchmove', mmTouch, { passive: false });
+  }
+
   // ------------------------------------------------------------ input
 
   bindInput() {
     const cv = this.r.canvas;
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
     cv.addEventListener('mouseenter', () => { this.mouse.inside = true; });
+    cv.addEventListener('mousemove', () => { this.touchMode = false; }, { once: false, passive: true });
     cv.addEventListener('mouseleave', () => { this.mouse.inside = false; this.hover = null; });
 
     cv.addEventListener('mousedown', (e) => {
@@ -135,13 +265,7 @@ export class UI {
       if (e.button === 1) { this.panDrag = { x: e.offsetX, y: e.offsetY, cx: this.r.cam.x, cy: this.r.cam.y }; e.preventDefault(); return; }
       if (e.button === 2) {
         if (this.mode) { this.setMode(null); return; }
-        const units = this.selectedUnits();
-        if (units.length) {
-          const kind = e.ctrlKey || e.metaKey ? 'charge' : 'move';
-          const mv = kind === 'charge' ? units.filter((u) => u.type !== 'artillery') : units;
-          orderMove(this.state, mv, m.x, m.y, kind);
-          this.state.effects.push({ type: 'boom', x: m.x, y: m.y, age: 0.55, life: 0.7 });
-        }
+        this.moveSelected(m.x, m.y, e.ctrlKey || e.metaKey ? 'charge' : 'move');
         return;
       }
       if (e.button !== 0) return;
@@ -241,6 +365,8 @@ export class UI {
     document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => {
       const c = b.dataset.cmd;
       if (c === 'halt') orderHalt(this.state, this.selectedUnits());
+      else if (c === 'deselect') { this.setMode(null); this.selected.clear(); }
+      else if (c === 'allinf') this.selected = new Set(this.playerUnits().filter((u) => u.type === 'rifle').map((u) => u.id));
       else this.setMode(this.mode === c ? null : c);
     }));
     for (const [type, t] of Object.entries(UNIT_TYPES)) {
@@ -265,7 +391,7 @@ export class UI {
     if (this.keys.has('d') || this.keys.has('arrowright')) dx += sp;
     if (this.keys.has('w') || this.keys.has('arrowup')) dy -= sp;
     if (this.keys.has('s') || this.keys.has('arrowdown')) dy += sp;
-    if (this.mouse.inside && !this.dragBox && !this.panDrag && !this.app.overlayOpen()) {
+    if (this.mouse.inside && !this.touchMode && !this.dragBox && !this.panDrag && !this.app.overlayOpen()) {
       const m = 10;
       if (this.mouse.x < m) dx -= sp;
       if (this.mouse.x > this.r.vw - m) dx += sp;
@@ -317,7 +443,9 @@ export class UI {
     const sel = this.selectedUnits();
     const info = $('selection-info');
     if (!sel.length) {
-      info.innerHTML = '<div class="muted">No units selected. Left-drag to select, right-click to move. Press <kbd>?</kbd> for help.</div>';
+      info.innerHTML = this.touchMode || matchMedia('(pointer: coarse)').matches
+        ? '<div class="muted">Tap a unit to select it, then tap the ground to move. Hold and drag to select a group. ? for help.</div>'
+        : '<div class="muted">No units selected. Left-drag to select, right-click to move. Press <kbd>?</kbd> for help.</div>';
     } else {
       const men = sel.reduce((a, u) => a + u.men, 0);
       const parts = [`<div class="sel-summary">${sel.length} unit${sel.length > 1 ? 's' : ''}, ${men} men</div>`];
