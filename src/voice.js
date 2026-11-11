@@ -8,48 +8,88 @@ const LINES = {
     move: ['Moving up.', 'Right away, sir.', 'On our way.', 'Very good, sir.'],
     charge: ['Over the top, lads!', 'Fix bayonets! Charge!', 'Come on, lads!'],
     bombard: ['Fire!', 'Range set. Fire!', 'Battery, fire!'],
+    select_rifle: ['Rifles ready, sir.', 'Section present.', 'Bayonets fixed, sir.'],
+    select_mg: ['Vickers team ready.', 'Gun\'s loaded, sir.', 'Belt in, sir.'],
+    select_artillery: ['Battery standing by.', 'Guns laid, sir.', 'Awaiting a target.'],
+    recruit: ['Reporting for duty!', 'Fresh from the depot, sir.'],
+    pinned: ['We\'re pinned!', 'Get down!', 'Keep your heads down!'],
     halt: ['Halt!', 'Hold here!'] },
   usa: { lang: 'en-US',
     select: ['Yes, sir?', 'Ready.', 'Sir?', 'Standing by.'],
     move: ['Moving out.', 'You got it.', 'On the way, sir.'],
     charge: ['Let\'s go, boys!', 'Fix bayonets! Forward!', 'Charge!'],
     bombard: ['Fire!', 'Fire for effect!'],
+    select_rifle: ['Riflemen ready.', 'Squad\'s here, sir.'],
+    select_mg: ['Machine gun ready.', 'Gun\'s loaded, sir.'],
+    select_artillery: ['Battery standing by.', 'Give us a target.'],
+    recruit: ['Reporting for duty, sir!', 'Ready to go, sir!'],
+    pinned: ['We\'re pinned down!', 'Hit the dirt!'],
     halt: ['Halt!', 'Hold up!'] },
   france: { lang: 'fr-FR',
     select: ['Oui, mon lieutenant ?', 'À vos ordres.', 'Prêts.'],
     move: ['On y va !', 'En avant.', 'Compris.'],
     charge: ['En avant ! À la baïonnette !', 'Chargez !'],
     bombard: ['Feu !', 'Batterie, feu !'],
+    select_rifle: ['Section prête.', 'Les poilus sont là.'],
+    select_mg: ['Mitrailleuse prête.', 'Hotchkiss en batterie.'],
+    select_artillery: ['Batterie prête.', 'Les 75 sont pointés.'],
+    recruit: ['Présents !', 'Renforts arrivés !'],
+    pinned: ['On est cloués !', 'À terre !'],
     halt: ['Halte !'] },
   italy: { lang: 'it-IT',
     select: ['Signorsì?', 'Pronti.', 'Agli ordini.'],
     move: ['Avanti!', 'Agli ordini!', 'Andiamo.'],
     charge: ['Savoia! All\'attacco!', 'Avanti, alla baionetta!'],
     bombard: ['Fuoco!', 'Batteria, fuoco!'],
+    select_rifle: ['Fanti pronti.', 'Squadra pronta.'],
+    select_mg: ['Mitragliatrice pronta.', 'Arma carica.'],
+    select_artillery: ['Batteria pronta.', 'Pezzi puntati.'],
+    recruit: ['Presente!', 'Rinforzi arrivati!'],
+    pinned: ['Siamo inchiodati!', 'A terra!'],
     halt: ['Alt!'] },
   russia: { lang: 'ru-RU',
     select: ['Слушаю!', 'Готовы.', 'Так точно?'],
     move: ['Вперёд!', 'Есть!', 'Выполняем.'],
     charge: ['Ура! В атаку!', 'В штыки! Ура!'],
     bombard: ['Огонь!', 'Батарея, огонь!'],
+    select_rifle: ['Стрелки готовы.', 'Отделение на месте.'],
+    select_mg: ['Пулемёт готов.', 'Максим заряжен.'],
+    select_artillery: ['Батарея готова.', 'Орудия наведены.'],
+    recruit: ['Прибыли!', 'Пополнение прибыло!'],
+    pinned: ['Прижали!', 'Ложись!'],
     halt: ['Стой!'] },
   germany: { lang: 'de-DE',
     select: ['Jawohl?', 'Bereit.', 'Zu Befehl?'],
     move: ['Vorwärts!', 'Wird gemacht.', 'Jawohl!'],
     charge: ['Sturm! Hurra!', 'Seitengewehr pflanzt auf! Angriff!'],
     bombard: ['Feuer!', 'Batterie, Feuer!'],
+    select_rifle: ['Gruppe bereit.', 'Schützen zur Stelle.'],
+    select_mg: ['MG bereit.', 'MG geladen.'],
+    select_artillery: ['Batterie bereit.', 'Geschütze gerichtet.'],
+    recruit: ['Zur Stelle!', 'Ersatz eingetroffen!'],
+    pinned: ['Wir sind festgenagelt!', 'Volle Deckung!'],
     halt: ['Halt!'] },
   austria: { lang: 'de-AT',
     select: ['Jawohl, Herr Leutnant?', 'Bereit.', 'Zu Befehl?'],
     move: ['Vorwärts!', 'Wird gemacht.', 'Jawohl!'],
     charge: ['Hurra! Vorwärts!', 'Zum Angriff, hurra!'],
     bombard: ['Feuer!', 'Batterie, Feuer!'],
+    select_rifle: ['Schwarm bereit.', 'Schützen zur Stelle.'],
+    select_mg: ['Maschinengewehr bereit.', 'Schwarzlose geladen.'],
+    select_artillery: ['Batterie bereit.', 'Geschütze gerichtet.'],
+    recruit: ['Melde gehorsamst: zur Stelle!', 'Ersatz eingetroffen!'],
+    pinned: ['Wir kommen nicht weiter!', 'Deckung!'],
     halt: ['Halt!'] },
   ottoman: { lang: 'tr-TR',
     select: ['Emredersiniz!', 'Hazırız.', 'Buyurun komutanım?'],
     move: ['İleri!', 'Baş üstüne!', 'Emredersiniz.'],
     charge: ['Allah Allah! Hücum!', 'Süngü tak! Hücum!'],
     bombard: ['Ateş!', 'Batarya, ateş!'],
+    select_rifle: ['Piyadeler hazır.', 'Manga hazır.'],
+    select_mg: ['Makineli hazır.', 'Makineli dolu.'],
+    select_artillery: ['Batarya hazır.', 'Toplar nişanda.'],
+    recruit: ['Emrinizdeyiz!', 'Takviye geldi!'],
+    pinned: ['Kıpırdayamıyoruz!', 'Yere yat!'],
     halt: ['Dur!'] },
 };
 // English versions, used when the device has no voice for the army's language
@@ -59,6 +99,16 @@ const ENGLISH = {
   charge: ['Charge!', 'Fix bayonets! Forward!'],
   bombard: ['Fire!', 'Battery, fire!'],
   halt: ['Halt!'],
+  select_rifle: ['Rifles ready.', 'Squad ready.'],
+  select_mg: ['Machine gun ready.', 'Gun loaded.'],
+  select_artillery: ['Battery standing by.', 'Guns laid.'],
+  recruit: ['Reporting for duty!'],
+  pinned: ['We\'re pinned!', 'Get down!'],
+};
+/** Lines for a kind of bark; a selected unit mixes the general replies with its own type's. */
+const pick = (L, kind, unit) => {
+  const base = L[kind] || [];
+  return kind === 'select' ? base.concat(L['select_' + unit.type] || []) : base;
 };
 
 // Speech synthesis does not report a voice's sex, so male voices are recognised by name: "Male" in the
@@ -92,6 +142,7 @@ export class Voices {
     this.synth = typeof window !== 'undefined' && window.speechSynthesis ? window.speechSynthesis : null;
     this.voices = [];
     this.last = 0;
+    this.lastPinned = -1e9;
     this.barks = []; // { id, text, t } speech bubbles for the renderer
     if (this.synth) {
       const load = () => { this.voices = this.synth.getVoices(); };
@@ -123,24 +174,29 @@ export class Voices {
   }
 
   /**
-   * A unit answers. kind: select | move | charge | bombard | halt. The newest line interrupts the previous
+   * A unit answers. kind: select | move | charge | bombard | halt | recruit | pinned. The newest line interrupts the previous
    * one (a commander only listens to the latest reply), with a short gap so rapid clicks don't stutter.
    */
   bark(unit, nation, kind) {
     const N = LINES[nation] || LINES.uk;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     if (kind === 'select' && now - this.last < 700) return null; // orders always get an answer
+    // unprompted lines (pinned) never talk over a reply, and are rare
+    if (kind === 'pinned' && ((this.synth && this.synth.speaking) || now - this.lastPinned < 8000 || now - this.last < 1500)) return null;
     const time = now / 1000;
-    this.last = now;
+    if (kind === 'pinned') this.lastPinned = now; else this.last = now;
     // a male voice in the army's language; failing that a male English voice speaking the English line;
     // failing that, silence (never a female voice): the bubble still shows the words
     let voice = this.synth ? this.voiceFor(N.lang) : null;
     const native = !this.synth || !!voice;
     if (!voice && this.synth) voice = this.voiceFor('en-GB') || this.voiceFor('en-US');
-    const pool = (native ? N[kind] : ENGLISH[kind]) || ENGLISH.select;
-    const text = pool[Math.floor(Math.random() * pool.length)];
+    const own = pick(N, kind, unit), eng = pick(ENGLISH, kind, unit);
+    const pool = native ? own : eng;
+    if (!pool.length) return null;
+    const i = Math.floor(Math.random() * pool.length);
+    const text = pool[i];
     // the bubble always shows the army's own words
-    const shown = native ? text : (N[kind] || pool)[0];
+    const shown = native ? text : own[Math.min(i, own.length - 1)] || text;
     this.barks = this.barks.filter((b) => b.id !== unit.id);
     this.barks.push({ id: unit.id, text: shown, t: time });
     if (this.synth && voice && this.on && this.enabled) {
@@ -151,7 +207,7 @@ export class Voices {
       // each unit has its own voice: pitch and pace from its seed; commands are shouted a bit faster
       const s = unit.seed || 0.5;
       u.pitch = 0.7 + s * 0.3; // kept low: men's voices
-      u.rate = (kind === 'charge' ? 1.15 : kind === 'select' ? 1.0 : 1.08) + (s - 0.5) * 0.12;
+      u.rate = (kind === 'charge' || kind === 'pinned' ? 1.15 : kind === 'select' ? 1.0 : 1.08) + (s - 0.5) * 0.12;
       u.volume = 0.9;
       this.synth.speak(u);
     }

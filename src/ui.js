@@ -104,7 +104,7 @@ export class UI {
   doRecruit(type) {
     const r = buyUnit(this.state, PLAYER, type);
     if (typeof r === 'string') pushMessage(this.state, `${UNIT_TYPES[type].name}: ${r}`, 'warn');
-    else pushMessage(this.state, `${UNIT_TYPES[type].name} raised at HQ`, 'info');
+    else { pushMessage(this.state, `${UNIT_TYPES[type].name} raised at HQ`, 'info'); this.speak('recruit', [r]); }
   }
 
   paint(x, y) {
@@ -432,6 +432,17 @@ export class UI {
     const added = [...this.selected].filter((id) => !this.prevSel.has(id));
     if (added.length) this.speak('select', added.map((id) => this.state.units.find((u) => u.id === id)).filter(Boolean));
     this.prevSel = new Set(this.selected);
+    // a squad coming under fire in the open calls out (only when it is on screen)
+    if (this.voices) {
+      this.prevPinned = this.prevPinned || new Set();
+      for (const u of this.playerUnits()) {
+        if (u.pinned && !this.prevPinned.has(u.id)) {
+          const p = this.r.mapToScreen(u.x, u.y, 8);
+          if (p.x > 0 && p.y > 40 && p.x < this.r.vw && p.y < this.r.vh - 150) this.voices.bark(u, this.state.nations[PLAYER], 'pinned');
+        }
+      }
+      this.prevPinned = new Set(this.playerUnits().filter((u) => u.pinned).map((u) => u.id));
+    }
 
     this.hudTimer -= dt;
     if (this.hudTimer <= 0) { this.hudTimer = 0.15; this.updateHud(); }

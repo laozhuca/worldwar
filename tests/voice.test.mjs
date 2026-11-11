@@ -30,3 +30,16 @@ test('voice choice: male native voice, else none (caller falls back to male Engl
   assert.ok(isMale(v.voiceFor('en-GB')));
   assert.equal(v.voiceFor('en-US').name, 'Google UK English Male', 'never the female US voices');
 });
+
+test('every army has every kind of line; selection mixes in the unit type\'s lines', () => {
+  const v = new Voices();
+  for (const nation of ['uk', 'usa', 'france', 'italy', 'russia', 'germany', 'austria', 'ottoman']) {
+    for (const kind of ['select', 'move', 'charge', 'bombard', 'halt', 'recruit', 'pinned']) {
+      v.last = -1e9; v.lastPinned = -1e9;
+      assert.ok(v.bark({ id: 1, type: 'rifle', seed: 0.5 }, nation, kind), `${nation} ${kind}`);
+    }
+    const heard = new Set();
+    for (let i = 0; i < 300; i++) { v.last = -1e9; heard.add(v.bark({ id: 2, type: 'mg', seed: 0.5 }, nation, 'select')); }
+    assert.ok(heard.size >= 5, `${nation}: general and MG select lines mixed (${[...heard]})`);
+  }
+});
