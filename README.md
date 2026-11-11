@@ -42,7 +42,7 @@ as `file://`, because it uses ES modules.
 
 **Seasons**: Winter (snow, frozen shell holes), Thaw (patchy snow over mud) and Mud (rain, flooded craters), chosen on the start screen. Shellfire and digging churn the snow into black earth.
 
-**Atmosphere** (purely visual): a day/night cycle with star-shell flares and dynamic light from gunfire and explosions; passing rain showers; drifting ground mist; screen shake; earth-fountain shell bursts; fallen soldiers left on the field; and a 🎞 film-look toggle (colour / sepia / black and white).
+**Atmosphere** (purely visual): a day/night cycle with star-shell flares and dynamic light from gunfire and explosions; passing rain showers; drifting ground mist; screen shake; animated shell impacts (an earth column that billows into a slowly drifting smoke pall); fallen soldiers left on the field; and a 🎞 film-look toggle (colour / sepia / black and white).
 
 The enemy commander garrisons its line, uses defensive and harassing barrages,
 counter-attacks lost trenches, repairs its wire and launches its own offensives.
@@ -81,6 +81,8 @@ scripts/make-textures.mjs  texture generator: `npm run textures` (no dependencie
 assets/soldiers/<nation>/ pre-rendered soldier sprites (8 poses, 2 views, mirrored in game) + portrait
 assets/art/             cut-out howitzer art and soldier portraits (from art-src/ via `node scripts/process-art.mjs`)
 assets/atlas/           WebP sprite sheets the game actually loads (built by `npm run atlas` from assets/props + assets/soldiers)
+assets/fx/              shell-impact animation (36-frame sprite sheet + timing), from the supplied artillery-impact-pack
+src/impact.js           impact animation player (frame preparation, variable timing, crossfade) from the same pack
 assets/props/           pre-rendered 3D props: 144 trench tiles x snow, wire belts, stumps, trees, logs, debris
 tools/render3d/         offline ray-marching renderer + 3D models; `npm run props` re-renders assets/props (no dependencies)
 tests/                  headless simulation tests (node --test)

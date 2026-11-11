@@ -39,6 +39,7 @@ let artKeys = {};
 const portraitOf = (n) => (artKeys[`soldier-${n}`] ? `assets/art/soldier-${n}.png` : `assets/soldiers/${n}/portrait.png`);
 renderer.portraitOf = portraitOf;
 function useArmies(state) {
+  renderer.loadImpact();
   renderer.loadProps(state.season);
   renderer.nations = state.nations;
   renderer.loadArmies(state.nations);

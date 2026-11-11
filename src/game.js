@@ -628,7 +628,8 @@ function explode(state, s) {
   map.dirty = true;
   (map.changes || (map.changes = [])).push({ x: Math.floor(s.x), y: Math.floor(s.y) });
   state.effects.push({ type: 'boom', x: s.x, y: s.y, age: 0, life: 0.7 });
-  state.effects.push({ type: 'smoke', x: s.x, y: s.y, age: 0, life: 5 + rand() * 4 });
+  state.effects.push({ type: 'smoke', x: s.x, y: s.y, age: 0, life: 5 + rand() * 4, shell: true });
+  state.effects.push({ type: 'impact', x: s.x, y: s.y, age: 0, life: 4.6, flip: rand() < 0.5, scale: 0.85 + rand() * 0.3 });
   const parts = [];
   for (let i = 0; i < 10; i++) {
     const a = rand() * Math.PI * 2, sp = 20 + rand() * 50;

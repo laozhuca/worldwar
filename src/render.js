@@ -4,6 +4,7 @@ import { tileAt } from './map.js';
 import { canBuild } from './game.js';
 import { Atmosphere } from './atmosphere.js';
 import { Relief } from './relief.js';
+import { prepareFrames, sampleImpact } from './impact.js';
 
 // Ground is rendered supersampled for sharpness when zoomed in (lighter on low-memory devices).
 const GS = typeof navigator !== 'undefined' && navigator.deviceMemory && navigator.deviceMemory < 4 ? 1 : 1.5;
@@ -84,6 +85,8 @@ function loadImage(src, timeout = 30000) {
 function retry(fn, tries = 4) {
   return fn(0).catch((e) => (tries > 1 ? new Promise((r) => setTimeout(r, 800 * (5 - tries))).then(() => retry((n) => fn(n + 1), tries - 1)) : Promise.reject(e)));
 }
+
+const IMPACT_SIZE = 125; // world px for a 320 px impact frame (the column is ~2 tiles wide)
 
 let PAT = null; // texture pattern lookup for the context currently being drawn, or null for vector fallback
 function drawPuddle(g, c, rx, ry, S, h) {
@@ -183,6 +186,37 @@ export class Renderer {
       .catch((e) => { console.warn('Sprite sheet unavailable:', group, e.message); delete this.atlasLoading[group]; });
     this.atlasLoading[group] = p;
     return p;
+  }
+
+  /** Load the animated shell-impact sprite sheet (36 frames, prepared once). */
+  loadImpact() {
+    if (this.impactFrames || this.impactLoading) return this.impactLoading;
+    this.impactLoading = retry((n) => loadImage(`assets/fx/earth-impact.png${n ? '?r=' + n : ''}`))
+      .then((img) => {
+        this.impactFrames = prepareFrames(img);
+        this.impactBuf = document.createElement('canvas');
+        this.impactBuf.width = this.impactBuf.height = 320;
+      })
+      .catch((e) => { this.impactLoading = null; console.warn('Impact animation unavailable:', e.message); });
+    return this.impactLoading;
+  }
+
+  /** One shell impact: crossfade the two nearest frames in a buffer, then draw anchored on the ground. */
+  drawImpact(ctx, e) {
+    const smp = sampleImpact(e.age);
+    if (!smp) return;
+    const b = this.impactBuf.getContext('2d'), F = this.impactFrames;
+    b.globalCompositeOperation = 'source-over'; b.globalAlpha = 1;
+    b.clearRect(0, 0, 320, 320);
+    b.globalAlpha = 1 - smp.blend; b.drawImage(F[smp.index], 0, 0);
+    if (smp.next !== smp.index) { b.globalCompositeOperation = 'lighter'; b.globalAlpha = smp.blend; b.drawImage(F[smp.next], 0, 0); }
+    b.globalAlpha = 1; b.globalCompositeOperation = 'source-over';
+    const p = iso(e.x, e.y), size = IMPACT_SIZE * (e.scale || 1);
+    ctx.save();
+    ctx.translate(p.x, p.y); ctx.scale(e.flip ? -1 : 1, 1);
+    ctx.globalAlpha *= smp.opacity;
+    ctx.drawImage(this.impactBuf, -size * 0.5, -size * 0.95, size, size);
+    ctx.restore();
   }
 
   /** Props for the given snow amount (only the set the season needs is downloaded). */
@@ -1339,6 +1373,8 @@ export class Renderer {
   }
 
   drawEffects(ctx, state) {
+    const anim = !!this.impactFrames;
+    if (anim) for (const e of state.effects.filter((q) => q.type === 'impact').sort((a, b) => a.x + a.y - (b.x + b.y))) this.drawImpact(ctx, e);
     const wind = this.atmo.wind;
     for (const e of state.effects) {
       const k = e.age / e.life;
@@ -1365,6 +1401,7 @@ export class Renderer {
           ctx.beginPath(); ctx.arc(b.x + Math.sin(i * 9 + e.x) * 11, b.y - 2 - k * 6 + Math.cos(i * 5 + e.y) * 4, 1.5 + k * 4, 0, TAU); ctx.fill();
         }
       } else if (e.type === 'boom') {
+        if (anim) continue; // the impact animation has its own flash and earth column
         const p = iso(e.x, e.y);
         // shockwave ring along the ground
         if (k < 0.45) {
@@ -1395,6 +1432,7 @@ export class Renderer {
           ctx.globalCompositeOperation = 'source-over';
         }
       } else if (e.type === 'smoke') {
+        if (anim && e.shell) continue;
         const p = iso(e.x, e.y);
         for (let i = 0; i < 4; i++) {
           const t = e.age + i * 0.4;
@@ -1406,6 +1444,7 @@ export class Renderer {
           ctx.beginPath(); ctx.arc(p.x + dx, p.y - 10 + dy, r, 0, TAU); ctx.fill();
         }
       } else if (e.type === 'dirt') {
+        if (anim) continue;
         const p = iso(e.x, e.y);
         const tt = e.age;
         for (let i = 0; i < e.parts.length; i++) {
