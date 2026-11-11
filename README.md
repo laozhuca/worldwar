@@ -42,7 +42,7 @@ as `file://`, because it uses ES modules.
 
 **Seasons**: Winter (snow, frozen shell holes), Thaw (patchy snow over mud) and Mud (rain, flooded craters), chosen on the start screen. Shellfire and digging churn the snow into black earth.
 
-**Atmosphere** (purely visual): a day/night cycle with star-shell flares and dynamic light from gunfire and explosions; passing rain showers; drifting ground mist; screen shake; particle shell bursts in the battlefield palette (flash, mud clods on ballistic arcs that splatter where they land, a dark earth column turning into drifting grey smoke, a dust skirt); fallen soldiers left on the field; and a 🎞 film-look toggle (colour / sepia / black and white).
+**Atmosphere** (purely visual): a day/night cycle with star-shell flares and dynamic light from gunfire and explosions; passing rain showers; drifting ground mist; screen shake; hand-drawn shell-impact animation (the supplied 36-frame artwork, colour-graded into the battlefield palette, with continuous drift, swelling and wind between frames, a ground shadow and an impact flash); fallen soldiers left on the field; and a 🎞 film-look toggle (colour / sepia / black and white).
 
 The enemy commander garrisons its line, uses defensive and harassing barrages,
 counter-attacks lost trenches, repairs its wire and launches its own offensives.
@@ -81,6 +81,7 @@ scripts/make-textures.mjs  texture generator: `npm run textures` (no dependencie
 assets/soldiers/<nation>/ pre-rendered soldier sprites (8 poses, 2 views, mirrored in game) + portrait
 assets/art/             cut-out howitzer art and soldier portraits (from art-src/ via `node scripts/process-art.mjs`)
 assets/atlas/           WebP sprite sheets the game actually loads (built by `npm run atlas` from assets/props + assets/soldiers)
+assets/fx/              graded shell-impact frames (`npm run impact` builds them from art-src/fx/ with Playwright)
 assets/props/           pre-rendered 3D props: 144 trench tiles x snow, wire belts, stumps, trees, logs, debris
 tools/render3d/         offline ray-marching renderer + 3D models; `npm run props` re-renders assets/props (no dependencies)
 tests/                  headless simulation tests (node --test)

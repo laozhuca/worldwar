@@ -1399,8 +1399,8 @@ export class Renderer {
   }
 
   drawEffects(ctx, state) {
-    const anim = true; // shell bursts are drawn by drawBlast; the older boom/dirt/smoke visuals are skipped
-    for (const e of state.effects.filter((q) => q.type === 'impact').sort((a, b) => a.x + a.y - (b.x + b.y))) this.drawBlast(ctx, e);
+    const anim = !!this.fx; // once loaded, impacts replace the older code-drawn blast visuals
+    if (anim) { const base = ctx.getTransform(); for (const e of state.effects.filter((q) => q.type === 'impact').sort((a, b) => a.x + a.y - (b.x + b.y))) this.drawImpact(ctx, e, base); }
     const wind = this.atmo.wind;
     for (const e of state.effects) {
       const k = e.age / e.life;
@@ -1510,116 +1510,80 @@ export class Renderer {
 
   // ------------------------------------------------------------ shell bursts
 
-  /** Soft, lumpy puff sprites in the battlefield palette (generated once). */
-  blastSprites() {
-    if (this._blast) return this._blast;
-    const rnd = ((a) => () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; })(77);
-    // tones measured from the concept art: churned black-grey earth -> cold grey smoke
-    const TONES = [[34, 31, 30], [52, 50, 50], [84, 86, 92], [118, 122, 130]];
-    const puff = (tone) => {
-      const S = 96, c = document.createElement('canvas'); c.width = c.height = S;
-      const g = c.getContext('2d');
-      for (let i = 0; i < 14; i++) { // lumpy silhouette from overlapping soft blobs
-        const a = rnd() * Math.PI * 2, d = rnd() * S * 0.2, r = S * (0.16 + rnd() * 0.16);
-        const x = S / 2 + Math.cos(a) * d, y = S / 2 + Math.sin(a) * d * 0.85;
-        const gr = g.createRadialGradient(x, y, 0, x, y, r);
-        gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.55, 'rgba(255,255,255,0.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-        g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
-      }
-      // tint, then light from the upper left like the rest of the scene
-      g.globalCompositeOperation = 'source-in';
-      const [r, gg, b] = tone;
-      const lg = g.createLinearGradient(S * 0.2, S * 0.15, S * 0.8, S * 0.9);
-      lg.addColorStop(0, `rgb(${Math.min(255, r * 1.35 + 14)},${Math.min(255, gg * 1.35 + 14)},${Math.min(255, b * 1.35 + 18)})`);
-      lg.addColorStop(1, `rgb(${r * 0.7},${gg * 0.7},${b * 0.72})`);
-      g.fillStyle = lg; g.fillRect(0, 0, S, S);
-      return c;
-    };
-    const steps = [];
-    for (let i = 0; i <= 6; i++) { const f = i / 2, lo = Math.min(2, Math.floor(f)), w = f - lo; steps.push(TONES[lo].map((v, c) => v + (TONES[lo + 1][c] - v) * w)); }
-    const sets = steps.map((t) => [0, 1, 2].map(() => puff(t)));
-    const flash = document.createElement('canvas'); flash.width = flash.height = 64;
-    const fg = flash.getContext('2d'), fr = fg.createRadialGradient(32, 32, 0, 32, 32, 32);
-    fr.addColorStop(0, 'rgba(255,246,226,1)'); fr.addColorStop(0.25, 'rgba(255,214,160,0.75)'); fr.addColorStop(1, 'rgba(255,170,110,0)');
-    fg.fillStyle = fr; fg.fillRect(0, 0, 64, 64);
-    return (this._blast = { sets, flash });
+  /** Load the graded hand-drawn impact frames (assets/fx/impact.webp, built by scripts/process-impact.mjs). */
+  loadImpact() {
+    if (this.fx || this.fxLoading) return this.fxLoading;
+    this.fxLoading = Promise.all([
+      retry(() => fetch('assets/fx/impact.json').then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })),
+      retry((n) => loadImage(`assets/fx/impact.webp${n ? '?r=' + n : ''}`)),
+    ]).then(([meta, img]) => {
+      const buf = document.createElement('canvas'); buf.width = buf.height = meta.frameSize;
+      const sh = document.createElement('canvas'); sh.width = 128; sh.height = 64; // soft ground shadow
+      const sg = sh.getContext('2d'), gr = sg.createRadialGradient(64, 32, 0, 64, 32, 64);
+      gr.addColorStop(0, 'rgba(4,5,8,0.55)'); gr.addColorStop(0.6, 'rgba(4,5,8,0.25)'); gr.addColorStop(1, 'rgba(4,5,8,0)');
+      sg.setTransform(1, 0, 0, 0.5, 0, 16); sg.fillStyle = gr; sg.beginPath(); sg.arc(64, 32, 64, 0, TAU); sg.fill();
+      const fl = document.createElement('canvas'); fl.width = fl.height = 64; // impact flash
+      const fg = fl.getContext('2d'), fr = fg.createRadialGradient(32, 32, 0, 32, 32, 32);
+      fr.addColorStop(0, 'rgba(255,240,210,1)'); fr.addColorStop(0.3, 'rgba(240,190,130,0.6)'); fr.addColorStop(1, 'rgba(200,140,90,0)');
+      fg.fillStyle = fr; fg.fillRect(0, 0, 64, 64);
+      this.fx = { meta, img, buf, shadow: sh, flash: fl };
+    }).catch((e) => { this.fxLoading = null; console.warn('Impact animation unavailable:', e.message); });
+    return this.fxLoading;
   }
 
   /**
-   * One shell burst, evaluated analytically from its age (smooth at any frame rate):
-   * flash, mud clods on ballistic arcs that splatter where they land, a dark earth column that
-   * turns into cold grey smoke and drifts with the wind, and a low dust skirt rolling outward.
+   * One shell impact from the hand-drawn frames: neighbouring frames are crossfaded (premultiplied, in a
+   * buffer), and the whole cloud keeps rising, swelling and drifting downwind between drawn frames so the
+   * slow late frames read as continuous motion. A soft shadow on the ground anchors it to the terrain.
    */
-  drawBlast(ctx, e) {
-    const B = this.blastSprites();
-    const t = e.age, k = e.scale || 1, snow = (this.S ?? 0) > 0.7;
-    const wind = this.atmo.wind;
-    if (!e.fx) { // per-burst randomness, fixed for its lifetime
-      let a = Math.floor((e.seed || Math.random()) * 4294967296) >>> 0;
-      const rnd = () => { a = (a + 0x6d2b79f5) >>> 0; let q = a; q = Math.imul(q ^ (q >>> 15), q | 1); q ^= q + Math.imul(q ^ (q >>> 7), q | 61); return ((q ^ (q >>> 14)) >>> 0) / 4294967296; };
-      const clods = Array.from({ length: 34 }, () => {
-        const ang = rnd() * TAU, steep = rnd();
-        return { ang, h: (18 + rnd() * 70) * (1 - steep * 0.6), vz: 120 + steep * 230 + rnd() * 40, s: 0.9 + rnd() * rnd() * 3.2, snow: snow && rnd() < 0.15, tone: rnd() };
-      });
-      const column = Array.from({ length: 9 }, (_, i) => ({ vz: 60 + rnd() * 200, dx: (rnd() - 0.5) * 22, dy: (rnd() - 0.5) * 6, r0: 6 + rnd() * 5, gr: 19 + rnd() * 22, v: Math.floor(rnd() * 3), ph: rnd() * 6, late: i / 9 }));
-      const skirt = Array.from({ length: 6 }, () => ({ ang: rnd() * TAU, sp: 70 + rnd() * 80, r0: 4 + rnd() * 3, gr: 10 + rnd() * 12, v: Math.floor(rnd() * 3) }));
-      e.fx = { clods, column, skirt };
+  drawImpact(ctx, e, base) {
+    const F = this.fx, M = F.meta, T = M.frameTimes, N = M.frameCount;
+    const t = e.age;
+    if (t >= M.duration) return;
+    let i = 0;
+    while (i < N - 1 && t >= T[i + 1]) i++;
+    const next = Math.min(i + 1, N - 1), blend = i < N - 1 ? (t - T[i]) / (T[i + 1] - T[i]) : 0;
+    const opacity = Math.min(1, t / 0.035) * Math.min(1, (M.duration - t) / 1.2);
+    const S = M.frameSize, cols = M.columns;
+    // crossfade the two nearest frames
+    const b = F.buf.getContext('2d');
+    b.globalCompositeOperation = 'source-over'; b.globalAlpha = 1;
+    b.clearRect(0, 0, S, S);
+    b.globalAlpha = 1 - blend;
+    b.drawImage(F.img, (i % cols) * S, Math.floor(i / cols) * S, S, S, 0, 0, S, S);
+    if (next !== i && blend > 0.01) {
+      b.globalCompositeOperation = 'lighter'; b.globalAlpha = blend;
+      b.drawImage(F.img, (next % cols) * S, Math.floor(next / cols) * S, S, S, 0, 0, S, S);
     }
+    // continuous motion layered over the drawn frames (eases in once the column has formed)
+    const wind = this.atmo.wind, k = e.scale || 1;
+    const late = Math.max(0, t - 0.35);
+    const drift = late * late / (late + 1.2);
     const p = iso(e.x, e.y);
-    const sp = this.worldToScreen(p.x, p.y), m = 160 * this.cam.zoom;
-    if (sp.x < -m || sp.x > this.vw + m || sp.y < -m * 0.5 || sp.y > this.vh + m * 1.6) return;
-    const sm = (a, b, v) => { const q = Math.max(0, Math.min(1, (v - a) / (b - a))); return q * q * (3 - 2 * q); };
-    const drawPuff = (x, y, r, toneF, alpha, v) => {
-      if (alpha <= 0.03 || r <= 0) return;
-      const i = Math.max(0, Math.min(6, Math.round(toneF * 2)));
-      ctx.globalAlpha = alpha;
-      ctx.drawImage(B.sets[i][v], x - r, y - r, r * 2, r * 2);
-    };
-    // (no save/restore: it forces the canvas to flush; state is reset explicitly at the end)
-    // dust skirt rolling outward along the ground (drag: x = v/c (1 - e^-ct))
-    for (const q of e.fx.skirt) {
-      const d = (q.sp / 3.2) * (1 - Math.exp(-3.2 * t)) * k;
-      const x = p.x + Math.cos(q.ang) * d + wind.x * t * 5, y = p.y + Math.sin(q.ang) * d * 0.5 + wind.y * t * 3;
-      const r = (q.r0 + q.gr * (1 - Math.exp(-1.4 * t))) * k;
-      drawPuff(x, y - r * 0.45, r, 1 + sm(0.2, 2.5, t) * 1.2, 0.55 * sm(0, 0.06, t) * (1 - sm(1.2, 3.6, t)), q.v);
-    }
-    // earth column -> rising smoke (strong drag, then buoyancy and wind)
-    const col = [...e.fx.column].sort((a, b) => a.vz - b.vz);
-    for (const q of col) {
-      const z = ((q.vz / 2.4) * (1 - Math.exp(-2.4 * t)) + 7 * t) * k;
-      const spread = 1 + z / (28 * k);
-      const x = p.x + (q.dx * spread + Math.sin(t * 0.9 + q.ph) * 3) * k + wind.x * t * 11, y = p.y + q.dy * k + wind.y * t * 4;
-      const r = (q.r0 + q.gr * (1 - Math.exp(-1.1 * t)) + t * 2.5) * k;
-      const tone = sm(0.05, 0.6, t) * 1.2 + sm(0.8, 3.5, t) * 1.0 + q.late * 0.4;
-      const alpha = 0.85 * sm(0, 0.04 + q.late * 0.05, t) * (1 - sm(1.8 + q.late * 1.4, 6.2, t));
-      drawPuff(x, y - z - r * 0.4, r, tone, alpha, q.v);
-    }
-    // mud (and snow) clods on ballistic arcs; they splatter and fade where they land
-    const G = 520;
-    for (const q of e.fx.clods) {
-      const tl = (2 * q.vz) / G, tt = Math.min(t, tl);
-      const x = p.x + Math.cos(q.ang) * q.h * tt * k, y = p.y + Math.sin(q.ang) * q.h * tt * 0.5 * k;
-      const z = Math.max(0, q.vz * tt - 0.5 * G * tt * tt) * k;
-      const landed = t >= tl, fade = landed ? 1 - sm(tl, tl + 1.6, t) : 1;
-      if (fade <= 0) continue;
-      const s = q.s * k * (landed ? 1.25 : 1) * (q.snow ? 0.7 : 1);
-      ctx.globalAlpha = fade * 0.95;
-      const c = q.snow ? 210 + q.tone * 30 : 22 + q.tone * 30;
-      ctx.fillStyle = q.snow ? `rgb(${c - 8},${c - 2},${c + 6})` : `rgb(${c},${c - 2},${c - 1})`;
-      if (landed) { ctx.beginPath(); ctx.ellipse(x, y, s * 1.4, s * 0.6, 0, 0, TAU); ctx.fill(); continue; }
-      // motion streak in the direction of travel
-      const vz = q.vz - G * tt, vx = Math.cos(q.ang) * q.h, vy = Math.sin(q.ang) * q.h * 0.5;
-      ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = s * 1.3; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(x, y - z); ctx.lineTo(x - vx * 0.016 * k, y - z + (vz * 0.016 - vy * 0.016) * k); ctx.stroke();
-    }
-    // flash: brief, desaturated, low on the ground
-    if (t < 0.14) {
+    const gx = p.x + wind.x * drift * 16 * k, gy = p.y + wind.y * drift * 6 * k;
+    const size = 140 * k * (1 + 0.07 * drift);
+    const rise = drift * 7 * k;
+    // ground shadow, cast away from the sun (lower right)
+    const dense = Math.min(1, t / 0.25) * (1 - Math.min(1, Math.max(0, (t - 2.2) / 2)));
+    ctx.setTransform(base.a, base.b, base.c, base.d, base.e, base.f);
+    ctx.globalAlpha = 0.85 * dense;
+    const sw = size * (0.45 + 0.35 * Math.min(1, t / 0.8));
+    ctx.drawImage(F.shadow, gx + size * 0.08 - sw / 2, gy - sw * 0.2, sw, sw * 0.5);
+    // the cloud (optionally mirrored)
+    const fl = e.flip ? -1 : 1;
+    ctx.setTransform(base.a * fl, base.b * fl, base.c, base.d, base.a * gx + base.c * (gy - rise) + base.e, base.b * gx + base.d * (gy - rise) + base.f);
+    ctx.globalAlpha = opacity;
+    ctx.drawImage(F.buf, -size * M.anchor.x, -size * M.anchor.y, size, size);
+    // flash at the moment of impact
+    if (t < 0.11) {
+      ctx.setTransform(base.a, base.b, base.c, base.d, base.e, base.f);
       ctx.globalCompositeOperation = 'lighter';
-      const f = 1 - t / 0.14, r = (14 + 30 * (t / 0.14)) * k;
-      ctx.globalAlpha = f * 0.9;
-      ctx.drawImage(B.flash, p.x - r, p.y - r * 0.75 - 6 * k, r * 2, r * 1.5);
+      const f = 1 - t / 0.11, r = (16 + 26 * (t / 0.11)) * k;
+      ctx.globalAlpha = f * 0.85;
+      ctx.drawImage(F.flash, p.x - r, p.y - r * 0.7 - 5 * k, r * 2, r * 1.4);
       ctx.globalCompositeOperation = 'source-over';
     }
+    ctx.setTransform(base.a, base.b, base.c, base.d, base.e, base.f);
     ctx.globalAlpha = 1;
   }
 
