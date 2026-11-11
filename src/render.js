@@ -151,6 +151,16 @@ export class Renderer {
   // ------------------------------------------------------------ ground layer
 
   /** Load the PNG textures; until they arrive the vector fallback is drawn. */
+  loadSprites(base = 'assets/sprites/') {
+    return fetch(base + 'manifest.json').then((r) => r.json()).then((m) => Promise.all(Object.keys(m).map((n) => new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res([n, img]);
+      img.onerror = () => rej(new Error('sprite ' + n));
+      img.src = base + n + '.png';
+    })))).then((list) => { this.spr = Object.fromEntries(list); this.groundDrawn = false; })
+      .catch((e) => console.warn('Sprites unavailable, using drawn props:', e.message));
+  }
+
   loadTextures(base = 'assets/textures/') {
     const names = ['mud', 'earth', 'snow', 'grass', 'ice', 'water', 'planks', 'sandbags', 'duckboard'];
     return Promise.all(names.map((n) => new Promise((res, rej) => {
@@ -508,6 +518,12 @@ export class Renderer {
     }
     g.restore(); // clip
 
+    if (this.spr && this.tex) {
+      this.drawDebris(g, map, S);
+      this.drawTrenchesReal(g, map, S);
+      this.drawWireSprites(g, map, S);
+      return;
+    }
     // 5. trenches between spoil heaps: plank revetments, sandbags, duckboards
     const trenches = map.tiles.filter((t) => t.trench > 0);
     const T = (x, y) => (x >= 0 && y >= 0 && x < map.w && y < map.h ? map.tiles[y * map.w + x] : null);
@@ -637,6 +653,182 @@ export class Renderer {
         g.beginPath(); g.ellipse(x + (intact ? 0 : (h - 0.5) * 8), y - 5, 3.4, 4.6, 0.45, 0, TAU); g.stroke();
       }
     }
+  }
+
+  /** True if tile (x,y) lies near the area being redrawn (always true on a full redraw). */
+  inClip(x, y, m = 2) {
+    const c = this._clip;
+    if (!c) return true;
+    const p = iso(x + 0.5, y + 0.5);
+    const gx = p.x + this.OX, gy = p.y + this.OY;
+    return gx > c.x - m * 64 && gx < c.x + c.w + m * 64 && gy > c.y - m * 40 && gy < c.y + c.h + m * 40;
+  }
+
+  /**
+   * Trenches as real cuts: a plank-revetted far wall dropping to a duckboard / flooded floor that is
+   * partly hidden by the near lip, with shaded sandbags along both edges and pennant posts for ownership.
+   */
+  drawTrenchesReal(g, map, S) {
+    const HW = 0.21, DEPTH = 10;
+    const T = (x, y) => (x >= 0 && y >= 0 && x < map.w && y < map.h ? map.tiles[y * map.w + x] : null);
+    const segs = [];
+    for (const t of map.tiles) {
+      if (!t.trench || !this.inClip(t.x, t.y, 2)) continue;
+      const cx = t.x + 0.5, cy = t.y + 0.5;
+      segs.push({ t, dir: null, poly: [[cx - HW, cy - HW], [cx + HW, cy - HW], [cx + HW, cy + HW], [cx - HW, cy + HW]] });
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const n = T(t.x + dx, t.y + dy);
+        if (!n || !n.trench) continue;
+        const ex = cx + dx * 0.5, ey = cy + dy * 0.5;
+        const poly = dx ? [[cx, cy - HW], [ex, cy - HW], [ex, cy + HW], [cx, cy + HW]] : [[cx - HW, cy], [cx + HW, cy], [cx + HW, ey], [cx - HW, ey]];
+        segs.push({ t, dir: [dx, dy], poly });
+      }
+    }
+    if (!segs.length) return;
+    const path = (ctx, poly, oy = 0) => {
+      const p0 = iso(poly[0][0], poly[0][1]);
+      ctx.moveTo(p0.x, p0.y + oy);
+      for (let i = 1; i < poly.length; i++) { const p = iso(poly[i][0], poly[i][1]); ctx.lineTo(p.x, p.y + oy); }
+      ctx.closePath();
+    };
+    const unit = (d) => { const v = iso(d[0], d[1]); const l = Math.hypot(v.x, v.y); return { x: v.x / l, y: v.y / l }; };
+    const runVec = (dir) => unit(dir && !dir[0] ? [0, 1] : [1, 0]);
+    const perpVec = (dir) => unit(dir && !dir[0] ? [1, 0] : [0, 1]);
+
+    const L = this.layer;
+    const lc = supersample(L.getContext('2d'));
+    const clip = this._clip;
+    lc.save();
+    lc.setTransform(1, 0, 0, 1, 0, 0);
+    lc.globalCompositeOperation = 'source-over';
+    if (clip) { lc.beginPath(); lc.rect(clip.x, clip.y, clip.w, clip.h); lc.clip(); lc.clearRect(clip.x, clip.y, clip.w, clip.h); }
+    else lc.clearRect(0, 0, L.width, L.height);
+
+    // A. revetment walls: boards along the run, posts upright; concrete on fully reinforced works
+    for (const s of segs) {
+      const u = runVec(s.dir), c = iso(s.t.x + 0.5, s.t.y + 0.5);
+      lc.setTransform(1, 0, 0, 1, this.OX, this.OY);
+      lc.beginPath(); path(lc, s.poly);
+      if (s.t.trench >= 3) { lc.fillStyle = '#6c6b66'; lc.fill(); continue; }
+      const k = 0.32;
+      lc.setTransform(u.x * k, u.y * k, 0, k, c.x + this.OX, c.y + this.OY);
+      lc.fillStyle = this.pattern(lc, 'planks');
+      lc.fill();
+    }
+    lc.setTransform(1, 0, 0, 1, this.OX, this.OY);
+    lc.fillStyle = 'rgba(10,12,18,0.12)';
+    lc.beginPath(); for (const s of segs) path(lc, s.poly); lc.fill();
+
+    // B. floor, sunk by DEPTH and seen only through the opening
+    lc.save();
+    lc.beginPath(); for (const s of segs) path(lc, s.poly); lc.clip();
+    for (const s of segs) {
+      const u = runVec(s.dir), v = perpVec(s.dir), c = iso(s.t.x + 0.5, s.t.y + 0.5);
+      lc.setTransform(1, 0, 0, 1, this.OX, this.OY);
+      lc.beginPath(); path(lc, s.poly, DEPTH);
+      const name = s.t.trench >= 2 ? 'duckboard' : S > 0.3 ? 'ice' : 'water';
+      const k = 0.3;
+      lc.setTransform(u.x * k, u.y * k, v.x * k, v.y * k, c.x + this.OX, c.y + this.OY + DEPTH);
+      lc.fillStyle = this.pattern(lc, name);
+      lc.fill();
+    }
+    lc.setTransform(1, 0, 0, 1, this.OX, this.OY);
+    lc.fillStyle = 'rgba(6,8,12,0.38)';
+    lc.beginPath(); for (const s of segs) path(lc, s.poly, DEPTH); lc.fill();
+    lc.restore();
+    lc.restore();
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    if (clip) g.drawImage(L, clip.x * GS, clip.y * GS, clip.w * GS, clip.h * GS, clip.x, clip.y, clip.w, clip.h);
+    else g.drawImage(L, 0, 0, L.width / GS, L.height / GS);
+    g.restore();
+
+    // C. parapets: sandbags packed along both lips (sparse on hasty works), concrete on level 3
+    const snow = S > 0.7 ? '_snow' : '';
+    const bags = [];
+    for (const s of segs) {
+      if (!s.dir) continue;
+      const [dx, dy] = s.dir, cx = s.t.x + 0.5, cy = s.t.y + 0.5;
+      for (const side of [-1, 1]) {
+        const off = (HW + 0.06) * side;
+        for (let f = 0.03; f < 0.5; f += 0.12) {
+          const px = cx + dx * f + (dx ? 0 : off), py = cy + dy * f + (dx ? off : 0);
+          const h = hash(px * 13.1, py * 7.7);
+          if (s.t.trench < 2 && h > 0.4) continue;
+          bags.push({ x: px, y: py, h, lvl: s.t.trench, u: runVec(s.dir) });
+        }
+      }
+    }
+    bags.sort((a, b) => a.x + a.y - (b.x + b.y));
+    for (const b of bags) {
+      const p = iso(b.x, b.y);
+      if (b.lvl >= 3) {
+        g.setTransform(1, 0, 0, 1, this.OX, this.OY);
+        g.fillStyle = '#8b8a85'; g.strokeStyle = 'rgba(30,30,30,0.5)'; g.lineWidth = 0.6;
+        g.beginPath(); g.moveTo(p.x - b.u.x * 3, p.y - b.u.y * 3 - 3); g.lineTo(p.x + b.u.x * 3, p.y + b.u.y * 3 - 3);
+        g.lineTo(p.x + b.u.x * 3, p.y + b.u.y * 3); g.lineTo(p.x - b.u.x * 3, p.y - b.u.y * 3); g.closePath(); g.fill(); g.stroke();
+        continue;
+      }
+      const ang = Math.atan2(b.u.y, b.u.x);
+      const rows = b.lvl >= 2 ? 2 : 1;
+      for (let r = 0; r < rows; r++) {
+        const img = this.spr[`sandbag${Math.floor(b.h * 3 + r) % 3}${snow}`];
+        g.setTransform(1, 0, 0, 1, this.OX, this.OY);
+        g.translate(p.x + (r ? b.u.x * 2 : 0), p.y - r * 2.8);
+        g.rotate(ang);
+        g.scale(1 / 3, 1 / 3);
+        g.drawImage(img, -18, -15);
+      }
+    }
+    // D. pennant posts showing who holds each stretch of trench
+    g.setTransform(1, 0, 0, 1, this.OX, this.OY);
+    for (const s of segs) {
+      const t = s.t;
+      if (s.dir || t.owner < 0 || hash(t.x * 5.3, t.y * 3.7) < 0.78) continue;
+      const p = iso(t.x + 0.5 - HW - 0.08, t.y + 0.5 - HW - 0.08);
+      g.strokeStyle = '#1e1a16'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x, p.y - 13); g.stroke();
+      g.fillStyle = t.owner === PLAYER ? '#d8c27a' : '#a9b8c4';
+      g.beginPath(); g.moveTo(p.x, p.y - 13); g.lineTo(p.x + 6, p.y - 11.5); g.lineTo(p.x, p.y - 9.5); g.closePath(); g.fill();
+    }
+  }
+
+  /** Barbed wire belts from sprites, laid along each belt's run. */
+  drawWireSprites(g, map, S) {
+    const snow = S > 0.3 ? '_snow' : '';
+    const Wt = (x, y) => x >= 0 && y >= 0 && x < map.w && y < map.h && map.tiles[y * map.w + x].wire > 0;
+    for (const t of map.tiles) {
+      if (t.wire <= 0 || !this.inClip(t.x, t.y, 2)) continue;
+      const nx = (Wt(t.x - 1, t.y) ? 1 : 0) + (Wt(t.x + 1, t.y) ? 1 : 0);
+      const ny = (Wt(t.x, t.y - 1) ? 1 : 0) + (Wt(t.x, t.y + 1) ? 1 : 0);
+      const d = nx > ny ? [1, 0] : [0, 1];
+      const a = iso(t.x + 0.5 - d[0] * 0.5, t.y + 0.5 - d[1] * 0.5), b = iso(t.x + 0.5 + d[0] * 0.5, t.y + 0.5 + d[1] * 0.5);
+      const h = hash(t.x * 1.3, t.y * 2.9);
+      const name = (t.wire > 50 ? `wire${Math.floor(h * 3) % 3}` : `wiredmg${Math.floor(h * 2) % 2}`) + snow;
+      const img = this.spr[name];
+      if (!img) continue;
+      const ws = img.width, gy = 70;
+      const k = (Math.hypot(b.x - a.x, b.y - a.y) / ws) * 1.55;
+      g.setTransform((b.x - a.x) / ws, (b.y - a.y) / ws, 0, k, a.x + this.OX, a.y + this.OY - gy * k);
+      g.drawImage(img, 0, 0);
+    }
+    g.setTransform(1, 0, 0, 1, this.OX, this.OY);
+  }
+
+  /** Scattered planks, branches and junk across the churned ground. */
+  drawDebris(g, map, S) {
+    const snow = S > 0.3 ? '_snow' : '';
+    for (const t of map.tiles) {
+      if (t.trench || t.wire || t.decor || !this.inClip(t.x, t.y, 1)) continue;
+      const h = hash(t.x * 9.7, t.y * 4.3);
+      if (!((t.mud && h > 0.86) || h > 0.975)) continue;
+      const img = this.spr[`debris${Math.floor(h * 97) % 3}${snow}`];
+      if (!img) continue;
+      const p = iso(t.x + 0.3 + h * 0.4, t.y + 0.3 + t.shade * 0.4);
+      g.setTransform(1 / 3, 0, 0, 1 / 3, p.x + this.OX - 15, p.y + this.OY - 9);
+      g.drawImage(img, 0, 0);
+    }
+    g.setTransform(1, 0, 0, 1, this.OX, this.OY);
   }
 
   // ------------------------------------------------------------ frame
@@ -787,6 +979,20 @@ export class Renderer {
   }
 
   drawDecor(ctx, t) {
+    if (this.spr && t.decor !== 'ruin') {
+      const snow = (this.S ?? 1) > 0.3 ? '_snow' : '';
+      const h = hash(t.x * 2.3, t.y * 5.1);
+      const c = iso(t.x + 0.3 + t.shade * 0.4, t.y + 0.3 + h * 0.4);
+      let name, ax, ay, sc;
+      if (t.decor === 'stump') { name = `stump${Math.floor(h * 4) % 4}`; ax = 42; ay = 176; sc = 1 / 3; }
+      else if (t.decor === 'tree') { name = `tree${Math.floor(h * 2) % 2}`; ax = 90; ay = 286; sc = 0.27; }
+      else { name = `log${Math.floor(h * 3) % 3}`; ax = 120; ay = 60; sc = 0.3; }
+      const img = this.spr[name + snow];
+      if (img) {
+        ctx.save(); ctx.translate(c.x, c.y); ctx.scale(h > 0.5 ? -sc : sc, sc); ctx.drawImage(img, -ax, -ay); ctx.restore();
+        return;
+      }
+    }
     const S = this.S ?? 1;
     const h = hash(t.x * 2.3, t.y * 5.1);
     const c = iso(t.x + 0.3 + t.shade * 0.4, t.y + 0.3 + h * 0.4);

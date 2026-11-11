@@ -36,6 +36,8 @@ as `file://`, because it uses ES modules.
 
 **Textures & relief**: the ground is built from tileable PNG textures (palette sampled from the concept art), sculpted by a 16 px-per-tile height field of the whole battlefield: crater bowls with raised lips, trench spoil ridges, wheel ruts and rolling ground, lit by a soft low light with ambient occlusion and wet glints on the mud. Snow settles on crests and flats, earth shows on steep blasted faces, water and ice collect in the hollows. Shell impacts update the relief locally; trench planks, sandbags and duckboards run along each trench. Replace any PNG in `assets/textures/` with your own art (same name, seamless) and it is used automatically.
 
+**Props & trenches**: barbed wire is drawn from sprites of knife-rest frames wrapped in rusty concertina coil (collapsed variants once shelled); stumps, dead trees and fallen logs are splintered sprites; debris litters no man's land. Trenches are real cuts: a plank-revetted far wall drops to duckboards (or water/ice on hasty works) that the near lip partly hides, with shaded sandbags along both edges and pennant posts showing who holds each stretch. All have snow variants.
+
 **Seasons**: Winter (snow, frozen shell holes), Thaw (patchy snow over mud) and Mud (rain, flooded craters), chosen on the start screen. Shellfire and digging churn the snow into black earth.
 
 **Atmosphere** (purely visual): a day/night cycle with star-shell flares and dynamic light from gunfire and explosions; passing rain showers; drifting ground mist; screen shake; earth-fountain shell bursts; fallen soldiers left on the field; and a 🎞 film-look toggle (colour / sepia / black and white).
@@ -74,6 +76,8 @@ src/audio.js            procedural WebAudio sound effects
 src/main.js             game loop
 assets/textures/        generated seamless PNG textures (mud, earth, snow, grass, ice, water, planks, sandbags, duckboards)
 scripts/make-textures.mjs  texture generator: `npm run textures` (no dependencies)
+assets/sprites/         PNG sprites: barbed wire, stumps, dead trees, logs, sandbags, debris (+ snow variants)
+tools/sprite-art.js     sprite artwork (Canvas 2D); `npm run sprites` renders it with Playwright (dev only)
 tests/                  headless simulation tests (node --test)
 ```
 
