@@ -76,7 +76,8 @@ src/render.js           isometric canvas renderer
 src/ui.js               input + HUD
 src/relief.js           battlefield height field: lighting, occlusion, snow/earth/water placement
 src/atmosphere.js       day/night, lighting, flares, rain, fog, grain, screen shake
-src/audio.js            procedural WebAudio sound effects
+src/audio.js            WebAudio: recorded artillery samples + procedural fallbacks
+assets/sfx/             artillery fire and 3 explosion samples (first 3.5 s of the supplied recordings in art-src/sfx/)
 src/main.js             game loop
 assets/textures/        generated seamless PNG textures (mud, earth, snow, grass, ice, water, planks, sandbags, duckboards)
 scripts/make-textures.mjs  texture generator: `npm run textures` (no dependencies)

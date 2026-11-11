@@ -1,10 +1,37 @@
-// Tiny procedural sound effects via WebAudio (no asset files).
+// Sound effects via WebAudio: recorded artillery samples (assets/sfx) plus procedural fallbacks.
 export class Sound {
   constructor() {
     this.ctx = null;
     this.enabled = true;
     this.last = {};
     this.master = null;
+    this.samples = {}; // type -> [AudioBuffer]
+    this.voices = {}; // type -> currently playing count
+  }
+
+  /** Recorded sound effects (assets/sfx), decoded once audio is unlocked. */
+  loadSamples() {
+    if (this.sampleLoad || !this.ctx) return;
+    const SETS = { artyfire: ['fire'], boom: ['explosion-1', 'explosion-2', 'explosion-3'] };
+    this.sampleLoad = Promise.all(Object.entries(SETS).map(([type, names]) => Promise.all(names.map((n) =>
+      fetch(`assets/sfx/${n}.mp3`).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a)).catch(() => null)))
+      .then((bufs) => { const ok = bufs.filter(Boolean); if (ok.length) this.samples[type] = ok; })));
+  }
+
+  playSample(type, vol) {
+    const bufs = this.samples[type];
+    if (!bufs) return false;
+    const MAX = { boom: 8, artyfire: 4 }[type] || 4; // cap overlapping 3.5 s tails in a heavy barrage
+    if ((this.voices[type] || 0) >= MAX) return true;
+    const c = this.ctx, src = c.createBufferSource(), g = c.createGain();
+    src.buffer = bufs[Math.floor(Math.random() * bufs.length)];
+    src.playbackRate.value = 0.92 + Math.random() * 0.14; // slight pitch variety
+    g.gain.value = vol * (type === 'boom' ? 0.9 : 0.75);
+    src.connect(g); g.connect(this.master);
+    this.voices[type] = (this.voices[type] || 0) + 1;
+    src.onended = () => { this.voices[type]--; };
+    src.start();
+    return true;
   }
 
   init() {
@@ -19,6 +46,7 @@ export class Sound {
       this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
       const d = this.noise.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      this.loadSamples();
     } catch {
       this.ctx = null;
     }
@@ -50,6 +78,7 @@ export class Sound {
     const gap = { boom: 60, artyfire: 90, mg: 110, rifle: 70, supply: 500 }[type] || 80;
     if (now - (this.last[type] || 0) < gap) return;
     this.last[type] = now;
+    if (this.playSample(type, vol)) return;
     switch (type) {
       case 'boom':
         this.burst({ dur: 1.1, freq: 260, vol: 0.9 * vol });
