@@ -42,7 +42,11 @@ const url = await page.evaluate(async ({ src, CELL }) => {
     for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) if (px[(y * CELL + x) * 4 + 3] > 12) bottom = Math.max(bottom, y);
     for (let y = Math.max(0, bottom - 18); y <= bottom; y++) for (let x = 0; x < CELL; x++) { const a = px[(y * CELL + x) * 4 + 3]; if (a > 12) { sum += x * a; w += a; } }
     raw.push(c);
-    offsets.push({ x: w ? CELL / 2 - sum / w : 0, y: bottom ? CELL * 0.95 - bottom : 0 });
+    // Horizontal: centre on the whole cloud's alpha-weighted centre of mass. The source rows drift left
+    // and reset every 6 frames (a sawtooth that reads as jiggling); the game adds real wind drift instead.
+    let mx = 0, mw = 0;
+    for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) { const a = px[(y * CELL + x) * 4 + 3]; mx += x * a; mw += a; }
+    offsets.push({ x: mw ? CELL / 2 - mx / mw : (w ? CELL / 2 - sum / w : 0), y: bottom ? CELL * 0.95 - bottom : 0 });
   }
   // 2. align with smoothed offsets, then grade into the battlefield palette
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -57,11 +61,13 @@ const url = await page.evaluate(async ({ src, CELL }) => {
     }
     return STOPS[STOPS.length - 1][1];
   };
+  const alphas = [];
   const out = document.createElement('canvas'); out.width = out.height = CELL * 6;
   const og = out.getContext('2d');
   for (let i = 0; i < N; i++) {
     let x = 0, y = 0, wt = 0;
-    for (let j = Math.max(0, i - 2); j <= Math.min(N - 1, i + 2); j++) { const k = 3 - Math.abs(i - j); x += offsets[j].x * k; y += offsets[j].y * k; wt += k; }
+    for (let j = Math.max(0, i - 1); j <= Math.min(N - 1, i + 1); j++) { const k = j === i ? 2 : 1; y += offsets[j].y * k; wt += k; }
+    x = offsets[i].x * wt; // horizontal: each frame's own centre (smoothing would re-introduce the row jumps)
     const c = document.createElement('canvas'); c.width = c.height = CELL;
     const g = c.getContext('2d');
     g.drawImage(raw[i], x / wt, y / wt);
@@ -84,12 +90,33 @@ const url = await page.evaluate(async ({ src, CELL }) => {
     }
     g.putImageData(im, 0, 0);
     og.drawImage(c, (i % 6) * CELL, Math.floor(i / 6) * CELL);
+    const al = new Float32Array((CELL / 4) * (CELL / 4));
+    for (let y = 0; y < CELL / 4; y++) for (let x = 0; x < CELL / 4; x++) al[y * (CELL / 4) + x] = d[((y * 4) * CELL + x * 4) * 4 + 3] / 255;
+    alphas.push(al);
   }
-  return out.toDataURL('image/webp', 0.92);
+  // visual difference between neighbouring frames (mean absolute alpha change)
+  const pairDiff = [];
+  for (let i = 0; i < N - 1; i++) { let e = 0; const a = alphas[i], b = alphas[i + 1]; for (let k = 0; k < a.length; k++) e += Math.abs(a[k] - b[k]); pairDiff.push(e / a.length); }
+  return { url: out.toDataURL('image/webp', 0.92), pairDiff };
 }, { src, CELL });
+const { pairDiff } = url;
 await browser.close();
-writeFileSync(join(OUT, 'impact.webp'), Buffer.from(url.split(',')[1], 'base64'));
+writeFileSync(join(OUT, 'impact.webp'), Buffer.from(url.url.split(',')[1], 'base64'));
+
+// Re-time the frames so the visual rate of change follows a smooth curve: each interval gets a duration
+// proportional to how much its two frames actually differ, against a smoothed version of the original
+// pace (the fast burst / slow smoke envelope is kept; total length unchanged).
+const T0 = meta.frameTimesSeconds, n = T0.length;
+const rate = pairDiff.map((d, j) => Math.max(1e-4, d) / (T0[j + 1] - T0[j]));
+const lr = rate.map(Math.log), sm = lr.map((_, j) => { let s2 = 0, w2 = 0; for (let q = -3; q <= 3; q++) { const k = j + q; if (k < 0 || k >= lr.length) continue; const w = Math.exp(-(q * q) / (2 * 1.6 * 1.6)); s2 += lr[k] * w; w2 += w; } return Math.exp(s2 / w2); });
+let dts = pairDiff.map((d, j) => Math.max(1e-4, d) / sm[j]);
+// keep each interval within a sane range of its original length
+dts = dts.map((v, j) => Math.max(0.5, Math.min(2, v / (T0[j + 1] - T0[j]))) * (T0[j + 1] - T0[j]));
+const scale = (T0[n - 1] - T0[0]) / dts.reduce((a, b) => a + b, 0);
+const frameTimes = [0]; for (const v of dts) frameTimes.push(+(frameTimes[frameTimes.length - 1] + v * scale).toFixed(4));
+console.log('pair diffs', pairDiff.map((v) => v.toFixed(3)).join(' '));
+console.log('re-timed', frameTimes.join(' '));
 writeFileSync(join(OUT, 'impact.json'), JSON.stringify({
-  columns: 6, frameSize: CELL, frameCount: 36, frameTimes: meta.frameTimesSeconds, duration: meta.durationSeconds, anchor: { x: 0.5, y: 0.95 },
+  columns: 6, frameSize: CELL, frameCount: 36, frameTimes, sourceFrameTimes: meta.frameTimesSeconds, duration: meta.durationSeconds, anchor: { x: 0.5, y: 0.95 },
 }, null, 1) + '\n');
 console.log('wrote assets/fx/impact.webp');

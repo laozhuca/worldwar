@@ -1540,21 +1540,31 @@ export class Renderer {
     const F = this.fx, M = F.meta, T = M.frameTimes, N = M.frameCount;
     const t = e.age;
     if (t >= M.duration) return;
-    let i = 0;
-    while (i < N - 1 && t >= T[i + 1]) i++;
-    const next = Math.min(i + 1, N - 1), blend = i < N - 1 ? (t - T[i]) / (T[i + 1] - T[i]) : 0;
     const opacity = Math.min(1, t / 0.035) * Math.min(1, (M.duration - t) / 1.2);
     const S = M.frameSize, cols = M.columns;
-    // crossfade the two nearest frames
+    // Blend in frame-index space with a cubic B-spline over four neighbouring frames: the weights always
+    // sum to 1 and change smoothly through every drawn frame, so there is no pulse as each one passes
+    // (a plain two-frame crossfade reads as stop motion). Premultiplied sum into a buffer.
     const b = F.buf.getContext('2d');
     b.globalCompositeOperation = 'source-over'; b.globalAlpha = 1;
     b.clearRect(0, 0, S, S);
-    b.globalAlpha = 1 - blend;
-    b.drawImage(F.img, (i % cols) * S, Math.floor(i / cols) * S, S, S, 0, 0, S, S);
-    if (next !== i && blend > 0.01) {
-      b.globalCompositeOperation = 'lighter'; b.globalAlpha = blend;
-      b.drawImage(F.img, (next % cols) * S, Math.floor(next / cols) * S, S, S, 0, 0, S, S);
+    let i = 0;
+    while (i < N - 1 && t >= T[i + 1]) i++;
+    const u = i < N - 1 ? i + (t - T[i]) / (T[i + 1] - T[i]) : N - 1;
+    const i0 = Math.floor(u), f = u - i0, f2 = f * f, f3 = f2 * f;
+    const bw = [(1 - f) ** 3 / 6, (3 * f3 - 6 * f2 + 4) / 6, (-3 * f3 + 3 * f2 + 3 * f + 1) / 6, f3 / 6];
+    const acc = new Map();
+    for (let q = 0; q < 4; q++) { const j = Math.max(0, Math.min(N - 1, i0 - 1 + q)); acc.set(j, (acc.get(j) || 0) + bw[q]); }
+    const ws = [...acc.entries()].filter(([, w]) => w > 0.002);
+    const wsum = ws.reduce((s2, [, w]) => s2 + w, 0);
+    let first = true;
+    for (const [j, w] of ws) {
+      b.globalCompositeOperation = first ? 'source-over' : 'lighter';
+      b.globalAlpha = w / wsum;
+      b.drawImage(F.img, (j % cols) * S, Math.floor(j / cols) * S, S, S, 0, 0, S, S);
+      first = false;
     }
+    b.globalAlpha = 1; b.globalCompositeOperation = 'source-over';
     // continuous motion layered over the drawn frames (eases in once the column has formed)
     const wind = this.atmo.wind, k = e.scale || 1;
     const late = Math.max(0, t - 0.35);
