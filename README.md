@@ -36,7 +36,7 @@ as `file://`, because it uses ES modules.
 
 **Textures & relief**: the ground is built from tileable PNG textures (palette sampled from the concept art), sculpted by a 16 px-per-tile height field of the whole battlefield: crater bowls with raised lips, trench spoil ridges, wheel ruts and rolling ground, lit by a soft low light with ambient occlusion and wet glints on the mud. Snow settles on crests and flats, earth shows on steep blasted faces, water and ice collect in the hollows. Shell impacts update the relief locally; trench planks, sandbags and duckboards run along each trench. Replace any PNG in `assets/textures/` with your own art (same name, seamless) and it is used automatically.
 
-**Props & trenches**: barbed wire is drawn from sprites of knife-rest frames wrapped in rusty concertina coil (collapsed variants once shelled); stumps, dead trees and fallen logs are splintered sprites; debris litters no man's land. Trenches are real cuts: a plank-revetted far wall drops to duckboards (or water/ice on hasty works) that the near lip partly hides, with shaded sandbags along both edges and pennant posts showing who holds each stretch. All have snow variants.
+**Props & trenches**: trenches, barbed wire, stumps, dead trees, logs and debris are 3D models pre-rendered to PNG from the game's exact isometric camera, with the terrain's sun, soft shadows and ambient occlusion (the classic isometric-game pipeline). Trenches are tiles chosen by which neighbours connect (16 shapes x 3 levels: hasty with flooded floor, revetted with duckboards and double sandbags, concrete), each with a snow variant. Wire is concertina coil on knife-rest frames, intact or shell-cut, for both belt directions. Replace any PNG in `assets/props/` with your own render of the same name and it is used automatically.
 
 **Seasons**: Winter (snow, frozen shell holes), Thaw (patchy snow over mud) and Mud (rain, flooded craters), chosen on the start screen. Shellfire and digging churn the snow into black earth.
 
@@ -76,8 +76,8 @@ src/audio.js            procedural WebAudio sound effects
 src/main.js             game loop
 assets/textures/        generated seamless PNG textures (mud, earth, snow, grass, ice, water, planks, sandbags, duckboards)
 scripts/make-textures.mjs  texture generator: `npm run textures` (no dependencies)
-assets/sprites/         PNG sprites: barbed wire, stumps, dead trees, logs, sandbags, debris (+ snow variants)
-tools/sprite-art.js     sprite artwork (Canvas 2D); `npm run sprites` renders it with Playwright (dev only)
+assets/props/           pre-rendered 3D props: 48 trench tiles x snow, wire belts, stumps, trees, logs, debris
+tools/render3d/         offline ray-marching renderer + 3D models; `npm run props` re-renders assets/props (no dependencies)
 tests/                  headless simulation tests (node --test)
 ```
 
