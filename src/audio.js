@@ -7,12 +7,13 @@ export class Sound {
     this.master = null;
     this.samples = {}; // type -> [AudioBuffer]
     this.voices = {}; // type -> currently playing count
+    this.active = {}; // type -> [{ src, g }] oldest first
   }
 
   /** Recorded sound effects (assets/sfx), decoded once audio is unlocked. */
   loadSamples() {
     if (this.sampleLoad || !this.ctx) return;
-    const SETS = { artyfire: ['fire'], boom: ['explosion-1', 'explosion-2'] };
+    const SETS = { artyfire: ['fire'], boom: ['shell-1', 'shell-2', 'shell-3', 'shell-4'] };
     this.sampleLoad = Promise.all(Object.entries(SETS).map(([type, names]) => Promise.all(names.map((n) =>
       fetch(`assets/sfx/${n}.mp3`).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a)).catch(() => null)))
       .then((bufs) => { const ok = bufs.filter(Boolean); if (ok.length) this.samples[type] = ok; })));
@@ -21,15 +22,23 @@ export class Sound {
   playSample(type, vol) {
     const bufs = this.samples[type];
     if (!bufs) return false;
-    const MAX = { boom: 8, artyfire: 4 }[type] || 4; // cap overlapping 3.5 s tails in a heavy barrage
-    if ((this.voices[type] || 0) >= MAX) return true;
-    const c = this.ctx, src = c.createBufferSource(), g = c.createGain();
+    const MAX = { boom: 8, artyfire: 4 }[type] || 4; // cap overlapping long tails in a heavy barrage
+    const c = this.ctx, act = (this.active[type] ||= []);
+    // a new impact always plays; at the cap the oldest tail fades out over 0.4 s to make room
+    if (act.length >= MAX) {
+      const old = act.shift();
+      old.g.gain.setTargetAtTime(0, c.currentTime, 0.12);
+      old.src.stop(c.currentTime + 0.5);
+    }
+    const src = c.createBufferSource(), g = c.createGain();
     src.buffer = bufs[Math.floor(Math.random() * bufs.length)];
     src.playbackRate.value = 0.92 + Math.random() * 0.14; // slight pitch variety
     g.gain.value = vol * (type === 'boom' ? 0.9 : 0.75);
     src.connect(g); g.connect(this.master);
-    this.voices[type] = (this.voices[type] || 0) + 1;
-    src.onended = () => { this.voices[type]--; };
+    const voice = { src, g };
+    act.push(voice);
+    this.voices[type] = act.length;
+    src.onended = () => { const i = act.indexOf(voice); if (i >= 0) act.splice(i, 1); this.voices[type] = act.length; };
     src.start();
     return true;
   }
