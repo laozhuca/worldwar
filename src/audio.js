@@ -13,7 +13,7 @@ export class Sound {
   /** Recorded sound effects (assets/sfx), decoded once audio is unlocked. */
   loadSamples() {
     if (this.sampleLoad || !this.ctx) return;
-    const SETS = { artyfire: ['fire'], boom: ['shell-1', 'shell-2', 'shell-3', 'shell-4'] };
+    const SETS = { artyfire: ['fire'], boom: ['shell-1', 'shell-2', 'shell-3', 'shell-4'], rifle: ['rifle-1', 'rifle-2', 'rifle-3', 'rifle-4', 'rifle-5'] };
     this.sampleLoad = Promise.all(Object.entries(SETS).map(([type, names]) => Promise.all(names.map((n) =>
       fetch(`assets/sfx/${n}.mp3`).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a)).catch(() => null)))
       .then((bufs) => { const ok = bufs.filter(Boolean); if (ok.length) this.samples[type] = ok; })));
@@ -22,7 +22,7 @@ export class Sound {
   playSample(type, vol) {
     const bufs = this.samples[type];
     if (!bufs) return false;
-    const MAX = { boom: 8, artyfire: 4 }[type] || 4; // cap overlapping long tails in a heavy barrage
+    const MAX = { boom: 8, artyfire: 4, rifle: 6 }[type] || 4; // cap overlapping long tails in a heavy barrage
     const c = this.ctx, act = (this.active[type] ||= []);
     // a new impact always plays; at the cap the oldest tail fades out over 0.4 s to make room
     if (act.length >= MAX) {
@@ -33,7 +33,7 @@ export class Sound {
     const src = c.createBufferSource(), g = c.createGain();
     src.buffer = bufs[Math.floor(Math.random() * bufs.length)];
     src.playbackRate.value = 0.92 + Math.random() * 0.14; // slight pitch variety
-    g.gain.value = vol * (type === 'boom' ? 0.9 : 0.75);
+    g.gain.value = vol * ({ boom: 0.9, artyfire: 0.75, rifle: 0.5 }[type] || 0.7);
     src.connect(g); g.connect(this.master);
     const voice = { src, g };
     act.push(voice);
