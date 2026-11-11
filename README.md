@@ -77,7 +77,7 @@ src/ui.js               input + HUD
 src/relief.js           battlefield height field: lighting, occlusion, snow/earth/water placement
 src/atmosphere.js       day/night, lighting, flares, rain, fog, grain, screen shake
 src/audio.js            WebAudio: recorded artillery samples + procedural fallbacks
-assets/sfx/             artillery fire (first 3.5 s) and four full-length 8 s shell-explosion recordings, five rifle-volley recordings, four machine-gun bursts (sources in art-src/sfx/)
+assets/sfx/             artillery fire (first 3.5 s) and three full-length 8 s shell-explosion recordings, five rifle-volley recordings, four machine-gun bursts (sources in art-src/sfx/)
 src/main.js             game loop
 assets/textures/        generated seamless PNG textures (mud, earth, snow, grass, ice, water, planks, sandbags, duckboards)
 scripts/make-textures.mjs  texture generator: `npm run textures` (no dependencies)
