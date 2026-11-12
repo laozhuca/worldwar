@@ -29,6 +29,7 @@ const app = {
     ov.classList.toggle('hidden', !open);
     document.getElementById('help-panel').classList.remove('hidden');
     document.getElementById('end-panel').classList.add('hidden');
+    document.getElementById('save-panel').classList.add('hidden');
     this.paused = open;
     document.getElementById('btn-pause').textContent = this.paused ? '▶' : '❚❚';
   },
@@ -225,18 +226,25 @@ requestAnimationFrame(frame);
 export { iso };
 
 // ------------------------------------------------------------ saving
-const SAVE_KEY = 'ww-save';
-const readSave = () => { try { return localStorage.getItem(SAVE_KEY); } catch { return null; } };
-function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch {} showContinue(); }
+// Five save slots plus the automatic save, all in this browser's storage.
+const AUTO = 'ww-save', SLOTS = [1, 2, 3, 4, 5];
+const slotKey = (n) => (n === 'auto' ? AUTO : `${AUTO}-${n}`);
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { localStorage.setItem(k, v); },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+const infoOf = (slot) => { const j = store.get(slotKey(slot)); return j ? describe(j) : null; };
+function clearSave() { store.del(AUTO); showContinue(); } // a finished battle leaves no automatic save
 let lastSave = 0;
-/** Save the battle in the browser. Quiet saves (automatic) don't announce themselves. */
-function saveGame(quiet = false) {
-  const s = app.state;
+/** Save the battle into a slot ('auto' for the automatic save). Automatic saves don't announce themselves. */
+function saveGame(slot = 'auto') {
+  const s = app.state, quiet = slot === 'auto';
   if (s.winner >= 0 || s.time < 1) { if (!quiet) pushMessage(s, 'Nothing to save yet', 'warn'); return false; }
   try {
-    localStorage.setItem(SAVE_KEY, serialize(s));
-    lastSave = s.time;
-    if (!quiet) pushMessage(s, 'Battle saved', 'good');
+    store.set(slotKey(slot), serialize(s));
+    if (quiet) lastSave = s.time;
+    else pushMessage(s, `Battle saved in slot ${slot}`, 'good');
     showContinue();
     return true;
   } catch (e) {
@@ -244,9 +252,9 @@ function saveGame(quiet = false) {
     return false;
   }
 }
-function loadGame() {
+function loadGame(slot) {
   let state;
-  try { state = deserialize(readSave()); } catch (e) { pushMessage(app.state, `Could not load the saved battle (${e.message})`, 'warn'); clearSave(); return; }
+  try { state = deserialize(store.get(slotKey(slot))); } catch (e) { pushMessage(app.state, `Could not load that save (${e.message})`, 'warn'); return; }
   app.state = state;
   app.season = state.season;
   sound.init(); voices.prepare(); sound.startMusic();
@@ -258,25 +266,78 @@ function loadGame() {
   endShown = false;
   lastSave = state.time;
   document.getElementById('overlay').classList.add('hidden');
-  pushMessage(state, 'Battle resumed', 'good');
+  pushMessage(state, slot === 'auto' ? 'Battle resumed' : `Battle loaded from slot ${slot}`, 'good');
   app.paused = false;
   document.getElementById('btn-pause').textContent = '❚❚';
 }
-/** The start screen's "Continue saved battle" button, with what and when. */
-function showContinue() {
-  const b = document.getElementById('btn-continue');
-  const info = readSave() && describe(readSave());
-  b.classList.toggle('hidden', !info);
-  if (!info) return;
+const summary = (info) => {
   const [a, e] = info.nations.map((n) => (NATIONS[n] ? NATIONS[n].name : n));
-  const m = Math.floor(info.time / 60);
+  const m = Math.floor(info.time / 60), sec = Math.floor(info.time % 60);
+  const season = info.season ? info.season[0].toUpperCase() + info.season.slice(1) : '';
   const when = new Date(info.savedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-  b.querySelector('small').textContent = `${a} vs ${e} · ${m} min in · saved ${when}`;
+  return { title: `${a} vs ${e} · ${season} · ${m}m ${sec}s in`, when: `saved ${when}` };
+};
+/** Start screen: "Continue" resumes the newest save of all; "Load…" lists them. */
+function showContinue() {
+  const all = ['auto', ...SLOTS].map((k) => ({ k, info: infoOf(k) })).filter((x) => x.info);
+  const b = document.getElementById('btn-continue');
+  document.getElementById('btn-load').classList.toggle('hidden', !all.length);
+  b.classList.toggle('hidden', !all.length);
+  if (!all.length) return;
+  const newest = all.reduce((a, x) => (x.info.savedAt > a.info.savedAt ? x : a));
+  b.dataset.slot = newest.k;
+  const t = summary(newest.info);
+  b.querySelector('small').textContent = `${t.title} · ${t.when}`;
+}
+/** The save / load panel: one row per slot. Saving is offered only during a battle. */
+let panelFrom = 'game'; // 'game' (from the 💾 button) or 'menu' (from the start screen)
+function showSlots() {
+  const canSave = app.state.time >= 1 && app.state.winner < 0; // a battle is under way
+  const rows = ['auto', ...SLOTS].map((k) => {
+    const info = infoOf(k);
+    const row = document.createElement('div');
+    row.className = 'slot';
+    const t = info && summary(info);
+    row.innerHTML = `<div class="sn">${k === 'auto' ? 'Automatic' : `Slot ${k}`}</div>
+      <div class="si">${info ? `${t.title}<small>${t.when}</small>` : '<span class="muted">Empty</span>'}</div>`;
+    const btn = (label, fn, cls = '') => { const b = document.createElement('button'); b.textContent = label; b.className = cls; b.onclick = fn; row.appendChild(b); };
+    if (k !== 'auto' && canSave) {
+      btn(info ? 'Overwrite' : 'Save', () => {
+        if (info && !confirm(`Overwrite slot ${k}?`)) return;
+        if (saveGame(k)) closeSlots(true);
+      });
+    }
+    if (info) btn('Load', () => loadGame(k));
+    if (info && k !== 'auto') btn('Delete', () => { if (confirm(`Delete the battle in slot ${k}?`)) { store.del(slotKey(k)); showContinue(); showSlots(); } }, 'danger');
+    return row;
+  });
+  document.getElementById('save-slots').replaceChildren(...rows);
+}
+function openSlots(from) {
+  panelFrom = from;
+  if (from === 'game') { app.paused = true; document.getElementById('btn-pause').textContent = '▶'; }
+  showSlots();
+  for (const id of ['help-panel', 'end-panel']) document.getElementById(id).classList.add('hidden');
+  document.getElementById('save-panel').classList.remove('hidden');
+  document.getElementById('overlay').classList.remove('hidden');
+}
+function closeSlots(resume) {
+  document.getElementById('save-panel').classList.add('hidden');
+  if (panelFrom === 'menu') { document.getElementById('help-panel').classList.remove('hidden'); return; }
+  document.getElementById('overlay').classList.add('hidden');
+  document.getElementById('help-panel').classList.remove('hidden');
+  if (resume || panelFrom === 'game') { app.paused = false; document.getElementById('btn-pause').textContent = '❚❚'; }
 }
 showContinue();
-document.getElementById('btn-continue').addEventListener('click', loadGame);
-document.getElementById('btn-save').addEventListener('click', () => saveGame());
-// autosave every minute of battle, and whenever the page is hidden or closed
-setInterval(() => { if (!app.paused && app.state.time - lastSave >= 60) saveGame(true); }, 5000);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveGame(true); });
-window.addEventListener('pagehide', () => saveGame(true));
+document.getElementById('btn-continue').addEventListener('click', (e) => loadGame(e.currentTarget.dataset.slot));
+document.getElementById('btn-load').addEventListener('click', () => openSlots('menu'));
+document.getElementById('btn-save').addEventListener('click', () => {
+  if (!document.getElementById('save-panel').classList.contains('hidden')) closeSlots(true);
+  else if (app.overlayOpen()) openSlots('menu');
+  else openSlots('game');
+});
+document.getElementById('btn-save-close').addEventListener('click', () => closeSlots(true));
+// automatic save every minute of battle, and whenever the page is hidden or closed
+setInterval(() => { if (!app.paused && app.state.time - lastSave >= 60) saveGame('auto'); }, 5000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveGame('auto'); });
+window.addEventListener('pagehide', () => saveGame('auto'));

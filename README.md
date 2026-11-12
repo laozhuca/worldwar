@@ -44,7 +44,7 @@ as `file://`, because it uses ES modules.
 
 **Starting position**: start in the upper left or lower right of the map, or at random. Fortifications go with the army, not the position: your side always holds the lighter works with sally ports in its wire, the enemy the heavier ones.
 
-**Saving**: 💾 saves the battle in the browser; it also saves itself every minute of play and whenever you switch away from or close the page. The start screen then offers **Continue saved battle** (nations, minutes in, when saved). A won or lost battle clears the save. One save per browser.
+**Saving**: 💾 opens the saved-battles panel: five save slots (save, overwrite, load, delete) plus an automatic save, made every minute of play and whenever you switch away from or close the page. The start screen offers **Continue saved battle** (the newest save) and **Load…** (the panel). A won or lost battle clears the automatic save; the slots stay until you delete them. Saves stay in this browser on this device.
 
 **Seasons**: Winter (snow, frozen shell holes), Thaw (patchy snow over mud) and Mud (rain, flooded craters), chosen on the start screen. Shellfire and digging churn the snow into black earth.
 

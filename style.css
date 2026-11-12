@@ -169,3 +169,10 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .start-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
 #btn-continue { background: #2f3a2c; text-align: left; }
 #btn-continue small { display: block; font-size: 11px; color: var(--muted); letter-spacing: 0; }
+#save-panel { min-width: min(560px, 94vw); }
+.slot { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #2c3138; }
+.slot .sn { width: 74px; color: var(--accent); flex: none; }
+.slot .si { flex: 1; min-width: 0; font-size: 12px; }
+.slot .si small { display: block; color: var(--muted); }
+.slot button { flex: none; }
+.slot button.danger:hover { border-color: var(--bad); }

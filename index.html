@@ -20,7 +20,7 @@
       <div class="res" title="Casualties ours : theirs"><b>✝</b> <span id="casualties">0 : 0</span><em>Losses</em></div>
       <div class="res" title="Time of day and weather"><b id="clock-icon">☀</b> <span id="clock">06:30</span><em>Time</em></div>
       <div class="spacer"></div>
-      <button id="btn-save" title="Save the battle (it also saves itself every minute)">💾</button>
+      <button id="btn-save" title="Save or load a battle (5 slots; it also saves itself every minute)">💾</button>
       <button id="btn-pause" title="Pause (P)">❚❚</button>
       <button id="btn-speed" title="Game speed">1×</button>
       <button id="btn-film" title="Film look: colour / sepia / black and white">🎞</button>
@@ -115,7 +115,7 @@
               <tr><td>Build button, then tap or drag</td><td>Dig / reinforce trench / lay wire</td></tr>
               <tr><td>Deselect · All infantry</td><td>Buttons under Orders</td></tr>
             </table>
-            <p class="muted">💾 saves the battle; it also saves itself every minute and when you leave the page. Continue it from this screen.</p>
+            <p class="muted">💾 saves or loads a battle (5 slots); it also saves itself every minute and when you leave the page. Continue or load from this screen.</p>
             <p class="muted">Soldiers answer your orders in their own language; 🗣 turns voices off.</p>
             <p class="muted">Rifle squads dig works within a few tiles of where they stand. New troops gather at HQ.</p>
           </div>
@@ -154,7 +154,14 @@
         <div class="start-row">
           <button id="btn-start" class="big">Go to the front</button>
           <button id="btn-continue" class="big hidden">Continue saved battle<small></small></button>
+          <button id="btn-load" class="big hidden">Load…</button>
         </div>
+      </div>
+      <div class="panel hidden" id="save-panel">
+        <h1>Saved battles</h1>
+        <p class="muted" id="save-note">Five save slots, plus the automatic save (every minute, and when you leave the page). Saves stay in this browser on this device.</p>
+        <div id="save-slots"></div>
+        <button id="btn-save-close" class="big">Back</button>
       </div>
       <div class="panel hidden" id="end-panel">
         <h1 id="end-title">Victory</h1>
