@@ -40,6 +40,8 @@ as `file://`, because it uses ES modules.
 
 **Sides & nations**: on the start screen choose to fight for the Allies (Britain, France, the United States, Italy, Russia) or the Central Powers (Germany, Austria-Hungary, the Ottoman Empire), then your nation and the enemy's, or pick Random to be assigned a side and both nations when the battle starts (each restart draws again). Each army's soldiers are 3D-rendered in their own uniform and headgear (Brodie and Adrian helmets, Pickelhaube, fez, peaked cap, Austrian field cap, greatcoats), modelled on the reference art in `art-src/`, with poses for standing, walking, charging with bayonets, firing, aiming over the parapet, lying prone, digging and falling. Batteries are a 3D model of the supplied howitzer art, rendered in 8 directions with turning wheels (towed trail-first when moving, laid on the target when firing); machine guns are a rendered water-cooled gun on a tripod.
 
+**Battlefield**: a diamond in map coordinates (radius 34 tiles, about 2,400 tiles), which the 45° camera shows as a 2:1 rectangle, so the view never runs off into empty black space: the camera stays on the battlefield and zooms from a whole-front overview to 3x close-up. The trench lines run corner to corner across it; rear lines and HQs sit in the narrowing corners.
+
 **Starting position**: start in the upper left or lower right of the map, or at random. Fortifications go with the army, not the position: your side always holds the lighter works with sally ports in its wire, the enemy the heavier ones.
 
 **Seasons**: Winter (snow, frozen shell holes), Thaw (patchy snow over mud) and Mud (rain, flooded craters), chosen on the start screen. Shellfire and digging churn the snow into black earth.
@@ -64,7 +66,7 @@ counter-attacks lost trenches, repairs its wire and launches its own offensives.
 | `H` | Halt |
 | `1` `2` `3` | Recruit rifle squad / MG team / field battery |
 | `Q` | Select all rifle squads |
-| WASD, arrows, screen edges, middle-drag | Scroll; mouse wheel zooms |
+| WASD, arrows, screen edges, middle-drag | Scroll; mouse wheel zooms (up to 3x) |
 | `Space` / `P` / `Esc` / `F1` | Jump to front / pause / cancel / help |
 
 **Touch screens** (phones and tablets):

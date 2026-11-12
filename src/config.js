@@ -3,8 +3,12 @@
 
 export const TILE_W = 64;
 export const TILE_H = 32;
-export const MAP_W = 64;
-export const MAP_H = 40;
+// The battlefield is a diamond in map coordinates, which the 45° camera shows as a 2:1 rectangle on screen.
+// It sits in a MAP_W x MAP_H grid: tiles whose centre is more than MAP_R tiles (|dx| + |dy|) from the middle
+// are outside the battlefield.
+export const MAP_R = 34;
+export const MAP_W = 2 * MAP_R + 1;
+export const MAP_H = 2 * MAP_R + 1;
 
 export const PLAYER = 0;
 export const ENEMY = 1;

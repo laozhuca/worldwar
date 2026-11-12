@@ -4,7 +4,7 @@ import {
   BASE_INCOME, CAPTURE_BONUS, START_RES, SUPPRESSION_DECAY, CHARGE_SPEED, MELEE_RANGE,
   WIRE_SLOW, BUILD_RADIUS_FRIENDLY, BUILD_RADIUS_ENEMY, DIG_RADIUS, DIG_RATE,
 } from './config.js';
-import { createMap, tileAt, frontLine, teamDir } from './map.js';
+import { createMap, tileAt, frontLine, teamDir, clampToMap } from './map.js';
 import { createAI, updateAI } from './ai.js';
 
 let nextId = 1;
@@ -47,19 +47,20 @@ function deployInitialForces(state) {
   for (const team of [PLAYER, ENEMY]) {
     const front = frontLine(map, team);
     const dir = teamDir(team);
-    for (const y of [3, 7, 11, 15, 24, 28, 32, 36]) {
-      if (front[y] >= 0) spawnUnit(state, 'rifle', team, front[y] + 0.5, y + 0.5);
+    const M = Math.floor(map.h / 2); // middle row
+    for (const dy of [-17, -13, -9, -5, 4, 8, 12, 16]) {
+      if (front[M + dy] >= 0) spawnUnit(state, 'rifle', team, front[M + dy] + 0.5, M + dy + 0.5);
     }
-    for (const y of [9, 19, 30]) {
-      if (front[y] >= 0) spawnUnit(state, 'mg', team, front[y] + 0.5, y + 0.5);
+    for (const dy of [-11, -1, 10]) {
+      if (front[M + dy] >= 0) spawnUnit(state, 'mg', team, front[M + dy] + 0.5, M + dy + 0.5);
     }
     // Support line reserves and batteries.
-    const fx = front[20];
-    const support = nearestTrenchInRow(map, team, fx - dir * 6, 20);
-    spawnUnit(state, 'rifle', team, support + 0.5, 18.5);
-    spawnUnit(state, 'rifle', team, support + 0.5, 22.5);
-    spawnUnit(state, 'artillery', team, fx - dir * 8 + 0.5, 13.5);
-    spawnUnit(state, 'artillery', team, fx - dir * 8 + 0.5, 26.5);
+    const fx = front[M];
+    const support = nearestTrenchInRow(map, team, fx - dir * 6, M);
+    spawnUnit(state, 'rifle', team, support + 0.5, M - 1.5);
+    spawnUnit(state, 'rifle', team, support + 0.5, M + 2.5);
+    spawnUnit(state, 'artillery', team, fx - dir * 8 + 0.5, M - 6.5);
+    spawnUnit(state, 'artillery', team, fx - dir * 8 + 0.5, M + 6.5);
   }
 }
 
@@ -147,8 +148,7 @@ export function orderMove(state, units, tx, ty, kind = 'move') {
     const rowCount = Math.min(perRow, n - row * perRow);
     let x = tx - row * teamDir(u.team) * 1.0;
     let y = ty + (col - (rowCount - 1) / 2) * 1.25;
-    x = clamp(x, 0.3, map.w - 0.3);
-    y = clamp(y, 0.3, map.h - 0.3);
+    ({ x, y } = clampToMap(x, y));
     if (wantTrench && n > 1) ({ x, y } = snapToTrench(map, x, y));
     u.order = { kind, x, y };
     u.digSite = null;
@@ -370,6 +370,7 @@ function updateUnit(state, u, dt) {
       u.order = null;
     } else {
       u.x += (dx / d) * step; u.y += (dy / d) * step;
+      ({ x: u.x, y: u.y } = clampToMap(u.x, u.y));
       u.moving = true;
       u.hx = dx / d; u.hy = dy / d;
       u.roll += step;

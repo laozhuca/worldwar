@@ -1,6 +1,6 @@
 // Computer commander. Works for either team (used for the enemy, and for both in tests).
 import { PLAYER, UNIT_TYPES } from './config.js';
-import { tileAt, frontLine } from './map.js';
+import { tileAt, frontLine, clampToMap } from './map.js';
 import { buyUnit, orderMove, orderBarrage, placeBuild, teamDir } from './game.js';
 
 const rand = Math.random;
@@ -76,8 +76,10 @@ export function updateAI(state, ai, dt) {
     if (u.ai.role) continue;
     if (u.type === 'artillery') {
       u.ai.role = 'battery';
-      const y = 8 + ((batteryIdx++ * 11) % (map.h - 16));
-      orderMove(state, [u], frontX - dir * 8 + 0.5, y + 0.5);
+      // batteries spread along the line behind the front (the battlefield narrows towards the rear)
+      const y = map.h / 2 - 8 + ((batteryIdx++ * 7) % 17);
+      const p = clampToMap(frontX - dir * 8 + 0.5, y, 1.5);
+      orderMove(state, [u], p.x, p.y);
       continue;
     }
     let best = null, bd = Infinity;

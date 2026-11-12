@@ -1,5 +1,5 @@
 // Isometric (2:1, "45 degree") canvas renderer.
-import { TILE_W as TW, TILE_H as TH, MAP_W, MAP_H, PLAYER, ENEMY, UNIT_TYPES, SEASONS } from './config.js';
+import { TILE_W as TW, TILE_H as TH, MAP_W, MAP_H, MAP_R, PLAYER, ENEMY, UNIT_TYPES, SEASONS } from './config.js';
 import { tileAt, teamDir } from './map.js';
 import { canBuild } from './game.js';
 import { Atmosphere } from './atmosphere.js';
@@ -116,10 +116,14 @@ export class Renderer {
     this.ctx = canvas.getContext('2d');
     this.cam = { x: 0, y: 0, zoom: 1 };
     this.ground = document.createElement('canvas');
-    this.OX = (MAP_H * TW) / 2;
-    this.OY = TH * 2;
-    this.gw = ((MAP_W + MAP_H) * TW) / 2;
-    this.gh = ((MAP_W + MAP_H) * TH) / 2 + TH * 4;
+    // The battlefield is a diamond of radius MAP_R + 0.5 tiles around the map centre, a 2:1 rectangle on screen.
+    // The ground canvas covers exactly that rectangle (plus a margin above for tall props).
+    const RR = MAP_R + 0.5, C = MAP_W / 2;
+    this.view = { x0: -MAP_R * TW / 2, x1: MAP_R * TW / 2, y0: (2 * C - MAP_R) * TH / 2, y1: (2 * C + MAP_R) * TH / 2 };
+    this.OX = (RR * TW) / 2;
+    this.OY = TH * 2 - ((2 * C - RR) * TH) / 2;
+    this.gw = RR * TW;
+    this.gh = RR * TH + TH * 4;
     this.ground.width = Math.round(this.gw * GS);
     this.ground.height = Math.round(this.gh * GS);
     this.lastGround = -1e9;
@@ -155,12 +159,15 @@ export class Renderer {
     this.cam.x = p.x; this.cam.y = p.y;
     this.clampCam();
   }
+  /** Keep the view on the battlefield: never zoomed out past it, never scrolled off its edge. */
   clampCam() {
-    const minX = -this.OX, maxX = this.gw - this.OX;
-    const minY = 0, maxY = ((MAP_W + MAP_H) * TH) / 2;
-    this.cam.x = Math.max(minX, Math.min(maxX, this.cam.x));
-    this.cam.y = Math.max(minY, Math.min(maxY, this.cam.y));
-    this.cam.zoom = Math.max(0.45, Math.min(2.2, this.cam.zoom));
+    const V = this.view;
+    const minZoom = Math.max(0.3, this.vw / (V.x1 - V.x0), this.vh / (V.y1 - V.y0));
+    this.cam.zoom = Math.max(minZoom, Math.min(3, this.cam.zoom));
+    const hw = this.vw / 2 / this.cam.zoom, hh = this.vh / 2 / this.cam.zoom;
+    const fit = (v, a, b) => (a > b ? (a + b) / 2 : Math.max(a, Math.min(b, v)));
+    this.cam.x = fit(this.cam.x, V.x0 + hw, V.x1 - hw);
+    this.cam.y = fit(this.cam.y, V.y0 + hh, V.y1 - hh);
   }
 
   // ------------------------------------------------------------ ground layer
@@ -502,7 +509,8 @@ export class Renderer {
 
     g.setTransform(1, 0, 0, 1, this.OX, this.OY);
     g.save();
-    const c0 = iso(0, 0), c1 = iso(map.w, 0), c2 = iso(map.w, map.h), c3 = iso(0, map.h);
+    const C = map.w / 2, RR = MAP_R + 0.5;
+    const c0 = iso(C - RR, C), c1 = iso(C, C - RR), c2 = iso(C + RR, C), c3 = iso(C, C + RR);
     g.beginPath(); g.moveTo(c0.x, c0.y); g.lineTo(c1.x, c1.y); g.lineTo(c2.x, c2.y); g.lineTo(c3.x, c3.y); g.closePath();
     g.clip();
 

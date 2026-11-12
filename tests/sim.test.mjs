@@ -47,14 +47,18 @@ test('machine gun shreds infantry walking across the open', () => {
 test('digging a trench needs supplies and a working party', () => {
   const s = createGame({ aiTeams: [] });
   const sq = s.units.find((u) => u.team === PLAYER && u.type === 'rifle');
-  sq.x = 14.5; sq.y = 25.5; sq.order = null;
+  // between the support line and the front line, five rows above the middle
+  const M = Math.floor(s.map.h / 2), fx = frontLine(s.map, PLAYER)[M];
+  const bx = fx - 2.5, by = M - 4.5;
+  assert.equal(tileAt(s.map, bx, by).trench, 0);
+  sq.x = bx - 1; sq.y = by; sq.order = null;
   const sup0 = s.resources[PLAYER].supplies;
-  const r = placeBuild(s, PLAYER, 'trench', 15.5, 25.5);
+  const r = placeBuild(s, PLAYER, 'trench', bx, by);
   assert.ok(r.ok, r.reason);
   assert.equal(s.resources[PLAYER].supplies, sup0 - BUILD.trench.supplies);
   step(s, 12);
-  assert.equal(tileAt(s.map, 15.5, 25.5).trench, 1);
-  assert.equal(placeBuild(s, PLAYER, 'trench', 40.5, 20.5).ok, false, 'cannot build far from troops');
+  assert.equal(tileAt(s.map, bx, by).trench, 1);
+  assert.equal(placeBuild(s, PLAYER, 'trench', s.map.w / 2, M + 0.5).ok, false, 'cannot build far from troops');
 });
 
 test('recruiting costs resources; casualties are permanent (no squad refill)', () => {
@@ -87,6 +91,21 @@ test('AI vs AI: ten minutes of war runs without errors and things happen', () =>
   }
   assert.ok(s.stats.lost[0] + s.stats.lost[1] > 20, `casualties: ${s.stats.lost}`);
   console.log('casualties', s.stats.lost, 'winner', s.winner, 'time', s.time.toFixed(0), 'units', s.units.length);
+});
+
+test('the battlefield is a diamond: nothing exists or moves outside it', () => {
+  const s = createGame({ aiTeams: [PLAYER, ENEMY] });
+  const C = s.map.w / 2, R = (s.map.w - 1) / 2;
+  for (const t of s.map.tiles) {
+    if (t.off) assert.ok(!t.trench && !t.wire && !t.crater && !t.decor, `nothing at ${t.x},${t.y}`);
+  }
+  assert.equal(tileAt(s.map, 0.5, 0.5), null, 'corner of the grid is off the map');
+  const on = s.map.tiles.filter((t) => !t.off).length;
+  assert.ok(on > 2200 && on < 2500, `about as many tiles as before (${on})`);
+  for (let t = 0; t < 240; t += 0.1) {
+    update(s, 0.1);
+    for (const u of s.units) assert.ok(Math.abs(u.x - C) + Math.abs(u.y - C) <= R + 0.5, `unit ${u.type} inside: ${u.x.toFixed(1)},${u.y.toFixed(1)}`);
+  }
 });
 
 test('player can start on the east line', () => {
