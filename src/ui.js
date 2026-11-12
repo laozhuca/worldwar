@@ -463,7 +463,7 @@ export class UI {
       for (const u of this.playerUnits()) {
         if (u.pinned && !this.prevPinned.has(u.id)) {
           const p = this.r.mapToScreen(u.x, u.y, 8);
-          if (p.x > 0 && p.y > 40 && p.x < this.r.vw && p.y < this.r.vh - 150) this.voices.bark(u, this.state.nations[PLAYER], 'pinned');
+          if (p.x > 0 && p.y > 0 && p.x < this.r.vw && p.y < this.r.vh) this.voices.bark(u, this.state.nations[PLAYER], 'pinned');
         }
       }
       this.prevPinned = new Set(this.playerUnits().filter((u) => u.pinned).map((u) => u.id));

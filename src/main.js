@@ -89,20 +89,8 @@ nationButtons();
 fetch('assets/art/manifest.json').then((r) => r.json()).then((m) => { artKeys = m; nationButtons(); }).catch(() => {});
 ui.centerOnFront();
 window.addEventListener('resize', () => renderer.resize());
-// the map can be scrolled until its edges clear the top bar and the command panel, whatever their size
-function measureInsets() {
-  const top = document.getElementById('topbar').getBoundingClientRect().bottom;
-  const bottom = window.innerHeight - document.getElementById('bottom').getBoundingClientRect().top;
-  renderer.insets = { top: Math.max(0, top), bottom: Math.max(0, bottom) };
-  renderer.clampCam();
-}
-if (window.ResizeObserver) {
-  const ro = new ResizeObserver(measureInsets);
-  ro.observe(document.getElementById('topbar'));
-  ro.observe(document.getElementById('bottom'));
-}
-window.addEventListener('resize', measureInsets);
-measureInsets();
+// the map has its own area between the top bar and the command panel: follow its size as they change
+if (window.ResizeObserver) new ResizeObserver(() => { renderer.resize(); renderer.clampCam(); }).observe(canvas);
 window.worldwar = { app, renderer, ui }; // handy for debugging in the console
 
 document.querySelectorAll('[data-season]').forEach((b) => b.addEventListener('click', () => {

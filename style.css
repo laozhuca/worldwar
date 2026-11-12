@@ -227,3 +227,9 @@ button.big.back { background: #2b3038; }
   #overlay.menu-mode #menu-panel { width: min(250px, 34vw); padding: 8px 14px; }
   #overlay.menu-mode .menu-btns button.big { min-height: 30px; font-size: 13px; padding: 2px 10px; }
 }
+
+/* ---------- layout: the top bar and command panel are solid bands, the map fills the space between ---------- */
+#app { display: flex; flex-direction: column; }
+#topbar { position: relative; order: 0; flex: none; z-index: 2; background: linear-gradient(#1f2329, #181b20); }
+#view { position: relative; order: 1; flex: 1 1 auto; min-height: 0; height: auto; width: 100%; inset: auto; }
+#bottom { position: relative; order: 2; flex: none; z-index: 2; background: linear-gradient(#1c2026, #15181c); }

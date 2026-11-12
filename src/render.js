@@ -115,7 +115,7 @@ export class Renderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.cam = { x: 0, y: 0, zoom: 1 };
-    this.insets = { top: 0, bottom: 0 }; // screen strips covered by the top bar and the command panel
+    this.insets = { top: 0, bottom: 0 }; // screen strips covered by overlays (none: the panels sit beside the map)
     this.ground = document.createElement('canvas');
     // The battlefield is a diamond of radius MAP_R + 0.5 tiles around the map centre, a 2:1 rectangle on screen.
     // The ground canvas covers exactly that rectangle (plus a margin above for tall props).
