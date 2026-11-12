@@ -1,6 +1,6 @@
 // Core simulation. No DOM access here so it can run headless (tests, AI-vs-AI).
 import {
-  PLAYER, ENEMY, UNIT_TYPES, TRENCH_COVER, TRENCH_ARTY, BUILD, SUPPLY_INTERVAL, TRENCH_HIT, TRENCH_NEAR, TRENCH_TOUGH, trenchCover,
+  PLAYER, ENEMY, UNIT_TYPES, HQ_THREAT_RADIUS, TRENCH_COVER, TRENCH_ARTY, BUILD, SUPPLY_INTERVAL, TRENCH_HIT, TRENCH_NEAR, TRENCH_TOUGH, trenchCover,
   BASE_INCOME, CAPTURE_BONUS, START_RES, SUPPRESSION_DECAY, CHARGE_SPEED, MELEE_RANGE,
   WIRE_SLOW, BUILD_RADIUS_FRIENDLY, BUILD_RADIUS_ENEMY, DIG_RADIUS, DIG_RATE,
 } from './config.js';
@@ -183,9 +183,16 @@ function pay(res, cost) {
   res.men -= cost.men || 0; res.ammo -= cost.ammo || 0; res.supplies -= cost.supplies || 0;
 }
 
+/** Is an enemy unit close enough to this team's HQ to stop it raising new units? */
+export function hqThreatened(state, team) {
+  const q = state.map.hq[team];
+  return state.units.some((u) => u.team !== team && !u.dead && Math.hypot(u.x - q.x - 0.5, u.y - q.y - 0.5) <= HQ_THREAT_RADIUS);
+}
+
 export function buyUnit(state, team, type) {
   const t = UNIT_TYPES[type];
   const res = state.resources[team];
+  if (hqThreatened(state, team)) return 'HQ under attack, no recruiting';
   if (!canAfford(res, t.cost)) return 'Not enough resources';
   pay(res, t.cost);
   const hq = state.map.hq[team];

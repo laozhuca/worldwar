@@ -1,6 +1,6 @@
 // DOM HUD + mouse/keyboard input.
 import { PLAYER, UNIT_TYPES, BUILD, MAP_W, MAP_H } from './config.js';
-import { orderMove, orderBarrage, orderHalt, buyUnit, placeBuild, cancelBuild, territory, pushMessage } from './game.js';
+import { orderMove, orderBarrage, orderHalt, buyUnit, hqThreatened, placeBuild, cancelBuild, territory, pushMessage } from './game.js';
 import { frontLine, teamDir } from './map.js';
 
 const $ = (id) => document.getElementById(id);
@@ -484,9 +484,11 @@ export class UI {
     $('territory').textContent = terr.captured;
     $('casualties').textContent = `${s.stats.lost[0]} : ${s.stats.lost[1]}`;
 
+    const threatened = hqThreatened(s, PLAYER);
     for (const [type, t] of Object.entries(UNIT_TYPES)) {
       const b = document.querySelector(`[data-recruit="${type}"]`);
-      b.disabled = !(res.men >= t.cost.men && res.ammo >= t.cost.ammo && res.supplies >= t.cost.supplies);
+      b.disabled = threatened || !(res.men >= t.cost.men && res.ammo >= t.cost.ammo && res.supplies >= t.cost.supplies);
+      b.title = threatened ? 'Enemy troops are at our HQ: no new units can be raised until they are driven off' : t.desc;
     }
     for (const [type, t] of Object.entries(BUILD)) {
       document.querySelector(`[data-build="${type}"]`).disabled = res.supplies < t.supplies;

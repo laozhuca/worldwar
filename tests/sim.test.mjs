@@ -219,3 +219,20 @@ test('death cries: about a third of the men shot down, none of those killed by s
   }
   assert.equal(shelled, 0);
 });
+
+test('an HQ with enemy troops nearby cannot raise new units', async () => {
+  const { hqThreatened } = await import('../src/game.js');
+  const s = createGame({ aiTeams: [] });
+  s.resources[PLAYER] = { men: 999, ammo: 999, supplies: 999 };
+  assert.equal(typeof buyUnit(s, PLAYER, 'rifle'), 'object', 'recruits normally');
+  const raider = s.units.find((u) => u.team === ENEMY && u.type === 'rifle');
+  const q = s.map.hq[PLAYER];
+  raider.x = q.x + 0.5 + 4; raider.y = q.y + 0.5;
+  assert.ok(hqThreatened(s, PLAYER));
+  const before = s.units.length, men = s.resources[PLAYER].men;
+  assert.equal(typeof buyUnit(s, PLAYER, 'rifle'), 'string', 'refused');
+  assert.equal(s.units.length, before);
+  assert.equal(s.resources[PLAYER].men, men, 'nothing spent');
+  raider.x = q.x + 0.5 + 12;
+  assert.equal(typeof buyUnit(s, PLAYER, 'rifle'), 'object', 'recruits again once they are gone');
+});

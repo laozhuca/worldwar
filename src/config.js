@@ -98,6 +98,7 @@ export const BUILD = {
     desc: 'Lay barbed wire. Slows everyone who crosses it to a crawl.' },
 };
 
+export const HQ_THREAT_RADIUS = 6; // enemy troops this close to an HQ stop it raising new units
 export const BUILD_RADIUS_FRIENDLY = 5; // must be this close to a friendly unit
 export const BUILD_RADIUS_ENEMY = 4; // and no enemy this close
 export const DIG_RADIUS = 3.5;

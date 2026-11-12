@@ -24,7 +24,7 @@ as `file://`, because it uses ES modules.
 | System | What it does |
 |---|---|
 | **Supply convoys** | Every 20s you receive men, ammunition and supplies. Each captured enemy trench section increases the flow. |
-| **Men** | Recruit rifle squads, MG teams and field batteries. Squads are not refilled: casualties are permanent, so worn-down squads are replaced by new ones. |
+| **Men** | Recruit rifle squads, MG teams and field batteries at HQ (not while enemy troops are within 6 tiles of it). Squads are not refilled: casualties are permanent, so worn-down squads are replaced by new ones. |
 | **Ammunition** | Every rifle volley, MG burst and shell uses ammo. Without it fire drops to a trickle. |
 | **Supplies** | Recruiting, digging trenches, reinforcing trenches (levels 1–3), laying barbed wire. |
 | **Trenches** | Cut small-arms damage to 40% / 28% / 18% (by level), and shell damage less so. Shells slowly wreck them (sandbagged and concrete works resist longer): a wrecked section keeps only a quarter of its protection; damage shows on 3D-rendered damaged and wrecked versions of every trench tile (slumped walls, burst sandbags, missing boards, wreckage on the floor, a crater blown into the parapet, snow churned into the mud), until it is dug out again with **T** (Dig Trench on a damaged trench). |
