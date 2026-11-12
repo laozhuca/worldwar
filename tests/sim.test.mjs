@@ -203,14 +203,14 @@ test('death cries: about a third of the men shot down, none of those killed by s
   const sq = s.units.find((u) => u.team === PLAYER && u.type === 'rifle');
   let shot = 0, cries = 0;
   for (let i = 0; i < 300; i++) {
-    sq.hp = 1000; sq.men = 6; s.events.length = 0;
+    sq.hp = 60; sq.men = 6; sq.dead = false; s.events.length = 0;
     damageUnit(s, sq, 10, null, { x: sq.x + 5, y: sq.y, kind: 'rifle' });
     shot++; cries += s.events.filter((e) => e.type === 'death').length;
   }
   assert.ok(cries > shot * 0.22 && cries < shot * 0.45, `${cries} cries for ${shot} men shot`);
   let shelled = 0;
   for (let i = 0; i < 100; i++) {
-    sq.hp = 1000; sq.men = 6; s.events.length = 0;
+    sq.hp = 60; sq.men = 6; sq.dead = false; s.events.length = 0;
     damageUnit(s, sq, 10, { x: sq.x, y: sq.y, d: 0.5 });
     shelled += s.events.filter((e) => e.type === 'death').length;
   }
