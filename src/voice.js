@@ -264,6 +264,25 @@ export class Voices {
     return list.map((c) => ({ text: c.text, buf: this.decoded[c.file] })).filter((c) => c.buf instanceof AudioBuffer);
   }
 
+  /**
+   * A soldier of this army answers (the nation picker on the New game screen): one of its recorded
+   * select lines, decoded on demand. Needs the audio context (call after a click).
+   */
+  async speakFor(nation) {
+    const R = this.recordings && this.recordings[nation], ctx = this.sound && this.sound.ctx;
+    if (!R || !ctx || !this.on || !this.enabled) return;
+    const list = (R.select || []).concat(R.select_rifle || []);
+    if (!list.length) return;
+    const c = list[Math.floor(Math.random() * list.length)];
+    let buf = this.decoded[c.file];
+    if (!buf) {
+      buf = this.decoded[c.file] = fetch('assets/voice/' + c.file).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a))
+        .then((b) => { this.decoded[c.file] = b; return b; }).catch(() => { delete this.decoded[c.file]; return null; });
+    }
+    buf = await buf;
+    if (buf instanceof AudioBuffer) this.playClip(buf, { seed: Math.random() });
+  }
+
   playClip(buf, unit) {
     const S = this.sound, c = S && S.ctx;
     if (!c) return;

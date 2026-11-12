@@ -76,8 +76,10 @@ function nationButtons() {
   const myAlliance = app.side;
   if (NATIONS[app.nations[1]].alliance === myAlliance) app.nations[1] = Object.keys(NATIONS).find((k) => NATIONS[k].alliance !== myAlliance);
   const btn = (k, active, onClick) => { const b = document.createElement('button'); b.className = active ? 'active' : ''; b.innerHTML = `<img src="${portraitOf(k)}" alt=""><span>${NATIONS[k].name}</span>`; b.onclick = onClick; return b; };
-  mine.replaceChildren(...ofSide(myAlliance).map((k) => btn(k, k === app.nations[0], () => { app.nations[0] = k; nationButtons(); })));
-  foe.replaceChildren(...Object.keys(NATIONS).filter((k) => NATIONS[k].alliance !== myAlliance).map((k) => btn(k, k === app.nations[1], () => { app.nations[1] = k; nationButtons(); })));
+  // picking a nation: one of its soldiers answers, in his own language
+  const pickNation = (slot, k) => { app.nations[slot] = k; nationButtons(); sound.init(); voices.speakFor(k); };
+  mine.replaceChildren(...ofSide(myAlliance).map((k) => btn(k, k === app.nations[0], () => pickNation(0, k))));
+  foe.replaceChildren(...Object.keys(NATIONS).filter((k) => NATIONS[k].alliance !== myAlliance).map((k) => btn(k, k === app.nations[1], () => pickNation(1, k))));
 }
 const chosenStart = () => (app.start === 'random' ? (Math.random() < 0.5 ? 'west' : 'east') : app.start);
 document.querySelectorAll('[data-start]').forEach((b) => b.addEventListener('click', () => {
