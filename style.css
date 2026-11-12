@@ -191,3 +191,39 @@ button.big.back { background: #2b3038; }
 .credits td { padding: 4px 18px 4px 0; }
 #credits-panel, #exit-panel { max-width: 640px; }
 .menu-btns #btn-continue { text-align: center; background: #2f3a2c; }
+
+/* main menu: the photo card fills the screen behind a translucent menu on its right-hand side */
+#overlay.menu-mode { background: #0b0c0e url('assets/art/menu-background.webp') center / contain no-repeat; background-origin: content-box; padding: 3vh 3vw; }
+#overlay.menu-mode #menu-panel {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  right: calc(50% - min(94vw, 125vh) * 0.45); width: 340px; max-width: 92vw;
+  background: rgba(14, 15, 17, 0.72); border-color: rgba(201, 178, 122, 0.35);
+  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+}
+#overlay.menu-mode #menu-panel h1 { font-size: 26px; letter-spacing: 5px; }
+#overlay.menu-mode #menu-panel h1 span { display: block; font-size: 15px; margin-top: 2px; }
+#overlay.menu-mode #menu-panel .lead { font-size: 13px; }
+/* tall screens (portrait phones): the menu in the middle */
+@media (max-aspect-ratio: 1/1) {
+  #overlay.menu-mode #menu-panel { right: 50%; transform: translate(50%, -50%); }
+}
+@media (max-height: 500px) {
+  #overlay.menu-mode #menu-panel { padding: 10px 16px; }
+  #overlay.menu-mode #menu-panel .lead { display: none; }
+  #overlay.menu-mode .menu-btns { gap: 5px; }
+  #overlay.menu-mode .menu-btns button.big { padding: 4px 12px; font-size: 14px; }
+}
+@media (max-height: 500px) {
+  #overlay.menu-mode #menu-panel { width: min(300px, 40vw); right: calc(50% - min(94vw, 125vh) * 0.46); }
+  #overlay.menu-mode #menu-panel h1 { font-size: 20px; }
+  #overlay.menu-mode #menu-panel h1 span { font-size: 13px; }
+  #overlay.menu-mode .menu-btns button.big { min-height: 34px; font-size: 14px; }
+}
+@media (max-aspect-ratio: 1/1) {
+  #overlay.menu-mode { background-size: cover; background-position: 30% center; padding: 0; }
+  #overlay.menu-mode #menu-panel { width: min(340px, 86vw); background: rgba(14, 15, 17, 0.66); }
+}
+@media (max-height: 500px) and (min-aspect-ratio: 1/1) {
+  #overlay.menu-mode #menu-panel { width: min(250px, 34vw); padding: 8px 14px; }
+  #overlay.menu-mode .menu-btns button.big { min-height: 30px; font-size: 13px; padding: 2px 10px; }
+}

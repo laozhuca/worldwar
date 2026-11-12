@@ -345,6 +345,7 @@ let backTo = 'menu'; // where a panel's Back button goes: the main menu, or stra
 function showPanel(id, back = 'menu') {
   backTo = back;
   for (const p of PANELS) document.getElementById(p).classList.toggle('hidden', p !== id);
+  document.getElementById('overlay').classList.toggle('menu-mode', id === 'menu-panel');
   document.getElementById('overlay').classList.remove('hidden');
   app.paused = true;
   document.getElementById('btn-pause').textContent = '▶';
