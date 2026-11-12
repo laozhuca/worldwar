@@ -254,3 +254,148 @@ button.big.back { background: #2b3038; }
 .load-bar { height: 8px; background: #111; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; margin: 14px 0 8px; }
 .load-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #8a7444, var(--accent)); transition: width 0.25s; }
 #load-tip { font-size: 13px; min-height: 2.8em; margin: 10px 0 0; }
+
+/* ---------- New Campaign screen ---------- */
+#overlay.setup-mode {
+  background: linear-gradient(rgba(8, 9, 11, 0.55), rgba(8, 9, 11, 0.25) 30%, rgba(8, 9, 11, 0.35) 70%, rgba(8, 9, 11, 0.85)),
+    #0b0c0e url('assets/art/menu-background.webp') center / max(110vw, 147vh) auto no-repeat;
+  --gold: #c9a35e; --gold-hi: #f0d79a; --ally: #2e4a7a; --ally-hi: #4f73ad; --cent: #7a2a26; --cent-hi: #ad453b;
+}
+#setup-panel {
+  position: absolute; inset: 0; max-width: none; max-height: none; padding: 2.5vh 3vw 2vh; border: 0; border-radius: 0;
+  background: none; box-shadow: none; display: flex; flex-direction: column; align-items: center; overflow: auto;
+}
+.camp-title { display: flex; align-items: center; gap: 18px; width: min(760px, 90%); }
+.camp-title i { flex: 1; height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+.camp-title h1 {
+  margin: 0; font-size: clamp(26px, 4.4vh, 46px); letter-spacing: 4px; text-transform: uppercase; white-space: nowrap;
+  background: linear-gradient(#f5ead2, #b7a37e 55%, #8c7a5a); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.8));
+}
+.camp-armies { flex: 1; min-height: 0; width: 100%; display: grid; grid-template-columns: 1fr minmax(240px, 0.8fr) 1fr; align-items: center; gap: 2vw; margin-top: 1vh; }
+.army { display: flex; flex-direction: column; align-items: center; gap: 0.8vh; min-height: 0; }
+.ribbon {
+  min-width: 260px; padding: 8px 46px; font-size: clamp(16px, 2.6vh, 26px); letter-spacing: 2px; text-transform: uppercase; text-align: center;
+  color: #f2ead8; text-shadow: 0 2px 2px rgba(0, 0, 0, 0.7);
+  clip-path: polygon(0 0, 100% 0, 94% 50%, 100% 100%, 0 100%, 6% 50%);
+  border-top: 2px solid var(--gold); border-bottom: 2px solid var(--gold);
+}
+.ribbon.allied { background: linear-gradient(var(--ally-hi), var(--ally) 60%, #1d2f4f); }
+.ribbon.central { background: linear-gradient(var(--cent-hi), var(--cent) 60%, #4a1714); }
+.ribbon.unknown { background: linear-gradient(#55595f, #2c2f33); }
+.you-mark { color: var(--gold-hi); font-size: 13px; letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 8px rgba(240, 200, 120, 0.7); }
+.you-mark.enemy { color: #b9a9a4; text-shadow: none; }
+.fig { display: flex; align-items: center; gap: 1.5vw; min-height: 0; }
+.fig-img { position: relative; height: clamp(180px, 40vh, 430px); aspect-ratio: 0.55; display: flex; align-items: flex-end; justify-content: center; }
+.fig-img::after { /* a pool of shadow under his boots */
+  content: ''; position: absolute; left: 10%; right: 10%; bottom: -6px; height: 18px; border-radius: 50%;
+  background: radial-gradient(rgba(0, 0, 0, 0.7), transparent 70%);
+}
+.fig-img img { position: relative; z-index: 1; max-height: 100%; max-width: 100%; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.7)); }
+.fig-img .q { display: none; position: absolute; z-index: 2; inset: 0; align-items: center; justify-content: center; font-size: 90px; color: var(--gold-hi); text-shadow: 0 0 20px #000; }
+.army.random .fig-img img { filter: brightness(0) drop-shadow(0 0 2px rgba(240, 215, 154, 0.6)); opacity: 0.85; }
+.army.random .fig-img .q { display: flex; }
+.army.random .cycle { visibility: hidden; }
+.cycle {
+  width: 46px; height: 58px; padding: 0; border: 0; cursor: pointer; flex: none;
+  background: linear-gradient(135deg, #f4ead2, #a99573 45%, #5c5040 55%, #c8b68f); filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.8));
+}
+.cycle.left { clip-path: polygon(100% 0, 0 50%, 100% 100%, 78% 50%); }
+.cycle.right { clip-path: polygon(0 0, 100% 50%, 0 100%, 22% 50%); }
+.cycle:hover { background: linear-gradient(135deg, #fff8e6, #d8c08d 45%, #8a7350 55%, #ecd9a8); }
+.plate {
+  min-width: 230px; padding: 7px 34px; text-align: center; font-size: clamp(14px, 2.1vh, 20px); letter-spacing: 2px; text-transform: uppercase; color: #ece3cf;
+  background: linear-gradient(#2a2c30, #141518); border-top: 1px solid var(--gold); border-bottom: 1px solid var(--gold);
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0 50%);
+}
+.camp-centre { display: flex; flex-direction: column; align-items: center; gap: 1vh; }
+#front-map { width: min(300px, 100%); filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.7)); }
+#front-map .fm-half { cursor: pointer; transition: opacity 0.2s; opacity: 0.55; }
+#front-map .fm-half.allied { fill: var(--ally-hi); }
+#front-map .fm-half.central { fill: var(--cent-hi); }
+#front-map .fm-half.unknown { fill: #55595f; }
+#front-map.start-west #fm-west, #front-map.start-east #fm-east, #front-map.start-random .fm-half { opacity: 0.9; }
+#front-map .fm-half:hover { opacity: 1; }
+#front-map .fm-line { fill: none; stroke: #f1e6cc; stroke-width: 2; stroke-dasharray: 5 4; }
+#front-map .fm-frame { fill: none; stroke: var(--gold); stroke-width: 2; }
+#front-map text { font: bold 13px Georgia, serif; letter-spacing: 2px; fill: #fff6df; paint-order: stroke; stroke: rgba(0, 0, 0, 0.7); stroke-width: 3px; pointer-events: none; text-anchor: middle; }
+#front-map .fm-hq { font-size: 9px; fill: #d9cfb8; }
+#fm-you-w, #fm-you-e { display: none; }
+#front-map.start-west #fm-you-w, #front-map.start-east #fm-you-e { display: block; }
+.start-seg { display: flex; }
+.start-seg button { border-radius: 0; padding: 4px 10px; font-size: 12px; background: rgba(20, 21, 24, 0.85); border-color: #5a5040; }
+.start-seg button:first-child { border-radius: 4px 0 0 4px; } .start-seg button:last-child { border-radius: 0 4px 4px 0; }
+.start-seg button.active { background: #4f4a36; border-color: var(--gold); }
+.swap {
+  width: 120px; height: 52px; border-radius: 26px; padding: 0; font-size: 34px; line-height: 1; color: #f3e6c4; cursor: pointer;
+  background: radial-gradient(ellipse at 50% 35%, #6a5a42, #2a241b); border: 2px solid var(--gold);
+  box-shadow: inset 0 2px 4px rgba(255, 240, 200, 0.25), 0 4px 10px rgba(0, 0, 0, 0.7);
+}
+.swap:hover { border-color: var(--gold-hi); background: radial-gradient(ellipse at 50% 35%, #826d4e, #322a1f); }
+.swap:disabled { opacity: 0.35; }
+.swap-label { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: #e8dcc0; text-shadow: 0 2px 3px #000; }
+.rand-side { font-size: 12px; background: rgba(20, 21, 24, 0.85); border-color: #5a5040; }
+.rand-side.active { background: #4f4a36; border-color: var(--gold); }
+.camp-weather { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 1.5vh; }
+.weather-label { display: flex; align-items: center; width: min(820px, 92vw); gap: 14px; }
+.weather-label::before, .weather-label::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+.weather-label span { padding: 4px 26px; border: 1px solid var(--gold); background: rgba(16, 17, 20, 0.85); letter-spacing: 3px; text-transform: uppercase; font-size: 15px; color: #efe5cc; clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%); }
+#setup-panel #season-btns { display: flex; gap: 14px; }
+#setup-panel #season-btns button {
+  width: clamp(130px, 15vw, 230px); min-width: 0; padding: 0; overflow: hidden; display: flex; flex-direction: column; text-align: center;
+  background: #121316; border: 2px solid #5a5040; border-radius: 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+#setup-panel #season-btns button img { width: 100%; aspect-ratio: 1.73; object-fit: cover; display: block; filter: saturate(0.9); }
+#setup-panel #season-btns button span { padding: 6px 4px; letter-spacing: 2px; text-transform: uppercase; font-size: 14px; color: #ece3cf; background: linear-gradient(#1e1f23, #111214); }
+#setup-panel #season-btns button.active { border-color: var(--gold-hi); box-shadow: 0 0 0 1px var(--gold), 0 0 18px rgba(240, 200, 120, 0.55); }
+#setup-panel #season-btns button:not(.active) img { filter: saturate(0.7) brightness(0.75); }
+.camp-back, .camp-start { position: absolute; bottom: 2.5vh; }
+.camp-back { left: 3vw; padding: 8px 18px; background: rgba(16, 17, 20, 0.85); border: 1px solid #5a5040; letter-spacing: 2px; text-transform: uppercase; }
+.camp-start {
+  right: 3vw; padding: 12px 34px; font-size: clamp(16px, 2.4vh, 24px); letter-spacing: 2px; text-transform: uppercase; color: #f6ead0;
+  background: linear-gradient(#6b583b, #3d3122); border: 2px solid var(--gold);
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0 50%);
+}
+.camp-start b { color: var(--gold-hi); margin-left: 6px; }
+.camp-start:hover { background: linear-gradient(#836b47, #4c3d29); }
+/* small screens: everything compact; the page scrolls rather than overlapping */
+@media (max-width: 860px), (max-height: 600px) {
+  #setup-panel { padding: 8px 10px 12px; }
+  .camp-title h1 { font-size: 20px; }
+  .camp-armies { flex: none; grid-template-columns: 1fr minmax(150px, 0.8fr) 1fr; gap: 6px; margin-top: 4px; }
+  .army { gap: 3px; }
+  .ribbon { min-width: 0; padding: 4px 22px; font-size: 13px; }
+  .you-mark { font-size: 10px; }
+  .fig { gap: 4px; }
+  .fig-img { height: clamp(110px, 34vh, 200px); }
+  .fig-img .q { font-size: 48px; }
+  .cycle { width: 24px; height: 32px; }
+  .plate { min-width: 0; padding: 4px 18px; font-size: 12px; }
+  .camp-centre { gap: 4px; }
+  #front-map { width: 150px; }
+  .start-seg button { padding: 2px 6px; font-size: 11px; min-height: 0; }
+  .swap { width: 76px; height: 34px; font-size: 22px; }
+  .swap-label { font-size: 10px; }
+  .rand-side { font-size: 11px; padding: 2px 8px; min-height: 0; }
+  .camp-weather { margin-top: 6px; gap: 4px; }
+  .weather-label span { font-size: 11px; padding: 2px 16px; }
+  #setup-panel #season-btns { gap: 6px; }
+  #setup-panel #season-btns button { width: clamp(90px, 22vw, 150px); }
+  #setup-panel #season-btns button span { font-size: 11px; padding: 3px; }
+  .camp-back, .camp-start { position: static; margin-top: 8px; }
+  .camp-start { padding: 8px 26px; font-size: 15px; }
+  #setup-panel { justify-content: flex-start; }
+  .camp-foot { display: flex; gap: 12px; align-items: center; }
+}
+/* portrait phones: the armies side by side, the map and swap below */
+@media (max-width: 600px) {
+  .camp-armies { grid-template-columns: 1fr 1fr; grid-template-areas: 'mine foe' 'centre centre'; }
+  #army-mine { grid-area: mine; } #army-foe { grid-area: foe; } .camp-centre { grid-area: centre; }
+}
+.camp-foot { display: contents; }
+@media (max-width: 860px), (max-height: 600px) { .camp-foot { display: flex; } }
+@media (max-height: 600px) and (min-width: 601px) {
+  #setup-panel #season-btns button { width: clamp(80px, 13vw, 130px); }
+  .fig-img { height: clamp(100px, 30vh, 180px); }
+  #front-map { width: 130px; }
+}

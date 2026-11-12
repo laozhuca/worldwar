@@ -65,28 +65,64 @@ function chosenNations() {
 function announce(state) {
   if (!state.messages.some((m) => m.kind === 'side')) pushMessage(state, `You command the army of ${NATIONS[state.nations[0]].name}, starting in the ${state.start === 'east' ? 'lower right' : 'upper left'}, against ${NATIONS[state.nations[1]].name}.`, 'side');
 }
-function nationButtons() {
-  const mine = document.getElementById('nation-btns'), foe = document.getElementById('enemy-btns');
+/** The New Campaign screen: our army on the left, the enemy on the right, cycled with the arrows. */
+const ALLIANCE = { allied: 'Allies', central: 'Central Powers' };
+let fixedSide = 'allied'; // the side shown while "Random side" is off
+function renderSetup() {
   const random = app.side === 'random';
-  document.querySelectorAll('[data-side]').forEach((x) => x.classList.toggle('active', x.dataset.side === app.side));
-  document.getElementById('nation-lists').classList.toggle('hidden', random);
-  document.getElementById('random-note').classList.toggle('hidden', !random);
-  if (random) return;
-  if (NATIONS[app.nations[0]].alliance !== app.side) app.nations[0] = ofSide(app.side)[0];
-  const myAlliance = app.side;
-  if (NATIONS[app.nations[1]].alliance === myAlliance) app.nations[1] = Object.keys(NATIONS).find((k) => NATIONS[k].alliance !== myAlliance);
-  const btn = (k, active, onClick) => { const b = document.createElement('button'); b.className = active ? 'active' : ''; b.innerHTML = `<img src="${portraitOf(k)}" alt=""><span>${NATIONS[k].name}</span>`; b.onclick = onClick; return b; };
-  // picking a nation: one of its soldiers answers, in his own language
-  const pickNation = (slot, k) => { app.nations[slot] = k; nationButtons(); sound.init(); voices.speakFor(k); };
-  mine.replaceChildren(...ofSide(myAlliance).map((k) => btn(k, k === app.nations[0], () => pickNation(0, k))));
-  foe.replaceChildren(...Object.keys(NATIONS).filter((k) => NATIONS[k].alliance !== myAlliance).map((k) => btn(k, k === app.nations[1], () => pickNation(1, k))));
+  if (!random) fixedSide = app.side;
+  const mySide = random ? null : app.side, foeSide = mySide === 'allied' ? 'central' : 'allied';
+  if (!random) {
+    if (NATIONS[app.nations[0]].alliance !== mySide) app.nations[0] = ofSide(mySide)[0];
+    if (NATIONS[app.nations[1]].alliance !== foeSide) app.nations[1] = ofSide(foeSide)[0];
+  }
+  const show = (slot, side) => {
+    const key = slot ? 'foe' : 'mine', n = app.nations[slot];
+    const ribbon = document.getElementById('ribbon-' + key);
+    ribbon.textContent = random ? '?' : ALLIANCE[side];
+    ribbon.className = 'ribbon ' + (random ? 'unknown' : side);
+    document.getElementById('plate-' + key).textContent = random ? 'Drawn at random' : NATIONS[n].name;
+    const img = document.getElementById('fig-' + key);
+    if (!random && img.getAttribute('src') !== portraitOf(n)) img.setAttribute('src', portraitOf(n));
+    document.getElementById('army-' + key).classList.toggle('random', random);
+  };
+  show(0, mySide); show(1, foeSide);
+  document.getElementById('btn-random-side').classList.toggle('active', random);
+  document.getElementById('btn-swap').disabled = random;
+  // the front map: our half in our colour, the enemy's in theirs, the starting half marked
+  const west = app.start === 'east' ? foeSide : mySide, east = app.start === 'east' ? mySide : foeSide;
+  const fm = document.getElementById('front-map');
+  fm.setAttribute('class', `start-${app.start}${random ? ' random' : ''}`);
+  document.getElementById('fm-west').setAttribute('class', 'fm-half ' + (random ? 'unknown' : west));
+  document.getElementById('fm-east').setAttribute('class', 'fm-half ' + (random ? 'unknown' : east));
 }
+const nationButtons = renderSetup;
+/** An arrow beside a soldier: the next / previous nation of that side; one of its soldiers answers. */
+document.querySelectorAll('[data-cycle]').forEach((b) => b.addEventListener('click', () => {
+  if (app.side === 'random') return;
+  const slot = +b.dataset.cycle, side = slot ? (app.side === 'allied' ? 'central' : 'allied') : app.side;
+  const list = ofSide(side), i = list.indexOf(app.nations[slot]);
+  app.nations[slot] = list[(i + +b.dataset.d + list.length) % list.length];
+  renderSetup();
+  sound.init(); voices.speakFor(app.nations[slot]);
+}));
+document.getElementById('btn-swap').addEventListener('click', () => {
+  if (app.side === 'random') return;
+  app.side = app.side === 'allied' ? 'central' : 'allied';
+  app.nations = [app.nations[1], app.nations[0]];
+  renderSetup();
+  sound.init(); voices.speakFor(app.nations[0]);
+});
+document.getElementById('btn-random-side').addEventListener('click', () => { app.side = app.side === 'random' ? fixedSide : 'random'; renderSetup(); });
+// clicking a half of the front map picks where we start
+document.getElementById('fm-west').addEventListener('click', () => document.querySelector('[data-start="west"]').click());
+document.getElementById('fm-east').addEventListener('click', () => document.querySelector('[data-start="east"]').click());
 const chosenStart = () => (app.start === 'random' ? (Math.random() < 0.5 ? 'west' : 'east') : app.start);
 document.querySelectorAll('[data-start]').forEach((b) => b.addEventListener('click', () => {
   app.start = b.dataset.start;
   document.querySelectorAll('[data-start]').forEach((x) => x.classList.toggle('active', x === b));
+  renderSetup();
 }));
-document.querySelectorAll('[data-side]').forEach((b) => b.addEventListener('click', () => { app.side = b.dataset.side; nationButtons(); }));
 nationButtons();
 fetch('assets/art/manifest.json').then((r) => r.json()).then((m) => { artKeys = m; nationButtons(); }).catch(() => {});
 ui.centerOnFront();
@@ -347,6 +383,7 @@ function showPanel(id, back = 'menu') {
   for (const p of PANELS) document.getElementById(p).classList.toggle('hidden', p !== id);
   document.getElementById('overlay').classList.toggle('menu-mode', id === 'menu-panel');
   document.getElementById('overlay').classList.toggle('loading-mode', id === 'loading-panel');
+  document.getElementById('overlay').classList.toggle('setup-mode', id === 'setup-panel');
   document.getElementById('overlay').classList.remove('hidden');
   app.paused = true;
   document.getElementById('btn-pause').textContent = '▶';

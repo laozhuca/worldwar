@@ -82,41 +82,61 @@
         </div>
       </div>
       <div class="panel hidden" id="setup-panel">
-        <h1>New battle</h1>
-        <div class="nation-pick">
-          <h3>Your side</h3>
-          <div id="side-btns" class="side-row">
-            <button data-side="allied" class="active">Allies<small>Britain · France · USA · Italy · Russia</small></button>
-            <button data-side="central">Central Powers<small>Germany · Austria-Hungary · Ottoman Empire</small></button>
-            <button data-side="random">🎲 Random<small>Side and nations drawn when the battle starts</small></button>
+        <div class="camp-title"><i></i><h1>New Campaign</h1><i></i></div>
+        <div class="camp-armies">
+          <div class="army" id="army-mine">
+            <div class="ribbon" id="ribbon-mine">Allies</div>
+            <div class="you-mark">▼ You</div>
+            <div class="fig">
+              <button class="cycle left" data-cycle="0" data-d="-1" title="Previous nation"></button>
+              <div class="fig-img"><img id="fig-mine" alt=""><b class="q">?</b></div>
+              <button class="cycle right" data-cycle="0" data-d="1" title="Next nation"></button>
+            </div>
+            <div class="plate" id="plate-mine">Britain</div>
           </div>
-          <div id="random-note" class="muted hidden">You will be assigned a side and nation at random. Restarting draws again.</div>
-          <div id="nation-lists">
-          <h3>Your nation</h3>
-          <div id="nation-btns" class="nation-row"></div>
-          <h3>The enemy</h3>
-          <div id="enemy-btns" class="nation-row"></div>
+          <div class="camp-centre">
+            <svg id="front-map" viewBox="0 0 240 130" aria-label="Starting position: click a half of the front">
+              <defs><clipPath id="fm-clip"><rect x="2" y="2" width="236" height="126" rx="10"/></clipPath></defs>
+              <g clip-path="url(#fm-clip)">
+                <path id="fm-west" d="M0 0 H150 L136 18 L146 34 L124 52 L132 70 L108 86 L114 104 L88 130 H0 Z"/>
+                <path id="fm-east" d="M150 0 H240 V130 H88 L114 104 L108 86 L132 70 L124 52 L146 34 L136 18 Z"/>
+                <path class="fm-line" d="M150 0 L136 18 L146 34 L124 52 L132 70 L108 86 L114 104 L88 130"/>
+              </g>
+              <rect class="fm-frame" x="2" y="2" width="236" height="126" rx="10"/>
+              <text id="fm-you-w" x="58" y="58">YOU</text><text id="fm-you-e" x="182" y="88">YOU</text>
+              <text class="fm-hq" x="22" y="26">HQ</text><text class="fm-hq" x="200" y="118">HQ</text>
+            </svg>
+            <div id="start-btns" class="start-seg">
+              <button data-start="west" class="active" title="Start in the upper left">↖ Upper left</button>
+              <button data-start="east" title="Start in the lower right">↘ Lower right</button>
+              <button data-start="random" title="Random starting position">🎲</button>
+            </div>
+            <button id="btn-swap" class="swap" title="Swap sides"><span>⇄</span></button>
+            <div class="swap-label">Swap sides</div>
+            <button id="btn-random-side" class="rand-side" title="Side and nations drawn when the battle starts">🎲 Random side</button>
+          </div>
+          <div class="army" id="army-foe">
+            <div class="ribbon" id="ribbon-foe">Central Powers</div>
+            <div class="you-mark enemy">Enemy</div>
+            <div class="fig">
+              <button class="cycle left" data-cycle="1" data-d="-1" title="Previous nation"></button>
+              <div class="fig-img"><img id="fig-foe" alt=""><b class="q">?</b></div>
+              <button class="cycle right" data-cycle="1" data-d="1" title="Next nation"></button>
+            </div>
+            <div class="plate" id="plate-foe">Germany</div>
           </div>
         </div>
-        <div class="start-pick">
-          <h3>Starting position</h3>
-          <div id="start-btns" class="side-row">
-            <button data-start="west" class="active">↖ Upper left</button>
-            <button data-start="east">↘ Lower right</button>
-            <button data-start="random">🎲 Random</button>
-          </div>
-        </div>
-        <div class="season-pick">
-          <h3>Season</h3>
+        <div class="camp-weather">
+          <div class="weather-label"><span>Weather</span></div>
           <div id="season-btns">
-            <button data-season="winter" class="active">❄ Winter<small>Snow-covered fields, frozen shell holes</small></button>
-            <button data-season="thaw">🌨 Thaw<small>Patchy snow over churned mud</small></button>
-            <button data-season="mud">🌧 Mud<small>Black mud, flooded craters, passing rain showers</small></button>
+            <button data-season="winter" class="active" title="Snow-covered fields, frozen shell holes"><img src="assets/art/season-winter.webp" alt=""><span>❄ Winter</span></button>
+            <button data-season="thaw" title="Patchy snow over churned mud"><img src="assets/art/season-thaw.webp" alt=""><span>🌨 Thaw</span></button>
+            <button data-season="mud" title="Black mud, flooded craters, passing rain showers"><img src="assets/art/season-mud.webp" alt=""><span>🌧 Mud</span></button>
           </div>
         </div>
-        <div class="start-row">
-          <button id="btn-start" class="big">Go to the front</button>
-          <button class="big back" data-back>Back</button>
+        <div class="camp-foot">
+          <button class="camp-back" data-back>‹ Back</button>
+          <button id="btn-start" class="camp-start">Start campaign <b>»</b></button>
         </div>
       </div>
       <div class="panel hidden" id="help-panel">
