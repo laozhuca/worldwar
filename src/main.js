@@ -23,15 +23,11 @@ const app = {
     this.paused = !this.paused;
     document.getElementById('btn-pause').textContent = this.paused ? '▶' : '❚❚';
   },
+  started: false, // a battle is under way (begun from New game or loaded)
+  /** F1 / ?: the instructions over the battle, or back to the battle. */
   toggleHelp() {
-    const ov = document.getElementById('overlay');
-    const open = !this.overlayOpen();
-    ov.classList.toggle('hidden', !open);
-    document.getElementById('help-panel').classList.remove('hidden');
-    document.getElementById('end-panel').classList.add('hidden');
-    document.getElementById('save-panel').classList.add('hidden');
-    this.paused = open;
-    document.getElementById('btn-pause').textContent = this.paused ? '▶' : '❚❚';
+    if (this.overlayOpen()) { if (this.started && this.state.winner < 0) resumeBattle(); return; }
+    showPanel('help-panel', 'game');
   },
 };
 
@@ -105,17 +101,19 @@ document.getElementById('btn-start').addEventListener('click', () => {
   sound.startMusic();
   const sameNations = app.side !== 'random' && app.state.nations.join() === app.nations.join();
   const sameStart = app.start !== 'random' && app.state.start === app.start;
-  if ((app.state.season !== app.season || !sameNations || !sameStart) && app.state.time < 1) {
+  if (app.state.time >= 1 || app.state.season !== app.season || !sameNations || !sameStart) {
     app.state = createGame({ season: app.season, nations: chosenNations(), start: chosenStart() });
     useArmies(app.state);
     renderer.groundDrawn = false;
     ui.selected.clear();
+    ui.setMode(null);
     ui.centerOnFront();
+    endShown = false;
+    lastSave = 0;
   }
-  document.getElementById('overlay').classList.add('hidden');
+  app.started = true;
   announce(app.state);
-  app.paused = false;
-  document.getElementById('btn-pause').textContent = '❚❚';
+  resumeBattle();
 });
 document.getElementById('btn-restart').addEventListener('click', () => {
   app.state = createGame({ seed: Math.floor(Math.random() * 1e6), season: app.season, nations: chosenNations(), start: chosenStart() });
@@ -124,10 +122,11 @@ document.getElementById('btn-restart').addEventListener('click', () => {
   ui.setMode(null);
   renderer.groundDrawn = false;
   ui.centerOnFront();
-  document.getElementById('overlay').classList.add('hidden');
   announce(app.state);
-  app.paused = false;
   endShown = false;
+  lastSave = 0;
+  app.started = true;
+  resumeBattle();
 });
 const FILM = ['', 'sepia(0.55) contrast(1.08) saturate(0.85)', 'grayscale(1) contrast(1.15)'];
 let film = 0;
@@ -168,9 +167,8 @@ function showEnd(state) {
   document.getElementById('end-text').textContent =
     (won ? 'The enemy line has broken. ' : 'Our line has broken. ') +
     `Time in the line: ${mins}m ${secs}s. Our casualties: ${state.stats.lost[0]} men. Enemy casualties: ${state.stats.lost[1]} men.`;
-  document.getElementById('help-panel').classList.add('hidden');
-  document.getElementById('end-panel').classList.remove('hidden');
-  document.getElementById('overlay').classList.remove('hidden');
+  app.started = false;
+  showPanel('end-panel', 'menu');
 }
 
 let last = performance.now();
@@ -265,10 +263,9 @@ function loadGame(slot) {
   ui.centerOnFront();
   endShown = false;
   lastSave = state.time;
-  document.getElementById('overlay').classList.add('hidden');
+  app.started = true;
+  resumeBattle();
   pushMessage(state, slot === 'auto' ? 'Battle resumed' : `Battle loaded from slot ${slot}`, 'good');
-  app.paused = false;
-  document.getElementById('btn-pause').textContent = '❚❚';
 }
 const summary = (info) => {
   const [a, e] = info.nations.map((n) => (NATIONS[n] ? NATIONS[n].name : n));
@@ -281,7 +278,6 @@ const summary = (info) => {
 function showContinue() {
   const all = ['auto', ...SLOTS].map((k) => ({ k, info: infoOf(k) })).filter((x) => x.info);
   const b = document.getElementById('btn-continue');
-  document.getElementById('btn-load').classList.toggle('hidden', !all.length);
   b.classList.toggle('hidden', !all.length);
   if (!all.length) return;
   const newest = all.reduce((a, x) => (x.info.savedAt > a.info.savedAt ? x : a));
@@ -315,28 +311,70 @@ function showSlots() {
 }
 function openSlots(from) {
   panelFrom = from;
-  if (from === 'game') { app.paused = true; document.getElementById('btn-pause').textContent = '▶'; }
   showSlots();
-  for (const id of ['help-panel', 'end-panel']) document.getElementById(id).classList.add('hidden');
-  document.getElementById('save-panel').classList.remove('hidden');
-  document.getElementById('overlay').classList.remove('hidden');
+  showPanel('save-panel', from);
 }
-function closeSlots(resume) {
-  document.getElementById('save-panel').classList.add('hidden');
-  if (panelFrom === 'menu') { document.getElementById('help-panel').classList.remove('hidden'); return; }
-  document.getElementById('overlay').classList.add('hidden');
-  document.getElementById('help-panel').classList.remove('hidden');
-  if (resume || panelFrom === 'game') { app.paused = false; document.getElementById('btn-pause').textContent = '❚❚'; }
-}
+function closeSlots() { goBack(); }
 showContinue();
 document.getElementById('btn-continue').addEventListener('click', (e) => loadGame(e.currentTarget.dataset.slot));
 document.getElementById('btn-load').addEventListener('click', () => openSlots('menu'));
 document.getElementById('btn-save').addEventListener('click', () => {
-  if (!document.getElementById('save-panel').classList.contains('hidden')) closeSlots(true);
-  else if (app.overlayOpen()) openSlots('menu');
-  else openSlots('game');
+  if (!document.getElementById('save-panel').classList.contains('hidden')) closeSlots();
+  else openSlots(app.overlayOpen() ? 'menu' : 'game');
 });
-document.getElementById('btn-save-close').addEventListener('click', () => closeSlots(true));
+document.getElementById('btn-save-close').addEventListener('click', () => closeSlots());
+
+// ------------------------------------------------------------ menus
+const PANELS = ['menu-panel', 'setup-panel', 'help-panel', 'credits-panel', 'exit-panel', 'save-panel', 'end-panel'];
+let backTo = 'menu'; // where a panel's Back button goes: the main menu, or straight back to the battle
+/** Show one overlay panel (the battle pauses underneath). */
+function showPanel(id, back = 'menu') {
+  backTo = back;
+  for (const p of PANELS) document.getElementById(p).classList.toggle('hidden', p !== id);
+  document.getElementById('overlay').classList.remove('hidden');
+  app.paused = true;
+  document.getElementById('btn-pause').textContent = '▶';
+  if (id === 'menu-panel') {
+    const live = app.started && app.state.winner < 0;
+    document.getElementById('m-resume').classList.toggle('hidden', !live);
+    showContinue();
+    if (live) document.getElementById('btn-continue').classList.add('hidden'); // Resume is the way back in
+  }
+}
+function resumeBattle() {
+  document.getElementById('overlay').classList.add('hidden');
+  app.paused = false;
+  document.getElementById('btn-pause').textContent = '❚❚';
+}
+function goBack() {
+  if (backTo === 'game' && app.started && app.state.winner < 0) resumeBattle();
+  else showPanel('menu-panel');
+}
+document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', goBack));
+document.getElementById('m-resume').addEventListener('click', resumeBattle);
+document.getElementById('m-new').addEventListener('click', () => {
+  if (app.started && app.state.winner < 0) saveGame('auto'); // the battle being left stays in the automatic save
+  showPanel('setup-panel');
+});
+document.getElementById('m-help').addEventListener('click', () => showPanel('help-panel'));
+document.getElementById('m-credits').addEventListener('click', () => showPanel('credits-panel'));
+document.getElementById('btn-menu').addEventListener('click', () => {
+  if (app.overlayOpen() && !document.getElementById('menu-panel').classList.contains('hidden') && app.started) resumeBattle();
+  else showPanel('menu-panel');
+});
+document.getElementById('btn-end-menu').addEventListener('click', () => showPanel('menu-panel'));
+document.getElementById('m-exit').addEventListener('click', () => {
+  if (app.started && app.state.winner < 0) saveGame('auto'); // nothing is lost by leaving
+  app.started = false;
+  if (sound.ctx) sound.ctx.suspend(); // silence (the music preference is kept)
+  showPanel('exit-panel');
+  try { window.close(); } catch {} // only works when the game was opened by a script; otherwise this screen stays
+});
+document.getElementById('btn-exit-back').addEventListener('click', () => {
+  if (sound.ctx) sound.ctx.resume();
+  showPanel('menu-panel');
+});
+showPanel('menu-panel');
 // automatic save every minute of battle, and whenever the page is hidden or closed
 setInterval(() => { if (!app.paused && app.state.time - lastSave >= 60) saveGame('auto'); }, 5000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveGame('auto'); });

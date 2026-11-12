@@ -176,3 +176,18 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 .slot .si small { display: block; color: var(--muted); }
 .slot button { flex: none; }
 .slot button.danger:hover { border-color: var(--bad); }
+
+/* main menu */
+#menu-panel { text-align: center; max-width: 560px; }
+#menu-panel .lead { margin: 6px 0 18px; }
+.menu-btns { display: flex; flex-direction: column; gap: 9px; align-items: stretch; width: min(320px, 100%); margin: 0 auto; }
+.menu-btns button.big { margin: 0; text-align: center; }
+.menu-btns #btn-continue small { text-align: center; }
+#m-resume { background: #4f4a36; }
+.menu-btns button.big:not(#m-resume) { background: #2b3038; }
+.menu-btns button.big:hover { background: #39404a; }
+button.big.back { background: #2b3038; }
+.credits td:first-child { padding-right: 18px; }
+.credits td { padding: 4px 18px 4px 0; }
+#credits-panel, #exit-panel { max-width: 640px; }
+.menu-btns #btn-continue { text-align: center; background: #2f3a2c; }

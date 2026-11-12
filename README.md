@@ -44,6 +44,8 @@ as `file://`, because it uses ES modules.
 
 **Starting position**: start in the upper left or lower right of the map, or at random. Fortifications go with the army, not the position: your side always holds the lighter works with sally ports in its wire, the enemy the heavier ones.
 
+**Menus**: the game opens on the main menu: **New game** (choose side, nations, starting position and season), **Load game** (the saved-battles panel), **Instructions**, **Credits** and **Exit game** (saves the battle automatically and leaves the front; the tab can then be closed). During a battle, ☰ opens the menu with **Resume battle**; ? or F1 shows the instructions over the battle. When a save exists and no battle is running, the menu offers **Continue saved battle**. Starting a new game during a battle keeps that battle in the automatic save.
+
 **Saving**: 💾 opens the saved-battles panel: five save slots (save, overwrite, load, delete) plus an automatic save, made every minute of play and whenever you switch away from or close the page. The start screen offers **Continue saved battle** (the newest save) and **Load…** (the panel). A won or lost battle clears the automatic save; the slots stay until you delete them. Saves stay in this browser on this device.
 
 **Seasons**: Winter (snow, frozen shell holes), Thaw (patchy snow over mud) and Mud (rain, flooded craters), chosen on the start screen. Shellfire and digging churn the snow into black earth.
@@ -69,7 +71,8 @@ counter-attacks lost trenches, repairs its wire and launches its own offensives.
 | `1` `2` `3` | Recruit rifle squad / MG team / field battery |
 | `Q` | Select all rifle squads |
 | WASD, arrows, screen edges, middle-drag | Scroll; mouse wheel zooms (up to 3x) |
-| `Space` / `P` / `Esc` / `F1` | Jump to front / pause / cancel / help |
+| `Space` / `P` / `Esc` / `F1` | Jump to front / pause / cancel / instructions |
+| ☰ | Main menu (resume, new game, load, instructions, credits, exit) |
 
 **Touch screens** (phones and tablets):
 

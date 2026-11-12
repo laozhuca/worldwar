@@ -27,7 +27,8 @@
       <button id="btn-voice" title="Soldier voices on/off">🗣</button>
       <button id="btn-music" title="Music on/off">🎵</button>
       <button id="btn-sound" title="Sound on/off">🔊</button>
-      <button id="btn-help" title="How to play (F1)">?</button>
+      <button id="btn-help" title="Instructions (F1)">?</button>
+      <button id="btn-menu" title="Main menu">☰</button>
     </div>
 
     <div id="messages"></div>
@@ -67,9 +68,59 @@
     </div>
 
     <div id="overlay">
-      <div class="panel" id="help-panel">
+      <div class="panel menu" id="menu-panel">
         <h1>WORLDWAR <span>Trench Command</span></h1>
         <p class="lead">The Western Front, 1916. Between our lines and theirs lies no man's land: mud, craters and wire. Machine guns cover every metre of it. Take the enemy headquarters behind their lines, or break their army.</p>
+        <div class="menu-btns">
+          <button id="m-resume" class="big hidden">▶ Resume battle</button>
+          <button id="btn-continue" class="big hidden">Continue saved battle<small></small></button>
+          <button id="m-new" class="big">New game</button>
+          <button id="btn-load" class="big">Load game</button>
+          <button id="m-help" class="big">Instructions</button>
+          <button id="m-credits" class="big">Credits</button>
+          <button id="m-exit" class="big">Exit game</button>
+        </div>
+      </div>
+      <div class="panel hidden" id="setup-panel">
+        <h1>New battle</h1>
+        <div class="nation-pick">
+          <h3>Your side</h3>
+          <div id="side-btns" class="side-row">
+            <button data-side="allied" class="active">Allies<small>Britain · France · USA · Italy · Russia</small></button>
+            <button data-side="central">Central Powers<small>Germany · Austria-Hungary · Ottoman Empire</small></button>
+            <button data-side="random">🎲 Random<small>Side and nations drawn when the battle starts</small></button>
+          </div>
+          <div id="random-note" class="muted hidden">You will be assigned a side and nation at random. Restarting draws again.</div>
+          <div id="nation-lists">
+          <h3>Your nation</h3>
+          <div id="nation-btns" class="nation-row"></div>
+          <h3>The enemy</h3>
+          <div id="enemy-btns" class="nation-row"></div>
+          </div>
+        </div>
+        <div class="start-pick">
+          <h3>Starting position</h3>
+          <div id="start-btns" class="side-row">
+            <button data-start="west" class="active">↖ Upper left</button>
+            <button data-start="east">↘ Lower right</button>
+            <button data-start="random">🎲 Random</button>
+          </div>
+        </div>
+        <div class="season-pick">
+          <h3>Season</h3>
+          <div id="season-btns">
+            <button data-season="winter" class="active">❄ Winter<small>Snow-covered fields, frozen shell holes</small></button>
+            <button data-season="thaw">🌨 Thaw<small>Patchy snow over churned mud</small></button>
+            <button data-season="mud">🌧 Mud<small>Rain, black mud, flooded craters</small></button>
+          </div>
+        </div>
+        <div class="start-row">
+          <button id="btn-start" class="big">Go to the front</button>
+          <button class="big back" data-back>Back</button>
+        </div>
+      </div>
+      <div class="panel hidden" id="help-panel">
+        <h1>Instructions</h1>
         <div class="cols">
           <div>
             <h3>The war</h3>
@@ -120,53 +171,43 @@
             <p class="muted">Rifle squads dig works within a few tiles of where they stand. New troops gather at HQ.</p>
           </div>
         </div>
-        <div class="nation-pick">
-          <h3>Your side</h3>
-          <div id="side-btns" class="side-row">
-            <button data-side="allied" class="active">Allies<small>Britain · France · USA · Italy · Russia</small></button>
-            <button data-side="central">Central Powers<small>Germany · Austria-Hungary · Ottoman Empire</small></button>
-            <button data-side="random">🎲 Random<small>Side and nations drawn when the battle starts</small></button>
-          </div>
-          <div id="random-note" class="muted hidden">You will be assigned a side and nation at random. Restarting draws again.</div>
-          <div id="nation-lists">
-          <h3>Your nation</h3>
-          <div id="nation-btns" class="nation-row"></div>
-          <h3>The enemy</h3>
-          <div id="enemy-btns" class="nation-row"></div>
-          </div>
-        </div>
-        <div class="start-pick">
-          <h3>Starting position</h3>
-          <div id="start-btns" class="side-row">
-            <button data-start="west" class="active">↖ Upper left</button>
-            <button data-start="east">↘ Lower right</button>
-            <button data-start="random">🎲 Random</button>
-          </div>
-        </div>
-        <div class="season-pick">
-          <h3>Season</h3>
-          <div id="season-btns">
-            <button data-season="winter" class="active">❄ Winter<small>Snow-covered fields, frozen shell holes</small></button>
-            <button data-season="thaw">🌨 Thaw<small>Patchy snow over churned mud</small></button>
-            <button data-season="mud">🌧 Mud<small>Rain, black mud, flooded craters</small></button>
-          </div>
-        </div>
-        <div class="start-row">
-          <button id="btn-start" class="big">Go to the front</button>
-          <button id="btn-continue" class="big hidden">Continue saved battle<small></small></button>
-          <button id="btn-load" class="big hidden">Load…</button>
-        </div>
+        <button class="big back" data-back>Back</button>
+      </div>
+      <div class="panel hidden" id="credits-panel">
+        <h1>Credits</h1>
+        <table class="credits">
+          <tr><td>Created by</td><td>laozhuca</td></tr>
+          <tr><td>Programming</td><td>Built with Claude Code (Anthropic)</td></tr>
+          <tr><td>Artwork</td><td>Concept art, soldier portraits, machine gun, field gun, howitzer, trench and wire artwork supplied by the creator</td></tr>
+          <tr><td>3D sprites</td><td>Trenches, wire, trees, soldiers and guns rendered with the game's own offline ray-marching renderer, modelled on the supplied art</td></tr>
+          <tr><td>Shell impacts</td><td>Hand-drawn explosion frames supplied by the creator, colour-graded for the battlefield</td></tr>
+          <tr><td>Music</td><td>"Ombra di guerra"</td></tr>
+          <tr><td>Sound effects</td><td>Artillery, shell, rifle, machine-gun, whistle and battle-cry recordings supplied by the creator</td></tr>
+          <tr><td>Soldier voices</td><td>Synthesized voice recordings (fish.audio)</td></tr>
+          <tr><td>Technology</td><td>Plain JavaScript and HTML5 Canvas, no libraries</td></tr>
+        </table>
+        <p class="muted">In memory of all who served on every side of the Great War, 1914–1918.</p>
+        <button class="big back" data-back>Back</button>
+      </div>
+      <div class="panel hidden" id="exit-panel">
+        <h1>The front is quiet</h1>
+        <p class="lead">You have left the battle. Your battle was saved automatically; continue it from the menu any time.</p>
+        <p class="muted">You can close this tab now.</p>
+        <button class="big" id="btn-exit-back">Return to the menu</button>
       </div>
       <div class="panel hidden" id="save-panel">
         <h1>Saved battles</h1>
         <p class="muted" id="save-note">Five save slots, plus the automatic save (every minute, and when you leave the page). Saves stay in this browser on this device.</p>
         <div id="save-slots"></div>
-        <button id="btn-save-close" class="big">Back</button>
+        <button id="btn-save-close" class="big back">Back</button>
       </div>
       <div class="panel hidden" id="end-panel">
         <h1 id="end-title">Victory</h1>
         <p id="end-text"></p>
-        <button id="btn-restart" class="big">Fight again</button>
+        <div class="start-row">
+          <button id="btn-restart" class="big">Fight again</button>
+          <button class="big back" id="btn-end-menu">Main menu</button>
+        </div>
       </div>
     </div>
   </div>
