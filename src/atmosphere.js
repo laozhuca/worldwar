@@ -20,8 +20,11 @@ const TWILIGHT = [
   [2.4, [255, 222, 176], 0],
 ];
 
+// Battles begin in plain daylight, well clear of the dawn colours (which fade out by about 08:25).
+const START_HOUR = 9;
+
 export function hourOf(time) {
-  return (6.5 + (time / DAY_LENGTH) * 24) % 24;
+  return (START_HOUR + (time / DAY_LENGTH) * 24) % 24;
 }
 
 export class Atmosphere {
