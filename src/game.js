@@ -574,7 +574,8 @@ function fallen(state, u, blast, shooter) {
   }
   body.bleed = blast ? 1.6 : 1; // how big the pool of blood under him grows
   state.decals.push(body);
-  state.events.push({ type: 'death', x: x0, y: y0 }); // his cry (a random recording)
+  // a death cry for about a third of the men shot down; shell victims die without a sound of their own
+  if (!blast && rand() < 0.33) state.events.push({ type: 'death', x: x0, y: y0 });
   if (!blast) return;
   let ax = x0 - blast.x, ay = y0 - blast.y;
   const n = Math.hypot(ax, ay);
