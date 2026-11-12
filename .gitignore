@@ -5,3 +5,6 @@ __pycache__/
 .DS_Store
 dist/
 build/
+
+# raw supplied 3D models (about 15 MB each); the game uses the shrunk copies in assets/models
+art-src/models/*.glb

@@ -82,14 +82,14 @@
         </div>
       </div>
       <div class="panel hidden" id="setup-panel">
-        <div class="camp-title"><i></i><h1>New Campaign</h1><i></i></div>
+        <div class="camp-title"><i></i><h1>New Game</h1><i></i></div>
         <div class="camp-armies">
           <div class="army" id="army-mine">
             <div class="ribbon" id="ribbon-mine">Allies</div>
             <div class="you-mark">▼ You</div>
             <div class="fig">
               <button class="cycle left" data-cycle="0" data-d="-1" title="Previous nation"></button>
-              <div class="fig-img"><img id="fig-mine" alt=""><b class="q">?</b></div>
+              <div class="fig-img"><canvas id="model-mine" class="model"></canvas><img id="fig-mine" alt=""><b class="q">?</b></div>
               <button class="cycle right" data-cycle="0" data-d="1" title="Next nation"></button>
             </div>
             <div class="plate" id="plate-mine">Britain</div>
@@ -120,7 +120,7 @@
             <div class="you-mark enemy">Enemy</div>
             <div class="fig">
               <button class="cycle left" data-cycle="1" data-d="-1" title="Previous nation"></button>
-              <div class="fig-img"><img id="fig-foe" alt=""><b class="q">?</b></div>
+              <div class="fig-img"><canvas id="model-foe" class="model"></canvas><img id="fig-foe" alt=""><b class="q">?</b></div>
               <button class="cycle right" data-cycle="1" data-d="1" title="Next nation"></button>
             </div>
             <div class="plate" id="plate-foe">Germany</div>
@@ -136,7 +136,7 @@
         </div>
         <div class="camp-foot">
           <button class="camp-back" data-back>‹ Back</button>
-          <button id="btn-start" class="camp-start">Start campaign <b>»</b></button>
+          <button id="btn-start" class="camp-start">To the front <b>»</b></button>
         </div>
       </div>
       <div class="panel hidden" id="help-panel">

@@ -3,6 +3,7 @@ import { Renderer, iso } from './render.js';
 import { UI } from './ui.js';
 import { Voices } from './voice.js';
 import { serialize, deserialize, describe } from './save.js';
+import { ModelView } from './model-view.js';
 import { Sound } from './audio.js';
 import { PLAYER, NATIONS } from './config.js';
 import { hourOf } from './atmosphere.js';
@@ -84,6 +85,7 @@ function renderSetup() {
     document.getElementById('plate-' + key).textContent = random ? 'Drawn at random' : NATIONS[n].name;
     const img = document.getElementById('fig-' + key);
     if (!random && img.getAttribute('src') !== portraitOf(n)) img.setAttribute('src', portraitOf(n));
+    showModel(key, random ? null : n);
     document.getElementById('army-' + key).classList.toggle('random', random);
   };
   show(0, mySide); show(1, foeSide);
@@ -97,6 +99,20 @@ function renderSetup() {
   document.getElementById('fm-east').setAttribute('class', 'fm-half ' + (random ? 'unknown' : east));
 }
 const nationButtons = renderSetup;
+// 3D soldiers (assets/models/<nation>.glb) in place of the pictures where a model exists; they turn
+// while the pointer is over them. Without WebGL2 or a model, the picture stays.
+let modelList = {};
+const viewers = {};
+fetch('assets/models/manifest.json').then((r) => r.json()).then((m) => { modelList = m; renderSetup(); }).catch(() => {});
+function showModel(key, nation) {
+  const box = document.getElementById('fig-' + key).parentElement;
+  const file = nation && modelList[nation];
+  if (!file) { box.classList.remove('has-model'); return; }
+  try {
+    if (!viewers[key]) { viewers[key] = new ModelView(document.getElementById('model-' + key)); if (key === 'foe') viewers[key].rest = viewers[key].yaw = 0.45; } // the two face each other
+  } catch { return; }
+  viewers[key].show('assets/models/' + file).then((ok) => { if (ok) box.classList.add('has-model'); else if (!modelList[nation]) box.classList.remove('has-model'); });
+}
 /** An arrow beside a soldier: the next / previous nation of that side; one of its soldiers answers. */
 document.querySelectorAll('[data-cycle]').forEach((b) => b.addEventListener('click', () => {
   if (app.side === 'random') return;

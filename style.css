@@ -399,3 +399,11 @@ button.big.back { background: #2b3038; }
   .fig-img { height: clamp(100px, 30vh, 180px); }
   #front-map { width: 130px; }
 }
+
+/* 3D soldiers on the New Game screen */
+.fig-img canvas.model { position: absolute; z-index: 1; inset: -4% -18%; width: 136%; height: 108%; display: none; cursor: grab; }
+.fig-img.has-model canvas.model { display: block; }
+.fig-img.has-model img { visibility: hidden; }
+.army.random .fig-img canvas.model { display: none; }
+.army.random .fig-img.has-model img { visibility: visible; }
+.cycle { position: relative; z-index: 3; }
