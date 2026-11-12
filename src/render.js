@@ -1015,22 +1015,22 @@ export class Renderer {
     return this.drawFrame(ctx, 'soldiers-' + nat, `fall_v${b.fall.k ?? b.v}_d${b.dir}_f${f}`, x + jx, y, 1.35);
   }
 
-  /** Blood spreading under a body: starts as he goes down and grows for several seconds. */
+  /** Blood under a body: a small pool that spreads for a few seconds, red at first, soon dried brown. */
   drawBloodPool(ctx, b, age, alpha) {
     const start = b.fall ? b.fall.dur * 0.7 : 0.3;
-    const g = Math.min(1, Math.max(0, (age - start) / 9));
+    const g = Math.min(1, Math.max(0, (age - start) / 6));
     if (g <= 0) return;
-    const r = (b.bleed || 1) * (0.25 + 0.75 * Math.sqrt(g));
-    // centred on his chest: a little towards the head from the hips
-    const hd = ((b.dir ?? 0) * Math.PI) / 4;
+    const r = (b.bleed || 1) * (0.2 + 0.5 * Math.sqrt(g));
+    const hd = ((b.dir ?? 0) * Math.PI) / 4; // centred on his chest: a little towards the head
     const c = iso(b.x + Math.cos(hd) * 0.22, b.y + Math.sin(hd) * 0.22);
     const sh = hash(b.x * 3.1, b.y * 7.7);
+    const col = bloodColour(age - start);
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = 'rgba(62, 10, 9, 0.5)';
-    ctx.beginPath(); ctx.ellipse(c.x, c.y, 11 * r, 5 * r, (sh - 0.5) * 0.8, 0, TAU); ctx.fill();
-    ctx.fillStyle = 'rgba(48, 6, 6, 0.55)';
-    ctx.beginPath(); ctx.ellipse(c.x + (sh - 0.5) * 6 * r, c.y + 1, 7 * r, 3.2 * r, (0.5 - sh) * 0.6, 0, TAU); ctx.fill();
+    ctx.fillStyle = `rgba(${col}, 0.38)`;
+    ctx.beginPath(); ctx.ellipse(c.x, c.y, 10 * r, 4.5 * r, (sh - 0.5) * 0.8, 0, TAU); ctx.fill();
+    ctx.fillStyle = `rgba(${col}, 0.42)`;
+    ctx.beginPath(); ctx.ellipse(c.x + (sh - 0.5) * 5 * r, c.y + 1, 5.5 * r, 2.5 * r, (0.5 - sh) * 0.6, 0, TAU); ctx.fill();
     ctx.restore();
   }
 
@@ -1678,7 +1678,7 @@ export class Renderer {
             ctx.fillStyle = `rgba(120, 14, 12, ${0.9 * (1 - k * 0.5)})`;
             ctx.fillRect(gx - q.s / 2, gy - zz - q.s / 2, q.s, q.s);
           } else {
-            ctx.fillStyle = `rgba(70, 8, 8, ${0.7 * (1 - k)})`;
+            ctx.fillStyle = `rgba(${bloodColour(tt - 0.25)}, ${0.7 * (1 - k)})`;
             ctx.fillRect(gx - q.s * 0.7, gy - q.s * 0.35, q.s * 1.4, q.s * 0.7);
           }
         }
@@ -1840,6 +1840,14 @@ export class Renderer {
     if (!m) return null;
     return { x: (mx - m.ox) / m.s - this.OX, y: (my - m.oy) / m.s - this.OY };
   }
+}
+
+/** Blood colour (r,g,b) by age in seconds: bright red when fresh, dark brown within about 2.5 s. */
+function bloodColour(age) {
+  const k = Math.min(1, Math.max(0, age / 2.5));
+  const e = 1 - (1 - k) * (1 - k); // fast at first
+  const mixc = (a, b) => Math.round(a + (b - a) * e);
+  return `${mixc(105, 52)}, ${mixc(14, 36)}, ${mixc(12, 24)}`;
 }
 
 function isTileSeen(state, t) {

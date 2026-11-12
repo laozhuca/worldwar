@@ -156,7 +156,7 @@ export function corpse(variant) {
       ];
       J.hL = [0.35, 0.55, 0.06]; J.hR = [0.75, -0.45, 0.06];
       J.rifle = { butt: [0.1, -0.6, 0.04], muzzle: [1.15, -0.85, 0.04], bayonet: false };
-      J.pool = [[0.3, 0, 0.45, 0.3]];
+      J.pool = [[0.3, 0, 0.28, 0.19]];
       if (CORPSES[variant] === 'noleg') { J.legs[1].cut = 'knee'; J.legs[0].knee = [-0.4, 0.3, 0.1]; J.pool = [[0.1, -0.05, 0.6, 0.38], [-0.55, -0.15, 0.3, 0.22]]; }
       if (CORPSES[variant] === 'nolegs') { J.legs[0].cut = 'thigh'; J.legs[1].cut = 'thigh'; J.rifle = null; J.pool = [[-0.15, 0, 0.62, 0.45], [0.35, 0.1, 0.4, 0.3]]; }
       break;
@@ -171,7 +171,7 @@ export function corpse(variant) {
       J.hL = [0.86, 0.32, 0.05]; J.hR = [0.02, -0.3, 0.05];
       J.elL = [0.62, 0.36, 0.06]; J.elR = [0.25, -0.3, 0.06];
       J.rifle = { butt: [0.2, 0.62, 0.03], muzzle: [1.1, 0.78, 0.03], bayonet: false };
-      J.pool = [[0.55, 0.05, 0.3, 0.22]];
+      J.pool = [[0.55, 0.05, 0.19, 0.14]];
       if (CORPSES[variant] === 'noarm') { J.armCut = 'L'; J.hatAt = [1.05, -0.45, 0.0]; J.rifle = null; J.pool = [[0.6, 0.3, 0.5, 0.34], [0.2, 0.1, 0.3, 0.25]]; }
       break;
     }
@@ -187,7 +187,7 @@ export function corpse(variant) {
       J.hL = [0.5, -0.45, 0.2]; J.hR = [0.75, -0.42, 0.06];
       J.elL = [0.62, -0.25, 0.28]; J.elR = [0.6, -0.25, 0.08];
       J.rifle = { butt: [-0.4, 0.42, 0.03], muzzle: [0.5, 0.62, 0.03], bayonet: false };
-      J.pool = [[0.45, -0.2, 0.3, 0.2]];
+      J.pool = [[0.45, -0.2, 0.19, 0.13]];
       break;
     }
   }
@@ -351,8 +351,8 @@ function figure(nat, J, seed) {
       case 'web': case 'webT': c = mix3(mul(nat.web, 0.85), nat.web, n); break;
       case 'pack': c = mix3(mul(nat.web[0] > 0.5 ? nat.web : [0.5, 0.44, 0.32], 0.85), nat.web[0] > 0.5 ? nat.web : [0.5, 0.44, 0.32], n); break;
       case 'metal2': return [0.3, 0.3, 0.28];
-      case 'blood': return mix3([0.17, 0.045, 0.035], [0.24, 0.07, 0.05], n); // dark, half soaked into the mud
-      case 'gore': return mix3([0.3, 0.08, 0.06], [0.42, 0.14, 0.1], n);
+      case 'blood': return mix3([0.16, 0.1, 0.07], [0.22, 0.14, 0.1], n); // dried brown, half soaked into the mud
+      case 'gore': return mix3([0.24, 0.09, 0.06], [0.32, 0.14, 0.09], n);
       case 'wood': return mix3(mul(WOOD, 0.8), WOOD, n);
       case 'metal': return METAL;
       case 'steel': return STEEL;
