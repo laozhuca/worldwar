@@ -4,6 +4,8 @@ import { orderMove, orderBarrage, orderHalt, buyUnit, hqThreatened, placeBuild, 
 import { frontLine, teamDir } from './map.js';
 
 const $ = (id) => document.getElementById(id);
+/** Is (x, y) between the artillery's minimum and maximum range of this battery? */
+const inRange = (u, x, y) => { const d = Math.hypot(u.x - x, u.y - y), A = UNIT_TYPES.artillery; return d <= A.artyRange && d >= A.artyMinRange; };
 const fmt = (n) => Math.floor(n).toString();
 
 export class UI {
@@ -52,7 +54,7 @@ export class UI {
   }
 
   batteriesInRange(x, y) {
-    return this.bombardCandidates().filter((u) => u.cooldown <= 0 && !u.barrage && Math.hypot(u.x - x, u.y - y) <= UNIT_TYPES.artillery.artyRange).length;
+    return this.bombardCandidates().filter((u) => u.cooldown <= 0 && !u.barrage && inRange(u, x, y)).length;
   }
   bombardCandidates() {
     const sel = this.selectedUnits().filter((u) => u.type === 'artillery');
@@ -65,12 +67,13 @@ export class UI {
     const cands = this.bombardCandidates();
     // Without an explicit selection, commit one battery per click so the player can stagger barrages.
     const explicit = this.selectedUnits().some((u) => u.type === 'artillery');
-    const ready = cands.filter((u) => u.cooldown <= 0 && !u.barrage && Math.hypot(u.x - x, u.y - y) <= UNIT_TYPES.artillery.artyRange);
+    const ready = cands.filter((u) => u.cooldown <= 0 && !u.barrage && inRange(u, x, y));
     const use = explicit ? ready : ready.slice(0, 1);
     const n = orderBarrage(this.state, use, x, y);
     if (n) this.speak('bombard', use);
     if (n) pushMessage(this.state, `${n} batter${n > 1 ? 'ies' : 'y'} opening fire`, 'info');
     else if (!cands.length) pushMessage(this.state, 'We have no artillery', 'warn');
+    else if (cands.every((u) => Math.hypot(u.x - x, u.y - y) < UNIT_TYPES.artillery.artyMinRange)) pushMessage(this.state, `Too close for the guns (minimum ${UNIT_TYPES.artillery.artyMinRange} tiles)`, 'warn');
     else pushMessage(this.state, 'No battery ready and in range', 'warn');
   }
 

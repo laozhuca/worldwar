@@ -168,7 +168,8 @@ export function orderBarrage(state, units, tx, ty) {
   for (const u of units) {
     if (u.dead || u.type !== 'artillery' || u.barrage || u.cooldown > 0) continue;
     const t = UNIT_TYPES.artillery;
-    if (Math.hypot(u.x - tx, u.y - ty) > t.artyRange) continue;
+    const d = Math.hypot(u.x - tx, u.y - ty);
+    if (d > t.artyRange || d < t.artyMinRange) continue; // out of range, or too close for the guns
     u.barrage = { x: tx, y: ty, remaining: t.barrageShells, timer: n * 0.35 };
     u.order = null;
     n++;

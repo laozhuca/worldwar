@@ -31,7 +31,7 @@ as `file://`, because it uses ES modules.
 | **Trees** | Shellfire brings trees down to shattered stumps and logs, then blows those to splinters. |
 | **Machine guns** | Short setup time, then murderous fire on troops in the open. Fire pins walking troops. |
 | **Barbed wire** | Slows anyone crossing it to a quarter speed. Shellfire cuts it. |
-| **Artillery** | 8-shell barrages: kill, suppress, cut wire, collapse trench works, churn the ground. Friendly fire is real. |
+| **Artillery** | Range 10 to 36 tiles (nothing closer than 10). 8-shell barrages: kill, suppress, cut wire, collapse trench works, churn the ground. Friendly fire is real. |
 | **Charge** | Rifle squads only (MG teams and batteries can't go over the top). Fast, can't be pinned, no firing. Ends in a bayonet fight: rifle squads are deadly at close quarters, and the shock of the charge doubles their bayonet damage for the first seconds. |
 | **Capture** | Occupy trench tiles with no enemy nearby. Take the enemy HQ (far east) to win. |
 

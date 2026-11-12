@@ -64,6 +64,7 @@ export const UNIT_TYPES = {
     speed: 0.35,
     melee: 0.5,
     artyRange: 36,
+    artyMinRange: 10, // the guns can't drop shells closer than this
     barrageShells: 8,
     shellInterval: 6, // a gun fires every ~6 s (was 1.2)
     cooldown: 14,

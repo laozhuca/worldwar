@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, update, orderBarrage, orderMove, placeBuild, buyUnit, damageUnit } from '../src/game.js';
-import { tileAt, frontLine } from '../src/map.js';
+import { tileAt, frontLine, teamDir } from '../src/map.js';
 import { PLAYER, ENEMY, UNIT_TYPES, BUILD } from '../src/config.js';
 
 const step = (state, seconds, dt = 1 / 30) => { for (let t = 0; t < seconds; t += dt) update(state, dt); };
@@ -235,4 +235,14 @@ test('an HQ with enemy troops nearby cannot raise new units', async () => {
   assert.equal(s.resources[PLAYER].men, men, 'nothing spent');
   raider.x = q.x + 0.5 + 12;
   assert.equal(typeof buyUnit(s, PLAYER, 'rifle'), 'object', 'recruits again once they are gone');
+});
+
+test('artillery has a minimum range', () => {
+  const s = createGame({ aiTeams: [] });
+  const gun = s.units.find((u) => u.team === PLAYER && u.type === 'artillery');
+  const A = UNIT_TYPES.artillery;
+  const dx = teamDir(PLAYER);
+  assert.equal(orderBarrage(s, [gun], gun.x + dx * (A.artyMinRange - 2), gun.y), 0, 'too close');
+  assert.equal(gun.barrage, null);
+  assert.equal(orderBarrage(s, [gun], gun.x + dx * (A.artyMinRange + 4), gun.y), 1, 'in range');
 });
