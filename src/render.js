@@ -844,6 +844,11 @@ export class Renderer {
 
   draw(state, ui) {
     const ctx = this.ctx;
+    // the low sun at dawn and dusk: shadows point away from it, longer the lower it is
+    const tw = this.atmo.twilight(state);
+    this.sunShadow = tw.lowness > 0.02
+      ? { angle: Math.atan2(-tw.dir[1], -tw.dir[0]), len: 30 + 140 * tw.lowness, alpha: 0.68 * tw.lowness * (1 - this.atmo.darkness(state)) }
+      : null;
     const now = performance.now();
     // craters are batched: they appear under the shell smoke, so ~0.7 s of latency is invisible
     if (!this.groundDrawn || (state.map.dirty && now - this.lastGround > 1000)) {
@@ -1117,6 +1122,7 @@ export class Renderer {
       const snow = (this.S ?? 1) > 0.7 ? '_s' : '';
       const h = hash(t.x * 2.3, t.y * 5.1);
       const c = iso(t.x + 0.3 + t.shade * 0.4, t.y + 0.3 + h * 0.4);
+      if (t.decor === 'tree' || t.decor === 'stump') this.longShadow(ctx, c.x, c.y, t.decor === 'tree' ? 2.6 : 0.8);
       const name = t.decor === 'stump' ? `stump${Math.floor(h * 4) % 4}` : t.decor === 'tree' ? `tree${Math.floor(h * 2) % 2}` : `log${Math.floor(h * 3) % 3}`;
       if (this.drawProp(ctx, name + snow, c.x, c.y)) return;
     }
@@ -1373,6 +1379,25 @@ export class Renderer {
     return true;
   }
 
+  /**
+   * A long shadow cast by the low dawn / dusk sun, away from it, from a ground point (world px).
+   * height: the caster's height in men (a soldier 1, a tree about 2.6).
+   */
+  longShadow(ctx, x, y, height = 1) {
+    const sh = this.sunShadow;
+    if (!sh || sh.alpha < 0.01) return;
+    const len = sh.len * height, w = 4 + height * 2;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(sh.angle);
+    const g = ctx.createLinearGradient(0, 0, len, 0);
+    g.addColorStop(0, `rgba(20,14,30,${sh.alpha})`);
+    g.addColorStop(1, 'rgba(20,14,30,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(len * 0.48, 0, len * 0.52, w, 0, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+
   drawUnit(ctx, u, selected, time) {
     const t = UNIT_TYPES[u.type];
     const p = iso(u.x, u.y);
@@ -1418,7 +1443,7 @@ export class Renderer {
     const nation = this.nations && this.nations[u.team];
     const useSpr = this.hasArmy(nation);
     let gunDrawn = u.type !== 'artillery';
-    const drawGunNow = () => { if (!gunDrawn) { gunDrawn = true; if (!this.drawGun3D(ctx, p, u, time) && !this.drawGunArt(ctx, p, u)) this.drawGun(ctx, p, u, time); } };
+    const drawGunNow = () => { if (!gunDrawn) { gunDrawn = true; this.longShadow(ctx, p.x, p.y, 1.1); if (!this.drawGun3D(ctx, p, u, time) && !this.drawGunArt(ctx, p, u)) this.drawGun(ctx, p, u, time); } };
     if (!useSpr) drawGunNow();
     if (u.type === 'mg') {
       const { view, mirror } = Renderer.viewFor(u.hx, u.hy);
@@ -1449,6 +1474,7 @@ export class Renderer {
           else if (u.type === 'mg') pn = 'prone';
           else if (u.target && (u.firing > 0 || u.type === 'rifle')) pn = 'fire';
         }
+        if (pn !== 'prone' && pose !== 'crawl') this.longShadow(ctx, s.x, s.y, 1);
         if (!this.drawSoldier(ctx, nation, pn, fr, u.hx, u.hy, s.x, s.y)) drawMan(ctx, s.x, s.y, u.team, pose === 'crawl' ? 'prone' : pose, u.facing, phase + i * 1.7, false);
       });
       drawGunNow();

@@ -8,6 +8,18 @@ const DAY_LENGTH = 420; // seconds of game time per 24h
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const smooth = (a, b, v) => { const t = clamp01((v - a) / (b - a)); return t * t * (3 - 2 * t); };
 
+// Twilight colours by hours from sunrise / sunset (negative: the sun is below the horizon):
+// [hours, colour, strength]
+const TWILIGHT = [
+  [-1.6, [52, 36, 104], 0],
+  [-1.0, [96, 52, 150], 0.38], // deep violet / purple
+  [-0.4, [232, 92, 160], 0.55], // pink, magenta
+  [0.1, [242, 70, 48], 0.6], // red-orange as the sun clears the horizon
+  [0.7, [255, 138, 58], 0.45], // orange
+  [1.5, [255, 192, 112], 0.24], // gold
+  [2.4, [255, 222, 176], 0],
+];
+
 export function hourOf(time) {
   return (6.5 + (time / DAY_LENGTH) * 24) % 24;
 }
@@ -49,6 +61,27 @@ export class Atmosphere {
     const dusk = smooth(17.5, 20.5, h);
     const dawn = 1 - smooth(4.5, 7.5, h);
     return 0.62 * Math.max(h >= 12 ? dusk : 0, h < 12 ? dawn : 0);
+  }
+  /**
+   * Dawn and dusk. r is hours from sunrise (06:00) or sunset (19:00), positive while the sun is up.
+   * Returns the twilight colour and its strength (deep violet and purple before sunrise / after
+   * sunset, pink and magenta at the horizon, red and orange as the sun clears it, gold above), the
+   * screen direction the low light comes from (east at dawn, west at dusk), and how long the shadows
+   * are (lowness 0-1, while the sun is up).
+   */
+  twilight(state) {
+    const h = this.hour(state);
+    const dawn = h < 12.5, r = dawn ? h - 6 : 19 - h;
+    let i = 0;
+    while (i < TWILIGHT.length - 2 && r > TWILIGHT[i + 1][0]) i++;
+    const [r0, c0, s0] = TWILIGHT[i], [r1, c1, s1] = TWILIGHT[i + 1];
+    const k = clamp01((r - r0) / (r1 - r0)), e = k * k * (3 - 2 * k);
+    const col = c0.map((v, j) => Math.round(v + (c1[j] - v) * e));
+    const strength = r < r0 || r > TWILIGHT[TWILIGHT.length - 1][0] ? 0 : s0 + (s1 - s0) * e;
+    const lowness = r > 0 ? (1 - smooth(0, 3, r)) * smooth(-0.05, 0.25, r) : 0;
+    // the sun's screen direction: map +x (east) is screen right-down
+    const dir = dawn ? [0.894, 0.447] : [-0.894, -0.447];
+    return { r, dawn, col, strength, lowness, dir };
   }
   /** Warm golden-hour tint strength. */
   golden(state) {
@@ -147,11 +180,14 @@ export class Atmosphere {
     // drifting ground mist
     const dark = this.darkness(state);
     const mist = 0.08 + dark * 0.1 + this.golden(state) * 0.03 + this.rain(state) * 0.07;
+    const tw = this.twilight(state);
     for (const f of this.fog) {
       const p = iso(f.x, f.y);
       const rx = f.r * 48, ry = f.r * 22;
       const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rx);
-      const c = dark > 0.3 ? '140,152,180' : '196,204,214';
+      // mist takes on the twilight colours at dawn and dusk
+      const base = dark > 0.3 ? [140, 152, 180] : [196, 204, 214], m = Math.min(0.7, tw.strength * 1.4);
+      const c = base.map((v, j) => Math.round(v + (tw.col[j] - v) * m)).join(',');
       g.addColorStop(0, `rgba(${c},${mist * f.a})`);
       g.addColorStop(1, `rgba(${c},0)`);
       ctx.fillStyle = g;
@@ -204,11 +240,37 @@ export class Atmosphere {
     const dark = this.darkness(state);
     const lights = this.collectLights(state, r);
 
-    // golden hour / rain tint
-    const gold = this.golden(state);
     // cold, overcast grade over everything
     ctx.fillStyle = 'rgba(62,80,110,0.10)'; ctx.fillRect(0, 0, r.vw, r.vh);
-    if (gold > 0.01) { ctx.fillStyle = `rgba(255,160,90,${0.05 * gold})`; ctx.fillRect(0, 0, r.vw, r.vh); }
+    // dawn and dusk: the twilight colour graded over the scene, warm light from the low sun's side
+    // of the screen and cool violet shade on the far side
+    const tw = this.twilight(state);
+    if (tw.strength > 0.01) {
+      const [cr, cg, cb] = tw.col, s = tw.strength;
+      ctx.save();
+      ctx.globalCompositeOperation = 'soft-light';
+      ctx.fillStyle = `rgba(${cr},${cg},${cb},${Math.min(1, s * 1.5)})`;
+      ctx.fillRect(0, 0, r.vw, r.vh);
+      // shift the hues themselves towards the sky's colour (keeps the light and shade of the scene)
+      ctx.globalCompositeOperation = 'color';
+      ctx.fillStyle = `rgba(${cr},${cg},${cb},${s * 0.55})`;
+      ctx.fillRect(0, 0, r.vw, r.vh);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = `rgba(${cr},${cg},${cb},${s * 0.14})`;
+      ctx.fillRect(0, 0, r.vw, r.vh);
+      const cx = r.vw / 2, cy = r.vh / 2, D = Math.hypot(r.vw, r.vh) / 2;
+      const g = ctx.createLinearGradient(cx - tw.dir[0] * D, cy - tw.dir[1] * D, cx + tw.dir[0] * D, cy + tw.dir[1] * D);
+      g.addColorStop(0, `rgba(48,30,92,${s * 0.55})`); // the shadowed side
+      g.addColorStop(0.55, 'rgba(48,30,92,0)');
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = g; ctx.fillRect(0, 0, r.vw, r.vh);
+      const h = ctx.createLinearGradient(cx + tw.dir[0] * D, cy + tw.dir[1] * D, cx - tw.dir[0] * D, cy - tw.dir[1] * D);
+      h.addColorStop(0, `rgba(${Math.min(255, cr + 30)},${Math.min(255, cg + 40)},${Math.min(255, cb + 20)},${s * 0.9})`); // haze towards the sun
+      h.addColorStop(0.65, `rgba(${cr},${cg},${cb},0)`);
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = h; ctx.fillRect(0, 0, r.vw, r.vh);
+      ctx.restore();
+    }
     const rain = this.rain(state);
     if (rain > 0.01) { ctx.fillStyle = `rgba(40,48,60,${0.18 * rain})`; ctx.fillRect(0, 0, r.vw, r.vh); }
 
