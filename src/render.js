@@ -1379,6 +1379,19 @@ export class Renderer {
     return true;
   }
 
+  /** A thin wisp of cigarette smoke rising and drifting from a smoking man (k: his seed). */
+  drawSmokeWisp(ctx, x, y, age, k) {
+    for (let i = 0; i < 3; i++) {
+      const t = age - i * 0.45;
+      if (t < 0 || t > 2.2) continue;
+      const a = 0.22 * (1 - t / 2.2);
+      ctx.fillStyle = `rgba(205, 205, 200, ${a})`;
+      ctx.beginPath();
+      ctx.arc(x + 2 + t * 4 + Math.sin(t * 3 + k * 9) * 1.5, y - 3 - t * 7, 1.2 + t * 1.6, 0, TAU);
+      ctx.fill();
+    }
+  }
+
   /**
    * A long shadow cast by the low dawn / dusk sun, away from it, from a ground point (world px).
    * height: the caster's height (a tree about 2.6). Only trees and stumps cast them.
@@ -1461,6 +1474,9 @@ export class Renderer {
       // Steps advance with ground actually covered (so men slow their stride in wire and mud) rather than
       // on a clock; each man has his own phase and a slightly different stride, so a squad never marches in lockstep.
       const GAIT = { walk: [8, 0.55], charge: [8, 1.0], crawl: [6, 0.3] };
+      // idle moments only when nothing is happening: no target, not digging, not shot at, guns at rest
+      const quiet = (u.type === 'rifle' || u.type === 'artillery') && !u.target && !u.digging && !u.order && !(u.firing > 0)
+        && (u.suppression || 0) < 15 && !(u.type === 'artillery' && (u.barrage || u.cooldown > 0));
       men.forEach((s, i) => {
         if (s.y >= p.y) drawGunNow(); // crew behind the gun first, the rest in front
         let pn = pose, fr = 0;
@@ -1473,6 +1489,12 @@ export class Renderer {
           if (u.digging && i % 2 === 0) { pn = 'dig'; fr = Math.floor(phase / 2 + i) % 2; }
           else if (u.type === 'mg') pn = 'prone';
           else if (u.target && (u.firing > 0 || u.type === 'rifle')) pn = 'fire';
+        }
+        // a quiet moment: now and then a man smokes, cleans his rifle or wipes his helmet
+        const idle = (pn === 'stand' || pn === 'trench') && quiet ? idleAt(s.k, time) : null;
+        if (idle && this.drawSoldier(ctx, nation, (pn === 'trench' ? 't' : '') + idle.anim, idle.frame, u.hx, u.hy, s.x, s.y)) {
+          if (idle.anim === 'smoke' && idle.puff > 0) this.drawSmokeWisp(ctx, s.x, s.y - (pn === 'trench' ? 7 : 20), idle.puff, s.k);
+          return;
         }
         if (!this.drawSoldier(ctx, nation, pn, fr, u.hx, u.hy, s.x, s.y)) drawMan(ctx, s.x, s.y, u.team, pose === 'crawl' ? 'prone' : pose, u.facing, phase + i * 1.7, false);
       });
@@ -1852,6 +1874,29 @@ function bloodColour(age) {
   const e = 1 - (1 - k) * (1 - k); // fast at first
   const mixc = (a, b) => Math.round(a + (b - a) * e);
   return `${mixc(105, 52)}, ${mixc(14, 36)}, ${mixc(12, 24)}`;
+}
+
+/**
+ * A man's idle moment at this time (k: his seed), or null. Each man runs his own schedule in 9 s slots:
+ * in about 45% of them he smokes, cleans his rifle or wipes his helmet for a few seconds.
+ * Returns the animation, its frame (0-3) and, for smoking, how long since the last draw (puff age).
+ */
+const IDLE_ANIMS = ['smoke', 'clean', 'helmet'];
+function idleAt(k, time) {
+  const SLOT = 9, off = hash(k, 51) * SLOT, slot = Math.floor((time + off) / SLOT), t = time + off - slot * SLOT;
+  const r = hash(k * 13.7 + slot, 77);
+  if (r > 0.45) return null;
+  const start = 0.6 + hash(k, slot + 3) * 1.5, end = SLOT - 0.4 - hash(slot, k + 9) * 2;
+  if (t < start || t > end) return null;
+  const anim = IDLE_ANIMS[Math.floor(r / 0.15) % 3], at = t - start;
+  if (anim === 'smoke') {
+    // hand down, up, a long draw at the lips, down again; then smoke drifts from the cigarette
+    const c = at % 3.6, frame = c < 0.8 ? 0 : c < 1.2 ? 1 : c < 2.4 ? 2 : c < 2.8 ? 3 : 0;
+    return { anim, frame, puff: c >= 2.0 ? c - 2.0 : c + 1.6 };
+  }
+  // working back and forth with a rag
+  const seq = anim === 'clean' ? [0, 1, 2, 3] : [0, 1, 2, 3];
+  return { anim, frame: seq[Math.floor(at / (anim === 'clean' ? 0.35 : 0.3)) % 4], puff: 0 };
 }
 
 function isTileSeen(state, t) {

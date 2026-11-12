@@ -40,6 +40,7 @@ function elbow(sh, hand, side) {
 
 /** Returns joints for a named pose and animation frame. */
 export function pose(name, frame = 0) {
+  if (IDLE.includes(name.replace(/^t/, ''))) return idlePose(name, frame);
   let P = [0, 0, 0.94], lean = 0.04, legs, hands, rifleMode = 'port', head = null, tool = null;
   const hipL = (p) => add(p, [0, 0.1, 0]), hipR = (p) => add(p, [0, -0.1, 0]);
   let sway = 0, carry = [0, 0, 0];
@@ -93,6 +94,44 @@ export function pose(name, frame = 0) {
     rifle = { butt: add(hR, mul(dir, rifleMode === 'aim' ? -0.18 : -0.32)), muzzle: add(hR, mul(dir, 0.95)), bayonet: rifleMode === 'charge' };
   }
   return { P, up, chest, neck, head, shL, shR, elL: elbow(shL, hL, 1), elR: elbow(shR, hR, -1), hL, hR, legs, rifle, tool, cut: name === 'trench' ? 1.12 : null };
+}
+
+/**
+ * Idle moments (4 frames each), standing or, with a 't' prefix, in a trench (cut at the parapet):
+ *   smoke  - rifle slung, a cigarette brought up to the mouth and down again
+ *   clean  - rifle held across the body, a rag worked along the barrel
+ *   helmet - helmet off, held in one hand and wiped with the other
+ */
+export const IDLE = ['smoke', 'clean', 'helmet'];
+function idlePose(name, frame) {
+  const inTrench = name.startsWith('t'), what = inTrench ? name.slice(1) : name;
+  const S = pose('stand', 0);
+  const J = { ...S, tool: null, extras: [], cut: inTrench ? 1.12 : null };
+  const slung = { butt: [-0.14, 0.13, 0.78], muzzle: [-0.2, -0.16, 1.78], bayonet: false }; // across the back
+  if (what === 'smoke') {
+    J.rifle = slung;
+    J.hL = [0.1, 0.17, 1.0]; // thumb in the belt
+    J.hR = [[0.12, -0.22, 0.98], [0.24, -0.15, 1.3], [0.17, -0.05, 1.57], [0.22, -0.14, 1.4]][frame];
+    const tip = add(J.hR, frame === 2 ? [0.02, 0.05, 0.02] : [0.06, 0.01, 0.0]);
+    J.extras.push({ a: J.hR, b: tip, ra: 0.007, rb: 0.007, mat: 'paper' }, { a: tip, b: tip, ra: 0.009, rb: 0.009, mat: 'ember' });
+  } else if (what === 'clean') {
+    J.rifle = { butt: [0.24, 0.32, 1.04], muzzle: [0.32, -0.62, 1.12], bayonet: false };
+    J.hL = [0.26, 0.2, 1.06];
+    const t = [0.45, 0.6, 0.76, 0.6][frame];
+    J.hR = add(add(J.rifle.butt, mul(sub(J.rifle.muzzle, J.rifle.butt), t)), [0.0, 0, 0.03]);
+    J.extras.push({ a: add(J.hR, [-0.02, 0.03, -0.02]), b: add(J.hR, [0.02, -0.03, 0.0]), ra: 0.028, rb: 0.022, mat: 'rag' });
+    J.head = add(S.head, [0.04, -0.03, -0.04]); // looking down at the work
+  } else {
+    J.rifle = slung;
+    J.hatAt = [0.3, 0.06, 1.2];
+    J.hL = [0.27, 0.13, 1.1];
+    J.hR = [[0.25, -0.06, 1.33], [0.34, 0.0, 1.35], [0.3, 0.11, 1.33], [0.23, 0.03, 1.34]][frame];
+    J.extras.push({ a: add(J.hR, [-0.02, 0, -0.01]), b: add(J.hR, [0.02, 0, 0.01]), ra: 0.026, rb: 0.022, mat: 'rag' });
+    J.head = add(S.head, [0.03, 0, -0.03]);
+  }
+  J.elL = elbow(J.shL, J.hL, 1);
+  J.elR = elbow(J.shR, J.hR, -1);
+  return J;
 }
 
 /** Leopard crawl (6 frames): one knee drawn up and the opposite elbow reaching forward, alternating;
@@ -252,6 +291,7 @@ function figure(nat, J, seed) {
   // legs: trousers to knee, puttees, boots
   const has = (k) => !J.only || J.only.includes(k);
   for (const g of J.gore || []) prims.push({ k: 's', c: g, r: 0.06, mat: 'gore' });
+  for (const e of J.extras || []) prims.push({ k: 'c', ...e }); // cigarettes, rags
   for (const L of has('legs') ? J.legs : []) {
     if (L.cut === 'thigh') { // torn off at mid-thigh: a ragged stump
       const m = add(L.hip, mul(sub(L.knee, L.hip), 0.5));
@@ -355,6 +395,9 @@ function figure(nat, J, seed) {
       case 'gore': return mix3([0.24, 0.09, 0.06], [0.32, 0.14, 0.09], n);
       case 'wood': return mix3(mul(WOOD, 0.8), WOOD, n);
       case 'metal': return METAL;
+      case 'paper': return [0.86, 0.84, 0.78];
+      case 'ember': return [1, 0.5, 0.15];
+      case 'rag': return mix3([0.5, 0.48, 0.42], [0.66, 0.63, 0.56], n);
       case 'steel': return STEEL;
       default: c = nat.uni;
     }
@@ -532,5 +575,7 @@ export function partScene(nationKey, name, dir) {
 
 /** All sprite jobs: [name, args]. */
 export const SOLDIER_POSES = [['stand', 1], ['walk', 8], ['charge', 8], ['crawl', 6], ['fire', 1], ['trench', 1], ['prone', 1], ['dig', 2], ['dead', 1]];
+/** Idle animations: standing and in-trench versions, 4 frames each. */
+export const IDLE_POSES = IDLE.flatMap((n) => [[n, 4], ['t' + n, 4]]);
 
 void vnoise;
