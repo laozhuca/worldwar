@@ -245,15 +245,20 @@ export class Voices {
   prepare(nation = this.nation) {
     this.nation = nation;
     const ctx = this.sound && this.sound.ctx;
-    if (!ctx || !this.recordings || !nation || !this.recordings[nation]) return;
+    if (!ctx || !this.recordings || !nation || !this.recordings[nation]) return Promise.resolve();
+    const all = [];
     for (const list of Object.values(this.recordings[nation])) {
       for (const c of list) {
-        if (this.decoded[c.file]) continue;
-        this.decoded[c.file] = fetch('assets/voice/' + c.file).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a))
-          .then((b) => { this.decoded[c.file] = b; }).catch(() => { delete this.decoded[c.file]; });
+        if (!this.decoded[c.file]) {
+          this.decoded[c.file] = fetch('assets/voice/' + c.file).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a))
+            .then((b) => { this.decoded[c.file] = b; return b; }).catch(() => { delete this.decoded[c.file]; });
+        }
+        all.push(this.decoded[c.file]);
       }
     }
+    return Promise.all(all);
   }
+
 
   /** Decoded recordings for this kind of line; a selected unit mixes general and unit-type replies. */
   clipsFor(nation, kind, unit) {

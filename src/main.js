@@ -39,7 +39,7 @@ voices.sound = sound;
 voices.loadRecordings();
 renderer.voices = voices;
 const ui = new UI(app, renderer, sound, voices);
-renderer.loadTextures();
+renderer.texLoading = renderer.loadTextures();
 let artKeys = {};
 const portraitOf = (n) => (artKeys[`soldier-${n}`] ? `assets/art/soldier-${n}.png` : `assets/soldiers/${n}/portrait.png`);
 renderer.portraitOf = portraitOf;
@@ -99,7 +99,7 @@ document.querySelectorAll('[data-season]').forEach((b) => b.addEventListener('cl
   app.season = b.dataset.season;
   document.querySelectorAll('[data-season]').forEach((x) => x.classList.toggle('active', x === b));
 }));
-document.getElementById('btn-start').addEventListener('click', () => {
+document.getElementById('btn-start').addEventListener('click', async () => {
   sound.init();
   voices.prepare();
   sound.startMusic();
@@ -115,20 +115,22 @@ document.getElementById('btn-start').addEventListener('click', () => {
     endShown = false;
     lastSave = 0;
   }
+  await loadBattle(app.state);
   app.started = true;
   announce(app.state);
   resumeBattle();
 });
-document.getElementById('btn-restart').addEventListener('click', () => {
+document.getElementById('btn-restart').addEventListener('click', async () => {
   app.state = createGame({ seed: Math.floor(Math.random() * 1e6), season: app.season, nations: chosenNations(), start: chosenStart() });
   useArmies(app.state);
   ui.selected.clear();
   ui.setMode(null);
   renderer.groundDrawn = false;
   ui.centerOnFront();
-  announce(app.state);
   endShown = false;
   lastSave = 0;
+  await loadBattle(app.state);
+  announce(app.state);
   app.started = true;
   resumeBattle();
 });
@@ -260,7 +262,7 @@ function saveGame(slot = 'auto') {
     return false;
   }
 }
-function loadGame(slot) {
+async function loadGame(slot) {
   let state;
   try { state = deserialize(store.get(slotKey(slot))); } catch (e) { pushMessage(app.state, `Could not load that save (${e.message})`, 'warn'); return; }
   app.state = state;
@@ -273,6 +275,7 @@ function loadGame(slot) {
   ui.centerOnFront();
   endShown = false;
   lastSave = state.time;
+  await loadBattle(state);
   app.started = true;
   resumeBattle();
   pushMessage(state, slot === 'auto' ? 'Battle resumed' : `Battle loaded from slot ${slot}`, 'good');
@@ -335,7 +338,7 @@ document.getElementById('btn-save').addEventListener('click', () => {
 document.getElementById('btn-save-close').addEventListener('click', () => closeSlots());
 
 // ------------------------------------------------------------ menus
-const PANELS = ['menu-panel', 'setup-panel', 'help-panel', 'credits-panel', 'exit-panel', 'save-panel', 'end-panel'];
+const PANELS = ['menu-panel', 'setup-panel', 'help-panel', 'credits-panel', 'exit-panel', 'save-panel', 'end-panel', 'loading-panel'];
 let backTo = 'menu'; // where a panel's Back button goes: the main menu, or straight back to the battle
 /** Show one overlay panel (the battle pauses underneath). */
 function showPanel(id, back = 'menu') {
@@ -343,6 +346,7 @@ function showPanel(id, back = 'menu') {
   document.getElementById('overlay').classList.remove('result', 'victory-allied', 'victory-central', 'defeat-allied', 'defeat-central');
   for (const p of PANELS) document.getElementById(p).classList.toggle('hidden', p !== id);
   document.getElementById('overlay').classList.toggle('menu-mode', id === 'menu-panel');
+  document.getElementById('overlay').classList.toggle('loading-mode', id === 'loading-panel');
   document.getElementById('overlay').classList.remove('hidden');
   app.paused = true;
   document.getElementById('btn-pause').textContent = '▶';
@@ -391,3 +395,50 @@ showPanel('menu-panel');
 setInterval(() => { if (!app.paused && app.state.time - lastSave >= 60) saveGame('auto'); }, 5000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveGame('auto'); });
 window.addEventListener('pagehide', () => saveGame('auto'));
+
+// ------------------------------------------------------------ loading screen
+const TIPS = [
+  'Cut the wire with a barrage before you send the infantry across.',
+  'Charge while the shells are still falling: the defenders are keeping their heads down.',
+  'Machine guns massacre troops in the open. Never walk at an MG you have not suppressed.',
+  'Worn-down squads are not refilled. Recruit fresh ones at HQ.',
+  'A shell-damaged trench protects far less. Dig it out again with T.',
+  'Enemy troops near your HQ stop it raising new units.',
+  'Double-click a unit to select every unit of its kind on screen.',
+  'Artillery cannot fire at anything closer than 10 tiles.',
+];
+/**
+ * Show the loading screen until everything the battle needs is in: ground textures, the season's
+ * trenches and scenery, guns, both armies' soldiers, shell bursts, sound effects and our army's
+ * voices. Each item has a time limit, so one slow download never keeps the player waiting forever
+ * (the game then uses its fallbacks until it arrives).
+ */
+async function loadBattle(state) {
+  showPanel('loading-panel');
+  document.getElementById('load-tip').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
+  sound.init();
+  const nat = (k) => (NATIONS[k] ? NATIONS[k].name : k);
+  const jobs = [
+    ['Ground textures', renderer.texLoading],
+    ['Trenches and scenery', renderer.loadProps(state.season)],
+    ['Guns and machine guns', renderer.loadAtlas('units')],
+    [`The ${nat(state.nations[0])} army`, renderer.loadAtlas('soldiers-' + state.nations[0])],
+    [`The ${nat(state.nations[1])} army`, renderer.loadAtlas('soldiers-' + state.nations[1])],
+    ['Shell bursts', renderer.loadImpact()],
+    ['Sounds of battle', sound.sampleLoad],
+    ['Voices', voices.prepare(state.nations[PLAYER])],
+  ];
+  const fill = document.getElementById('load-fill'), item = document.getElementById('load-item');
+  let done = 0;
+  const total = jobs.length + 1;
+  const step = (label) => { done++; fill.style.width = `${Math.round((done / total) * 100)}%`; item.textContent = label; };
+  fill.style.width = '0%';
+  const limit = (p) => Promise.race([Promise.resolve(p).catch(() => {}), new Promise((r) => setTimeout(r, 25000))]);
+  await Promise.all(jobs.map(([label, p]) => limit(p).then(() => step(`${label} ✓`))));
+  // let the battlefield ground be built behind the loading screen before the curtain goes up
+  item.textContent = 'Preparing the battlefield…';
+  renderer.groundDrawn = false;
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 60))));
+  step('Ready');
+  await new Promise((r) => setTimeout(r, 250));
+}

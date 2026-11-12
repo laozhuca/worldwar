@@ -246,3 +246,11 @@ button.big.back { background: #2b3038; }
 #overlay.defeat-central { background-image: url('assets/art/defeat-central.webp'); background-position: center 40%; }
 /* defeat paintings: the helmet lies in the lower half, so the result panel goes over the dark sky */
 #overlay.defeat-allied, #overlay.defeat-central { align-items: flex-start; padding-top: 5vh; padding-bottom: 0; }
+
+/* loading screen: over the menu painting, a progress bar and a tip */
+#overlay.loading-mode { background: #0b0c0e url('assets/art/menu-background.webp') center / contain no-repeat; background-origin: content-box; padding: 3vh 3vw; }
+#loading-panel { width: min(520px, 92vw); text-align: center; background: rgba(14, 15, 17, 0.8); border-color: rgba(201, 178, 122, 0.35); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+#loading-panel h1 { font-size: 22px; letter-spacing: 4px; }
+.load-bar { height: 8px; background: #111; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; margin: 14px 0 8px; }
+.load-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #8a7444, var(--accent)); transition: width 0.25s; }
+#load-tip { font-size: 13px; min-height: 2.8em; margin: 10px 0 0; }

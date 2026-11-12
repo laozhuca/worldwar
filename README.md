@@ -45,6 +45,8 @@ as `file://`, because it uses ES modules.
 
 **Starting position**: start in the upper left or lower right of the map, or at random. Fortifications go with the army, not the position: your side always holds the lighter works with sally ports in its wire, the enemy the heavier ones.
 
+**Loading**: entering a battle (New game, Continue, Load, Fight again) shows a loading screen over the trench painting, with a progress bar and a battle tip, until the ground textures, the season's trenches and scenery, guns, both armies' soldiers, shell bursts, sound effects and our army's voices are in and the battlefield ground is built. Each item has a 25-second limit, so a slow download never keeps you waiting forever.
+
 **Victory and defeat**: a battle ends over a painting for the player's side. Victory: *Triumphant Soldiers at Dawn* for the Allies, *Triumph on the Trench Ridge* for the Central Powers. Defeat: a Brodie helmet (Allies) or a Pickelhaube (Central Powers) left in the mud beside a torn flag (`assets/art/victory-*.webp`, `defeat-*.webp`).
 
 **Menus**: the game opens on the main menu, set over a battered photo-card painting of a flooded trench at night (`assets/art/menu-background.webp`, cut out from `art-src/menu-background.webp`): **New game** (choose side, nations, starting position and season), **Load game** (the saved-battles panel), **Instructions**, **Credits** and **Exit game** (saves the battle automatically and leaves the front; the tab can then be closed). During a battle, ☰ opens the menu with **Resume battle**; ? or F1 shows the instructions over the battle. When a save exists and no battle is running, the menu offers **Continue saved battle**. Starting a new game during a battle keeps that battle in the automatic save.
