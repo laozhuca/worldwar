@@ -542,15 +542,37 @@ function fallen(state, u, blast, shooter) {
   const x0 = u.x + (rand() - 0.5) * 0.7, y0 = u.y + (rand() - 0.5) * 0.7;
   const torn = blast && rand() < 0.6;
   const body = { x: x0, y: y0, team: u.team, t: state.time, v: torn ? 3 + Math.floor(rand() * 3) : Math.floor(rand() * 3), dir: Math.floor(rand() * 8) };
-  if (!blast && shooter) {
-    // shot down: he falls in front of the shooter's eyes, backward (on his back, head away from the
-    // shooter) or, mostly when charging at them, forward onto his face (head towards the shooter)
-    const forward = u.order && u.order.kind === 'charge' ? rand() < 0.8 : rand() < 0.3;
-    body.v = forward ? 1 : 0;
-    const a = Math.atan2(y0 - shooter.y, x0 - shooter.x) + (forward ? Math.PI : 0) + (rand() - 0.5) * 0.6;
-    body.dir = ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8;
-    body.fall = { dur: shooter.kind === 'mg' ? 0.6 : 0.8, mg: shooter.kind === 'mg' };
+  // blood sprays away from the shooter or the burst
+  const src = blast || shooter;
+  if (src) {
+    let bx = x0 - src.x, by = y0 - src.y;
+    const bn = Math.hypot(bx, by) || 1;
+    bx /= bn; by /= bn;
+    const drops = [];
+    for (let i = 0; i < (blast ? 14 : 9); i++) {
+      const sp = 14 + rand() * 30, a = (rand() - 0.5) * 1.3, c = Math.cos(a), sn = Math.sin(a);
+      // screen-space velocity of each drop (the iso projection of the spray direction)
+      const dx = bx * c - by * sn, dy = bx * sn + by * c;
+      drops.push({ vx: (dx - dy) * sp, vy: (dx + dy) * sp * 0.5, vz: 20 + rand() * 40, s: 1 + rand() * 1.6 });
+    }
+    state.effects.push({ type: 'blood', x: x0, y: y0, age: 0, life: 0.75, drops });
   }
+  if (!blast && shooter) {
+    // shot down, in one of five falls: backward (on his back, head away from the shooter), pitching
+    // forward onto his face (head towards the shooter, mostly when charging at them), twisting onto his
+    // side, down on his knees first and then forward, or staggering back before he collapses
+    const charging = u.order && u.order.kind === 'charge';
+    const r = rand();
+    const kind = charging ? (r < 0.45 ? 1 : r < 0.8 ? 3 : 2) : (r < 0.3 ? 0 : r < 0.5 ? 4 : r < 0.65 ? 1 : r < 0.8 ? 3 : 2);
+    body.v = [0, 1, 2, 1, 0][kind];
+    const away = Math.atan2(y0 - shooter.y, x0 - shooter.x);
+    const head = body.v === 0 ? away : body.v === 1 ? away + Math.PI : away + (rand() < 0.5 ? 1 : -1) * Math.PI / 2;
+    const a = head + (rand() - 0.5) * 0.6;
+    body.dir = ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8;
+    const dur = [0.8, 0.8, 0.9, 1.25, 1.2][kind] * (shooter.kind === 'mg' ? 0.85 : 1);
+    body.fall = { k: kind, dur, mg: shooter.kind === 'mg' };
+  }
+  body.bleed = blast ? 1.6 : 1; // how big the pool of blood under him grows
   state.decals.push(body);
   if (!blast) return;
   let ax = x0 - blast.x, ay = y0 - blast.y;

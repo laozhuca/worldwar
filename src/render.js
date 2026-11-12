@@ -973,6 +973,7 @@ export class Renderer {
       const p = iso(b.x, b.y);
       ctx.globalAlpha = a * 0.92;
       const nat = this.nations && this.nations[b.team];
+      if (!b.part) this.drawBloodPool(ctx, b, age, a);
       if (b.fall && age < b.fall.dur && age >= 0 && this.drawFalling(ctx, nat, b, p.x, p.y, age)) continue;
       if (this.drawCorpse(ctx, nat, b, p.x, p.y)) {
         // a puff of dirt where a thrown body lands
@@ -1006,12 +1007,31 @@ export class Renderer {
    */
   drawFalling(ctx, nat, b, x, y, age) {
     if (!this.hasArmy(nat)) return false;
-    const FRAMES = 5, k = age / b.fall.dur;
+    const FRAMES = 6, k = age / b.fall.dur;
     // the fall speeds up as he goes over
     const f = Math.min(FRAMES - 1, Math.floor(Math.pow(k, 0.8) * FRAMES));
     let jx = 0;
     if (b.fall.mg && k < 0.45) jx = Math.sin(age * 90) * 1.6 * (1 - k / 0.45); // struck by the burst
-    return this.drawFrame(ctx, 'soldiers-' + nat, `fall_v${b.v}_d${b.dir}_f${f}`, x + jx, y, 1.35);
+    return this.drawFrame(ctx, 'soldiers-' + nat, `fall_v${b.fall.k ?? b.v}_d${b.dir}_f${f}`, x + jx, y, 1.35);
+  }
+
+  /** Blood spreading under a body: starts as he goes down and grows for several seconds. */
+  drawBloodPool(ctx, b, age, alpha) {
+    const start = b.fall ? b.fall.dur * 0.7 : 0.3;
+    const g = Math.min(1, Math.max(0, (age - start) / 9));
+    if (g <= 0) return;
+    const r = (b.bleed || 1) * (0.25 + 0.75 * Math.sqrt(g));
+    // centred on his chest: a little towards the head from the hips
+    const hd = ((b.dir ?? 0) * Math.PI) / 4;
+    const c = iso(b.x + Math.cos(hd) * 0.22, b.y + Math.sin(hd) * 0.22);
+    const sh = hash(b.x * 3.1, b.y * 7.7);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(62, 10, 9, 0.5)';
+    ctx.beginPath(); ctx.ellipse(c.x, c.y, 11 * r, 5 * r, (sh - 0.5) * 0.8, 0, TAU); ctx.fill();
+    ctx.fillStyle = 'rgba(48, 6, 6, 0.55)';
+    ctx.beginPath(); ctx.ellipse(c.x + (sh - 0.5) * 6 * r, c.y + 1, 7 * r, 3.2 * r, (0.5 - sh) * 0.6, 0, TAU); ctx.fill();
+    ctx.restore();
   }
 
   /** One body sprite (anchored on the ground at x, y). */
@@ -1647,6 +1667,25 @@ export class Renderer {
           const shade = i % 2 ? '95,90,82' : '62,58,52';
           ctx.fillStyle = `rgba(${shade},${0.32 * (1 - k) * (1 - i * 0.15)})`;
           ctx.beginPath(); ctx.arc(p.x + dx, p.y - 10 + dy, r, 0, TAU); ctx.fill();
+        }
+      } else if (e.type === 'blood') {
+        // a spray of blood away from the shooter, falling onto the ground as dark spots
+        const p = iso(e.x, e.y), tt = e.age;
+        for (const q of e.drops) {
+          const zz = 14 + q.vz * tt - 150 * tt * tt;
+          const gx = p.x + q.vx * tt, gy = p.y + q.vy * tt;
+          if (zz > 0) {
+            ctx.fillStyle = `rgba(120, 14, 12, ${0.9 * (1 - k * 0.5)})`;
+            ctx.fillRect(gx - q.s / 2, gy - zz - q.s / 2, q.s, q.s);
+          } else {
+            ctx.fillStyle = `rgba(70, 8, 8, ${0.7 * (1 - k)})`;
+            ctx.fillRect(gx - q.s * 0.7, gy - q.s * 0.35, q.s * 1.4, q.s * 0.7);
+          }
+        }
+        // a faint red mist where the bullet struck
+        if (k < 0.5) {
+          ctx.fillStyle = `rgba(110, 20, 18, ${0.28 * (1 - k * 2)})`;
+          ctx.beginPath(); ctx.ellipse(p.x, p.y - 14, 4 + k * 10, 3 + k * 6, 0, 0, TAU); ctx.fill();
         }
       } else if (e.type === 'dirt') {
         if (anim) continue;

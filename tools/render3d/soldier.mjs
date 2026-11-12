@@ -414,34 +414,77 @@ export function corpseScene(nationKey, variant, dir) {
 }
 
 /**
- * A man shot down (rifle or machine-gun fire): FALL_FRAMES frames from standing to the corpse pose.
- * Variant 0 falls backward onto his back (corpse 'back'), variant 1 pitches forward onto his face
- * (corpse 'face'). The standing figure tips over about his feet while his knees give way and his
- * limbs go slack into the corpse pose, which the last frame almost reaches.
+ * A man shot down (rifle or machine-gun fire): FALL_FRAMES frames from standing to his corpse pose.
+ *   0 back    - topples backward onto his back (corpse 'back')
+ *   1 face    - pitches forward onto his face (corpse 'face')
+ *   2 side    - twists round and falls onto his side (corpse 'side')
+ *   3 knees   - drops to his knees, then falls forward onto his face (corpse 'face')
+ *   4 stagger - staggers back a step, hunched, then collapses backward (corpse 'back')
+ * The standing figure tips over about his feet while his knees give way and his limbs go slack into
+ * the corpse pose; the corpse sprite is the last frame.
  */
-export const FALL_FRAMES = 5;
-export function fallPose(variant, frame) {
-  const t = (frame + 1) / (FALL_FRAMES + 1);
-  const S = pose('stand', 0), C = corpse(variant);
-  const turn = variant === 0 ? -1 : 1; // backward: he faced -x (towards the shooter), his head ends at +x
-  const A = (Math.PI / 2) * Math.pow(t, 1.25); // tipping angle about the feet
+export const FALL_FRAMES = 6;
+export const FALLS = [
+  { name: 'back', corpse: 0 }, { name: 'face', corpse: 1 }, { name: 'side', corpse: 2 },
+  { name: 'knees', corpse: 1 }, { name: 'stagger', corpse: 0 },
+];
+export function fallPose(kind, frame) {
+  const F = FALLS[kind], t = (frame + 1) / (FALL_FRAMES + 1);
+  const S = pose('stand', 0), C = corpse(F.corpse);
+  // facing before the fall: backward falls face -x (towards the shooter) and end with the head at +x
+  const back = F.corpse === 0, side = F.name === 'side';
+  const yaw = side ? Math.PI / 2 * (1 - 0.6 * t) : back ? Math.PI : 0; // the side fall twists round as he goes
+  const cy = Math.cos(yaw), sy = Math.sin(yaw);
+  // the schedule of each fall: tip angle, how far the knees give way, how slack the limbs are
+  let tipT = t, sink = 0.25 * Math.sin(Math.PI * t), slack = Math.pow(t, 1.8), shiftX = 0;
+  if (F.name === 'knees') {
+    // first half: down onto his knees (the body sinks, upright); second half: over onto his face
+    const k = Math.min(1, t / 0.5);
+    sink = 0.42 * Math.sin((Math.PI / 2) * k) * (1 - Math.max(0, (t - 0.5) / 0.5));
+    tipT = t < 0.5 ? 0.06 * k : 0.06 + 0.94 * Math.pow((t - 0.5) / 0.5, 0.9);
+    slack = t < 0.5 ? 0.15 * k : 0.15 + 0.85 * Math.pow((t - 0.5) / 0.5, 1.6);
+  } else if (F.name === 'stagger') {
+    // a step back, hunched over the wound, then down
+    const k = Math.min(1, t / 0.45);
+    shiftX = 0.22 * Math.sin((Math.PI / 2) * k);
+    tipT = t < 0.45 ? -0.12 * k : -0.12 + 1.12 * Math.pow((t - 0.45) / 0.55, 1.1);
+    slack = t < 0.45 ? 0.1 * k : 0.1 + 0.9 * Math.pow((t - 0.45) / 0.55, 1.7);
+  }
+  const A = (Math.PI / 2) * Math.sign(tipT) * Math.pow(Math.abs(tipT), 1.25);
   const ca = Math.cos(A), sa = Math.sin(A);
-  const tipS = (q) => { const x = q[0] * turn, y = q[1] * turn, z = q[2]; return [x * ca + z * sa, y, -x * sa + z * ca]; };
-  const w = Math.pow(t, 1.8); // how far the limbs have gone slack into the corpse pose
-  const drop = 0.25 * Math.sin(Math.PI * t); // the knees give way: the falling body sinks
-  const mix = (a, b) => { const q = tipS(a); return [q[0] + (b[0] - q[0]) * w, q[1] + (b[1] - q[1]) * w, q[2] - drop * (1 - w) + (b[2] - q[2]) * w]; };
-  const legs = S.legs.map((L, i) => ({ hip: mix(L.hip, C.legs[i].hip), knee: mix(L.knee, C.legs[i].knee), ankle: mix(L.ankle, C.legs[i].ankle), toe: mix(L.toe, C.legs[i].toe) }));
-  const fwd0 = [turn, 0, 0], f = tipS([1, 0, 0]);
+  const tipS = (q) => {
+    const x = q[0] * cy - q[1] * sy, y = q[0] * sy + q[1] * cy, z = q[2];
+    return [x * ca + z * sa + shiftX, y, -x * sa + z * ca];
+  };
+  const w = slack, drop = sink;
+  const mix = (a, b) => { const q = tipS(a); return [q[0] + (b[0] - q[0]) * w, q[1] + (b[1] - q[1]) * w, Math.max(0.04, q[2] - drop * (1 - w)) + (b[2] - Math.max(0.04, q[2] - drop * (1 - w))) * w]; };
+  // a man hit in the stagger clutches at his chest
+  const hand = (h, side2) => F.name === 'stagger' && t < 0.6 ? add(S.chest, [0.12, side2 * 0.08, 0.02]) : h;
+  const legs = S.legs.map((L, i) => {
+    let knee = L.knee, ankle = L.ankle, toe = L.toe;
+    if (F.name === 'knees' && t < 0.5) { // kneeling: knees forward and down, shins along the ground
+      const k = t / 0.5;
+      knee = add(L.knee, [0.25 * k, 0, -0.3 * k]); ankle = add(L.ankle, [-0.2 * k, 0, 0.0]); toe = add(L.toe, [-0.25 * k, 0, 0]);
+    }
+    return { hip: mix(L.hip, C.legs[i].hip), knee: mix(knee, C.legs[i].knee), ankle: mix(ankle, C.legs[i].ankle), toe: mix(toe, C.legs[i].toe) };
+  });
+  const f = tipS([1, 0, 0]), endF = C.belly === 'side' ? [0, -1, 0] : [0, 0, C.belly === 'up' ? 1 : -1];
   return {
     P: mix(S.P, C.P), up: norm(mix(S.up, C.up)), chest: mix(S.chest, C.chest), neck: mix(S.neck, C.neck), head: mix(S.head, C.head),
-    shL: mix(S.shL, C.shL), shR: mix(S.shR, C.shR), elL: mix(S.elL, C.elL), elR: mix(S.elR, C.elR), hL: mix(S.hL, C.hL), hR: mix(S.hR, C.hR),
+    shL: mix(S.shL, C.shL), shR: mix(S.shR, C.shR), elL: mix(S.elL, C.elL), elR: mix(S.elR, C.elR),
+    hL: mix(hand(S.hL, 1), C.hL), hR: mix(hand(S.hR, -1), C.hR),
     legs, rifle: S.rifle && C.rifle ? { butt: mix(S.rifle.butt, C.rifle.butt), muzzle: mix(S.rifle.muzzle, C.rifle.muzzle), bayonet: false } : null,
-    tool: null, cut: null, lying: t > 0.25, dead: variant === 0, fwd: norm([f[0] * (1 - w) + 0 * w, 0, f[2] * (1 - w) + (variant === 0 ? 1 : -1) * w]), _fwd0: fwd0,
+    tool: null, cut: null, lying: t > 0.25, dead: C.belly === 'up',
+    fwd: norm([f[0] * (1 - w) + endF[0] * w + 1e-6, f[1] * (1 - w) + endF[1] * w, f[2] * (1 - w) + endF[2] * w]),
+    // blood soaks through as he falls
+    pool: t > 0.55 ? (C.pool || []).map(([x, y, rx, ry]) => [x, y, rx * (t - 0.55) / 0.45, ry * (t - 0.55) / 0.45]) : [],
   };
 }
 export function fallScene(nationKey, variant, dir, frame) {
   const nat = NATIONS[nationKey];
   const J = fallPose(variant, frame);
+  // a hit man bleeds: a dark wound patch on the chest of the falling figure
+  J.gore = [add(J.chest, mul(J.fwd, 0.13))];
   const fig = figure(nat, J, hash(nationKey.length, variant + dir) * 10);
   const th = (dir * Math.PI) / 4, c = Math.cos(th), s = Math.sin(th);
   const toLocal = (x, y, z) => [(x * c + y * s) / K, (-x * s + y * c) / K, z / K];
@@ -454,7 +497,8 @@ export function fallScene(nationKey, variant, dir, frame) {
     return { kind: 'solid', col: fig.colour(mat, p), spec, shin: mat === 'blood' ? 60 : 30 };
   };
   const E = 1.9 * K;
-  return { bounds: [-E, -E, -0.01, E, E, 2.0 * K], sdf, shade, supersample: 3 };
+  // the frames are on screen for a fraction of a second: lighter anti-aliasing keeps the render time sane
+  return { bounds: [-E, -E, -0.01, E, E, 2.0 * K], sdf, shade, supersample: 2 };
 }
 
 /** Pieces thrown by a shell burst: a torn leg or arm, the helmet, the rifle (lying along x, centred). */
