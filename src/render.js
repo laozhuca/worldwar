@@ -880,8 +880,9 @@ export class Renderer {
 
     this.drawBarrageMarkers(ctx, state);
     this.drawShells(ctx, state);
+    this.drawThrownBodies(ctx, state, false); // jolted bodies stay low, under the smoke
     this.drawEffects(ctx, state);
-    this.drawThrownBodies(ctx, state);
+    this.drawThrownBodies(ctx, state, true); // pieces fly out of it
     this.atmo.drawWorld(ctx, state);
 
     // screen-space overlays
@@ -953,10 +954,12 @@ export class Renderer {
           const k = since / 0.6;
           ctx.globalAlpha = (1 - k) * 0.45;
           ctx.fillStyle = '#5b5148';
-          ctx.beginPath(); ctx.ellipse(p.x, p.y - 2 - k * 4, 8 + k * 14, 3 + k * 5, 0, 0, TAU); ctx.fill();
+          const r = b.part ? 0.45 : 1;
+          ctx.beginPath(); ctx.ellipse(p.x, p.y - 2 - k * 4, (8 + k * 14) * r, (3 + k * 5) * r, 0, 0, TAU); ctx.fill();
         }
         continue;
       }
+      if (b.part) continue; // pieces without sprites aren't worth a placeholder
       ctx.save();
       ctx.translate(p.x, p.y); ctx.rotate(((b.dir ?? b.view ?? 0) - 3.5) * 0.3);
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -973,16 +976,17 @@ export class Renderer {
   /** One body sprite (anchored on the ground at x, y). */
   drawCorpse(ctx, nat, b, x, y) {
     if (!this.hasArmy(nat)) return false;
+    if (b.part) return this.drawFrame(ctx, 'soldiers-' + nat, `part_${b.part}_d${b.part === 'helmet' ? 0 : b.dir}`, x, y, 1.35);
     if (b.v != null && this.drawFrame(ctx, 'soldiers-' + nat, `corpse_v${b.v}_d${b.dir}`, x, y, 1.35)) return true;
     const v = b.view ?? (b.dir ?? 0) % 4; // older saves / sprite sheets without corpses
     return this.drawSoldier(ctx, nat, 'dead', 0, [1, 0, -1, 0][v], [0, -1, 0, 1][v], x, y);
   }
 
-  /** Bodies thrown by shell bursts: a tumbling arc from where they fell to where they land. */
-  drawThrownBodies(ctx, state) {
+  /** Shell bursts: bodies jolted a short way, and torn pieces thrown high, tumbling, to where they land. */
+  drawThrownBodies(ctx, state, pieces) {
     const UP = 39.2; // screen px per tile of height
     for (const b of state.decals) {
-      if (!b.fly) continue;
+      if (!b.fly || !!b.part !== pieces) continue;
       const age = state.time - b.t, f = b.fly;
       if (age >= f.dur || age < 0) continue;
       const u = age / f.dur;
@@ -991,7 +995,8 @@ export class Renderer {
       // shadow on the ground, smaller and fainter the higher the body is
       ctx.globalAlpha = 0.32 * (1 - 0.5 * z / Math.max(0.01, f.h));
       ctx.fillStyle = '#000';
-      ctx.beginPath(); ctx.ellipse(p.x, p.y, 9 - z * 2, 3.5 - z * 0.8, 0, 0, TAU); ctx.fill();
+      const sw = b.part ? 4 : 9; // a piece casts a smaller shadow than a body
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, Math.max(1.5, sw - z * 1.5), Math.max(0.8, sw * 0.38 - z * 0.5), 0, 0, TAU); ctx.fill();
       ctx.globalAlpha = 1;
       ctx.save();
       ctx.translate(p.x, p.y - z * UP - 6);
@@ -999,7 +1004,7 @@ export class Renderer {
       const nat = this.nations && this.nations[b.team];
       if (!this.drawCorpse(ctx, nat, b, 0, 6)) {
         ctx.fillStyle = UNIFORM_DARK[b.team];
-        ctx.beginPath(); ctx.ellipse(0, 0, 6, 2.2, 0, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(0, 0, b.part ? 3 : 6, b.part ? 1.2 : 2.2, 0, 0, TAU); ctx.fill();
       }
       ctx.restore();
     }

@@ -516,7 +516,7 @@ export function damageUnit(state, u, amount, blast = null) {
   u.hp -= amount;
   u.men = Math.max(0, Math.ceil(u.hp / t.hpPerMan - 1e-6));
   state.stats.lost[u.team] += before - u.men;
-  for (let i = 0; i < Math.min(3, before - u.men); i++) state.decals.push(fallen(state, u, blast));
+  for (let i = 0; i < Math.min(3, before - u.men); i++) fallen(state, u, blast);
   if (state.decals.length > 260) state.decals = state.decals.filter((d) => state.time - d.t < 140).slice(-260);
   if (u.hp <= 0) {
     u.dead = true;
@@ -526,23 +526,41 @@ export function damageUnit(state, u, amount, blast = null) {
   }
 }
 
-/** One body left on the field: pose variant (0-2 intact, 3-5 torn), one of 8 directions, maybe thrown. */
+/**
+ * One body left on the field: pose variant (0-2 intact, 3-5 torn), one of 8 directions. A shell burst
+ * jolts the body a short way and throws pieces high into the air: the torn-off limbs, the helmet,
+ * sometimes the rifle. They land and stay on the field as small decals.
+ */
+const TORN_PARTS = { 3: ['leg'], 4: ['arm'], 5: ['leg', 'leg'] };
 function fallen(state, u, blast) {
   const x0 = u.x + (rand() - 0.5) * 0.7, y0 = u.y + (rand() - 0.5) * 0.7;
   const torn = blast && rand() < 0.6;
-  const b = { x: x0, y: y0, team: u.team, t: state.time, v: torn ? 3 + Math.floor(rand() * 3) : Math.floor(rand() * 3), dir: Math.floor(rand() * 8) };
-  if (blast && rand() < (blast.d < 0.9 ? 0.9 : 0.55)) {
-    // thrown away from the burst: the closer, the further and higher
-    let dx = x0 - blast.x, dy = y0 - blast.y;
-    const n = Math.hypot(dx, dy);
-    if (n < 0.05) { const a = rand() * Math.PI * 2; dx = Math.cos(a); dy = Math.sin(a); } else { dx /= n; dy /= n; }
-    const near = Math.max(0, 1 - blast.d / 1.6);
-    const dist = 0.5 + near * 1.6 + rand() * 0.6, h = 0.5 + near * 1.1 + rand() * 0.4;
-    const land = clampToMap(x0 + dx * dist, y0 + dy * dist);
+  const body = { x: x0, y: y0, team: u.team, t: state.time, v: torn ? 3 + Math.floor(rand() * 3) : Math.floor(rand() * 3), dir: Math.floor(rand() * 8) };
+  state.decals.push(body);
+  if (!blast) return;
+  let ax = x0 - blast.x, ay = y0 - blast.y;
+  const n = Math.hypot(ax, ay);
+  if (n < 0.05) { const a = rand() * Math.PI * 2; ax = Math.cos(a); ay = Math.sin(a); } else { ax /= n; ay /= n; }
+  const near = Math.max(0, 1 - blast.d / 1.6);
+  const throwIt = (b, dist, h, spin) => {
+    const land = clampToMap(x0 + ax * dist, y0 + ay * dist);
+    b.fly = { x0, y0, h, dur: 0.6 + h * 0.45, spin };
     b.x = land.x; b.y = land.y;
-    b.fly = { x0, y0, h, dur: 0.75 + h * 0.4, spin: (rand() < 0.5 ? -1 : 1) * (5 + rand() * 7) };
+  };
+  // the body: a short, low jolt
+  if (rand() < 0.4 + near * 0.5) throwIt(body, 0.25 + near * 0.5 + rand() * 0.25, 0.12 + near * 0.18, (rand() - 0.5) * 3);
+  // the pieces: high and far, spinning fast, each a little off the blast direction
+  const pieces = (TORN_PARTS[body.v] || []).slice();
+  if (rand() < 0.35 + near * 0.4) pieces.push('helmet');
+  if (rand() < 0.2 + near * 0.2) pieces.push('rifle');
+  for (const part of pieces) {
+    const a = (rand() - 0.5) * 1.4, c = Math.cos(a), sn = Math.sin(a);
+    const dx = ax * c - ay * sn, dy = ax * sn + ay * c;
+    const dist = 0.8 + near * 2 + rand() * 1.2, h = 0.8 + near * 1.4 + rand() * 0.8;
+    const land = clampToMap(x0 + dx * dist, y0 + dy * dist);
+    state.decals.push({ x: land.x, y: land.y, team: u.team, t: state.time, part, dir: Math.floor(rand() * 4),
+      fly: { x0, y0, h, dur: 0.6 + h * 0.45, spin: (rand() < 0.5 ? -1 : 1) * (9 + rand() * 9) } });
   }
-  return b;
 }
 
 function launchShell(state, u, tx, ty) {

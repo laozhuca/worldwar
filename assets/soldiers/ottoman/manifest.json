@@ -587,6 +587,97 @@
   "ay": 96,
   "scale": 4
  },
+ "part_arm_d0": {
+  "w": 79,
+  "h": 57,
+  "ax": 40,
+  "ay": 35,
+  "scale": 4
+ },
+ "part_arm_d1": {
+  "w": 79,
+  "h": 57,
+  "ax": 40,
+  "ay": 35,
+  "scale": 4
+ },
+ "part_arm_d2": {
+  "w": 79,
+  "h": 57,
+  "ax": 40,
+  "ay": 35,
+  "scale": 4
+ },
+ "part_arm_d3": {
+  "w": 79,
+  "h": 57,
+  "ax": 40,
+  "ay": 35,
+  "scale": 4
+ },
+ "part_helmet_d0": {
+  "w": 79,
+  "h": 57,
+  "ax": 40,
+  "ay": 35,
+  "scale": 4
+ },
+ "part_leg_d0": {
+  "w": 79,
+  "h": 57,
+  "ax": 40,
+  "ay": 35,
+  "scale": 4
+ },
+ "part_leg_d1": {
+  "w": 79,
+  "h": 57,
+  "ax": 40,
+  "ay": 35,
+  "scale": 4
+ },
+ "part_leg_d2": {
+  "w": 79,
+  "h": 57,
+  "ax": 40,
+  "ay": 35,
+  "scale": 4
+ },
+ "part_leg_d3": {
+  "w": 79,
+  "h": 57,
+  "ax": 40,
+  "ay": 35,
+  "scale": 4
+ },
+ "part_rifle_d0": {
+  "w": 79,
+  "h": 57,
+  "ax": 40,
+  "ay": 35,
+  "scale": 4
+ },
+ "part_rifle_d1": {
+  "w": 79,
+  "h": 57,
+  "ax": 40,
+  "ay": 35,
+  "scale": 4
+ },
+ "part_rifle_d2": {
+  "w": 79,
+  "h": 57,
+  "ax": 40,
+  "ay": 35,
+  "scale": 4
+ },
+ "part_rifle_d3": {
+  "w": 79,
+  "h": 57,
+  "ax": 40,
+  "ay": 35,
+  "scale": 4
+ },
  "portrait": {
   "w": 244,
   "h": 363,

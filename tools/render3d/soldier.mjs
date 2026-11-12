@@ -250,7 +250,9 @@ function figure(nat, J, seed) {
   const prims = [];
   const cap = (a, b, ra, rb, mat) => prims.push({ k: 'c', a, b, ra, rb, mat });
   // legs: trousers to knee, puttees, boots
-  for (const L of J.legs) {
+  const has = (k) => !J.only || J.only.includes(k);
+  for (const g of J.gore || []) prims.push({ k: 's', c: g, r: 0.06, mat: 'gore' });
+  for (const L of has('legs') ? J.legs : []) {
     if (L.cut === 'thigh') { // torn off at mid-thigh: a ragged stump
       const m = add(L.hip, mul(sub(L.knee, L.hip), 0.5));
       cap(L.hip, m, 0.085, 0.08, 'trou');
@@ -264,17 +266,20 @@ function figure(nat, J, seed) {
   }
   for (const [cx, cy, rx, ry] of J.pool || []) prims.push({ k: 'pool', c: [cx, cy, 0], rx, ry, mat: 'blood' });
   // torso (two overlapping capsules for a broad chest), arms, head
+  if (has('torso')) {
   cap(J.P, J.chest, 0.15, 0.16, 'uni');
   cap(add(J.chest, [0, 0.1, 0]), add(J.chest, [0, -0.1, 0]), 0.12, 0.12, 'uni');
   cap(J.chest, J.neck, 0.1, 0.06, 'uni');
-  for (const [side, sh, el, h] of [['L', J.shL, J.elL, J.hL], ['R', J.shR, J.elR, J.hR]]) {
+  }
+  for (const [side, sh, el, h] of has('arms') ? [['L', J.shL, J.elL, J.hL], ['R', J.shR, J.elR, J.hR]] : has('arm') ? [['L', J.shL, J.elL, J.hL]] : []) {
     cap(sh, el, 0.058, 0.05, 'uni');
     if (J.armCut === side) { prims.push({ k: 's', c: el, r: 0.055, mat: 'gore' }); continue; } // torn off at the elbow
     cap(el, h, 0.05, 0.042, 'uni');
     prims.push({ k: 's', c: h, r: 0.042, mat: 'skin' });
   }
-  prims.push({ k: 's', c: J.head, r: 0.105, mat: 'skin' });
+  if (has('head')) prims.push({ k: 's', c: J.head, r: 0.105, mat: 'skin' });
   // equipment: belt with pouches, pack + bedroll, canteen
+  if (has('torso')) {
   const fwd = J.belly === 'side' ? [0, -1, 0] : J.lying ? [0, 0, J.dead ? 1 : -1] : [1, 0, 0]; // belly direction
   const belt = add(J.P, mul(J.up, 0.12));
   cap(add(belt, [0, 0.16, 0]), add(belt, [0, -0.16, 0]), 0.165, 0.165, 'webT');
@@ -287,8 +292,9 @@ function figure(nat, J, seed) {
   cap(add(J.shL, mul(fwd, 0.08)), add(belt, add(mul(fwd, 0.14), [0, 0.08, 0])), 0.022, 0.022, 'web');
   cap(add(J.shR, mul(fwd, 0.08)), add(belt, add(mul(fwd, 0.14), [0, -0.08, 0])), 0.022, 0.022, 'web');
   if (nat.coat && !J.lying) prims.push({ k: 'skirt', top: add(J.P, mul(J.up, 0.05)), mat: 'uni' });
+  }
   // rifle / shovel
-  if (J.rifle) {
+  if (J.rifle && has('rifle')) {
     const R = J.rifle, d = norm(sub(R.muzzle, R.butt));
     const stockEnd = add(R.butt, mul(d, 0.85));
     cap(R.butt, add(R.butt, mul(d, 0.3)), 0.032, 0.024, 'wood');
@@ -325,7 +331,7 @@ function figure(nat, J, seed) {
     let d = 1e9, mat = 'uni';
     for (const q of prims) { const v = dPrim(q, p); if (v < d) { d = v; mat = q.mat; } }
     if (!J.lying || true) {
-      const [hd, hm] = headgear(nat, p, J.hatAt || J.head); // a knocked-off helmet lies on the ground
+      const [hd, hm] = has('hat') ? headgear(nat, p, J.hatAt || J.head) : [1e9, 'hat']; // a knocked-off helmet lies on the ground
       if (hd < d) { d = hd; mat = hm; }
     }
     if (J.cut != null) d = Math.max(d, J.cut - p[2]);
@@ -405,6 +411,35 @@ export function corpseScene(nationKey, variant, dir) {
   };
   const E = 1.3 * K;
   return { bounds: [-E, -E, -0.01, E, E, 0.7 * K], sdf, shade, supersample: 3 };
+}
+
+/** Pieces thrown by a shell burst: a torn leg or arm, the helmet, the rifle (lying along x, centred). */
+export const PARTS = { leg: 4, arm: 4, rifle: 4, helmet: 1 };
+function part(name) {
+  const base = { P: [0, 0, 0], up: [1, 0, 0], chest: [0, 0, 0], neck: [0, 0, 0], head: [0, 0, 0], shL: [0, 0, 0], shR: [0, 0, 0], elL: [0, 0, 0], elR: [0, 0, 0], hL: [0, 0, 0], hR: [0, 0, 0], legs: [], rifle: null, tool: null, cut: null, lying: true, belly: 'up' };
+  switch (name) {
+    case 'leg': return { ...base, only: ['legs'], legs: [{ hip: [0.42, 0, 0.08], knee: [0, 0.02, 0.07], ankle: [-0.4, 0, 0.06], toe: [-0.48, 0, 0.13] }], gore: [[0.47, 0, 0.08]] };
+    case 'arm': return { ...base, only: ['arm'], shL: [0.28, 0, 0.06], elL: [0, 0.04, 0.05], hL: [-0.24, 0.02, 0.05], gore: [[0.32, 0, 0.06]] };
+    case 'rifle': return { ...base, only: ['rifle'], rifle: { butt: [-0.55, 0, 0.035], muzzle: [0.55, 0, 0.035], bayonet: false } };
+    case 'helmet': return { ...base, only: ['hat'], hatAt: [0, 0, -0.02] };
+  }
+}
+export function partScene(nationKey, name, dir) {
+  const nat = NATIONS[nationKey];
+  const J = part(name);
+  const fig = figure(nat, J, hash(nationKey.length, dir + name.length) * 10);
+  const th = (dir * Math.PI) / 2 + 0.4, c = Math.cos(th), s = Math.sin(th);
+  const toLocal = (x, y, z) => [(x * c + y * s) / K, (-x * s + y * c) / K, z / K];
+  const sdf = (x, y, z) => Math.min(fig.eval(toLocal(x, y, z))[0] * K, z);
+  const shade = (x, y, z) => {
+    const p = toLocal(x, y, z);
+    const [d, mat] = fig.eval(p);
+    if (z < d * K) return { kind: 'catcher' };
+    const spec = mat === 'hat' && (nat.head === 'brodie' || nat.head === 'adrian' || nat.head === 'pickelhaube') ? 0.35 : mat === 'metal' || mat === 'steel' || mat === 'hat2' ? 0.6 : 0.03;
+    return { kind: 'solid', col: fig.colour(mat, p), spec, shin: 30 };
+  };
+  const E = 0.75 * K;
+  return { bounds: [-E, -E, -0.01, E, E, 0.45 * K], sdf, shade, supersample: 3 };
 }
 
 /** All sprite jobs: [name, args]. */
