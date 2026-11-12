@@ -6,7 +6,7 @@ import { setWestTeam } from './map.js';
 import { setNextId } from './game.js';
 
 export const SAVE_VERSION = 1;
-const TILE_KEYS = ['mud', 'shade', 'crater', 'trench', 'owner', 'origOwner', 'wire', 'origWire', 'build', 'decor'];
+const TILE_KEYS = ['mud', 'shade', 'crater', 'trench', 'owner', 'origOwner', 'wire', 'origWire', 'build', 'decor', 'dmg', 'decorHp', 'splinters'];
 
 /** The battle as a JSON string. */
 export function serialize(state) {

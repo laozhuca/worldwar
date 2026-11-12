@@ -160,3 +160,40 @@ test('the fallen: shell bursts tear bodies and throw the pieces, small arms leav
     assert.ok(Math.abs(b.x - s.map.w / 2) + Math.abs(b.y - s.map.h / 2) <= s.map.w / 2, 'lands on the battlefield');
   }
 });
+
+test('shells wreck trees and slowly damage trenches; damaged trenches protect less and T repairs them', async () => {
+  const { trenchCover, TRENCH_COVER } = await import('../src/config.js');
+  const s = createGame({ aiTeams: [] });
+  const gun = s.units.find((u) => u.team === PLAYER && u.type === 'artillery');
+  // a tree within range
+  const tree = s.map.tiles.find((t) => t.decor === 'tree' && Math.hypot(t.x - gun.x, t.y - gun.y) < 30);
+  // an enemy front-line trench section
+  const M = Math.floor(s.map.h / 2), ex = frontLine(s.map, ENEMY)[M];
+  const tr = tileAt(s.map, ex + 0.5, M + 0.5);
+  const lvl = tr.trench, fresh = trenchCover(TRENCH_COVER, tr);
+  s.resources[PLAYER].ammo = 1e5; s.supplyTimer = 1e9;
+  const shell = (x, y) => s.shells.push({ x, y, t: 0.01, flight: 1, team: PLAYER, fromX: gun.x, fromY: gun.y });
+  for (let i = 0; i < 4; i++) shell(tree.x + 0.5, tree.y + 0.5);
+  step(s, 0.5);
+  assert.notEqual(tree.decor, 'tree', 'the tree was brought down');
+  shell(tr.x + 0.5, tr.y + 0.5); step(s, 0.2);
+  const one = tr.dmg;
+  assert.ok(one > 0 && one < 20, `one direct hit only dents a trench (${one})`);
+  assert.equal(tr.trench, lvl, 'the works keep their level');
+  for (let i = 0; i < 30; i++) shell(tr.x + 0.5, tr.y + 0.5);
+  step(s, 0.5);
+  assert.ok(tr.dmg > 80, `a pounding wrecks it (${tr.dmg})`);
+  assert.ok(trenchCover(TRENCH_COVER, tr) > fresh + 0.3, 'a wrecked trench protects much less');
+  // the enemy's trench: we can't repair it; our own we can, with T
+  assert.equal(placeBuild(s, PLAYER, 'trench', tr.x + 0.5, tr.y + 0.5).ok, false);
+  const px = frontLine(s.map, PLAYER)[M], mine = tileAt(s.map, px + 0.5, M + 0.5);
+  assert.equal(placeBuild(s, PLAYER, 'trench', mine.x + 0.5, mine.y + 0.5).ok, false, 'an undamaged trench needs no repair');
+  mine.dmg = 90;
+  const sq = s.units.find((u) => u.team === PLAYER && u.type === 'rifle');
+  sq.x = mine.x + 0.5; sq.y = mine.y + 1.5; sq.order = null;
+  const r = placeBuild(s, PLAYER, 'trench', mine.x + 0.5, mine.y + 0.5);
+  assert.ok(r.ok, r.reason);
+  step(s, 20);
+  assert.equal(mine.dmg, 0, 'dug out again');
+  assert.ok(mine.trench >= 1);
+});

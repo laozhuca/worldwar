@@ -158,6 +158,13 @@ export function updateAI(state, ai, dt) {
       if (near) continue;
       if (placeBuild(state, me, 'wire', t.x + 0.5, t.y + 0.5).ok) placed++;
     }
+    // dig out our badly damaged trench sections
+    for (const t of map.tiles) {
+      if (placed >= 3 || res.supplies < 50) break;
+      if (!t.trench || t.owner !== me || (t.dmg || 0) < 40 || t.build) continue;
+      if (foes.some((f) => Math.hypot(f.x - t.x - 0.5, f.y - t.y - 0.5) < 5)) continue;
+      if (placeBuild(state, me, 'trench', t.x + 0.5, t.y + 0.5).ok) placed++;
+    }
   }
 }
 

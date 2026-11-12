@@ -77,10 +77,21 @@ export const UNIT_TYPES = {
 // Damage multipliers by trench level (index 0 = open ground).
 export const TRENCH_COVER = [1, 0.4, 0.28, 0.18]; // small-arms fire
 export const TRENCH_ARTY = [1, 0.55, 0.42, 0.3]; // shellfire
+// Shell damage to trench works (0-100 per tile). Trenches are hard to damage: a direct hit does
+// TRENCH_HIT, a near miss TRENCH_NEAR, divided by the works' toughness (hasty, sandbagged, concrete).
+// A fully wrecked section keeps only a quarter of its protection until it is dug out again (T).
+export const TRENCH_HIT = 16, TRENCH_NEAR = 5;
+export const TRENCH_TOUGH = [1, 1, 1.6, 2.6];
+export const TRENCH_WRECK_LOSS = 0.75;
+/** Protection factor (damage multiplier) of a trench tile, given its damage. */
+export function trenchCover(table, tile) {
+  const base = table[tile.trench];
+  return base + (1 - base) * TRENCH_WRECK_LOSS * Math.min(1, (tile.dmg || 0) / 100);
+}
 
 export const BUILD = {
   trench: { key: 'trench', name: 'Dig Trench', supplies: 12, work: 10, hotkey: 'T',
-    desc: 'Dig a new trench section. Needs a rifle squad nearby to dig.' },
+    desc: 'Dig a new trench section, or dig out a shell-damaged one. Needs a rifle squad nearby to dig.' },
   upgrade: { key: 'upgrade', name: 'Reinforce Trench', supplies: 25, work: 14, hotkey: 'U',
     desc: 'Sandbag / revet an existing trench (max level 3). Better cover.' },
   wire: { key: 'wire', name: 'Barbed Wire', supplies: 10, work: 6, hotkey: 'X',

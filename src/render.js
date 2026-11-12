@@ -800,7 +800,7 @@ export class Renderer {
     for (const t of map.tiles) {
       if (t.trench || t.wire || t.decor || !this.inClip(t.x, t.y, 1)) continue;
       const h = hash(t.x * 9.7, t.y * 4.3);
-      if (!((t.mud && h > 0.86) || h > 0.975)) continue;
+      if (!t.splinters && !((t.mud && h > 0.86) || h > 0.975)) continue; // splinters: a tree blown apart
       const p = iso(t.x + 0.3 + h * 0.4, t.y + 0.3 + t.shade * 0.4);
       this.drawProp(g, `debris${Math.floor(h * 97) % 3}${snow}`, p.x, p.y);
     }
@@ -811,7 +811,31 @@ export class Renderer {
       const mask = has(0, -1) | (has(1, 0) << 1) | (has(0, 1) << 2) | (has(-1, 0) << 3);
       const p = iso(t.x + 0.5, t.y + 0.5);
       const v = Math.floor(hash(t.x * 3.3, t.y * 7.1) * 3) % 3;
-      this.drawProp(g, `trench_m${mask}_l${Math.max(1, Math.min(3, t.trench))}_v${v}${snow}`, p.x, p.y);
+      // a badly wrecked section has lost its sandbags and revetment: it shows as hasty works
+      const lvl = (t.dmg || 0) > 60 ? 1 : Math.max(1, Math.min(3, t.trench));
+      this.drawProp(g, `trench_m${mask}_l${lvl}_v${v}${snow}`, p.x, p.y);
+      // shell damage: collapsed spoil and wreckage in the trench, more of it the worse the damage
+      const dmg = t.dmg || 0;
+      if (dmg > 12) {
+        const n = Math.min(5, 1 + Math.floor(dmg / 22));
+        // a scorched blast mark on a wrecked section
+        if (dmg > 45) {
+          const c = iso(t.x + 0.5, t.y + 0.5);
+          g.fillStyle = `rgba(22, 17, 13, ${0.25 + dmg / 300})`;
+          g.beginPath(); g.ellipse(c.x, c.y, 20, 9, 0, 0, TAU); g.fill();
+        }
+        for (let i = 0; i < n; i++) {
+          const h2 = hash(t.x * 1.7 + i * 3.1, t.y * 2.9 - i * 1.3);
+          const q = iso(t.x + 0.18 + h2 * 0.64, t.y + 0.18 + ((h2 * 7.3) % 1) * 0.64);
+          const rx = 7 + h2 * 7, ry = 3.2 + h2 * 2.4;
+          // a heap of earth thrown into the trench: dark base, lighter top
+          g.fillStyle = 'rgba(70, 57, 46, 0.9)';
+          g.beginPath(); g.ellipse(q.x, q.y, rx, ry, (h2 - 0.5) * 0.6, 0, TAU); g.fill();
+          g.fillStyle = 'rgba(104, 88, 72, 0.75)';
+          g.beginPath(); g.ellipse(q.x - rx * 0.15, q.y - ry * 0.45, rx * 0.6, ry * 0.5, (h2 - 0.5) * 0.6, 0, TAU); g.fill();
+          if (i % 2 === 0) this.drawProp(g, `debris${Math.floor(h2 * 97) % 3}${snow}`, q.x + 2, q.y + 1);
+        }
+      }
     }
     // pennant posts showing who holds each stretch of trench
     for (const t of trenches) {

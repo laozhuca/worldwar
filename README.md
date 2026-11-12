@@ -27,7 +27,8 @@ as `file://`, because it uses ES modules.
 | **Men** | Recruit rifle squads, MG teams and field batteries. Squads are not refilled: casualties are permanent, so worn-down squads are replaced by new ones. |
 | **Ammunition** | Every rifle volley, MG burst and shell uses ammo. Without it fire drops to a trickle. |
 | **Supplies** | Recruiting, digging trenches, reinforcing trenches (levels 1–3), laying barbed wire. |
-| **Trenches** | Cut small-arms damage to 40% / 28% / 18% (by level), and shell damage less so. |
+| **Trenches** | Cut small-arms damage to 40% / 28% / 18% (by level), and shell damage less so. Shells slowly wreck them (sandbagged and concrete works resist longer): a wrecked section keeps only a quarter of its protection and shows collapsed spoil, until it is dug out again with **T** (Dig Trench on a damaged trench). |
+| **Trees** | Shellfire brings trees down to shattered stumps and logs, then blows those to splinters. |
 | **Machine guns** | Short setup time, then murderous fire on troops in the open. Fire pins walking troops. |
 | **Barbed wire** | Slows anyone crossing it to a quarter speed. Shellfire cuts it. |
 | **Artillery** | 8-shell barrages: kill, suppress, cut wire, collapse trench works, churn the ground. Friendly fire is real. |

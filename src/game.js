@@ -1,6 +1,6 @@
 // Core simulation. No DOM access here so it can run headless (tests, AI-vs-AI).
 import {
-  PLAYER, ENEMY, UNIT_TYPES, TRENCH_COVER, TRENCH_ARTY, BUILD, SUPPLY_INTERVAL,
+  PLAYER, ENEMY, UNIT_TYPES, TRENCH_COVER, TRENCH_ARTY, BUILD, SUPPLY_INTERVAL, TRENCH_HIT, TRENCH_NEAR, TRENCH_TOUGH, trenchCover,
   BASE_INCOME, CAPTURE_BONUS, START_RES, SUPPRESSION_DECAY, CHARGE_SPEED, MELEE_RANGE,
   WIRE_SLOW, BUILD_RADIUS_FRIENDLY, BUILD_RADIUS_ENEMY, DIG_RADIUS, DIG_RATE,
 } from './config.js';
@@ -206,7 +206,11 @@ export function canBuild(state, team, type, x, y) {
   if (t.build) return { ok: false, reason: 'Works already in progress' };
   const isHq = map.hq.some((q) => q.x === t.x && q.y === t.y);
   if (isHq) return { ok: false, reason: 'Cannot build on HQ' };
-  if (type === 'trench' && (t.trench || t.wire)) return { ok: false, reason: 'Tile not clear' };
+  if (type === 'trench' && t.trench) {
+    // T on a shell-damaged trench digs it out again
+    if (!((t.dmg || 0) >= 5)) return { ok: false, reason: 'This trench is not damaged' };
+    if (t.owner >= 0 && t.owner !== team) return { ok: false, reason: 'Not our trench' };
+  } else if (type === 'trench' && t.wire) return { ok: false, reason: 'Tile not clear' };
   if (type === 'wire' && (t.trench || t.wire)) return { ok: false, reason: 'Tile not clear' };
   if (type === 'upgrade') {
     if (!t.trench) return { ok: false, reason: 'No trench here' };
@@ -237,7 +241,8 @@ export function placeBuild(state, team, type, x, y) {
   if (!c.ok) return c;
   const t = tileAt(state.map, x, y);
   state.resources[team].supplies -= BUILD[type].supplies;
-  t.build = { type, team, progress: 0, work: BUILD[type].work };
+  const repair = type === 'trench' && t.trench > 0;
+  t.build = { type, team, progress: 0, work: repair ? BUILD.trench.work * Math.max(0.4, (t.dmg || 0) / 100) : BUILD[type].work, repair };
   markChanged(state.map, t.x, t.y);
   return { ok: true };
 }
@@ -254,7 +259,8 @@ export function cancelBuild(state, team, x, y) {
 function completeBuild(state, tile) {
   const b = tile.build;
   tile.build = null;
-  if (b.type === 'trench') { tile.trench = 1; tile.owner = b.team; tile.decor = null; tile.crater = 0; }
+  if (b.type === 'trench' && tile.trench) { tile.dmg = 0; } // dug out and repaired
+  else if (b.type === 'trench') { tile.trench = 1; tile.owner = b.team; tile.decor = null; tile.crater = 0; tile.dmg = 0; }
   else if (b.type === 'upgrade') { tile.trench = Math.min(3, tile.trench + 1); }
   else if (b.type === 'wire') { tile.wire = 100; tile.decor = null; }
   state.map.dirty = true;
@@ -489,7 +495,7 @@ function fire(state, u, target, t) {
   let hits = 0;
   for (let i = 0; i < shots; i++) if (rand() < acc) hits++;
   const tt = tileAt(state.map, target.x, target.y);
-  const cover = target.inTrench && tt ? TRENCH_COVER[tt.trench] : 1;
+  const cover = target.inTrench && tt && tt.trench ? trenchCover(TRENCH_COVER, tt) : 1;
   damageUnit(state, target, hits * t.damage * cover, null, { x: u.x, y: u.y, kind: t.burst ? 'mg' : 'rifle' });
 
   let sup = shots * t.suppressPerShot;
@@ -591,7 +597,7 @@ function explode(state, s) {
     const d = Math.hypot(u.x - s.x, u.y - s.y);
     if (d < 1.6) {
       const tt = tileAt(map, u.x, u.y);
-      const cover = u.inTrench && tt ? TRENCH_ARTY[tt.trench] : (u.pinned ? 0.8 : 1);
+      const cover = u.inTrench && tt && tt.trench ? trenchCover(TRENCH_ARTY, tt) : (u.pinned ? 0.8 : 1);
       damageUnit(state, u, 90 * (1 - (d / 1.6) * 0.6) * cover, { x: s.x, y: s.y, d }); // heavy shell: twice the old blast
     }
     if (d < 3.2) {
@@ -610,17 +616,28 @@ function explode(state, s) {
     if (d > 1.3) continue;
     if (t.wire > 0) t.wire = Math.max(0, t.wire - (d < 0.7 ? 160 : 90));
     if (t.build) { t.build.progress = Math.max(0, t.build.progress - 4); }
-    if (t.decor === 'tree' && rand() < 0.5) t.decor = rand() < 0.5 ? 'stump' : 'log';
-    else if (t.decor === 'ruin' && d < 0.8 && rand() < 0.3) t.decor = null;
+    const hit = d < 0.7; // the shell landed on this tile
+    // trees and their stems: a tree takes two hits to fall (to a shattered stump or a log), a stump or
+    // log one or two more before it is blown to splinters
+    if (t.decor === 'tree' || t.decor === 'stump' || t.decor === 'log') {
+      const hp = t.decorHp ?? (t.decor === 'tree' ? 2 : t.decor === 'stump' ? 2 : 1);
+      const left = hp - (hit ? 2 : rand() < 0.6 ? 1 : 0);
+      if (left > 0) t.decorHp = left;
+      else if (t.decor === 'tree') { t.decor = rand() < 0.6 ? 'stump' : 'log'; t.decorHp = t.decor === 'stump' ? 2 : 1; }
+      else { t.decor = null; t.decorHp = undefined; t.splinters = 1; }
+      markChanged(map, t.x, t.y);
+    } else if (t.decor === 'ruin' && d < 0.8 && rand() < 0.3) t.decor = null;
+    // trench works: hard to damage, harder still when sandbagged or concreted
+    if (t.trench) {
+      t.dmg = Math.min(100, (t.dmg || 0) + (hit ? TRENCH_HIT : TRENCH_NEAR) * (0.75 + rand() * 0.5) / TRENCH_TOUGH[t.trench]);
+      if (t.build && t.build.type === 'trench' && t.build.repair) t.build.progress = 0; // the repair starts again
+      markChanged(map, t.x, t.y);
+    }
   }
   const center = tileAt(map, s.x, s.y);
-  if (center) {
-    if (center.trench) {
-      if (center.trench > 1 && rand() < 0.5) center.trench--;
-    } else {
-      center.crater = Math.min(3, center.crater + 1);
-      center.mud = 1;
-    }
+  if (center && !center.trench) {
+    center.crater = Math.min(3, center.crater + 1);
+    center.mud = 1;
   }
   map.dirty = true;
   (map.changes || (map.changes = [])).push({ x: Math.floor(s.x), y: Math.floor(s.y) });

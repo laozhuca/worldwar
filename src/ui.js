@@ -43,7 +43,7 @@ export class UI {
     const text = {
       charge: 'CHARGE: click or tap a target. Troops run, ignore pinning, and fight hand-to-hand on arrival. Right-click or press Charge again to cancel.',
       bombard: 'BOMBARD: click or tap a target area for a barrage. Shift-click to keep the mode on. Right-click or press Bombard again to cancel.',
-      'build:trench': `DIG TRENCH (${BUILD.trench.supplies} supplies/tile): click or drag. Rifle squads nearby do the digging.`,
+      'build:trench': `DIG TRENCH (${BUILD.trench.supplies} supplies/tile): click or drag. On a shell-damaged trench it digs it out again. Rifle squads nearby do the digging.`,
       'build:upgrade': `REINFORCE TRENCH (${BUILD.upgrade.supplies} supplies/tile): click our trench tiles. Max level 3.`,
       'build:wire': `BARBED WIRE (${BUILD.wire.supplies} supplies/tile): click or drag. Leave gaps for your own attacks!`,
     }[mode];
