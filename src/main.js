@@ -171,6 +171,14 @@ function showEnd(state) {
     `Time in the line: ${mins}m ${secs}s. Our casualties: ${state.stats.lost[0]} men. Enemy casualties: ${state.stats.lost[1]} men.`;
   app.started = false;
   showPanel('end-panel', 'menu');
+  // a victory is shown over a painting for the winning side
+  const side = NATIONS[state.nations[PLAYER]] ? NATIONS[state.nations[PLAYER]].alliance : 'allied';
+  const scene = document.getElementById('end-scene');
+  scene.classList.toggle('hidden', !won);
+  if (won) {
+    document.getElementById('overlay').classList.add('victory', `victory-${side}`);
+    scene.textContent = side === 'central' ? 'Triumph on the Trench Ridge' : 'Triumphant Soldiers at Dawn';
+  }
 }
 
 let last = performance.now();
@@ -332,6 +340,7 @@ let backTo = 'menu'; // where a panel's Back button goes: the main menu, or stra
 /** Show one overlay panel (the battle pauses underneath). */
 function showPanel(id, back = 'menu') {
   backTo = back;
+  document.getElementById('overlay').classList.remove('victory', 'victory-allied', 'victory-central');
   for (const p of PANELS) document.getElementById(p).classList.toggle('hidden', p !== id);
   document.getElementById('overlay').classList.toggle('menu-mode', id === 'menu-panel');
   document.getElementById('overlay').classList.remove('hidden');

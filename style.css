@@ -233,3 +233,12 @@ button.big.back { background: #2b3038; }
 #topbar { position: relative; order: 0; flex: none; z-index: 2; background: linear-gradient(#1f2329, #181b20); }
 #view { position: relative; order: 1; flex: 1 1 auto; min-height: 0; height: auto; width: 100%; inset: auto; }
 #bottom { position: relative; order: 2; flex: none; z-index: 2; background: linear-gradient(#1c2026, #15181c); }
+
+/* victory: the winning side's painting fills the screen, the result panel sits over its lower part */
+#overlay.victory { background: #0b0c0e center / cover no-repeat; align-items: flex-end; padding-bottom: 5vh; }
+#overlay.victory-allied { background-image: url('assets/art/victory-allied.webp'); background-position: center 30%; }
+#overlay.victory-central { background-image: url('assets/art/victory-central.webp'); background-position: center 8%; }
+#overlay.victory #end-panel { background: rgba(14, 15, 17, 0.74); border-color: rgba(201, 178, 122, 0.4); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); max-width: min(720px, 92vw); text-align: center; }
+#overlay.victory #end-panel .start-row { justify-content: center; }
+#end-scene { font-style: italic; color: var(--muted); letter-spacing: 2px; font-size: 13px; margin-bottom: 2px; }
+#end-scene::before, #end-scene::after { content: ' — '; }
