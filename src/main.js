@@ -91,7 +91,7 @@ ui.centerOnFront();
 window.addEventListener('resize', () => renderer.resize());
 // the map has its own area between the top bar and the command panel: follow its size as they change
 if (window.ResizeObserver) new ResizeObserver(() => { renderer.resize(); renderer.clampCam(); }).observe(canvas);
-window.worldwar = { app, renderer, ui }; // handy for debugging in the console
+window.worldwar = { app, renderer, ui, sound }; // handy for debugging in the console
 
 document.querySelectorAll('[data-season]').forEach((b) => b.addEventListener('click', () => {
   app.season = b.dataset.season;
