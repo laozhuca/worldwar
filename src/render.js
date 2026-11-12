@@ -190,8 +190,10 @@ export class Renderer {
     this.atlasLoading = this.atlasLoading || {};
     if (this.atlas[group] || this.atlasLoading[group]) return this.atlasLoading[group];
     const base = 'assets/atlas/';
-    const p = retry(() => fetch(base + group + '.json').then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }))
-      .then((meta) => Promise.all(Array.from({ length: meta.sheets }, (_, i) => retry((n) => loadImage(`${base}${group}-${i}.webp${n ? '?r=' + n : ''}`))))
+    // the frame list is always revalidated, and the sheets are fetched by content version, so an update
+    // never pairs a cached old sheet with new frames
+    const p = retry(() => fetch(base + group + '.json', { cache: 'no-cache' }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }))
+      .then((meta) => Promise.all(Array.from({ length: meta.sheets }, (_, i) => retry((n) => loadImage(`${base}${group}-${i}.webp?v=${meta.v || 0}${n ? '&r=' + n : ''}`))))
         .then((sheets) => {
           this.atlas[group] = { frames: meta.frames, sheets };
           if (group.startsWith('props')) this.groundDrawn = false; // redraw the ground with the real props

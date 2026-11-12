@@ -4,6 +4,7 @@
 // Output: assets/atlas/<group>-<n>.webp + assets/atlas/<group>.json
 //   frames[name] = { s: sheet index, x, y, w, h, ax, ay, scale }
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -73,7 +74,9 @@ for (const [g, items] of Object.entries(groups)) {
     total += buf.length;
     for (const it of sh.items) frames[it.name] = { s, x: it.x, y: it.y, w: it.w, h: it.h, ax: it.ax, ay: it.ay, scale: it.scale };
   }
-  writeFileSync(join(OUT, g + '.json'), JSON.stringify({ sheets: sheets.length, frames }) + '\n');
+  // v: a content hash, added to the sheet URLs so browsers never pair a cached old sheet with new frames
+  const v = createHash('sha1').update(Buffer.concat(sheets.map((_, i) => readFileSync(join(OUT, `${g}-${i}.webp`))))).digest('hex').slice(0, 10);
+  writeFileSync(join(OUT, g + '.json'), JSON.stringify({ sheets: sheets.length, v, frames }) + '\n');
   index[g] = sheets.length;
   console.log(`${g}: ${items.length} sprites -> ${sheets.length} sheet(s)`);
 }
