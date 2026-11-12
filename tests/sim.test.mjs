@@ -131,6 +131,16 @@ test('the fallen: shell bursts tear bodies and throw the pieces, small arms leav
   const shot = s.decals.slice();
   assert.ok(shot.length >= 2);
   for (const b of shot) { assert.ok(!b.fly, 'not thrown'); assert.ok(b.v >= 0 && b.v <= 2, 'intact'); assert.ok(b.dir >= 0 && b.dir < 8); }
+  // shot by a squad due east: he falls with an animation, backward (head pointing west) or forward (east)
+  s.decals = [];
+  for (let i = 0; i < 30; i++) { sq.hp = 1000; sq.men = 6; damageUnit(s, sq, 12, null, { x: sq.x + 6, y: sq.y, kind: 'rifle' }); }
+  for (const b of s.decals) {
+    assert.ok(b.fall && b.fall.dur > 0.3, 'falls');
+    assert.ok(b.v === 0 || b.v === 1);
+    const head = (b.dir * Math.PI) / 4;
+    const towards = Math.cos(head) > 0.5; // head pointing east, at the shooter
+    assert.equal(towards, b.v === 1, `v${b.v} dir ${b.dir}`);
+  }
   s.decals = [];
   for (let i = 0; i < 40; i++) {
     const u = s.units.find((x) => x.team === ENEMY && x.type === 'rifle' && !x.dead);

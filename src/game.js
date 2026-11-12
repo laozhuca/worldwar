@@ -410,7 +410,7 @@ function updateUnit(state, u, dt) {
     let dmg = u.men * t.melee * dt * 1.5;
     if (u.chargeBonus > 0) dmg *= 2.0; // the shock of a bayonet charge
     if (u.suppression > 50) dmg *= 0.5;
-    damageUnit(state, u.closest, dmg);
+    damageUnit(state, u.closest, dmg, null, { x: u.x, y: u.y, kind: 'melee' });
     u.closest.suppression = Math.min(100, u.closest.suppression + dt * 10);
     if (rand() < dt * 2) state.events.push({ type: 'rifle', x: u.x, y: u.y });
     return;
@@ -490,7 +490,7 @@ function fire(state, u, target, t) {
   for (let i = 0; i < shots; i++) if (rand() < acc) hits++;
   const tt = tileAt(state.map, target.x, target.y);
   const cover = target.inTrench && tt ? TRENCH_COVER[tt.trench] : 1;
-  damageUnit(state, target, hits * t.damage * cover);
+  damageUnit(state, target, hits * t.damage * cover, null, { x: u.x, y: u.y, kind: t.burst ? 'mg' : 'rifle' });
 
   let sup = shots * t.suppressPerShot;
   if (target.order && target.order.kind === 'charge') sup *= 0.5;
@@ -509,14 +509,14 @@ function fire(state, u, target, t) {
  * Casualties. `blast` ({x, y, d}) marks a shell burst: some of the fallen are thrown through the air
  * away from it, and many are torn apart; small-arms deaths drop where they stand, intact.
  */
-export function damageUnit(state, u, amount, blast = null) {
+export function damageUnit(state, u, amount, blast = null, shooter = null) {
   if (u.dead || amount <= 0) return;
   const t = UNIT_TYPES[u.type];
   const before = u.men;
   u.hp -= amount;
   u.men = Math.max(0, Math.ceil(u.hp / t.hpPerMan - 1e-6));
   state.stats.lost[u.team] += before - u.men;
-  for (let i = 0; i < Math.min(3, before - u.men); i++) fallen(state, u, blast);
+  for (let i = 0; i < Math.min(3, before - u.men); i++) fallen(state, u, blast, shooter);
   if (state.decals.length > 260) state.decals = state.decals.filter((d) => state.time - d.t < 140).slice(-260);
   if (u.hp <= 0) {
     u.dead = true;
@@ -532,10 +532,19 @@ export function damageUnit(state, u, amount, blast = null) {
  * sometimes the rifle. They land and stay on the field as small decals.
  */
 const TORN_PARTS = { 3: ['leg'], 4: ['arm'], 5: ['leg', 'leg'] };
-function fallen(state, u, blast) {
+function fallen(state, u, blast, shooter) {
   const x0 = u.x + (rand() - 0.5) * 0.7, y0 = u.y + (rand() - 0.5) * 0.7;
   const torn = blast && rand() < 0.6;
   const body = { x: x0, y: y0, team: u.team, t: state.time, v: torn ? 3 + Math.floor(rand() * 3) : Math.floor(rand() * 3), dir: Math.floor(rand() * 8) };
+  if (!blast && shooter) {
+    // shot down: he falls in front of the shooter's eyes, backward (on his back, head away from the
+    // shooter) or, mostly when charging at them, forward onto his face (head towards the shooter)
+    const forward = u.order && u.order.kind === 'charge' ? rand() < 0.8 : rand() < 0.3;
+    body.v = forward ? 1 : 0;
+    const a = Math.atan2(y0 - shooter.y, x0 - shooter.x) + (forward ? Math.PI : 0) + (rand() - 0.5) * 0.6;
+    body.dir = ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8;
+    body.fall = { dur: shooter.kind === 'mg' ? 0.6 : 0.8, mg: shooter.kind === 'mg' };
+  }
   state.decals.push(body);
   if (!blast) return;
   let ax = x0 - blast.x, ay = y0 - blast.y;

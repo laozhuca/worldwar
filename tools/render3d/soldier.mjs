@@ -280,7 +280,7 @@ function figure(nat, J, seed) {
   if (has('head')) prims.push({ k: 's', c: J.head, r: 0.105, mat: 'skin' });
   // equipment: belt with pouches, pack + bedroll, canteen
   if (has('torso')) {
-  const fwd = J.belly === 'side' ? [0, -1, 0] : J.lying ? [0, 0, J.dead ? 1 : -1] : [1, 0, 0]; // belly direction
+  const fwd = J.fwd || (J.belly === 'side' ? [0, -1, 0] : J.lying ? [0, 0, J.dead ? 1 : -1] : [1, 0, 0]); // belly direction
   const belt = add(J.P, mul(J.up, 0.12));
   cap(add(belt, [0, 0.16, 0]), add(belt, [0, -0.16, 0]), 0.165, 0.165, 'webT');
   for (const s of [-0.1, 0.1]) prims.push({ k: 'b', c: add(belt, add(mul(fwd, 0.15), [0, s, 0.02])), h: [0.03, 0.055, 0.045], r: 0.012, mat: 'web' });
@@ -411,6 +411,50 @@ export function corpseScene(nationKey, variant, dir) {
   };
   const E = 1.3 * K;
   return { bounds: [-E, -E, -0.01, E, E, 0.7 * K], sdf, shade, supersample: 3 };
+}
+
+/**
+ * A man shot down (rifle or machine-gun fire): FALL_FRAMES frames from standing to the corpse pose.
+ * Variant 0 falls backward onto his back (corpse 'back'), variant 1 pitches forward onto his face
+ * (corpse 'face'). The standing figure tips over about his feet while his knees give way and his
+ * limbs go slack into the corpse pose, which the last frame almost reaches.
+ */
+export const FALL_FRAMES = 5;
+export function fallPose(variant, frame) {
+  const t = (frame + 1) / (FALL_FRAMES + 1);
+  const S = pose('stand', 0), C = corpse(variant);
+  const turn = variant === 0 ? -1 : 1; // backward: he faced -x (towards the shooter), his head ends at +x
+  const A = (Math.PI / 2) * Math.pow(t, 1.25); // tipping angle about the feet
+  const ca = Math.cos(A), sa = Math.sin(A);
+  const tipS = (q) => { const x = q[0] * turn, y = q[1] * turn, z = q[2]; return [x * ca + z * sa, y, -x * sa + z * ca]; };
+  const w = Math.pow(t, 1.8); // how far the limbs have gone slack into the corpse pose
+  const drop = 0.25 * Math.sin(Math.PI * t); // the knees give way: the falling body sinks
+  const mix = (a, b) => { const q = tipS(a); return [q[0] + (b[0] - q[0]) * w, q[1] + (b[1] - q[1]) * w, q[2] - drop * (1 - w) + (b[2] - q[2]) * w]; };
+  const legs = S.legs.map((L, i) => ({ hip: mix(L.hip, C.legs[i].hip), knee: mix(L.knee, C.legs[i].knee), ankle: mix(L.ankle, C.legs[i].ankle), toe: mix(L.toe, C.legs[i].toe) }));
+  const fwd0 = [turn, 0, 0], f = tipS([1, 0, 0]);
+  return {
+    P: mix(S.P, C.P), up: norm(mix(S.up, C.up)), chest: mix(S.chest, C.chest), neck: mix(S.neck, C.neck), head: mix(S.head, C.head),
+    shL: mix(S.shL, C.shL), shR: mix(S.shR, C.shR), elL: mix(S.elL, C.elL), elR: mix(S.elR, C.elR), hL: mix(S.hL, C.hL), hR: mix(S.hR, C.hR),
+    legs, rifle: S.rifle && C.rifle ? { butt: mix(S.rifle.butt, C.rifle.butt), muzzle: mix(S.rifle.muzzle, C.rifle.muzzle), bayonet: false } : null,
+    tool: null, cut: null, lying: t > 0.25, dead: variant === 0, fwd: norm([f[0] * (1 - w) + 0 * w, 0, f[2] * (1 - w) + (variant === 0 ? 1 : -1) * w]), _fwd0: fwd0,
+  };
+}
+export function fallScene(nationKey, variant, dir, frame) {
+  const nat = NATIONS[nationKey];
+  const J = fallPose(variant, frame);
+  const fig = figure(nat, J, hash(nationKey.length, variant + dir) * 10);
+  const th = (dir * Math.PI) / 4, c = Math.cos(th), s = Math.sin(th);
+  const toLocal = (x, y, z) => [(x * c + y * s) / K, (-x * s + y * c) / K, z / K];
+  const sdf = (x, y, z) => Math.min(fig.eval(toLocal(x, y, z))[0] * K, z);
+  const shade = (x, y, z) => {
+    const p = toLocal(x, y, z);
+    const [d, mat] = fig.eval(p);
+    if (z < d * K) return { kind: 'catcher' };
+    const spec = mat === 'blood' ? 0.25 : mat === 'hat' && (nat.head === 'brodie' || nat.head === 'adrian' || nat.head === 'pickelhaube') ? 0.35 : mat === 'metal' || mat === 'steel' || mat === 'hat2' ? 0.6 : 0.03;
+    return { kind: 'solid', col: fig.colour(mat, p), spec, shin: mat === 'blood' ? 60 : 30 };
+  };
+  const E = 1.9 * K;
+  return { bounds: [-E, -E, -0.01, E, E, 2.0 * K], sdf, shade, supersample: 3 };
 }
 
 /** Pieces thrown by a shell burst: a torn leg or arm, the helmet, the rifle (lying along x, centred). */

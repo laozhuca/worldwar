@@ -947,6 +947,7 @@ export class Renderer {
       const p = iso(b.x, b.y);
       ctx.globalAlpha = a * 0.92;
       const nat = this.nations && this.nations[b.team];
+      if (b.fall && age < b.fall.dur && age >= 0 && this.drawFalling(ctx, nat, b, p.x, p.y, age)) continue;
       if (this.drawCorpse(ctx, nat, b, p.x, p.y)) {
         // a puff of dirt where a thrown body lands
         const since = b.fly ? age - b.fly.dur : 9;
@@ -971,6 +972,20 @@ export class Renderer {
       ctx.restore();
     }
     ctx.globalAlpha = 1;
+  }
+
+  /**
+   * A man shot down: 5 pre-rendered frames from standing to lying, ending on his corpse sprite.
+   * Machine-gun hits jerk him as the burst strikes, before he goes down.
+   */
+  drawFalling(ctx, nat, b, x, y, age) {
+    if (!this.hasArmy(nat)) return false;
+    const FRAMES = 5, k = age / b.fall.dur;
+    // the fall speeds up as he goes over
+    const f = Math.min(FRAMES - 1, Math.floor(Math.pow(k, 0.8) * FRAMES));
+    let jx = 0;
+    if (b.fall.mg && k < 0.45) jx = Math.sin(age * 90) * 1.6 * (1 - k / 0.45); // struck by the burst
+    return this.drawFrame(ctx, 'soldiers-' + nat, `fall_v${b.v}_d${b.dir}_f${f}`, x + jx, y, 1.35);
   }
 
   /** One body sprite (anchored on the ground at x, y). */
