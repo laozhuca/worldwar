@@ -2,6 +2,7 @@
 // assets/props/*.png plus manifest.json, in parallel worker threads. Zero dependencies.
 //   node scripts/render-props.mjs            (all)
 //   node scripts/render-props.mjs trench_m5  (only names starting with a prefix)
+//   node scripts/render-props.mjs /_d[12]/   (only names matching a regular expression)
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { cpus } from 'node:os';
@@ -19,6 +20,8 @@ function jobs() {
   for (const snow of [false, true]) {
     const s = snow ? '_s' : '';
     for (let mask = 0; mask < 16; mask++) for (const lvl of [1, 2, 3]) for (let v = 0; v < 3; v++) list.push({ name: `trench_m${mask}_l${lvl}_v${v}${s}`, kind: 'trench', args: [mask, lvl, snow, v] });
+    // shell-damaged works: damaged (d1) and wrecked (d2)
+    for (let mask = 0; mask < 16; mask++) for (const lvl of [1, 2, 3]) for (const dmg of [1, 2]) list.push({ name: `trench_m${mask}_l${lvl}_d${dmg}${s}`, kind: 'trench', args: [mask, lvl, snow, 0, dmg] });
     for (const dir of ['x', 'y']) {
       for (let v = 0; v < 2; v++) list.push({ name: `wire_${dir}${v}${s}`, kind: 'wire', args: [dir, v, false, snow] });
       for (let v = 0; v < 2; v++) list.push({ name: `wired_${dir}${v}${s}`, kind: 'wire', args: [dir, v, true, snow] });
@@ -62,7 +65,9 @@ function png(w, h, rgba) {
 
 if (isMainThread) {
   const prefix = process.argv[2] || '';
-  const todo = jobs().filter((j) => ((j.dir ? j.dir + '/' : '') + j.name).startsWith(prefix));
+  // a prefix, or /regex/ (e.g. "/trench_m.*_d/" for the damaged trench tiles)
+  const re = prefix.startsWith('/') && prefix.endsWith('/') && prefix.length > 2 ? new RegExp(prefix.slice(1, -1)) : null;
+  const todo = jobs().filter((j) => { const n = (j.dir ? j.dir + '/' : '') + j.name; return re ? re.test(n) : n.startsWith(prefix); });
   const manifests = {};
   const man = (dir) => {
     if (!manifests[dir]) { const p = join(ASSETS, dir, 'manifest.json'); mkdirSync(join(ASSETS, dir), { recursive: true }); manifests[dir] = existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : {}; }

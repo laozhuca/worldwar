@@ -18,8 +18,12 @@ const snowAt = (x, y, z, nz, on, th = 0.5) => on && nz > th && fbm(x * 30, y * 3
  * One trench tile. mask bits: 1 = north (-y), 2 = east (+x), 4 = south (+y), 8 = west (-x).
  * level 1 hasty (sparse bags, flooded floor), 2 revetted + double sandbags + duckboards, 3 concrete.
  */
-export function trenchScene(mask, level, snow, v = 0) {
-  const seed = mask * 7 + level * 31 + v * 101 + 13;
+/**
+ * dmg: shell damage. 0 intact; 1 damaged (walls slumped in, bags burst, boards gone, wreckage on the
+ * floor); 2 wrecked (half filled in, a crater blown into the parapet, most of the revetment gone).
+ */
+export function trenchScene(mask, level, snow, v = 0, dmg = 0) {
+  const seed = mask * 7 + level * 31 + v * 101 + 13 + dmg * 577;
   const R = (k, j = 0) => hash(seed, k, j);
   const W2 = 0.22, D = 0.25, CELL = 0.125;
   // randomness fades out toward the tile border so neighbouring tiles always join cleanly
@@ -36,9 +40,10 @@ export function trenchScene(mask, level, snow, v = 0) {
   const open2 = (x, y) => open0(x, y) + (fbm(x * 6 + seed * 0.37, y * 6, 3.3, 3) - 0.5) * wobAmp * fade(x, y);
   const widen = level === 1 ? 0.08 : level === 2 ? 0.015 : 0;
   const openAt = (x, y, z) => open2(x, y) - widen * clamp(1 + z / D, 0, 1); // sloped, slumping walls
-  const floorZ = (x, y) => level === 1
+  const fill = dmg === 2 ? 0.07 : dmg === 1 ? 0.02 : 0; // earth blown back into the trench
+  const floorZ = (x, y) => (level === 1
     ? -D + 0.04 + (fbm(x * 12 + seed, y * 12, 5.1, 3) - 0.4) * 0.14
-    : -D + 0.012 + (vnoise(x * 25 + seed, y * 25, 2) - 0.5) * 0.012;
+    : -D + 0.012 + (vnoise(x * 25 + seed, y * 25, 2) - 0.5) * 0.012) + fill * (0.6 + 0.8 * fbm(x * 9 + seed, y * 9, 3.7, 2)) * fade(x, y);
   const WATER = -D + 0.065;
   const spoil = (x, y) => {
     const e = open2(x, y) - widen;
@@ -61,16 +66,29 @@ export function trenchScene(mask, level, snow, v = 0) {
   if (mask & 8) arms.push([-0.21, 0, 0]);
   const pick = (k) => arms[Math.floor(R(k, 1) * arms.length)];
   const slumps = [];
-  const nSlump = level === 1 ? 2 + Math.floor(R(2) * 3) : level === 2 ? 1 + Math.floor(R(2) * 2) : Math.floor(R(2) * 2);
+  const nSlump = (level === 1 ? 2 + Math.floor(R(2) * 3) : level === 2 ? 1 + Math.floor(R(2) * 2) : Math.floor(R(2) * 2)) + dmg * 3;
   for (let k = 0; k < nSlump; k++) {
     const [ax, ay, vert] = pick(10 + k);
-    const side = R(11 + k) < 0.5 ? -1 : 1, run = (R(12 + k) - 0.5) * 0.14, across = side * (W2 - 0.02);
+    const side = R(11 + k) < 0.5 ? -1 : 1, run = (R(12 + k) - 0.5) * (dmg ? 0.3 : 0.14), across = side * (W2 - 0.02);
     const px = ax + (vert ? across : run), py = ay + (vert ? run : across);
-    slumps.push([px, py, floorZ(px, py) + 0.01, 0.05 + R(13 + k) * 0.05]);
+    // shell damage: big falls of earth from the walls, up to the parapet
+    const big = dmg && k >= nSlump - dmg * 3;
+    slumps.push([px, py, floorZ(px, py) + (big ? 0.05 + R(14 + k) * 0.06 : 0.01), big ? 0.08 + R(13 + k) * (dmg === 2 ? 0.08 : 0.05) : 0.05 + R(13 + k) * 0.05]);
   }
+  // ground height of a crater blown into one wall top (wrecked works): a bowl with a raised lip
+  const crater = dmg === 2 ? (() => { const [ax, ay, vert] = pick(60); const side = R(61) < 0.5 ? -1 : 1; const run = (R(62) - 0.5) * 0.2, across = side * (W2 + 0.06);
+    return [ax + (vert ? across : run), ay + (vert ? run : across), 0.17 + R(63) * 0.05]; })() : null;
+  const craterH = (x, y) => {
+    if (!crater) return 0;
+    const q = Math.hypot(x - crater[0], y - crater[1]) / crater[2];
+    const n = (fbm(x * 14, y * 14, 8.1, 2) - 0.5) * 0.025;
+    const bowl = q < 1 ? -0.11 * (1 - q * q) : 0;
+    const lip = 0.045 * Math.exp(-(((q - 1.05) / 0.28) ** 2));
+    return (bowl + lip + n * Math.min(1, q)) * fade(x, y);
+  };
   const items = [];
-  const nItems = level === 1 ? 1 + Math.floor(R(3) * 3) : level === 2 ? 1 + Math.floor(R(3) * 3) : Math.floor(R(3) * 3);
-  const types = ['crate', 'ammo', 'casings', 'plank', 'bag', 'post'];
+  const nItems = (level === 1 ? 1 + Math.floor(R(3) * 3) : level === 2 ? 1 + Math.floor(R(3) * 3) : Math.floor(R(3) * 3)) + dmg * 3;
+  const types = dmg ? ['plank', 'plank', 'bag', 'post', 'bag', 'crate'] : ['crate', 'ammo', 'casings', 'plank', 'bag', 'post'];
   for (let k = 0; k < nItems; k++) {
     const [ax, ay, vert] = pick(20 + k);
     const run = (R(21 + k) - 0.5) * 0.12, across = (R(22 + k) - 0.5) * 0.12;
@@ -98,10 +116,14 @@ export function trenchScene(mask, level, snow, v = 0) {
 
   // -------- earth: ground with spoil heaps, cut down to the floor, plus slumped earth
   const earth = (x, y, z) => {
-    const top = (z - spoil(x, y)) * 0.75;
+    const top = (z - spoil(x, y) - craterH(x, y)) * 0.75;
     const hole = Math.max(openAt(x, y, z), floorZ(x, y) - z);
     let d = Math.max(top, -hole);
-    for (const s of slumps) d = smin(d, Math.hypot(x - s[0], y - s[1], (z - s[2]) * 1.3) - s[3], 0.03);
+    // fallen earth: flattened, lumpy heaps against the walls
+    for (const s of slumps) {
+      const lump = (fbm(x * 22 + s[0] * 9, y * 22, z * 22, 3) - 0.5) * 0.05;
+      d = smin(d, Math.hypot(x - s[0], y - s[1], (z - s[2]) * 2.2) - s[3] + lump, 0.04);
+    }
     return d;
   };
   const water = (x, y, z) => (level === 1 ? Math.max(Math.abs(z - WATER) - 0.002, openAt(x, y, WATER) + 0.01) : 1);
@@ -113,7 +135,7 @@ export function trenchScene(mask, level, snow, v = 0) {
     const border = Math.abs(cen) + 0.07 > 0.5; // bags crossing the tile edge stay regular
     const hk = (j) => hash(idx, row * 7 + side, j, seed);
     if (!border) {
-      const miss = level === 1 ? 0.55 : 0.14;
+      const miss = (level === 1 ? 0.55 : 0.14) + dmg * 0.28;
       if (hk(1) < miss) return 0.05 + Math.abs(q) * 0.3;
     }
     let s1 = sc - (idx + 0.5) * CELL, qq = q, zz = z - zc;
@@ -123,7 +145,7 @@ export function trenchScene(mask, level, snow, v = 0) {
       const a = (hk(5) - 0.5) * 0.5, c = Math.cos(a), sn = Math.sin(a);
       [s1, qq] = [s1 * c + qq * sn, -s1 * sn + qq * c];
       const sc2 = 0.85 + hk(6) * 0.25; hx *= sc2; hy *= sc2;
-      if (hk(7) < 0.18) { hz *= 0.55; hy *= 1.25; zz += 0.008; } // slumped / burst
+      if (hk(7) < 0.18 + dmg * 0.25) { hz *= 0.55; hy *= 1.25; zz += 0.008; } // slumped / burst
     }
     const lump = (vnoise(s * 70 + idx * 3.1, q * 70, z * 70) - 0.5) * 0.009;
     return sdRoundBox(s1, qq, zz, hx, hy, hz, Math.min(hz, 0.021) * 0.9) + lump;
@@ -138,7 +160,7 @@ export function trenchScene(mask, level, snow, v = 0) {
     if (level >= 3) {
       let d = sdRoundBox(0, e - 0.05, z - 0.035 - base, 1, 0.04, 0.035, 0.012) + (vnoise(x * 40, y * 40, z * 40) - 0.5) * 0.006;
       // chunks blown out of the parapet
-      for (let k = 0; k < 3; k++) { const cx = (R(40 + k) - 0.5) * 0.6; d = Math.max(d, -(Math.hypot(s - cx, e - 0.05, z - 0.07) - 0.03 * fade(x, y) - 0.001)); }
+      for (let k = 0; k < 3 + dmg * 3; k++) { const cx = (R(40 + k) - 0.5) * 0.6; d = Math.max(d, -(Math.hypot(s - cx, e - 0.05, z - 0.07) - (0.03 + dmg * 0.02) * fade(x, y) - 0.001)); }
       return d;
     }
     let d = bag(s, e - 0.05, z, 0.024 + base, 0, 0, side);
@@ -153,12 +175,14 @@ export function trenchScene(mask, level, snow, v = 0) {
 
   const shade = (x, y, z, nx, ny, nz) => {
     if (Math.abs(x) > 0.5 || Math.abs(y) > 0.5) return { kind: 'none' };
+    // shellfire churns the snow into the mud: damaged works keep snow only in patches
+    const snowy = snow && !(dmg && fbm(x * 6 + seed * 0.31, y * 6, 2.2, 2) < (dmg === 2 ? 0.85 : 0.6));
     const dE = earth(x, y, z), dB = bags(x, y, z), [dI, id] = itemsD(x, y, z), dW = water(x, y, z);
     const m = Math.min(dE, dB, dI, dW);
     const mudStain = fbm(x * 24 + 3, y * 24, z * 24, 3);
-    if (m === dW) return snow ? { kind: 'solid', col: mix3(C.ice, [0.9, 0.93, 0.97], fbm(x * 40, y * 40, 1) * 0.6), spec: 0.6, shin: 60 } : { kind: 'water', col: C.water, spec: 0 };
+    if (m === dW) return snowy ? { kind: 'solid', col: mix3(C.ice, [0.9, 0.93, 0.97], fbm(x * 40, y * 40, 1) * 0.6), spec: 0.6, shin: 60 } : { kind: 'water', col: C.water, spec: 0 };
     if (m === dI) {
-      if (snowAt(x, y, z, nz, snow, 0.7)) return { kind: 'solid', col: C.snow };
+      if (snowAt(x, y, z, nz, snowy, 0.7)) return { kind: 'solid', col: C.snow };
       const it = items[id], n = fbm(x * 80, y * 80, z * 80, 3);
       let col;
       if (it.type === 'crate') col = (((rot(it, x, y)[0] + 0.05) / 0.025) % 1) < 0.12 ? [0.12, 0.1, 0.08] : mix3([0.3, 0.25, 0.19], [0.5, 0.42, 0.32], n);
@@ -170,7 +194,7 @@ export function trenchScene(mask, level, snow, v = 0) {
       return { kind: 'solid', col: mix3(col, C.mud, clamp(mudStain * 1.6 - 0.7, 0, 0.8)), spec: 0.05 };
     }
     if (m === dB) {
-      if (snowAt(x, y, z, nz, snow, 0.45)) return { kind: 'solid', col: C.snow, spec: 0.15, shin: 20 };
+      if (snowAt(x, y, z, nz, snowy, 0.45)) return { kind: 'solid', col: C.snow, spec: 0.15, shin: 20 };
       if (level >= 3) {
         const n = fbm(x * 30, y * 30, z * 30);
         let col = mix3(C.concrete, [0.3, 0.3, 0.29], n * 0.7);
@@ -187,14 +211,14 @@ export function trenchScene(mask, level, snow, v = 0) {
     if (z > -0.03) {
       const a = clamp((z - 0.002) / 0.02, 0, 1);
       if (a <= 0.02) return { kind: 'catcher' };
-      if (snowAt(x, y, z, nz, snow, 0.55)) return { kind: 'solid', col: C.snow, spec: 0.1, alpha: a };
+      if (snowAt(x, y, z, nz, snowy, 0.55)) return { kind: 'solid', col: C.snow, spec: 0.1, alpha: a };
       const n = fbm(x * 50, y * 50, z * 50, 4);
       return { kind: 'solid', col: mix3([0.06, 0.055, 0.05], [0.2, 0.18, 0.16], n), spec: 0.12, shin: 20, alpha: a };
     }
     const fz = floorZ(x, y);
     const onFloor = z < fz + 0.012 || nz > 0.75;
     if (onFloor) {
-      if (snow && nz > 0.7 && fbm(x * 18, y * 18, 4) > 0.55) return { kind: 'solid', col: C.snow };
+      if (snowy && nz > 0.7 && fbm(x * 18, y * 18, 4) > 0.55) return { kind: 'solid', col: C.snow };
       if (level === 1) return { kind: 'solid', col: mix3([0.05, 0.045, 0.04], [0.16, 0.14, 0.12], fbm(x * 40, y * 40, 2, 3)), spec: 0.12, shin: 80 };
       const [s] = along(x, y);
       const slat = Math.floor(s / 0.05), gap = ((s / 0.05) % 1 + 1) % 1 < 0.28;
@@ -227,7 +251,7 @@ export function trenchScene(mask, level, snow, v = 0) {
     const board = Math.floor(zz / 0.048), bay = Math.floor((a + 0.5) / 0.25);
     const groove = ((zz / 0.048) % 1) < 0.1;
     const post = ((((a + 0.5) / 0.25) % 1) + 1) % 1 < 0.09;
-    const gone = !post && hash(board, bay, seed, runAlongY ? 1 : 2) < 0.16 && fade(x, y) > 0.3;
+    const gone = !post && hash(board, bay, seed, runAlongY ? 1 : 2) < 0.16 + dmg * 0.3 && fade(x, y) > 0.3;
     const grain = fbm(a * 8, zz * 60, 2, 3), tone = hash(board, bay, seed);
     let col = post ? mix3(C.post, C.plank, grain * 0.4) : mix3(mix3([0.2, 0.17, 0.14], [0.3, 0.26, 0.21], tone), C.plank, grain * 0.7);
     if (groove && !post) col = [0.05, 0.045, 0.04];
