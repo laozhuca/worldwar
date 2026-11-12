@@ -505,16 +505,18 @@ function fire(state, u, target, t) {
   state.events.push({ type: t.burst ? 'mg' : 'rifle', x: u.x, y: u.y, id: u.id });
 }
 
-export function damageUnit(state, u, amount) {
+/**
+ * Casualties. `blast` ({x, y, d}) marks a shell burst: some of the fallen are thrown through the air
+ * away from it, and many are torn apart; small-arms deaths drop where they stand, intact.
+ */
+export function damageUnit(state, u, amount, blast = null) {
   if (u.dead || amount <= 0) return;
   const t = UNIT_TYPES[u.type];
   const before = u.men;
   u.hp -= amount;
   u.men = Math.max(0, Math.ceil(u.hp / t.hpPerMan - 1e-6));
   state.stats.lost[u.team] += before - u.men;
-  for (let i = 0; i < Math.min(3, before - u.men); i++) {
-    state.decals.push({ x: u.x + (rand() - 0.5) * 0.7, y: u.y + (rand() - 0.5) * 0.7, team: u.team, t: state.time, rot: (rand() - 0.5) * 1.2, view: Math.floor(rand() * 4) });
-  }
+  for (let i = 0; i < Math.min(3, before - u.men); i++) state.decals.push(fallen(state, u, blast));
   if (state.decals.length > 260) state.decals = state.decals.filter((d) => state.time - d.t < 140).slice(-260);
   if (u.hp <= 0) {
     u.dead = true;
@@ -522,6 +524,25 @@ export function damageUnit(state, u, amount) {
     if (u.team === PLAYER) pushMessage(state, `${t.name} wiped out`, 'loss');
     state.effects.push({ type: 'smoke', x: u.x, y: u.y, age: 0, life: 2.5 });
   }
+}
+
+/** One body left on the field: pose variant (0-2 intact, 3-5 torn), one of 8 directions, maybe thrown. */
+function fallen(state, u, blast) {
+  const x0 = u.x + (rand() - 0.5) * 0.7, y0 = u.y + (rand() - 0.5) * 0.7;
+  const torn = blast && rand() < 0.6;
+  const b = { x: x0, y: y0, team: u.team, t: state.time, v: torn ? 3 + Math.floor(rand() * 3) : Math.floor(rand() * 3), dir: Math.floor(rand() * 8) };
+  if (blast && rand() < (blast.d < 0.9 ? 0.9 : 0.55)) {
+    // thrown away from the burst: the closer, the further and higher
+    let dx = x0 - blast.x, dy = y0 - blast.y;
+    const n = Math.hypot(dx, dy);
+    if (n < 0.05) { const a = rand() * Math.PI * 2; dx = Math.cos(a); dy = Math.sin(a); } else { dx /= n; dy /= n; }
+    const near = Math.max(0, 1 - blast.d / 1.6);
+    const dist = 0.5 + near * 1.6 + rand() * 0.6, h = 0.5 + near * 1.1 + rand() * 0.4;
+    const land = clampToMap(x0 + dx * dist, y0 + dy * dist);
+    b.x = land.x; b.y = land.y;
+    b.fly = { x0, y0, h, dur: 0.75 + h * 0.4, spin: (rand() < 0.5 ? -1 : 1) * (5 + rand() * 7) };
+  }
+  return b;
 }
 
 function launchShell(state, u, tx, ty) {
@@ -544,7 +565,7 @@ function explode(state, s) {
     if (d < 1.6) {
       const tt = tileAt(map, u.x, u.y);
       const cover = u.inTrench && tt ? TRENCH_ARTY[tt.trench] : (u.pinned ? 0.8 : 1);
-      damageUnit(state, u, 90 * (1 - (d / 1.6) * 0.6) * cover); // heavy shell: twice the old blast
+      damageUnit(state, u, 90 * (1 - (d / 1.6) * 0.6) * cover, { x: s.x, y: s.y, d }); // heavy shell: twice the old blast
     }
     if (d < 3.2) {
       // shell shock: men near a heavy impact stay down for several seconds, so a slow but steady

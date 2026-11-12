@@ -123,3 +123,27 @@ test('player can start on the east line', () => {
   for (const u of s.units) assert.ok(Number.isFinite(u.x) && u.x >= 0 && u.x <= s.map.w);
   createGame(); // restore the default west start for any later tests
 });
+
+test('the fallen: shell bursts throw and tear bodies, small arms leave them where they fall', () => {
+  const s = createGame({ aiTeams: [] });
+  const sq = s.units.find((u) => u.team === PLAYER && u.type === 'rifle');
+  damageUnit(s, sq, 25); // rifle fire
+  const shot = s.decals.slice();
+  assert.ok(shot.length >= 2);
+  for (const b of shot) { assert.ok(!b.fly, 'not thrown'); assert.ok(b.v >= 0 && b.v <= 2, 'intact'); assert.ok(b.dir >= 0 && b.dir < 8); }
+  s.decals = [];
+  for (let i = 0; i < 40; i++) {
+    const u = s.units.find((x) => x.team === ENEMY && x.type === 'rifle' && !x.dead);
+    if (!u) break;
+    damageUnit(s, u, 30, { x: u.x + 0.3, y: u.y, d: 0.3 });
+  }
+  assert.ok(s.decals.length > 20);
+  const thrown = s.decals.filter((b) => b.fly), torn = s.decals.filter((b) => b.v >= 3);
+  assert.ok(thrown.length > s.decals.length * 0.5, `most close-burst casualties are thrown (${thrown.length}/${s.decals.length})`);
+  assert.ok(torn.length > 0 && torn.length < s.decals.length, 'some bodies are torn apart, not all');
+  for (const b of thrown) {
+    assert.ok(b.fly.dur > 0.5 && b.fly.h > 0.3);
+    assert.ok(Math.hypot(b.x - b.fly.x0, b.y - b.fly.y0) > 0.3, 'lands away from where it fell');
+    assert.ok(Math.abs(b.x - s.map.w / 2) + Math.abs(b.y - s.map.h / 2) <= s.map.w / 2, 'lands on the battlefield');
+  }
+});

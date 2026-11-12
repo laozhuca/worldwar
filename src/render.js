@@ -881,6 +881,7 @@ export class Renderer {
     this.drawBarrageMarkers(ctx, state);
     this.drawShells(ctx, state);
     this.drawEffects(ctx, state);
+    this.drawThrownBodies(ctx, state);
     this.atmo.drawWorld(ctx, state);
 
     // screen-space overlays
@@ -935,20 +936,29 @@ export class Renderer {
     ctx.globalAlpha = 1;
   }
 
+  /** The fallen: 3D-rendered bodies in 6 poses x 8 directions (older saves: the 2-view dead pose). */
   drawDecals(ctx, state) {
     for (const b of state.decals) {
       const age = state.time - b.t;
+      if (b.fly && age < b.fly.dur) continue; // still in the air: drawn by drawThrownBodies
       const a = age < 100 ? 1 : Math.max(0, 1 - (age - 100) / 40);
       if (a <= 0) continue;
       const p = iso(b.x, b.y);
-      ctx.globalAlpha = a * 0.9;
+      ctx.globalAlpha = a * 0.92;
       const nat = this.nations && this.nations[b.team];
-      if (this.hasArmy(nat)) {
-        const v = b.view || 0;
-        if (this.drawSoldier(ctx, nat, 'dead', 0, [1, 0, -1, 0][v], [0, -1, 0, 1][v], p.x, p.y)) continue;
+      if (this.drawCorpse(ctx, nat, b, p.x, p.y)) {
+        // a puff of dirt where a thrown body lands
+        const since = b.fly ? age - b.fly.dur : 9;
+        if (since < 0.6) {
+          const k = since / 0.6;
+          ctx.globalAlpha = (1 - k) * 0.45;
+          ctx.fillStyle = '#5b5148';
+          ctx.beginPath(); ctx.ellipse(p.x, p.y - 2 - k * 4, 8 + k * 14, 3 + k * 5, 0, 0, TAU); ctx.fill();
+        }
+        continue;
       }
       ctx.save();
-      ctx.translate(p.x, p.y); ctx.rotate(b.rot);
+      ctx.translate(p.x, p.y); ctx.rotate(((b.dir ?? b.view ?? 0) - 3.5) * 0.3);
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
       ctx.beginPath(); ctx.ellipse(1, 1, 6, 2.4, 0, 0, TAU); ctx.fill();
       ctx.fillStyle = UNIFORM_DARK[b.team];
@@ -958,6 +968,41 @@ export class Renderer {
       ctx.restore();
     }
     ctx.globalAlpha = 1;
+  }
+
+  /** One body sprite (anchored on the ground at x, y). */
+  drawCorpse(ctx, nat, b, x, y) {
+    if (!this.hasArmy(nat)) return false;
+    if (b.v != null && this.drawFrame(ctx, 'soldiers-' + nat, `corpse_v${b.v}_d${b.dir}`, x, y, 1.35)) return true;
+    const v = b.view ?? (b.dir ?? 0) % 4; // older saves / sprite sheets without corpses
+    return this.drawSoldier(ctx, nat, 'dead', 0, [1, 0, -1, 0][v], [0, -1, 0, 1][v], x, y);
+  }
+
+  /** Bodies thrown by shell bursts: a tumbling arc from where they fell to where they land. */
+  drawThrownBodies(ctx, state) {
+    const UP = 39.2; // screen px per tile of height
+    for (const b of state.decals) {
+      if (!b.fly) continue;
+      const age = state.time - b.t, f = b.fly;
+      if (age >= f.dur || age < 0) continue;
+      const u = age / f.dur;
+      const x = f.x0 + (b.x - f.x0) * u, y = f.y0 + (b.y - f.y0) * u, z = 4 * f.h * u * (1 - u);
+      const p = iso(x, y);
+      // shadow on the ground, smaller and fainter the higher the body is
+      ctx.globalAlpha = 0.32 * (1 - 0.5 * z / Math.max(0.01, f.h));
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, 9 - z * 2, 3.5 - z * 0.8, 0, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.save();
+      ctx.translate(p.x, p.y - z * UP - 6);
+      ctx.rotate(f.spin * age);
+      const nat = this.nations && this.nations[b.team];
+      if (!this.drawCorpse(ctx, nat, b, 0, 6)) {
+        ctx.fillStyle = UNIFORM_DARK[b.team];
+        ctx.beginPath(); ctx.ellipse(0, 0, 6, 2.2, 0, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
   }
 
   diamondPath(ctx, x, y, shrink = 0) {

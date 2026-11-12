@@ -134,6 +134,69 @@ function lying(name) {
   return { P, up, chest, neck, head, shL, shR, elL: add(mul(add(shL, hL), 0.5), [0, 0.06, -0.04]), elR: add(mul(add(shR, hR), 0.5), [0, -0.06, -0.04]), hL, hR, legs, rifle, tool: null, cut: null, lying: true, dead };
 }
 
+// ------------------------------------------------------------------ corpses
+/**
+ * Six fallen-soldier poses. Bodies lie along +x (head at +x). Some are torn by shellfire:
+ * `cut` on a leg ('knee' or 'thigh') or `armCut` ('L'/'R' at the elbow) ends the limb in a stump,
+ * `pool` is a blood stain on the ground and `hatAt` puts the helmet on the ground beside the body.
+ */
+export const CORPSES = ['back', 'face', 'side', 'noleg', 'noarm', 'nolegs'];
+export function corpse(variant) {
+  const z = 0.13;
+  const base = { P: [0, 0, z], up: [1, 0, 0.06], chest: [0.42, 0, z + 0.03], neck: [0.56, 0, z + 0.04], shL: [0.5, 0.2, z + 0.04], shR: [0.5, -0.2, z + 0.04], tool: null, cut: null, lying: true };
+  const elbowMid = (sh, h, dy) => add(mul(add(sh, h), 0.5), [0, dy, -0.04]);
+  const J = { ...base };
+  switch (CORPSES[variant]) {
+    case 'back': case 'noleg': case 'nolegs': {
+      J.belly = 'up';
+      J.head = [0.72, 0.05, z];
+      J.legs = [
+        { hip: [0, 0.1, z], knee: [-0.45, 0.24, 0.1], ankle: [-0.88, 0.3, 0.08], toe: [-0.95, 0.36, 0.16] },
+        { hip: [0, -0.1, z], knee: [-0.45, -0.14, 0.1], ankle: [-0.88, -0.2, 0.08], toe: [-0.95, -0.24, 0.16] },
+      ];
+      J.hL = [0.35, 0.55, 0.06]; J.hR = [0.75, -0.45, 0.06];
+      J.rifle = { butt: [0.1, -0.6, 0.04], muzzle: [1.15, -0.85, 0.04], bayonet: false };
+      J.pool = [[0.3, 0, 0.45, 0.3]];
+      if (CORPSES[variant] === 'noleg') { J.legs[1].cut = 'knee'; J.legs[0].knee = [-0.4, 0.3, 0.1]; J.pool = [[0.1, -0.05, 0.6, 0.38], [-0.55, -0.15, 0.3, 0.22]]; }
+      if (CORPSES[variant] === 'nolegs') { J.legs[0].cut = 'thigh'; J.legs[1].cut = 'thigh'; J.rifle = null; J.pool = [[-0.15, 0, 0.62, 0.45], [0.35, 0.1, 0.4, 0.3]]; }
+      break;
+    }
+    case 'face': case 'noarm': {
+      J.belly = 'down';
+      J.head = [0.71, 0.04, z + 0.02];
+      J.legs = [
+        { hip: [0, 0.1, z], knee: [-0.45, 0.14, 0.08], ankle: [-0.88, 0.18, 0.07], toe: [-0.98, 0.2, 0.03] },
+        { hip: [0, -0.1, z], knee: [-0.3, -0.3, 0.08], ankle: [-0.7, -0.42, 0.07], toe: [-0.8, -0.46, 0.03] },
+      ];
+      J.hL = [0.86, 0.32, 0.05]; J.hR = [0.02, -0.3, 0.05];
+      J.elL = [0.62, 0.36, 0.06]; J.elR = [0.25, -0.3, 0.06];
+      J.rifle = { butt: [0.2, 0.62, 0.03], muzzle: [1.1, 0.78, 0.03], bayonet: false };
+      J.pool = [[0.55, 0.05, 0.3, 0.22]];
+      if (CORPSES[variant] === 'noarm') { J.armCut = 'L'; J.hatAt = [1.05, -0.45, 0.0]; J.rifle = null; J.pool = [[0.6, 0.3, 0.5, 0.34], [0.2, 0.1, 0.3, 0.25]]; }
+      break;
+    }
+    case 'side': {
+      J.belly = 'side';
+      J.P = [0, 0, 0.17]; J.up = [1, 0, 0.05];
+      J.chest = [0.4, -0.05, 0.19]; J.neck = [0.54, -0.08, 0.2]; J.head = [0.68, -0.12, 0.17];
+      J.shL = [0.48, 0, 0.32]; J.shR = [0.48, 0, 0.08];
+      J.legs = [
+        { hip: [0, 0, 0.26], knee: [0.25, -0.38, 0.22], ankle: [-0.15, -0.55, 0.2], toe: [-0.18, -0.64, 0.24] },
+        { hip: [0, 0, 0.09], knee: [0.18, -0.4, 0.08], ankle: [-0.2, -0.55, 0.07], toe: [-0.23, -0.64, 0.1] },
+      ];
+      J.hL = [0.5, -0.45, 0.2]; J.hR = [0.75, -0.42, 0.06];
+      J.elL = [0.62, -0.25, 0.28]; J.elR = [0.6, -0.25, 0.08];
+      J.rifle = { butt: [-0.4, 0.42, 0.03], muzzle: [0.5, 0.62, 0.03], bayonet: false };
+      J.pool = [[0.45, -0.2, 0.3, 0.2]];
+      break;
+    }
+  }
+  J.elL = J.elL || elbowMid(J.shL, J.hL, 0.06);
+  J.elR = J.elR || elbowMid(J.shR, J.hR, -0.06);
+  J.dead = J.belly === 'up';
+  return J;
+}
+
 // ------------------------------------------------------------------ geometry
 function headgear(nat, p, h) {
   // returns [dist, mat] relative to head centre h (head radius 0.105)
@@ -188,20 +251,31 @@ function figure(nat, J, seed) {
   const cap = (a, b, ra, rb, mat) => prims.push({ k: 'c', a, b, ra, rb, mat });
   // legs: trousers to knee, puttees, boots
   for (const L of J.legs) {
+    if (L.cut === 'thigh') { // torn off at mid-thigh: a ragged stump
+      const m = add(L.hip, mul(sub(L.knee, L.hip), 0.5));
+      cap(L.hip, m, 0.085, 0.08, 'trou');
+      prims.push({ k: 's', c: m, r: 0.075, mat: 'gore' });
+      continue;
+    }
     cap(L.hip, L.knee, 0.085, 0.07, 'trou');
+    if (L.cut === 'knee') { prims.push({ k: 's', c: L.knee, r: 0.068, mat: 'gore' }); continue; }
     cap(L.knee, L.ankle, 0.062, 0.05, 'putt');
     cap(L.ankle, L.toe, 0.055, 0.045, 'boot');
   }
+  for (const [cx, cy, rx, ry] of J.pool || []) prims.push({ k: 'pool', c: [cx, cy, 0], rx, ry, mat: 'blood' });
   // torso (two overlapping capsules for a broad chest), arms, head
   cap(J.P, J.chest, 0.15, 0.16, 'uni');
   cap(add(J.chest, [0, 0.1, 0]), add(J.chest, [0, -0.1, 0]), 0.12, 0.12, 'uni');
   cap(J.chest, J.neck, 0.1, 0.06, 'uni');
-  cap(J.shL, J.elL, 0.058, 0.05, 'uni'); cap(J.elL, J.hL, 0.05, 0.042, 'uni');
-  cap(J.shR, J.elR, 0.058, 0.05, 'uni'); cap(J.elR, J.hR, 0.05, 0.042, 'uni');
-  prims.push({ k: 's', c: J.hL, r: 0.042, mat: 'skin' }, { k: 's', c: J.hR, r: 0.042, mat: 'skin' });
+  for (const [side, sh, el, h] of [['L', J.shL, J.elL, J.hL], ['R', J.shR, J.elR, J.hR]]) {
+    cap(sh, el, 0.058, 0.05, 'uni');
+    if (J.armCut === side) { prims.push({ k: 's', c: el, r: 0.055, mat: 'gore' }); continue; } // torn off at the elbow
+    cap(el, h, 0.05, 0.042, 'uni');
+    prims.push({ k: 's', c: h, r: 0.042, mat: 'skin' });
+  }
   prims.push({ k: 's', c: J.head, r: 0.105, mat: 'skin' });
   // equipment: belt with pouches, pack + bedroll, canteen
-  const fwd = J.lying ? [0, 0, J.dead ? 1 : -1] : [1, 0, 0]; // belly direction
+  const fwd = J.belly === 'side' ? [0, -1, 0] : J.lying ? [0, 0, J.dead ? 1 : -1] : [1, 0, 0]; // belly direction
   const belt = add(J.P, mul(J.up, 0.12));
   cap(add(belt, [0, 0.16, 0]), add(belt, [0, -0.16, 0]), 0.165, 0.165, 'webT');
   for (const s of [-0.1, 0.1]) prims.push({ k: 'b', c: add(belt, add(mul(fwd, 0.15), [0, s, 0.02])), h: [0.03, 0.055, 0.045], r: 0.012, mat: 'web' });
@@ -233,6 +307,11 @@ function figure(nat, J, seed) {
       case 'c': return sdCapsule(p[0], p[1], p[2], q.a[0], q.a[1], q.a[2], q.b[0], q.b[1], q.b[2], q.ra, q.rb);
       case 's': return Math.hypot(p[0] - q.c[0], p[1] - q.c[1], p[2] - q.c[2]) - q.r;
       case 'b': return sdRoundBox(p[0] - q.c[0], p[1] - q.c[1], p[2] - q.c[2], q.h[0], q.h[1], q.h[2], q.r);
+      case 'pool': { // a thin, slightly irregular stain lying on the ground
+        const ex = (p[0] - q.c[0]) / q.rx, ey = (p[1] - q.c[1]) / q.ry;
+        const wob = 0.12 * Math.sin(ex * 5.1 + ey * 3.3) + 0.08 * Math.sin(ey * 7.7 - ex * 2.1);
+        return Math.max((Math.hypot(ex, ey) - 1 - wob) * Math.min(q.rx, q.ry), p[2] - 0.035);
+      }
       case 'skirt': {
         const zz = q.top[2] - p[2];
         if (zz < -0.02) return -zz - 0.02 + 0.2;
@@ -246,7 +325,7 @@ function figure(nat, J, seed) {
     let d = 1e9, mat = 'uni';
     for (const q of prims) { const v = dPrim(q, p); if (v < d) { d = v; mat = q.mat; } }
     if (!J.lying || true) {
-      const [hd, hm] = headgear(nat, p, J.head);
+      const [hd, hm] = headgear(nat, p, J.hatAt || J.head); // a knocked-off helmet lies on the ground
       if (hd < d) { d = hd; mat = hm; }
     }
     if (J.cut != null) d = Math.max(d, J.cut - p[2]);
@@ -266,6 +345,8 @@ function figure(nat, J, seed) {
       case 'web': case 'webT': c = mix3(mul(nat.web, 0.85), nat.web, n); break;
       case 'pack': c = mix3(mul(nat.web[0] > 0.5 ? nat.web : [0.5, 0.44, 0.32], 0.85), nat.web[0] > 0.5 ? nat.web : [0.5, 0.44, 0.32], n); break;
       case 'metal2': return [0.3, 0.3, 0.28];
+      case 'blood': return mix3([0.17, 0.045, 0.035], [0.24, 0.07, 0.05], n); // dark, half soaked into the mud
+      case 'gore': return mix3([0.3, 0.08, 0.06], [0.42, 0.14, 0.1], n);
       case 'wood': return mix3(mul(WOOD, 0.8), WOOD, n);
       case 'metal': return METAL;
       case 'steel': return STEEL;
@@ -304,6 +385,26 @@ export function soldierScene(nationKey, poseName, frame, view, portrait = false)
   if (portrait) { const P = 0.5 * K; return { bounds: [-P, -P, 0, P + 0.4 * K, P, 1.95 * K], sdf, shade, supersample: 3 }; }
   const E = 1.3 * K;
   return { bounds: [-E, -E, J.cut != null ? -0.01 : -0.01, E + 0.25, E + 0.2, (2.0 - zoff) * K], sdf, shade, supersample: 3 };
+}
+
+/** A fallen soldier: CORPSES[variant], turned to one of 8 directions (dir x 45 degrees). */
+export function corpseScene(nationKey, variant, dir) {
+  const nat = NATIONS[nationKey];
+  const J = corpse(variant);
+  const fig = figure(nat, J, hash(nationKey.length, variant + dir) * 10);
+  const th = (dir * Math.PI) / 4, c = Math.cos(th), s = Math.sin(th);
+  const toLocal = (x, y, z) => [(x * c + y * s) / K, (-x * s + y * c) / K, z / K];
+  const sdf = (x, y, z) => Math.min(fig.eval(toLocal(x, y, z))[0] * K, z);
+  const shade = (x, y, z) => {
+    const p = toLocal(x, y, z);
+    const [d, mat] = fig.eval(p);
+    if (z < d * K) return { kind: 'catcher' };
+    const col = fig.colour(mat, p);
+    const spec = mat === 'blood' ? 0.25 : mat === 'hat' && (nat.head === 'brodie' || nat.head === 'adrian' || nat.head === 'pickelhaube') ? 0.35 : mat === 'metal' || mat === 'steel' || mat === 'hat2' ? 0.6 : 0.03;
+    return { kind: 'solid', col, spec, shin: mat === 'blood' ? 60 : 30 };
+  };
+  const E = 1.3 * K;
+  return { bounds: [-E, -E, -0.01, E, E, 0.7 * K], sdf, shade, supersample: 3 };
 }
 
 /** All sprite jobs: [name, args]. */
