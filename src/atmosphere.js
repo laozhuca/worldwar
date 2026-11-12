@@ -11,14 +11,14 @@ const smooth = (a, b, v) => { const t = clamp01((v - a) / (b - a)); return t * t
 // Twilight colours by hours from sunrise / sunset (negative: the sun is below the horizon):
 // [hours, colour, strength]
 const TWILIGHT = [
-  [-1.6, [52, 36, 104], 0],
-  [-1.0, [96, 52, 150], 0.38], // deep violet / purple
-  [-0.4, [232, 92, 160], 0.55], // pink, magenta
-  [0.1, [242, 70, 48], 0.6], // red-orange as the sun clears the horizon
-  [0.7, [255, 138, 58], 0.45], // orange
-  [1.5, [255, 192, 112], 0.24], // gold
-  [2.4, [255, 222, 176], 0],
-];
+  [-1.6, [70, 66, 84], 0],
+  [-1.0, [118, 100, 104], 0.18], // muted dusky grey-mauve before sunrise / after sunset
+  [-0.4, [196, 134, 96], 0.26], // soft peach at the horizon
+  [0.1, [226, 132, 72], 0.34], // warm orange as the sun clears it
+  [0.7, [236, 158, 84], 0.3], // orange
+  [1.5, [244, 196, 128], 0.16], // pale gold
+  [2.4, [250, 220, 176], 0],
+]
 
 // Battles begin in plain daylight, well clear of the dawn colours (which fade out by about 08:25).
 const START_HOUR = 9;
@@ -67,8 +67,8 @@ export class Atmosphere {
   }
   /**
    * Dawn and dusk. r is hours from sunrise (06:00) or sunset (19:00), positive while the sun is up.
-   * Returns the twilight colour and its strength (deep violet and purple before sunrise / after
-   * sunset, pink and magenta at the horizon, red and orange as the sun clears it, gold above), the
+   * Returns the twilight colour and its strength (a gentle palette: dusky grey-mauve, soft peach,
+   * warm orange, pale gold), the
    * screen direction the low light comes from (east at dawn, west at dusk), and how long the shadows
    * are (lowness 0-1, while the sun is up).
    */
@@ -82,8 +82,8 @@ export class Atmosphere {
     const col = c0.map((v, j) => Math.round(v + (c1[j] - v) * e));
     const strength = r < r0 || r > TWILIGHT[TWILIGHT.length - 1][0] ? 0 : s0 + (s1 - s0) * e;
     const lowness = r > 0 ? (1 - smooth(0, 3, r)) * smooth(-0.05, 0.25, r) : 0;
-    // the sun's screen direction: map +x (east) is screen right-down
-    const dir = dawn ? [0.894, 0.447] : [-0.894, -0.447];
+    // the sun's screen direction, on the 45-degree screen diagonal: east (dawn) lower right, west (dusk) upper left
+    const dir = dawn ? [Math.SQRT1_2, Math.SQRT1_2] : [-Math.SQRT1_2, -Math.SQRT1_2];
     return { r, dawn, col, strength, lowness, dir };
   }
   /** Warm golden-hour tint strength. */
@@ -252,23 +252,23 @@ export class Atmosphere {
       const [cr, cg, cb] = tw.col, s = tw.strength;
       ctx.save();
       ctx.globalCompositeOperation = 'soft-light';
-      ctx.fillStyle = `rgba(${cr},${cg},${cb},${Math.min(1, s * 1.5)})`;
+      ctx.fillStyle = `rgba(${cr},${cg},${cb},${Math.min(1, s * 1.1)})`;
       ctx.fillRect(0, 0, r.vw, r.vh);
       // shift the hues themselves towards the sky's colour (keeps the light and shade of the scene)
       ctx.globalCompositeOperation = 'color';
-      ctx.fillStyle = `rgba(${cr},${cg},${cb},${s * 0.55})`;
+      ctx.fillStyle = `rgba(${cr},${cg},${cb},${s * 0.3})`;
       ctx.fillRect(0, 0, r.vw, r.vh);
       ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = `rgba(${cr},${cg},${cb},${s * 0.14})`;
+      ctx.fillStyle = `rgba(${cr},${cg},${cb},${s * 0.1})`;
       ctx.fillRect(0, 0, r.vw, r.vh);
       const cx = r.vw / 2, cy = r.vh / 2, D = Math.hypot(r.vw, r.vh) / 2;
       const g = ctx.createLinearGradient(cx - tw.dir[0] * D, cy - tw.dir[1] * D, cx + tw.dir[0] * D, cy + tw.dir[1] * D);
-      g.addColorStop(0, `rgba(48,30,92,${s * 0.55})`); // the shadowed side
-      g.addColorStop(0.55, 'rgba(48,30,92,0)');
+      g.addColorStop(0, `rgba(60,50,80,${s * 0.4})`); // the shadowed side
+      g.addColorStop(0.55, 'rgba(60,50,80,0)');
       ctx.globalCompositeOperation = 'multiply';
       ctx.fillStyle = g; ctx.fillRect(0, 0, r.vw, r.vh);
       const h = ctx.createLinearGradient(cx + tw.dir[0] * D, cy + tw.dir[1] * D, cx - tw.dir[0] * D, cy - tw.dir[1] * D);
-      h.addColorStop(0, `rgba(${Math.min(255, cr + 30)},${Math.min(255, cg + 40)},${Math.min(255, cb + 20)},${s * 0.9})`); // haze towards the sun
+      h.addColorStop(0, `rgba(${Math.min(255, cr + 30)},${Math.min(255, cg + 40)},${Math.min(255, cb + 20)},${s * 0.6})`); // haze towards the sun
       h.addColorStop(0.65, `rgba(${cr},${cg},${cb},0)`);
       ctx.globalCompositeOperation = 'screen';
       ctx.fillStyle = h; ctx.fillRect(0, 0, r.vw, r.vh);

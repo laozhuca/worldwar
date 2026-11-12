@@ -1381,7 +1381,7 @@ export class Renderer {
 
   /**
    * A long shadow cast by the low dawn / dusk sun, away from it, from a ground point (world px).
-   * height: the caster's height in men (a soldier 1, a tree about 2.6).
+   * height: the caster's height (a tree about 2.6). Only trees and stumps cast them.
    */
   longShadow(ctx, x, y, height = 1) {
     const sh = this.sunShadow;
@@ -1443,7 +1443,7 @@ export class Renderer {
     const nation = this.nations && this.nations[u.team];
     const useSpr = this.hasArmy(nation);
     let gunDrawn = u.type !== 'artillery';
-    const drawGunNow = () => { if (!gunDrawn) { gunDrawn = true; this.longShadow(ctx, p.x, p.y, 1.1); if (!this.drawGun3D(ctx, p, u, time) && !this.drawGunArt(ctx, p, u)) this.drawGun(ctx, p, u, time); } };
+    const drawGunNow = () => { if (!gunDrawn) { gunDrawn = true; if (!this.drawGun3D(ctx, p, u, time) && !this.drawGunArt(ctx, p, u)) this.drawGun(ctx, p, u, time); } };
     if (!useSpr) drawGunNow();
     if (u.type === 'mg') {
       const { view, mirror } = Renderer.viewFor(u.hx, u.hy);
@@ -1474,7 +1474,6 @@ export class Renderer {
           else if (u.type === 'mg') pn = 'prone';
           else if (u.target && (u.firing > 0 || u.type === 'rifle')) pn = 'fire';
         }
-        if (pn !== 'prone' && pose !== 'crawl') this.longShadow(ctx, s.x, s.y, 1);
         if (!this.drawSoldier(ctx, nation, pn, fr, u.hx, u.hy, s.x, s.y)) drawMan(ctx, s.x, s.y, u.team, pose === 'crawl' ? 'prone' : pose, u.facing, phase + i * 1.7, false);
       });
       drawGunNow();
