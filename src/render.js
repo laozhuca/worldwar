@@ -115,6 +115,7 @@ export class Renderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.cam = { x: 0, y: 0, zoom: 1 };
+    this.insets = { top: 0, bottom: 0 }; // screen strips covered by the top bar and the command panel
     this.ground = document.createElement('canvas');
     // The battlefield is a diamond of radius MAP_R + 0.5 tiles around the map centre, a 2:1 rectangle on screen.
     // The ground canvas covers exactly that rectangle (plus a margin above for tall props).
@@ -156,18 +157,26 @@ export class Renderer {
   }
   centerOn(x, y) {
     const p = iso(x, y);
-    this.cam.x = p.x; this.cam.y = p.y;
+    // centre it in the open part of the screen, between the top bar and the command panel
+    this.cam.x = p.x; this.cam.y = p.y - (this.insets.top - this.insets.bottom) / 2 / this.cam.zoom;
     this.clampCam();
   }
-  /** Keep the view on the battlefield: never zoomed out past it, never scrolled off its edge. */
+  /**
+   * Keep the view on the battlefield: never zoomed out past it, never scrolled off its edge. Only the part
+   * of the screen between the top bar and the command panel counts, so every edge of the map can be
+   * scrolled into the open (what lies under the panels beyond the edge is hidden by them anyway).
+   */
   clampCam() {
-    const V = this.view;
-    const minZoom = Math.max(0.3, this.vw / (V.x1 - V.x0), this.vh / (V.y1 - V.y0));
+    const V = this.view, { top, bottom } = this.insets;
+    const visH = Math.max(100, this.vh - top - bottom);
+    const minZoom = Math.max(0.3, this.vw / (V.x1 - V.x0), visH / (V.y1 - V.y0));
     this.cam.zoom = Math.max(minZoom, Math.min(3, this.cam.zoom));
-    const hw = this.vw / 2 / this.cam.zoom, hh = this.vh / 2 / this.cam.zoom;
+    const z = this.cam.zoom, hw = this.vw / 2 / z;
     const fit = (v, a, b) => (a > b ? (a + b) / 2 : Math.max(a, Math.min(b, v)));
     this.cam.x = fit(this.cam.x, V.x0 + hw, V.x1 - hw);
-    this.cam.y = fit(this.cam.y, V.y0 + hh, V.y1 - hh);
+    // screen row sy shows world row (sy - vh/2) / z + cam.y: keep row `top` below the map's top edge and
+    // row `vh - bottom` above its bottom edge
+    this.cam.y = fit(this.cam.y, V.y0 + (this.vh / 2 - top) / z, V.y1 - (this.vh / 2 - bottom) / z);
   }
 
   // ------------------------------------------------------------ ground layer
@@ -1692,7 +1701,7 @@ export class Renderer {
       mctx.fillRect(ox + (p.x + this.OX) * s - 1.5, oy + (p.y + this.OY) * s - 1.5, 3, 3);
     }
     // viewport
-    const tl = this.screenToWorld(0, 0), br = this.screenToWorld(this.vw, this.vh);
+    const tl = this.screenToWorld(0, this.insets.top), br = this.screenToWorld(this.vw, this.vh - this.insets.bottom);
     mctx.strokeStyle = 'rgba(255,255,255,0.8)'; mctx.lineWidth = 1;
     mctx.strokeRect(ox + (tl.x + this.OX) * s, oy + (tl.y + this.OY) * s, (br.x - tl.x) * s, (br.y - tl.y) * s);
   }
