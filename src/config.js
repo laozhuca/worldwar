@@ -116,8 +116,8 @@ export const WIRE_SLOW = 0.25;
 // Visual seasons (art direction from the concept art: snow / thaw / mud).
 export const SEASONS = {
   winter: { key: 'winter', name: 'Winter', snow: 1, precip: 'snow', desc: 'Snow-covered fields, frozen shell holes.' },
-  thaw: { key: 'thaw', name: 'Thaw', snow: 0.5, precip: 'sleet', desc: 'Patchy snow over churned mud.' },
-  mud: { key: 'mud', name: 'Mud', snow: 0, precip: 'rain', desc: 'Rain, black mud and flooded craters.' },
+  thaw: { key: 'thaw', name: 'Thaw', snow: 0.5, precip: 'none', desc: 'Patchy snow over churned mud.' },
+  mud: { key: 'mud', name: 'Mud', snow: 0, precip: 'showers', desc: 'Black mud, flooded craters, passing rain showers.' },
 };
 
 // Playable nations (uniform art: assets/soldiers/<key>/, portraits: assets/art/soldier-<key>.png when supplied).

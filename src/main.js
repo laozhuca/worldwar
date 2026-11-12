@@ -216,7 +216,7 @@ function frame(now) {
     const hh = String(Math.floor(h)).padStart(2, '0'), mm = String(Math.floor((h % 1) * 60)).padStart(2, '0');
     const night = renderer.atmo.darkness(s) > 0.3, rain = renderer.atmo.rain(s) > 0.3;
     clockEl.textContent = `${hh}:${mm}`;
-    clockIcon.textContent = rain ? (s.season === 'mud' ? '🌧' : '🌨') : night ? '🌙' : (s.season === 'winter' ? '❄' : '☁');
+    clockIcon.textContent = rain ? '🌧' : night ? '🌙' : (s.season === 'winter' ? '❄' : '☁');
   }
   if (s.winner >= 0 && !endShown) showEnd(s);
   requestAnimationFrame(frame);

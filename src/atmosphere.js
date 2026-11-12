@@ -20,6 +20,8 @@ export class Atmosphere {
     this.drops = [];
     this.flakes = [];
     this.shake = 0;
+    // Mud-season showers: rain starts and stops at random; level eases towards 1 while it rains
+    this.shower = { raining: false, timer: 30 + Math.random() * 90, level: 0, peak: 1 };
     this.wind = { x: 0.8, y: 0.25 };
     this.fog = [];
     for (let i = 0; i < 16; i++) {
@@ -53,10 +55,15 @@ export class Atmosphere {
     const h = this.hour(state);
     return Math.max(0, 1 - Math.abs(h - 18.5) / 1.8, 1 - Math.abs(h - 6.2) / 1.5);
   }
+  /** How hard it is raining (0-1). Only the Mud season has rain: showers that come and go at random. */
   rain(state) {
+    const season = SEASONS[state.season] || SEASONS.winter;
+    return season.precip === 'showers' ? this.shower.level : 0;
+  }
+  /** Winter snowfall strength: heavier and lighter spells. */
+  snowfall(state) {
     const t = state.time;
-    const s = Math.sin(t / 97 + 1.3) + Math.sin(t / 41) * 0.5;
-    return smooth(0.55, 1.1, s);
+    return smooth(0.55, 1.1, Math.sin(t / 97 + 1.3) + Math.sin(t / 41) * 0.5);
   }
 
   onEvent(ev, r) {
@@ -90,9 +97,18 @@ export class Atmosphere {
 
     // precipitation (screen space): rain, sleet or snow by season
     const season = SEASONS[state.season] || SEASONS.winter;
-    const p = this.rain(state);
-    const rainAmt = season.precip === 'rain' ? p : season.precip === 'sleet' ? p * 0.6 : 0;
-    const snowAmt = season.precip === 'snow' ? 0.3 + p * 0.7 : season.precip === 'sleet' ? 0.1 + p * 0.4 : 0;
+    // showers: a dry spell of 40 s - 3 min, then 25 - 100 s of rain of varying strength
+    const sh = this.shower;
+    sh.timer -= simDt;
+    if (sh.timer <= 0) {
+      sh.raining = !sh.raining;
+      sh.timer = sh.raining ? 25 + Math.random() * 75 : 40 + Math.random() * 140;
+      if (sh.raining) sh.peak = 0.55 + Math.random() * 0.45;
+    }
+    sh.level += ((sh.raining ? sh.peak : 0) - sh.level) * Math.min(1, simDt / 6); // fades in and out over a few seconds
+    if (sh.level < 0.002) sh.level = 0;
+    const rainAmt = this.rain(state);
+    const snowAmt = season.precip === 'snow' ? 0.3 + this.snowfall(state) * 0.7 : 0;
     const wantFlakes = Math.floor(snowAmt * 360);
     while (this.flakes.length < wantFlakes) this.flakes.push(this.newFlake(r, true));
     if (this.flakes.length > wantFlakes) this.flakes.length = wantFlakes;
