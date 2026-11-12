@@ -44,6 +44,8 @@ as `file://`, because it uses ES modules.
 
 **Starting position**: start in the upper left or lower right of the map, or at random. Fortifications go with the army, not the position: your side always holds the lighter works with sally ports in its wire, the enemy the heavier ones.
 
+**Saving**: 💾 saves the battle in the browser; it also saves itself every minute of play and whenever you switch away from or close the page. The start screen then offers **Continue saved battle** (nations, minutes in, when saved). A won or lost battle clears the save. One save per browser.
+
 **Seasons**: Winter (snow, frozen shell holes), Thaw (patchy snow over mud) and Mud (rain, flooded craters), chosen on the start screen. Shellfire and digging churn the snow into black earth.
 
 **Atmosphere** (purely visual): a day/night cycle with star-shell flares and dynamic light from gunfire and explosions; passing rain showers; drifting ground mist; screen shake; hand-drawn shell-impact animation (the supplied 36-frame artwork, colour-graded into the battlefield palette, with continuous drift, swelling and wind between frames, a ground shadow and an impact flash); fallen soldiers left on the field; and a 🎞 film-look toggle (colour / sepia / black and white).
@@ -101,7 +103,8 @@ assets/voice/           soldier voice clips per army + manifest (`node scripts/p
 src/audio.js            WebAudio: recorded artillery samples + procedural fallbacks
 assets/sfx/             artillery fire (first 3.5 s) and three full-length 8 s shell-explosion recordings, five rifle-volley recordings, four machine-gun bursts, and an officer's whistle and, 1.5 s later, a battle cry (3 s each) played with every charge order (sources in art-src/sfx/)
 assets/music/           background music (Ombra di guerra), looped with a fade; 🎵 toggles it
-src/main.js             game loop
+src/main.js             game loop, saving (browser storage)
+src/save.js             battle save format: serialize / deserialize the simulation state
 assets/textures/        generated seamless PNG textures (mud, earth, snow, grass, ice, water, planks, sandbags, duckboards)
 scripts/make-textures.mjs  texture generator: `npm run textures` (no dependencies)
 assets/soldiers/<nation>/ pre-rendered soldier sprites (8 poses, 2 views, mirrored in game) + portrait
@@ -119,7 +122,7 @@ The simulation has no DOM dependencies, so it is tested headlessly:
 npm test
 ```
 
-The tests cover male-only voice selection, barrages, MG lethality, digging, recruiting and reinforcing, plus a 10-minute AI-vs-AI battle.
+The tests cover saving and loading, male-only voice selection, barrages, MG lethality, digging, recruiting and reinforcing, plus a 10-minute AI-vs-AI battle.
 
 ## Adding art
 

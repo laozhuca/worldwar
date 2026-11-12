@@ -8,6 +8,8 @@ import { createMap, tileAt, frontLine, teamDir, clampToMap } from './map.js';
 import { createAI, updateAI } from './ai.js';
 
 let nextId = 1;
+/** Continue unit ids after the highest one in use (loading a saved battle). */
+export function setNextId(n) { nextId = n; }
 const rand = Math.random;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);

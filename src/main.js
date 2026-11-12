@@ -2,6 +2,7 @@ import { createGame, update, pushMessage } from './game.js';
 import { Renderer, iso } from './render.js';
 import { UI } from './ui.js';
 import { Voices } from './voice.js';
+import { serialize, deserialize, describe } from './save.js';
 import { Sound } from './audio.js';
 import { PLAYER, NATIONS } from './config.js';
 import { hourOf } from './atmosphere.js';
@@ -159,6 +160,7 @@ document.getElementById('btn-sound').addEventListener('click', (e) => {
 let endShown = false;
 function showEnd(state) {
   endShown = true;
+  clearSave(); // a finished battle can't be continued
   const won = state.winner === PLAYER;
   document.getElementById('end-title').textContent = won ? 'Victory' : 'Defeat';
   const mins = Math.floor(state.time / 60), secs = Math.floor(state.time % 60);
@@ -221,3 +223,60 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 export { iso };
+
+// ------------------------------------------------------------ saving
+const SAVE_KEY = 'ww-save';
+const readSave = () => { try { return localStorage.getItem(SAVE_KEY); } catch { return null; } };
+function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch {} showContinue(); }
+let lastSave = 0;
+/** Save the battle in the browser. Quiet saves (automatic) don't announce themselves. */
+function saveGame(quiet = false) {
+  const s = app.state;
+  if (s.winner >= 0 || s.time < 1) { if (!quiet) pushMessage(s, 'Nothing to save yet', 'warn'); return false; }
+  try {
+    localStorage.setItem(SAVE_KEY, serialize(s));
+    lastSave = s.time;
+    if (!quiet) pushMessage(s, 'Battle saved', 'good');
+    showContinue();
+    return true;
+  } catch (e) {
+    if (!quiet) pushMessage(s, 'Could not save: the browser refused the storage', 'warn');
+    return false;
+  }
+}
+function loadGame() {
+  let state;
+  try { state = deserialize(readSave()); } catch (e) { pushMessage(app.state, `Could not load the saved battle (${e.message})`, 'warn'); clearSave(); return; }
+  app.state = state;
+  app.season = state.season;
+  sound.init(); voices.prepare(); sound.startMusic();
+  useArmies(state);
+  ui.selected.clear();
+  ui.setMode(null);
+  renderer.groundDrawn = false;
+  ui.centerOnFront();
+  endShown = false;
+  lastSave = state.time;
+  document.getElementById('overlay').classList.add('hidden');
+  pushMessage(state, 'Battle resumed', 'good');
+  app.paused = false;
+  document.getElementById('btn-pause').textContent = '❚❚';
+}
+/** The start screen's "Continue saved battle" button, with what and when. */
+function showContinue() {
+  const b = document.getElementById('btn-continue');
+  const info = readSave() && describe(readSave());
+  b.classList.toggle('hidden', !info);
+  if (!info) return;
+  const [a, e] = info.nations.map((n) => (NATIONS[n] ? NATIONS[n].name : n));
+  const m = Math.floor(info.time / 60);
+  const when = new Date(info.savedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  b.querySelector('small').textContent = `${a} vs ${e} · ${m} min in · saved ${when}`;
+}
+showContinue();
+document.getElementById('btn-continue').addEventListener('click', loadGame);
+document.getElementById('btn-save').addEventListener('click', () => saveGame());
+// autosave every minute of battle, and whenever the page is hidden or closed
+setInterval(() => { if (!app.paused && app.state.time - lastSave >= 60) saveGame(true); }, 5000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveGame(true); });
+window.addEventListener('pagehide', () => saveGame(true));

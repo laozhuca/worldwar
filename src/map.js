@@ -15,6 +15,8 @@ export function mulberry32(seed) {
 export let WEST_TEAM = PLAYER;
 /** +1 if the team advances towards +x (it starts in the west), -1 otherwise. */
 export const teamDir = (team) => (team === WEST_TEAM ? 1 : -1);
+/** Restore which team holds the west (loading a saved battle). */
+export function setWestTeam(team) { WEST_TEAM = team; }
 // Initial front-line columns for the west and east lines (14 tiles either side of the middle).
 const MID = (MAP_W - 1) / 2; // middle tile column / row
 const WEST_FRONT = MID - 14, EAST_FRONT = MAP_W - 1 - WEST_FRONT;

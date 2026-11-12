@@ -165,3 +165,7 @@ html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent
 @media (max-width: 700px), (max-height: 500px) { .group button.pic img { width: 26px; height: 26px; } }
 @media (max-width: 900px) { .group button.pic { width: 140px; } }
 @media (max-width: 700px), (max-height: 500px) { .group button.pic { width: auto; } }
+
+.start-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+#btn-continue { background: #2f3a2c; text-align: left; }
+#btn-continue small { display: block; font-size: 11px; color: var(--muted); letter-spacing: 0; }
