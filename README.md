@@ -31,7 +31,7 @@ as `file://`, because it uses ES modules.
 | **Machine guns** | Short setup time, then murderous fire on troops in the open. Fire pins walking troops. |
 | **Barbed wire** | Slows anyone crossing it to a quarter speed. Shellfire cuts it. |
 | **Artillery** | 8-shell barrages: kill, suppress, cut wire, collapse trench works, churn the ground. Friendly fire is real. |
-| **Charge** | Fast, can't be pinned, no firing. Ends in a bayonet fight: rifle squads are deadly at close quarters, and the shock of the charge doubles their bayonet damage for the first seconds. |
+| **Charge** | Rifle squads only (MG teams and batteries can't go over the top). Fast, can't be pinned, no firing. Ends in a bayonet fight: rifle squads are deadly at close quarters, and the shock of the charge doubles their bayonet damage for the first seconds. |
 | **Capture** | Occupy trench tiles with no enemy nearby. Take the enemy HQ (far east) to win. |
 
 **Textures & relief**: the ground is built from tileable PNG textures (palette sampled from the concept art), sculpted by a 16 px-per-tile height field of the whole battlefield: crater bowls with raised lips, trench spoil ridges, wheel ruts and rolling ground, lit by a soft low light with ambient occlusion and wet glints on the mud. Snow settles on crests and flats, earth shows on steep blasted faces, water and ice collect in the hollows. Shell impacts update the relief locally; trench planks, sandbags and duckboards run along each trench. Replace any PNG in `assets/textures/` with your own art (same name, seamless) and it is used automatically.
@@ -56,7 +56,8 @@ counter-attacks lost trenches, repairs its wire and launches its own offensives.
 | Input | Action |
 |---|---|
 | Left-click / drag | Select units (Shift adds to the selection) |
-| Right-click | Move (Ctrl + right-click to charge) |
+| Double-click a unit | Select every unit of that type on screen |
+| Right-click | Move (Ctrl + right-click: rifle squads charge) |
 | `C`, then click | Charge |
 | `B`, then click | Bombard: uses the selected batteries, or the next ready battery (Shift keeps the mode on) |
 | `T` / `U` / `X` | Dig trench / reinforce trench / lay wire. Click or drag to paint; Alt-click cancels a site |
@@ -70,7 +71,7 @@ counter-attacks lost trenches, repairs its wire and launches its own offensives.
 
 | Touch | Action |
 |---|---|
-| Tap a unit | Select it |
+| Tap a unit | Select it (double-tap: every unit of that type on screen) |
 | Tap the ground | Move the selected units there |
 | Press and hold, then drag | Box-select |
 | Drag one finger | Scroll the map |
@@ -79,7 +80,7 @@ counter-attacks lost trenches, repairs its wire and launches its own offensives.
 | Build button, then tap or drag | Dig / reinforce trench / lay wire |
 | Tap or drag the minimap | Move the camera |
 
-**Deselect** and **All infantry** buttons sit under Orders. On phones the commands become one scrollable strip and the top bar wraps.
+The Orders panel shows only the orders the selected units can carry out; Recruit and Engineering buttons show the unit or work they make. **Deselect** and **All infantry** buttons sit under Orders. On phones the commands become one scrollable strip and the top bar wraps.
 
 ## Project layout
 

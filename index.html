@@ -39,15 +39,15 @@
         <div class="group">
           <h4>Recruit</h4>
           <div class="btns">
-            <button data-recruit="rifle"><kbd>1</kbd> Rifle Squad<small></small></button>
-            <button data-recruit="mg"><kbd>2</kbd> MG Team<small></small></button>
-            <button data-recruit="artillery"><kbd>3</kbd> Field Battery<small></small></button>
+            <button data-recruit="rifle" class="pic"><img alt=""><span><kbd>1</kbd> Rifle Squad<small></small></span></button>
+            <button data-recruit="mg" class="pic"><img src="assets/art/card-mg.webp" alt=""><span><kbd>2</kbd> MG Team<small></small></span></button>
+            <button data-recruit="artillery" class="pic"><img src="assets/art/card-artillery.webp" alt=""><span><kbd>3</kbd> Field Battery<small></small></span></button>
           </div>
         </div>
         <div class="group">
           <h4>Orders</h4>
           <div class="btns two">
-            <button data-cmd="charge" title="Go over the top: fast, ignores pinning, no firing"><kbd>C</kbd> Charge</button>
+            <button data-cmd="charge" title="Rifle squads go over the top: fast, ignore pinning, no firing"><kbd>C</kbd> Charge</button>
             <button data-cmd="bombard" title="Artillery barrage on a target area"><kbd>B</kbd> Bombard</button>
             <button data-cmd="halt" title="Stop moving / cancel barrage"><kbd>H</kbd> Halt</button>
             <button data-cmd="allinf" title="Select all rifle squads"><kbd>Q</kbd> All infantry</button>
@@ -57,9 +57,9 @@
         <div class="group">
           <h4>Engineering</h4>
           <div class="btns">
-            <button data-build="trench"><kbd>T</kbd> Dig Trench<small></small></button>
-            <button data-build="upgrade"><kbd>U</kbd> Reinforce<small></small></button>
-            <button data-build="wire"><kbd>X</kbd> Barbed Wire<small></small></button>
+            <button data-build="trench" class="pic"><img src="assets/art/build-trench.webp" alt=""><span><kbd>T</kbd> Dig Trench<small></small></span></button>
+            <button data-build="upgrade" class="pic"><img src="assets/art/build-upgrade.webp" alt=""><span><kbd>U</kbd> Reinforce<small></small></span></button>
+            <button data-build="wire" class="pic"><img src="assets/art/build-wire.webp" alt=""><span><kbd>X</kbd> Barbed Wire<small></small></span></button>
           </div>
         </div>
       </div>
@@ -83,7 +83,7 @@
             <ol>
               <li>Bombard the enemy wire to cut lanes through it.</li>
               <li>Bombard the trench you want so the gunners keep their heads down.</li>
-              <li><b>Charge</b> while the shells are still falling (guns fire every few seconds), so you reach the trench as the barrage lifts. Charging troops can't be pinned, and run much faster than they walk.</li>
+              <li><b>Charge</b> with your rifle squads while the shells are still falling (guns fire every few seconds), so you reach the trench as the barrage lifts. Charging troops can't be pinned, and run much faster than they walk.</li>
               <li>Hold the trench, bring up fresh squads, then dig in and wire the new line. Worn-down squads are not refilled: recruit new ones.</li>
             </ol>
           </div>
@@ -91,6 +91,7 @@
             <h3>Controls</h3>
             <table>
               <tr><td>Left-drag / click</td><td>Select units</td></tr>
+              <tr><td>Double-click a unit</td><td>Select all units of that type on screen</td></tr>
               <tr><td>Right-click</td><td>Move (Ctrl+right-click = charge)</td></tr>
               <tr><td><kbd>C</kbd> then click</td><td>Charge target</td></tr>
               <tr><td><kbd>B</kbd> then click</td><td>Bombard (selected or all ready batteries)</td></tr>
@@ -104,7 +105,7 @@
             </table>
             <h3>Touch screens</h3>
             <table>
-              <tr><td>Tap a unit</td><td>Select it</td></tr>
+              <tr><td>Tap a unit</td><td>Select it (double-tap: all of that type on screen)</td></tr>
               <tr><td>Tap the ground</td><td>Move the selected units there</td></tr>
               <tr><td>Press and hold, drag</td><td>Select every unit in the box</td></tr>
               <tr><td>Drag</td><td>Scroll the map</td></tr>

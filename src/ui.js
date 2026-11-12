@@ -75,8 +75,8 @@ export class UI {
   }
 
   doCharge(x, y) {
-    const units = this.selectedUnits().filter((u) => u.type !== 'artillery');
-    if (!units.length) { pushMessage(this.state, 'Select infantry to charge', 'warn'); return; }
+    const units = this.selectedUnits().filter((u) => u.type === 'rifle');
+    if (!units.length) { pushMessage(this.state, 'Only rifle squads can charge', 'warn'); return; }
     orderMove(this.state, units, x, y, 'charge');
     this.speak('charge', units);
   }
@@ -159,11 +159,22 @@ export class UI {
     return best;
   }
 
+  /** Every player unit of the same type as u that is on screen (double-click / double-tap). */
+  selectSameType(u) {
+    this.selected.clear();
+    for (const x of this.playerUnits()) {
+      if (x.type !== u.type) continue;
+      const p = this.r.mapToScreen(x.x, x.y, 8);
+      if (x === u || (p.x >= 0 && p.y >= 0 && p.x <= this.r.vw && p.y <= this.r.vh)) this.selected.add(x.id);
+    }
+  }
+
   /** Order selected units to (x, y) with a ground marker, as a right-click does. */
   moveSelected(x, y, kind = 'move') {
     const units = this.selectedUnits();
     if (!units.length) return false;
-    const mv = kind === 'charge' ? units.filter((u) => u.type !== 'artillery') : units;
+    const mv = kind === 'charge' ? units.filter((u) => u.type === 'rifle') : units;
+    if (!mv.length) { pushMessage(this.state, 'Only rifle squads can charge', 'warn'); return true; }
     orderMove(this.state, mv, x, y, kind);
     this.speak(kind === 'charge' ? 'charge' : 'move', mv);
     this.state.effects.push({ type: 'boom', x, y, age: 0.55, life: 0.7 });
@@ -259,7 +270,12 @@ export class UI {
       if (this.mode === 'bombard') { this.doBombard(m.x, m.y); this.setMode(null); return; }
       if (this.mode === 'charge') { this.doCharge(m.x, m.y); this.setMode(null); return; }
       const u = this.unitAt(g.x0, g.y0, 34);
-      if (u) { this.selected.clear(); this.selected.add(u.id); return; }
+      if (u) {
+        const now = performance.now();
+        if (this.lastTap && this.lastTap.id === u.id && now - this.lastTap.t < 400) { this.selectSameType(u); this.lastTap = null; return; }
+        this.lastTap = { id: u.id, t: now };
+        this.selected.clear(); this.selected.add(u.id); return;
+      }
       this.moveSelected(m.x, m.y);
     };
     cv.addEventListener('touchend', end, { passive: false });
@@ -322,6 +338,13 @@ export class UI {
       if (this.painting && this.mode && this.mode.startsWith('build:')) this.paint(this.hover.x, this.hover.y);
     });
 
+    cv.addEventListener('dblclick', (e) => {
+      if (this.mode) return;
+      const r = cv.getBoundingClientRect();
+      const u = this.unitAt(e.clientX - r.left, e.clientY - r.top);
+      if (u) this.selectSameType(u);
+    });
+
     window.addEventListener('mouseup', (e) => {
       if (e.button === 1) this.panDrag = null;
       if (e.button !== 0) return;
@@ -365,7 +388,7 @@ export class UI {
         switch (k) {
           case 'p': this.app.togglePause(); break;
           case 'escape': if (this.mode) this.setMode(null); else this.selected.clear(); break;
-          case 'c': this.setMode('charge'); break;
+          case 'c': if (this.selectedUnits().some((u) => u.type === 'rifle')) this.setMode('charge'); else pushMessage(this.state, 'Select rifle squads to charge', 'warn'); break;
           case 'b': this.setMode('bombard'); break;
           case 't': this.setMode('build:trench'); break;
           case 'u': this.setMode('build:upgrade'); break;
@@ -468,6 +491,22 @@ export class UI {
     for (const [type, t] of Object.entries(BUILD)) {
       document.querySelector(`[data-build="${type}"]`).disabled = res.supplies < t.supplies;
     }
+    const rifleImg = document.querySelector('[data-recruit="rifle"] img');
+    const por = this.r.portraitOf && s.nations ? this.r.portraitOf(s.nations[PLAYER]) : '';
+    if (por && rifleImg.getAttribute('src') !== por) rifleImg.setAttribute('src', por);
+
+    // orders: only those the selected units can carry out
+    const chosen = this.selectedUnits();
+    const has = (type) => chosen.some((u) => u.type === type);
+    const show = {
+      charge: has('rifle'),
+      bombard: has('artillery') || (!chosen.length && this.playerUnits().some((u) => u.type === 'artillery')),
+      halt: chosen.length > 0,
+      allinf: true,
+      deselect: chosen.length > 0 || !!this.mode,
+    };
+    for (const [cmd, on] of Object.entries(show)) document.querySelector(`[data-cmd="${cmd}"]`).classList.toggle('hidden', !on);
+    if (this.mode === 'charge' && !show.charge) this.setMode(null);
 
     // messages
     const box = $('messages');
@@ -497,7 +536,7 @@ export class UI {
         if (u.type === 'artillery' && u.cooldown > 0 && !u.barrage) status = `reloading ${Math.ceil(u.cooldown)}s`;
         if (u.type === 'mg' && u.setup > 0 && !u.order) status = 'setting up';
         // MG teams and batteries show their weapon, rifle squads a soldier of the army
-        const por = u.type === 'mg' || u.type === 'artillery' ? `<img class="portrait equip" src="assets/art/card-${u.type}.png" alt="">`
+        const por = u.type === 'mg' || u.type === 'artillery' ? `<img class="portrait equip" src="assets/art/card-${u.type}.webp" alt="">`
           : this.r.portraitOf && s.nations ? `<img class="portrait" src="${this.r.portraitOf(s.nations[PLAYER])}" alt="">` : '';
         parts.push(`<div class="ucard">${por}<div class="ubody"><div class="n">${t.name}</div><div>${u.men}/${t.men} men</div><div class="st">${status}</div>
           <div class="bar" title="Strength"><i style="width:${(100 * u.hp) / (t.men * t.hpPerMan)}%"></i></div>

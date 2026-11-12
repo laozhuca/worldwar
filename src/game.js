@@ -135,7 +135,7 @@ function snapToTrench(map, x, y) {
 
 export function orderMove(state, units, tx, ty, kind = 'move') {
   const { map } = state;
-  const list = units.filter((u) => !u.dead && !(kind === 'charge' && u.type === 'artillery'));
+  const list = units.filter((u) => !u.dead && !(kind === 'charge' && u.type !== 'rifle')); // only riflemen go over the top
   const n = list.length;
   if (!n) return 0;
   const targetTile = tileAt(map, tx, ty);
