@@ -1,4 +1,130 @@
 {
+ "austria": {
+  "select": [
+   {
+    "file": "austria/0.mp3",
+    "text": "Igenis!"
+   },
+   {
+    "file": "austria/1.mp3",
+    "text": "Készen állunk."
+   },
+   {
+    "file": "austria/2.mp3",
+    "text": "Parancs?"
+   },
+   {
+    "file": "austria/5.mp3",
+    "text": "Hadnagy úr?"
+   }
+  ],
+  "select_rifle": [
+   {
+    "file": "austria/3.mp3",
+    "text": "A raj kész."
+   },
+   {
+    "file": "austria/6.mp3",
+    "text": "Lövészek a helyükön."
+   }
+  ],
+  "select_mg": [
+   {
+    "file": "austria/4.mp3",
+    "text": "Géppuska kész."
+   },
+   {
+    "file": "austria/8.mp3",
+    "text": "A Schwarzlose töltve."
+   }
+  ],
+  "select_artillery": [
+   {
+    "file": "austria/7.mp3",
+    "text": "Ágyúk beirányozva."
+   },
+   {
+    "file": "austria/9.mp3",
+    "text": "Az üteg kész."
+   }
+  ],
+  "move": [
+   {
+    "file": "austria/10.mp3",
+    "text": "Előre!"
+   },
+   {
+    "file": "austria/11.mp3",
+    "text": "Igenis, megyünk."
+   },
+   {
+    "file": "austria/12.mp3",
+    "text": "Indulás!"
+   }
+  ],
+  "charge": [
+   {
+    "file": "austria/13.mp3",
+    "text": "Rajta! Előre!"
+   },
+   {
+    "file": "austria/14.mp3",
+    "text": "Szuronyt szegezz! Rohamra!"
+   },
+   {
+    "file": "austria/15.mp3",
+    "text": "Hurrá!"
+   }
+  ],
+  "bombard": [
+   {
+    "file": "austria/16.mp3",
+    "text": "Üteg, tűz!"
+   },
+   {
+    "file": "austria/17.mp3",
+    "text": "Tűz!"
+   }
+  ],
+  "halt": [
+   {
+    "file": "austria/18.mp3",
+    "text": "Állj!"
+   },
+   {
+    "file": "austria/19.mp3",
+    "text": "Állj!"
+   },
+   {
+    "file": "austria/21.mp3",
+    "text": "Megállni!"
+   }
+  ],
+  "recruit": [
+   {
+    "file": "austria/20.mp3",
+    "text": "Jelentkezem!"
+   },
+   {
+    "file": "austria/22.mp3",
+    "text": "Megérkezett a pótlás!"
+   }
+  ],
+  "pinned": [
+   {
+    "file": "austria/23.mp3",
+    "text": "Lefogtak minket!"
+   },
+   {
+    "file": "austria/24.mp3",
+    "text": "Fedezékbe!"
+   },
+   {
+    "file": "austria/25.mp3",
+    "text": "Le a földre!"
+   }
+  ]
+ },
  "france": {
   "select": [
    {
@@ -830,124 +956,6 @@
    {
     "file": "usa/22.mp3",
     "text": "Hit the dirt!"
-   }
-  ]
- },
- "austria": {
-  "select": [
-   {
-    "file": "germany/0.mp3",
-    "text": "Bereit."
-   },
-   {
-    "file": "germany/2.mp3",
-    "text": "Jawohl?"
-   },
-   {
-    "file": "germany/5.mp3",
-    "text": "Zu Befehl?"
-   },
-   {
-    "file": "germany/11.mp3",
-    "text": "Jawohl?"
-   }
-  ],
-  "select_rifle": [
-   {
-    "file": "germany/1.mp3",
-    "text": "Gruppe bereit."
-   },
-   {
-    "file": "germany/4.mp3",
-    "text": "Schützen zur Stelle."
-   }
-  ],
-  "move": [
-   {
-    "file": "germany/2.mp3",
-    "text": "Jawohl?"
-   },
-   {
-    "file": "germany/10.mp3",
-    "text": "Vorwärts!"
-   },
-   {
-    "file": "germany/11.mp3",
-    "text": "Jawohl?"
-   },
-   {
-    "file": "germany/13.mp3",
-    "text": "Wird gemacht."
-   }
-  ],
-  "select_artillery": [
-   {
-    "file": "germany/6.mp3",
-    "text": "Batterie bereit."
-   },
-   {
-    "file": "germany/7.mp3",
-    "text": "Geschütze gerichtet."
-   }
-  ],
-  "select_mg": [
-   {
-    "file": "germany/8.mp3",
-    "text": "MG bereit."
-   },
-   {
-    "file": "germany/9.mp3",
-    "text": "MG geladen."
-   }
-  ],
-  "charge": [
-   {
-    "file": "germany/14.mp3",
-    "text": "Seitengewehr pflanzt auf! Angriff!"
-   },
-   {
-    "file": "germany/15.mp3",
-    "text": "Sturm! Hurra!"
-   },
-   {
-    "file": "germany/20.mp3",
-    "text": "Seitengewehr pflanzt auf! Angriff!"
-   }
-  ],
-  "bombard": [
-   {
-    "file": "germany/16.mp3",
-    "text": "Feuer!"
-   },
-   {
-    "file": "germany/19.mp3",
-    "text": "Batterie, Feuer!"
-   }
-  ],
-  "halt": [
-   {
-    "file": "germany/17.mp3",
-    "text": "Halt!"
-   }
-  ],
-  "recruit": [
-   {
-    "file": "germany/18.mp3",
-    "text": "Zur Stelle!"
-   },
-   {
-    "file": "germany/21.mp3",
-    "text": "Ersatz eingetroffen!"
-   }
-  ],
-  "pinned": [
-   {
-    "file": "germany/22.mp3",
-    "text": "Wir sind festgenagelt!"
-   },
-   {
-    "file": "germany/23.mp3",
-    "text": "Volle Deckung!"
    }
   ]
  }
