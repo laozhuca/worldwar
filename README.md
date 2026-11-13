@@ -1,6 +1,6 @@
 # WorldWar
 
-A 2D isometric (45°) real-time strategy game about the Western Front in World War 1.
+A 2D isometric (45°) real-time strategy game about trench warfare in World War 1, on every front where the armies dug in: from Flanders to the Alps, from Galicia to Gallipoli.
 Trenches, machine guns, barbed wire and artillery decide everything. Walk into no man's
 land unprepared and the machine guns will cut you down. To gain ground you must
 **bombard** (cut the wire, suppress the defenders) and then **charge** as the barrage lifts.
