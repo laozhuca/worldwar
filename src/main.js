@@ -431,6 +431,8 @@ document.getElementById('btn-menu').addEventListener('click', () => {
   if (app.overlayOpen() && !document.getElementById('menu-panel').classList.contains('hidden') && app.started) resumeBattle();
   else showPanel('menu-panel');
 });
+// the WORLDWAR title in the top bar opens the menu too, like ☰
+document.querySelector('#topbar .title').addEventListener('click', () => document.getElementById('btn-menu').click());
 document.getElementById('btn-end-menu').addEventListener('click', () => showPanel('menu-panel'));
 document.getElementById('m-exit').addEventListener('click', () => {
   if (app.started && app.state.winner < 0) saveGame('auto'); // nothing is lost by leaving

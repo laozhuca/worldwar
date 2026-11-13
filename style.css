@@ -498,3 +498,6 @@ button.big.back { background: #2b3038; }
 #overlay.setup-mode .camp-start b { color: inherit; transition: margin 0.15s; }
 #overlay.setup-mode .camp-start:hover b { margin-left: 14px; }
 #overlay.setup-mode .camp-back:hover, #overlay.setup-mode .camp-start:hover { background: none; color: #fff8e8; }
+
+#topbar .title { cursor: pointer; }
+#topbar .title:hover { filter: brightness(1.2); }
