@@ -608,3 +608,5 @@ button.big.back { background: #2b3038; }
   #overlay.setup-mode .swap .swap-label, #overlay.setup-mode .diff-label { font-size: 12px; }
   #overlay.setup-mode #diff-btns button { font-size: 13px; }
 }
+/* a photograph (not a cut-out) on a button: fills its square, softly rounded */
+.group button.pic img.photo { object-fit: cover; border-radius: 3px; filter: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
