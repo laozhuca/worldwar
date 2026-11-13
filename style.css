@@ -573,3 +573,8 @@ button.big.back { background: #2b3038; }
   background: linear-gradient(rgba(8, 9, 11, 0.5), rgba(8, 9, 11, 0.15) 30%, rgba(8, 9, 11, 0.25) 70%, rgba(8, 9, 11, 0.8)),
     #0b0c0e url('assets/art/trench-grey.webp') center / max(110vw, 147vh) auto no-repeat;
 }
+/* New Game screen: the siege-mortar photo card, greyed like the other menus, its gun on the right */
+#overlay.setup-mode {
+  background: linear-gradient(rgba(8, 9, 11, 0.45), rgba(8, 9, 11, 0.1) 30%, rgba(8, 9, 11, 0.2) 70%, rgba(8, 9, 11, 0.75)),
+    #0b0c0e url('assets/art/menu-mortar-grey.webp') right center / cover no-repeat;
+}
