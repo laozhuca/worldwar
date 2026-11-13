@@ -1,6 +1,6 @@
 // Core simulation. No DOM access here so it can run headless (tests, AI-vs-AI).
 import {
-  PLAYER, ENEMY, UNIT_TYPES, HQ_THREAT_RADIUS, TRENCH_COVER, TRENCH_ARTY, BUILD, SUPPLY_INTERVAL, TRENCH_HIT, TRENCH_NEAR, TRENCH_TOUGH, trenchCover,
+  PLAYER, ENEMY, UNIT_TYPES, HQ_THREAT_RADIUS, TRENCH_COVER, TRENCH_ARTY, BUILD, SUPPLY_INTERVAL, TRENCH_HIT, TRENCH_NEAR, TRENCH_TOUGH, TRENCH_NEAR_MISS, TRENCH_WRECK_LOSS, trenchCover,
   BASE_INCOME, CAPTURE_BONUS, START_RES, SUPPRESSION_DECAY, CHARGE_SPEED, MELEE_RANGE,
   WIRE_SLOW, BUILD_RADIUS_FRIENDLY, BUILD_RADIUS_ENEMY, DIG_RADIUS, DIG_RATE,
 } from './config.js';
@@ -624,12 +624,18 @@ function launchShell(state, u, tx, ty) {
 
 function explode(state, s) {
   const { map } = state;
+  const hitTile = tileAt(map, s.x, s.y);
+  const outside = !(hitTile && hitTile.trench); // the shell burst outside any trench
+  // share of an outside burst that reaches men in this trench tile (wrecked works shelter less)
+  const nearMiss = (tt) => TRENCH_NEAR_MISS + (1 - TRENCH_NEAR_MISS) * TRENCH_WRECK_LOSS * Math.min(1, (tt.dmg || 0) / 100);
   for (const u of state.units) {
     if (u.dead) continue;
     const d = Math.hypot(u.x - s.x, u.y - s.y);
+    const tt = u.inTrench ? tileAt(map, u.x, u.y) : null;
+    const sheltered = outside && tt && tt.trench;
     if (d < 1.6) {
-      const tt = tileAt(map, u.x, u.y);
-      const cover = u.inTrench && tt && tt.trench ? trenchCover(TRENCH_ARTY, tt) : (u.pinned ? 0.8 : 1);
+      let cover = tt && tt.trench ? trenchCover(TRENCH_ARTY, tt) : (u.pinned ? 0.8 : 1);
+      if (sheltered) cover *= nearMiss(tt);
       damageUnit(state, u, 90 * (1 - (d / 1.6) * 0.6) * cover, { x: s.x, y: s.y, d }); // heavy shell: twice the old blast
     }
     if (d < 3.2) {
@@ -638,6 +644,7 @@ function explode(state, s) {
       u.shock = Math.max(u.shock || 0, 2 + 6 * (1 - d / 3.2));
       let sup = 120 * (1 - d / 3.2) + 30;
       if (u.order && u.order.kind === 'charge') sup *= 0.5;
+      if (sheltered) sup *= 0.7;
       u.suppression = Math.min(100, u.suppression + sup);
     }
   }

@@ -246,3 +246,24 @@ test('artillery has a minimum range', () => {
   assert.equal(gun.barrage, null);
   assert.equal(orderBarrage(s, [gun], gun.x + dx * (A.artyMinRange + 4), gun.y), 1, 'in range');
 });
+
+test('men in a trench are sheltered from shells bursting outside it', () => {
+  const blast = (inside) => {
+    const s = createGame({ aiTeams: [] });
+    const u = s.units.find((x) => x.team === ENEMY && x.type === 'rifle' && x.inTrench);
+    s.units = [u];
+    const t = tileAt(s.map, u.x, u.y);
+    // a point 0.7 tiles away: in the same trench, or out on open ground
+    let p = null;
+    for (let a = 0; a < 64 && !p; a++) {
+      const x = u.x + Math.cos(a / 10) * 0.7, y = u.y + Math.sin(a / 10) * 0.7, q = tileAt(s.map, x, y);
+      if (q && !!q.trench === inside && (!inside || q === t)) p = { x, y };
+    }
+    const hp = u.hp;
+    s.shells.push({ ...p, t: 0.01, flight: 1, team: PLAYER, fromX: 0, fromY: 0 });
+    update(s, 0.05);
+    return hp - u.hp;
+  };
+  const hit = blast(true), miss = blast(false);
+  assert.ok(miss > 0 && miss < hit * 0.5, `outside burst ${miss.toFixed(1)} vs direct hit ${hit.toFixed(1)}`);
+});

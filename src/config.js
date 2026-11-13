@@ -84,6 +84,10 @@ export const TRENCH_ARTY = [1, 0.55, 0.42, 0.3]; // shellfire
 export const TRENCH_HIT = 16, TRENCH_NEAR = 5;
 export const TRENCH_TOUGH = [1, 1, 1.6, 2.6];
 export const TRENCH_WRECK_LOSS = 0.75;
+// A shell bursting outside the trench (on the parapet, in the open) mostly spends itself on the earth
+// walls: men in the trench take only this share of its blast, on top of the trench's cover. A direct
+// hit in the trench gets no such help. Wrecked works lose most of it (as their cover).
+export const TRENCH_NEAR_MISS = 0.35;
 /** Protection factor (damage multiplier) of a trench tile, given its damage. */
 export function trenchCover(table, tile) {
   const base = table[tile.trench];
