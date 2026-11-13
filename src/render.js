@@ -847,9 +847,10 @@ export class Renderer {
   draw(state, ui) {
     const ctx = this.ctx;
     // the low sun at dawn and dusk: shadows point away from it, longer the lower it is
-    const tw = this.atmo.twilight(state);
-    this.sunShadow = tw.lowness > 0.02
-      ? { angle: Math.atan2(-tw.dir[1], -tw.dir[0]), len: 30 + 140 * tw.lowness, alpha: 0.68 * tw.lowness * (1 - this.atmo.darkness(state)) }
+    // rain clouds hide the sun: a shower dims the shadows, heavy rain removes them
+    const tw = this.atmo.twilight(state), overcast = Math.min(1, this.atmo.rain(state) * 1.6);
+    this.sunShadow = tw.lowness > 0.02 && overcast < 0.98
+      ? { angle: Math.atan2(-tw.dir[1], -tw.dir[0]), len: 30 + 140 * tw.lowness, alpha: 0.68 * tw.lowness * (1 - this.atmo.darkness(state)) * (1 - overcast) }
       : null;
     const now = performance.now();
     // craters are batched: they appear under the shell smoke, so ~0.7 s of latency is invisible

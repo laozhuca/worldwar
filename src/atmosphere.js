@@ -248,8 +248,9 @@ export class Atmosphere {
     // dawn and dusk: the twilight colour graded over the scene, warm light from the low sun's side
     // of the screen and cool violet shade on the far side
     const tw = this.twilight(state);
-    if (tw.strength > 0.01) {
-      const [cr, cg, cb] = tw.col, s = tw.strength;
+    const sunlit = 1 - Math.min(0.85, this.rain(state) * 1.3); // under rain clouds the low sun's glow fades too
+    if (tw.strength * sunlit > 0.01) {
+      const [cr, cg, cb] = tw.col, s = tw.strength * sunlit;
       ctx.save();
       ctx.globalCompositeOperation = 'soft-light';
       ctx.fillStyle = `rgba(${cr},${cg},${cb},${Math.min(1, s * 1.1)})`;
