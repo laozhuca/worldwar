@@ -423,3 +423,30 @@ button.big.back { background: #2b3038; }
   background: linear-gradient(rgba(8, 9, 11, 0.5), rgba(8, 9, 11, 0.15) 30%, rgba(8, 9, 11, 0.25) 70%, rgba(8, 9, 11, 0.8)),
     #0b0c0e url('assets/art/menu-background.webp') right center / cover no-repeat;
 }
+
+/* main menu, plain: lettering on the photo, no boxes or gilt (later rules override the earlier menu styling) */
+#overlay.menu-mode #menu-panel {
+  background: radial-gradient(ellipse at 40% 50%, rgba(20, 16, 12, 0.42), rgba(20, 16, 12, 0) 70%);
+  border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+  text-align: left; padding: 28px 34px; width: min(380px, 88vw); color: #eadfc8;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75), 0 0 10px rgba(0, 0, 0, 0.35);
+}
+#overlay.menu-mode #menu-panel h1 { color: #efe4cb; font-weight: normal; font-size: 30px; letter-spacing: 7px; margin-bottom: 4px; }
+#overlay.menu-mode #menu-panel h1 span { color: #cdbfa3; font-size: 15px; letter-spacing: 3px; }
+#overlay.menu-mode #menu-panel .lead { color: #d9ccb2; font-size: 13px; line-height: 1.5; margin: 10px 0 20px; }
+#overlay.menu-mode .menu-btns { align-items: flex-start; gap: 4px; width: auto; margin: 0; }
+#overlay.menu-mode .menu-btns button.big, #overlay.menu-mode .menu-btns button.big:not(#m-resume), #overlay.menu-mode #m-resume, #overlay.menu-mode .menu-btns #btn-continue {
+  background: none; border: 0; border-radius: 0; box-shadow: none; padding: 3px 0 3px 22px; min-height: 0; margin: 0;
+  text-align: left; font-size: 19px; letter-spacing: 2px; color: #e6dbc3; position: relative; transition: color 0.15s, padding 0.15s;
+}
+#overlay.menu-mode .menu-btns button.big::before { content: ''; position: absolute; left: 0; top: 50%; width: 0; height: 1px; background: #efe4cb; transition: width 0.15s; }
+#overlay.menu-mode .menu-btns button.big:hover { color: #fff8e8; background: none; padding-left: 26px; }
+#overlay.menu-mode .menu-btns button.big:hover::before { width: 16px; }
+#overlay.menu-mode #m-resume, #overlay.menu-mode .menu-btns #btn-continue { color: #fff3d6; }
+#overlay.menu-mode .menu-btns #btn-continue small { text-align: left; color: #c9bc9f; font-size: 11px; letter-spacing: 0; }
+@media (max-height: 500px) {
+  #overlay.menu-mode #menu-panel { padding: 12px 18px; }
+  #overlay.menu-mode .menu-btns button.big, #overlay.menu-mode .menu-btns button.big:not(#m-resume) { font-size: 15px; padding: 1px 0 1px 20px; }
+}
+#overlay.menu-mode .menu-btns button.big, #overlay.menu-mode .menu-btns button.big:not(#m-resume), #overlay.menu-mode #m-resume, #overlay.menu-mode .menu-btns #btn-continue { padding-left: 0; }
+#overlay.menu-mode .menu-btns button.big:hover { padding-left: 24px; }
