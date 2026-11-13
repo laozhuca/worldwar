@@ -248,7 +248,7 @@ button.big.back { background: #2b3038; }
 #overlay.defeat-allied, #overlay.defeat-central { align-items: flex-start; padding-top: 5vh; padding-bottom: 0; }
 
 /* loading screen: over the menu painting, a progress bar and a tip */
-#overlay.loading-mode { background: #0b0c0e url('assets/art/menu-background.webp') center / contain no-repeat; background-origin: content-box; padding: 3vh 3vw; }
+#overlay.loading-mode { background: #0b0c0e url('assets/art/loading-background.webp') center / contain no-repeat; background-origin: content-box; padding: 3vh 3vw; }
 #loading-panel { width: min(520px, 92vw); text-align: center; background: rgba(14, 15, 17, 0.8); border-color: rgba(201, 178, 122, 0.35); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
 #loading-panel h1 { font-size: 22px; letter-spacing: 4px; }
 .load-bar { height: 8px; background: #111; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; margin: 14px 0 8px; }
@@ -407,3 +407,19 @@ button.big.back { background: #2b3038; }
 .army.random .fig-img canvas.model { display: none; }
 .army.random .fig-img.has-model img { visibility: visible; }
 .cycle { position: relative; z-index: 3; }
+
+/* the Christmas-truce photo card fills the screen; the menu sits over the open sky and field on its left */
+#overlay.menu-mode { background: #0b0c0e url('assets/art/menu-background.webp') center / cover no-repeat; padding: 0; }
+#overlay.menu-mode #menu-panel { left: clamp(16px, 7vw, 140px); right: auto; top: 50%; transform: translateY(-50%); width: min(340px, 88vw); background: rgba(16, 14, 12, 0.62); border-color: rgba(201, 178, 122, 0.4); }
+@media (max-aspect-ratio: 1/1) {
+  #overlay.menu-mode { background-position: 78% center; }
+  #overlay.menu-mode #menu-panel { left: 50%; transform: translate(-50%, -50%); }
+}
+@media (max-height: 500px) and (min-aspect-ratio: 1/1) {
+  #overlay.menu-mode #menu-panel { width: min(250px, 36vw); left: 4vw; }
+}
+/* New Game screen over the same photo */
+#overlay.setup-mode {
+  background: linear-gradient(rgba(8, 9, 11, 0.5), rgba(8, 9, 11, 0.15) 30%, rgba(8, 9, 11, 0.25) 70%, rgba(8, 9, 11, 0.8)),
+    #0b0c0e url('assets/art/menu-background.webp') center / cover no-repeat;
+}
