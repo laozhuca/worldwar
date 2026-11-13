@@ -578,3 +578,13 @@ button.big.back { background: #2b3038; }
   background: linear-gradient(rgba(8, 9, 11, 0.45), rgba(8, 9, 11, 0.1) 30%, rgba(8, 9, 11, 0.2) 70%, rgba(8, 9, 11, 0.75)),
     #0b0c0e url('assets/art/menu-mortar-grey.webp') right center / cover no-repeat;
 }
+
+/* New Game and Saved battles: one of two photo cards at random (--setup-bg, set by the script) */
+#overlay.setup-mode {
+  background: linear-gradient(rgba(8, 9, 11, 0.45), rgba(8, 9, 11, 0.1) 30%, rgba(8, 9, 11, 0.2) 70%, rgba(8, 9, 11, 0.75)),
+    #0b0c0e var(--setup-bg, url('assets/art/menu-mortar-grey.webp')) right center / cover no-repeat;
+}
+#overlay.plain-mode.save-mode {
+  background: linear-gradient(rgba(12, 10, 8, 0.72), rgba(12, 10, 8, 0.84)),
+    #0b0c0e var(--setup-bg, url('assets/art/menu-mortar-grey.webp')) right center / cover no-repeat;
+}

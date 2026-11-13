@@ -396,8 +396,16 @@ document.getElementById('btn-save-close').addEventListener('click', () => closeS
 const PANELS = ['menu-panel', 'setup-panel', 'help-panel', 'credits-panel', 'exit-panel', 'save-panel', 'end-panel', 'loading-panel'];
 let backTo = 'menu'; // where a panel's Back button goes: the main menu, or straight back to the battle
 /** Show one overlay panel (the battle pauses underneath). */
+// New Game and Saved battles share a backdrop, drawn at random each time one of them opens
+const SETUP_BACKDROPS = ['assets/art/menu-mortar-grey.webp', 'assets/art/menu-rider-grey.webp'];
+let lastPanel = null;
 function showPanel(id, back = 'menu') {
   backTo = back;
+  if ((id === 'setup-panel' || id === 'save-panel') && lastPanel !== 'setup-panel' && lastPanel !== 'save-panel') {
+    const pick = SETUP_BACKDROPS[Math.floor(Math.random() * SETUP_BACKDROPS.length)];
+    document.getElementById('overlay').style.setProperty('--setup-bg', `url('${pick}')`);
+  }
+  lastPanel = id;
   if (id !== 'end-panel') sound.stopEnding(); // leaving the victory / defeat screen
   document.getElementById('overlay').classList.remove('result', 'victory-entente', 'victory-central', 'defeat-entente', 'defeat-central');
   document.getElementById('overlay').style.backgroundImage = '';
@@ -405,6 +413,7 @@ function showPanel(id, back = 'menu') {
   document.getElementById('overlay').classList.toggle('menu-mode', id === 'menu-panel');
   document.getElementById('overlay').classList.toggle('loading-mode', id === 'loading-panel');
   document.getElementById('overlay').classList.toggle('setup-mode', id === 'setup-panel');
+  document.getElementById('overlay').classList.toggle('save-mode', id === 'save-panel');
   // the other screens: plain lettering on the darkened photo, like the main menu
   document.getElementById('overlay').classList.toggle('plain-mode', ['help-panel', 'credits-panel', 'save-panel', 'exit-panel', 'loading-panel'].includes(id));
   document.getElementById('overlay').classList.remove('hidden');
