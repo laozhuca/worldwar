@@ -117,7 +117,7 @@ src/voice.js            soldier voice lines (speech synthesis per nation) and sp
 assets/voice/           soldier voice clips per army + manifest (`node scripts/process-voices.mjs` builds them from art-src/voice/: matches each file to its line by the text in its name, trims silence, evens loudness; needs ffmpeg)
 src/audio.js            WebAudio: recorded artillery samples + procedural fallbacks
 assets/sfx/             artillery fire (first 3.5 s) and three full-length 8 s shell-explosion recordings, five rifle-volley recordings, four machine-gun bursts, four death cries (one at random for about a third of the men shot down by rifles and machine guns, none for shell victims, at most three at once), and an officer's whistle and, 1.5 s later, a battle cry (3 s each) played with every charge order (sources in art-src/sfx/)
-assets/music/           background music (Ombra di guerra), looped with a fade; 🎵 toggles it
+assets/music/           background music (Ombra di guerra), looped with a fade; victory (Preußens Gloria) and defeat music, 28 s each, faded out, played once on the result screen; 🎵 toggles all music
 src/main.js             game loop, saving (browser storage)
 src/save.js             battle save format: serialize / deserialize the simulation state
 assets/textures/        generated seamless PNG textures (mud, earth, snow, grass, ice, water, planks, sandbags, duckboards)

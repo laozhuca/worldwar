@@ -227,6 +227,7 @@ function showEnd(state) {
     `Time in the line: ${mins}m ${secs}s. Our casualties: ${state.stats.lost[0]} men. Enemy casualties: ${state.stats.lost[1]} men.`;
   app.started = false;
   showPanel('end-panel', 'menu');
+  sound.playEnding(won ? 'victory' : 'defeat');
   // the result is shown over a painting for the player's side: triumph, or a helmet left in the mud
   const side = NATIONS[state.nations[PLAYER]] ? NATIONS[state.nations[PLAYER]].alliance : 'entente';
   const scene = document.getElementById('end-scene');
@@ -397,6 +398,7 @@ let backTo = 'menu'; // where a panel's Back button goes: the main menu, or stra
 /** Show one overlay panel (the battle pauses underneath). */
 function showPanel(id, back = 'menu') {
   backTo = back;
+  if (id !== 'end-panel') sound.stopEnding(); // leaving the victory / defeat screen
   document.getElementById('overlay').classList.remove('result', 'victory-entente', 'victory-central', 'defeat-entente', 'defeat-central');
   document.getElementById('overlay').style.backgroundImage = '';
   for (const p of PANELS) document.getElementById(p).classList.toggle('hidden', p !== id);
@@ -416,6 +418,7 @@ function showPanel(id, back = 'menu') {
   }
 }
 function resumeBattle() {
+  sound.stopEnding();
   document.getElementById('overlay').classList.add('hidden');
   app.paused = false;
   document.getElementById('btn-pause').textContent = '❚❚';

@@ -132,7 +132,7 @@ export class Sound {
   }
   playMusic() {
     const m = this.music;
-    if (!m) return;
+    if (!m || this.sting) return; // the victory / defeat music has the stage
     m.el.play().catch(() => {});
     m.g.gain.cancelScheduledValues(this.ctx.currentTime);
     m.g.gain.setTargetAtTime(MUSIC_LEVEL, this.ctx.currentTime, 1.2); // gentle fade in
@@ -142,13 +142,40 @@ export class Sound {
     try { localStorage.setItem('ww-music', on ? 'on' : 'off'); } catch {}
     const m = this.music;
     if (!m) return;
+    if (this.sting) { if (on) this.sting.el.play().catch(() => {}); else this.sting.el.pause(); return; }
     if (on) this.playMusic();
     else { m.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3); setTimeout(() => { if (!this.musicOn) m.el.pause(); }, 1500); }
+  }
+
+  /**
+   * The end of a battle: the battle music fades away and the victory or defeat music (28 s, faded out at
+   * the end) plays once. stopEnding() fades it and brings the battle music back.
+   */
+  playEnding(kind) {
+    if (!this.ctx) return;
+    this.stopEnding(true);
+    const m = this.music;
+    if (m) { m.g.gain.cancelScheduledValues(this.ctx.currentTime); m.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.4); setTimeout(() => { if (this.sting) m.el.pause(); }, 2000); }
+    const el = new Audio(`assets/music/${kind}.mp3`);
+    const g = this.ctx.createGain();
+    g.gain.value = 0.55;
+    this.ctx.createMediaElementSource(el).connect(g);
+    g.connect(this.master);
+    this.sting = { el, g };
+    if (this.musicOn) setTimeout(() => { if (this.sting && this.sting.el === el) el.play().catch(() => {}); }, 600);
+  }
+  stopEnding(quiet = false) {
+    const s = this.sting;
+    if (!s) return;
+    this.sting = null;
+    s.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.25);
+    setTimeout(() => { s.el.pause(); s.g.disconnect(); }, 1200);
+    if (!quiet && this.musicOn) this.playMusic();
   }
   /** The track ends mid-phrase, so fade the last 3 s out and fade back in from the top. */
   tickMusic() {
     const m = this.music;
-    if (!m || !this.musicOn || m.el.paused || !m.el.duration) return;
+    if (!m || this.sting || !this.musicOn || m.el.paused || !m.el.duration) return;
     const left = m.el.duration - m.el.currentTime;
     if (left < 3 && !m.fading) { m.fading = true; m.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.8); }
     if (m.fading && (left < 0.15 || m.el.ended)) {
