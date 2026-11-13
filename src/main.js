@@ -234,7 +234,8 @@ function showEnd(state) {
   scene.classList.toggle('hidden', !won);
   document.getElementById('overlay').classList.add('result', `${won ? 'victory' : 'defeat'}-${side}`);
   // the painting is set here too, so a cached stylesheet from an older version can't leave it blank
-  document.getElementById('overlay').style.backgroundImage = `url('assets/art/${won ? 'victory' : 'defeat'}-${side}.webp')`;
+  // victory: the winning side's painting; defeat: the poppy field, for either side
+  document.getElementById('overlay').style.backgroundImage = `url('assets/art/${won ? `victory-${side}` : 'defeat-poppies'}.webp')`;
   if (won) scene.textContent = side === 'central' ? 'Triumph on the Trench Ridge' : 'Triumphant Soldiers at Dawn';
 }
 

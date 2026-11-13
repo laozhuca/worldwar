@@ -242,8 +242,8 @@ button.big.back { background: #2b3038; }
 #overlay.result #end-panel .start-row { justify-content: center; }
 #end-scene { font-style: italic; color: var(--muted); letter-spacing: 2px; font-size: 13px; margin-bottom: 2px; }
 #end-scene::before, #end-scene::after { content: ' — '; }
-#overlay.defeat-entente { background-image: url('assets/art/defeat-entente.webp'); background-position: center 40%; }
-#overlay.defeat-central { background-image: url('assets/art/defeat-central.webp'); background-position: center 40%; }
+#overlay.defeat-entente { background-image: url('assets/art/defeat-poppies.webp'); background-position: center 35%; }
+#overlay.defeat-central { background-image: url('assets/art/defeat-poppies.webp'); background-position: center 35%; }
 /* defeat paintings: the helmet lies in the lower half, so the result panel goes over the dark sky */
 #overlay.defeat-entente, #overlay.defeat-central { align-items: flex-start; padding-top: 5vh; padding-bottom: 0; }
 
