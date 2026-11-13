@@ -610,3 +610,8 @@ button.big.back { background: #2b3038; }
 }
 /* a photograph (not a cut-out) on a button: fills its square, softly rounded */
 .group button.pic img.photo { object-fit: cover; border-radius: 3px; filter: none; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+
+#overlay.plain-mode #boot-panel { text-align: center; width: min(520px, 94vw); }
+#overlay.plain-mode #boot-panel h1 { font-size: clamp(30px, 5vh, 46px); letter-spacing: 12px; }
+#overlay.plain-mode #btn-enter { animation: enter-pulse 2.4s ease-in-out infinite; }
+@keyframes enter-pulse { 0%, 100% { opacity: 0.65; } 50% { opacity: 1; } }

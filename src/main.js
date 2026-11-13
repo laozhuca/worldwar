@@ -404,7 +404,7 @@ document.getElementById('btn-save').addEventListener('click', () => {
 document.getElementById('btn-save-close').addEventListener('click', () => closeSlots());
 
 // ------------------------------------------------------------ menus
-const PANELS = ['menu-panel', 'setup-panel', 'help-panel', 'credits-panel', 'exit-panel', 'save-panel', 'end-panel', 'loading-panel'];
+const PANELS = ['menu-panel', 'setup-panel', 'help-panel', 'credits-panel', 'exit-panel', 'save-panel', 'end-panel', 'loading-panel', 'boot-panel'];
 let backTo = 'menu'; // where a panel's Back button goes: the main menu, or straight back to the battle
 /** Show one overlay panel (the battle pauses underneath). */
 // New Game and Saved battles share a backdrop, drawn at random each time one of them opens
@@ -422,11 +422,11 @@ function showPanel(id, back = 'menu') {
   document.getElementById('overlay').style.backgroundImage = '';
   for (const p of PANELS) document.getElementById(p).classList.toggle('hidden', p !== id);
   document.getElementById('overlay').classList.toggle('menu-mode', id === 'menu-panel');
-  document.getElementById('overlay').classList.toggle('loading-mode', id === 'loading-panel');
+  document.getElementById('overlay').classList.toggle('loading-mode', id === 'loading-panel' || id === 'boot-panel');
   document.getElementById('overlay').classList.toggle('setup-mode', id === 'setup-panel');
   document.getElementById('overlay').classList.toggle('save-mode', id === 'save-panel');
   // the other screens: plain lettering on the darkened photo, like the main menu
-  document.getElementById('overlay').classList.toggle('plain-mode', ['help-panel', 'credits-panel', 'save-panel', 'exit-panel', 'loading-panel'].includes(id));
+  document.getElementById('overlay').classList.toggle('plain-mode', ['help-panel', 'credits-panel', 'save-panel', 'exit-panel', 'loading-panel', 'boot-panel'].includes(id));
   document.getElementById('overlay').classList.remove('hidden');
   app.paused = true;
   document.getElementById('btn-pause').textContent = '▶';
@@ -473,7 +473,34 @@ document.getElementById('btn-exit-back').addEventListener('click', () => {
   if (sound.ctx) sound.ctx.resume();
   showPanel('menu-panel');
 });
-showPanel('menu-panel');
+// ------------------------------------------------------------ opening loading screen
+// Loads what the menus show (photos, the soldier models, the music), then waits for a click: browsers
+// only allow sound after the player has clicked, and that click starts the music and opens the menu.
+async function boot() {
+  showPanel('boot-panel');
+  const fill = document.getElementById('boot-fill'), item = document.getElementById('boot-item');
+  const img = (src) => new Promise((r) => { const i = new Image(); i.onload = i.onerror = r; i.src = src; });
+  const jobs = [
+    ['Photographs', Promise.all(['assets/art/menu-truce-clear.webp', ...SETUP_BACKDROPS, 'assets/art/loading-background.webp'].map(img))],
+    ['Soldiers', fetch('assets/models/manifest.json').then((r) => r.json()).then((m) => Promise.all(app.nations.filter((n) => m[n]).map((n) => fetch('assets/models/' + m[n]).then((r) => r.arrayBuffer()))))],
+    ['Portraits', Promise.all(Object.keys(NATIONS).map((n) => img(portraitOf(n))))],
+    ['Music', new Promise((r) => { const a = new Audio('assets/music/ombra-di-guerra.mp3'); a.preload = 'auto'; a.oncanplaythrough = a.onerror = r; a.load(); })],
+  ];
+  let done = 0;
+  const limit = (p) => Promise.race([Promise.resolve(p).catch(() => {}), new Promise((r) => setTimeout(r, 20000))]);
+  await Promise.all(jobs.map(([label, p]) => limit(p).then(() => { done++; fill.style.width = `${Math.round((done / jobs.length) * 100)}%`; item.textContent = `${label} ✓`; })));
+  item.textContent = 'Ready';
+  const enter = document.getElementById('btn-enter');
+  enter.classList.remove('hidden');
+  const go = () => {
+    window.removeEventListener('keydown', go);
+    sound.init(); voices.prepare(); sound.startMusic();
+    showPanel('menu-panel');
+  };
+  enter.addEventListener('click', go, { once: true });
+  window.addEventListener('keydown', go);
+}
+boot();
 // automatic save every minute of battle, and whenever the page is hidden or closed
 setInterval(() => { if (!app.paused && app.state.time - lastSave >= 60) saveGame('auto'); }, 5000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveGame('auto'); });
