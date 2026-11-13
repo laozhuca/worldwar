@@ -403,6 +403,8 @@ function showPanel(id, back = 'menu') {
   document.getElementById('overlay').classList.toggle('menu-mode', id === 'menu-panel');
   document.getElementById('overlay').classList.toggle('loading-mode', id === 'loading-panel');
   document.getElementById('overlay').classList.toggle('setup-mode', id === 'setup-panel');
+  // the other screens: plain lettering on the darkened photo, like the main menu
+  document.getElementById('overlay').classList.toggle('plain-mode', ['help-panel', 'credits-panel', 'save-panel', 'exit-panel', 'loading-panel'].includes(id));
   document.getElementById('overlay').classList.remove('hidden');
   app.paused = true;
   document.getElementById('btn-pause').textContent = '▶';

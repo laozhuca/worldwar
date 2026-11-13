@@ -528,3 +528,43 @@ button.big.back { background: #2b3038; }
   width: 100%; max-width: none; max-height: none; border-radius: 0; padding: 70px 20px 4.5vh;
   background: linear-gradient(to top, rgba(10, 8, 6, 0.88), rgba(10, 8, 6, 0.6) 55%, rgba(10, 8, 6, 0));
 }
+
+/* ---------- Instructions, Credits, Saved battles, exit and loading: plain lettering like the main menu ---------- */
+#overlay.plain-mode { background: linear-gradient(rgba(12, 10, 8, 0.8), rgba(12, 10, 8, 0.88)), #0b0c0e url('assets/art/menu-background.webp') right center / cover no-repeat; padding: 0; }
+#overlay.plain-mode.loading-mode { background: linear-gradient(rgba(12, 10, 8, 0.45), rgba(12, 10, 8, 0.7)), #0b0c0e url('assets/art/loading-background.webp') center / cover no-repeat; }
+#overlay.plain-mode .panel {
+  background: none; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+  color: #e6dbc3; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+#overlay.plain-mode .panel h1 { color: #efe4cb; font-weight: normal; letter-spacing: 8px; text-transform: uppercase; font-size: clamp(22px, 3.6vh, 34px); margin-bottom: 10px; }
+#overlay.plain-mode .panel h3 { color: #d9ccb2; font-weight: normal; letter-spacing: 3px; text-transform: uppercase; font-size: 13px; margin-top: 18px; }
+#overlay.plain-mode .panel .lead { color: #ddd1b8; }
+#overlay.plain-mode .panel .muted, #overlay.plain-mode .panel small { color: #b9ad94; }
+#overlay.plain-mode .panel b { color: #f2e8d2; font-weight: normal; letter-spacing: 0.5px; }
+#overlay.plain-mode .panel td:first-child { color: #d9ccb2; }
+#overlay.plain-mode .panel kbd { background: none; border: 1px solid rgba(230, 219, 195, 0.35); color: #efe4cb; }
+/* buttons as text links */
+#overlay.plain-mode .panel button {
+  background: none; border: 0; border-radius: 0; box-shadow: none; min-height: 0; padding: 3px 2px; color: #e6dbc3;
+  text-shadow: inherit; letter-spacing: 2px; transition: color 0.15s;
+}
+#overlay.plain-mode .panel button:hover { background: none; color: #fff8e8; text-decoration: underline; text-underline-offset: 5px; }
+#overlay.plain-mode .panel button.big { margin-top: 18px; font-size: 17px; text-transform: uppercase; letter-spacing: 3px; }
+#overlay.plain-mode .panel button.big.back::before { content: '‹ '; }
+/* saved battles: one line per slot, faint rules between */
+#overlay.plain-mode #save-panel { min-width: min(620px, 94vw); }
+#overlay.plain-mode .slot { border-bottom: 1px solid rgba(230, 219, 195, 0.14); padding: 9px 0; }
+#overlay.plain-mode .slot .sn { color: #d9ccb2; letter-spacing: 1px; }
+#overlay.plain-mode .slot .si small { color: #b9ad94; }
+#overlay.plain-mode .slot button { font-size: 13px; letter-spacing: 1px; padding: 2px 6px; color: #e6dbc3; }
+#overlay.plain-mode .slot button.danger:hover { color: #e9a090; }
+/* exit and loading */
+#overlay.plain-mode #exit-panel, #overlay.plain-mode #loading-panel { text-align: center; }
+#overlay.plain-mode .load-bar { height: 2px; background: rgba(230, 219, 195, 0.18); border: 0; border-radius: 0; }
+#overlay.plain-mode .load-bar i { background: #efe4cb; }
+#overlay.plain-mode #load-item { color: #b9ad94; }
+#overlay.plain-mode #load-tip { color: #ddd1b8; font-style: italic; }
+/* the top bar must fit: drop the word labels (the tooltips keep them) and then the matchup on narrower windows */
+@media (max-width: 1360px) { #topbar { gap: 10px; } .res em { display: none; } }
+@media (max-width: 1100px) { #topbar .title span { display: none; } #topbar button { padding: 4px 7px; } }
+#overlay.plain-mode #loading-panel { width: min(680px, 94vw); }
