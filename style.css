@@ -193,7 +193,7 @@ button.big.back { background: #2b3038; }
 .menu-btns #btn-continue { text-align: center; background: #2f3a2c; }
 
 /* main menu: the photo card fills the screen behind a translucent menu on its right-hand side */
-#overlay.menu-mode { background: #0b0c0e url('assets/art/menu-background.webp') center / contain no-repeat; background-origin: content-box; padding: 3vh 3vw; }
+#overlay.menu-mode { background: #0b0c0e url('assets/art/menu-truce.webp') center / contain no-repeat; background-origin: content-box; padding: 3vh 3vw; }
 #overlay.menu-mode #menu-panel {
   position: absolute; top: 50%; transform: translateY(-50%);
   right: calc(50% - min(94vw, 125vh) * 0.45); width: 340px; max-width: 92vw;
@@ -258,7 +258,7 @@ button.big.back { background: #2b3038; }
 /* ---------- New Campaign screen ---------- */
 #overlay.setup-mode {
   background: linear-gradient(rgba(8, 9, 11, 0.55), rgba(8, 9, 11, 0.25) 30%, rgba(8, 9, 11, 0.35) 70%, rgba(8, 9, 11, 0.85)),
-    #0b0c0e url('assets/art/menu-background.webp') center / max(110vw, 147vh) auto no-repeat;
+    #0b0c0e url('assets/art/menu-truce.webp') center / max(110vw, 147vh) auto no-repeat;
   --gold: #c9a35e; --gold-hi: #f0d79a; --ally: #2e4a7a; --ally-hi: #4f73ad; --cent: #7a2a26; --cent-hi: #ad453b;
 }
 #setup-panel {
@@ -409,7 +409,7 @@ button.big.back { background: #2b3038; }
 .cycle { position: relative; z-index: 3; }
 
 /* the Christmas-truce photo card fills the screen; the menu sits over the open sky and field on its left */
-#overlay.menu-mode { background: #0b0c0e url('assets/art/menu-background.webp') right center / cover no-repeat; padding: 0; }
+#overlay.menu-mode { background: #0b0c0e url('assets/art/menu-truce.webp') right center / cover no-repeat; padding: 0; }
 #overlay.menu-mode #menu-panel { left: clamp(16px, 7vw, 140px); right: auto; top: 50%; transform: translateY(-50%); width: min(340px, 88vw); background: rgba(16, 14, 12, 0.62); border-color: rgba(201, 178, 122, 0.4); }
 @media (max-aspect-ratio: 1/1) {
   #overlay.menu-mode { background-position: 88% center; }
@@ -421,7 +421,7 @@ button.big.back { background: #2b3038; }
 /* New Game screen over the same photo */
 #overlay.setup-mode {
   background: linear-gradient(rgba(8, 9, 11, 0.5), rgba(8, 9, 11, 0.15) 30%, rgba(8, 9, 11, 0.25) 70%, rgba(8, 9, 11, 0.8)),
-    #0b0c0e url('assets/art/menu-background.webp') right center / cover no-repeat;
+    #0b0c0e url('assets/art/menu-truce.webp') right center / cover no-repeat;
 }
 
 /* main menu, plain: lettering on the photo, no boxes or gilt (later rules override the earlier menu styling) */
@@ -530,7 +530,7 @@ button.big.back { background: #2b3038; }
 }
 
 /* ---------- Instructions, Credits, Saved battles, exit and loading: plain lettering like the main menu ---------- */
-#overlay.plain-mode { background: linear-gradient(rgba(12, 10, 8, 0.8), rgba(12, 10, 8, 0.88)), #0b0c0e url('assets/art/menu-background.webp') right center / cover no-repeat; padding: 0; }
+#overlay.plain-mode { background: linear-gradient(rgba(12, 10, 8, 0.8), rgba(12, 10, 8, 0.88)), #0b0c0e url('assets/art/menu-truce.webp') right center / cover no-repeat; padding: 0; }
 #overlay.plain-mode.loading-mode { background: linear-gradient(rgba(12, 10, 8, 0.45), rgba(12, 10, 8, 0.7)), #0b0c0e url('assets/art/loading-background.webp') center / cover no-repeat; }
 #overlay.plain-mode .panel {
   background: none; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
