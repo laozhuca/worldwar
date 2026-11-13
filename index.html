@@ -103,23 +103,6 @@
               <button data-diff="medium" class="active" title="A steady opponent">Medium</button>
               <button data-diff="hard" title="Frequent, heavy, relentless offensives with every gun, and more supply">Hard</button>
             </div>
-            <div class="diff-label">Starting position</div>
-            <div id="start-btns" class="start-seg">
-              <button data-start="west" class="active" title="Start in the upper left">↖ Upper left</button>
-              <button data-start="east" title="Start in the lower right">↘ Lower right</button>
-              <button data-start="random" title="Random starting position">🎲</button>
-            </div>
-            <svg id="front-map" viewBox="0 0 240 130" aria-label="Starting position: click a half of the front">
-              <defs><clipPath id="fm-clip"><rect x="2" y="2" width="236" height="126" rx="10"/></clipPath></defs>
-              <g clip-path="url(#fm-clip)">
-                <path id="fm-west" d="M0 0 H150 L136 18 L146 34 L124 52 L132 70 L108 86 L114 104 L88 130 H0 Z"/>
-                <path id="fm-east" d="M150 0 H240 V130 H88 L114 104 L108 86 L132 70 L124 52 L146 34 L136 18 Z"/>
-                <path class="fm-line" d="M150 0 L136 18 L146 34 L124 52 L132 70 L108 86 L114 104 L88 130"/>
-              </g>
-              <rect class="fm-frame" x="2" y="2" width="236" height="126" rx="10"/>
-              <text id="fm-you-w" x="58" y="58">YOU</text><text id="fm-you-e" x="182" y="88">YOU</text>
-              <text class="fm-hq" x="22" y="26">HQ</text><text class="fm-hq" x="200" y="118">HQ</text>
-            </svg>
           </div>
           <div class="army" id="army-foe">
             <div class="ribbon" id="ribbon-foe">Central Powers</div>
@@ -133,11 +116,21 @@
           </div>
         </div>
         <div class="camp-weather">
+          <div class="camp-group">
           <div class="weather-label"><span>Weather</span></div>
           <div id="season-btns">
             <button data-season="winter" class="active" title="Snow-covered fields, frozen shell holes"><img src="assets/art/season-winter.webp" alt=""><span>❄ Winter</span></button>
             <button data-season="thaw" title="Patchy snow over churned mud"><img src="assets/art/season-thaw.webp" alt=""><span>🌨 Thaw</span></button>
             <button data-season="mud" title="Black mud, flooded craters, passing rain showers"><img src="assets/art/season-mud.webp" alt=""><span>🌧 Mud</span></button>
+          </div>
+          </div>
+          <div class="camp-group camp-start-pos">
+            <div class="weather-label"><span>Starting position</span></div>
+            <div id="start-btns" class="start-seg">
+              <button data-start="west" class="active" title="Start in the upper left">↖ Upper left</button>
+              <button data-start="east" title="Start in the lower right">↘ Lower right</button>
+              <button data-start="random" title="Random starting position">🎲 Random</button>
+            </div>
           </div>
         </div>
         <div class="camp-foot">

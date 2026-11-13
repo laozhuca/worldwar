@@ -92,12 +92,6 @@ function renderSetup() {
   show(0, mySide); show(1, foeSide);
   document.getElementById('btn-random-side').classList.toggle('active', random);
   document.getElementById('btn-swap').disabled = random;
-  // the front map: our half in our colour, the enemy's in theirs, the starting half marked
-  const west = app.start === 'east' ? foeSide : mySide, east = app.start === 'east' ? mySide : foeSide;
-  const fm = document.getElementById('front-map');
-  fm.setAttribute('class', `start-${app.start}${random ? ' random' : ''}`);
-  document.getElementById('fm-west').setAttribute('class', 'fm-half ' + (random ? 'unknown' : west));
-  document.getElementById('fm-east').setAttribute('class', 'fm-half ' + (random ? 'unknown' : east));
 }
 const nationButtons = renderSetup;
 // 3D soldiers (assets/models/<nation>.glb) in place of the pictures where a model exists; they turn
@@ -139,9 +133,6 @@ document.querySelectorAll('[data-diff]').forEach((b) => b.addEventListener('clic
 }));
 showDiff();
 document.getElementById('btn-random-side').addEventListener('click', () => { app.side = app.side === 'random' ? fixedSide : 'random'; renderSetup(); });
-// clicking a half of the front map picks where we start
-document.getElementById('fm-west').addEventListener('click', () => document.querySelector('[data-start="west"]').click());
-document.getElementById('fm-east').addEventListener('click', () => document.querySelector('[data-start="east"]').click());
 const chosenStart = () => (app.start === 'random' ? (Math.random() < 0.5 ? 'west' : 'east') : app.start);
 document.querySelectorAll('[data-start]').forEach((b) => b.addEventListener('click', () => {
   app.start = b.dataset.start;

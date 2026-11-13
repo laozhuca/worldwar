@@ -619,3 +619,14 @@ button.big.back { background: #2b3038; }
 /* loading screens: the drawn photograph (already greyed), lightly darkened */
 #overlay.plain-mode.loading-mode { background: linear-gradient(rgba(12, 10, 8, 0.35), rgba(12, 10, 8, 0.6)), #0b0c0e var(--load-bg, url('assets/art/menu-mortar-grey.webp')) right center / cover no-repeat; }
 #overlay.setup-mode #start-btns button { font-size: 15px; padding: 2px 10px; }
+
+/* bottom of the New Game screen: weather and starting position side by side */
+#overlay.setup-mode .camp-weather { flex-direction: row; align-items: flex-end; justify-content: center; gap: 4vw; }
+.camp-group { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+#overlay.setup-mode .camp-group .weather-label { width: auto; }
+.camp-start-pos #start-btns { flex-direction: column; align-items: center; gap: 6px; padding-bottom: 22px; }
+#overlay.setup-mode .camp-start-pos #start-btns button { font-size: 16px; }
+@media (max-width: 860px), (max-height: 600px) { .camp-start-pos #start-btns { padding-bottom: 4px; gap: 2px; } }
+.camp-start-pos #start-btns { flex-direction: row; gap: 4px; padding-bottom: 30px; }
+.camp-start-pos { margin-bottom: 52px; }
+@media (max-width: 860px), (max-height: 600px) { .camp-start-pos { margin-bottom: 0; } .camp-start-pos #start-btns { padding-bottom: 4px; } }
