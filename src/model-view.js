@@ -3,6 +3,7 @@
 // lights it like the battlefield (cold key light, warm rim from behind, soft ambient), and turns the
 // figure while the pointer is over it, easing back to a three-quarter view when it leaves.
 
+const BASE_R = 0.5, BASE_H = 0.08; // the round stand under each soldier
 const cache = new Map(); // url -> Promise<{ gl-independent parsed data }>
 
 function parseGLB(buf) {
@@ -48,12 +49,12 @@ void main() { vN = uRot * aNrm; vP = uRot * aPos; vUv = aUv; gl_Position = uMVP 
 const FS = `#version 300 es
 precision highp float;
 in vec3 vN; in vec3 vP; in vec2 vUv;
-uniform sampler2D uColor; uniform sampler2D uNormal; uniform bool uHasNormal;
+uniform sampler2D uColor; uniform sampler2D uNormal; uniform bool uHasNormal; uniform bool uBase;
 out vec4 o;
 void main() {
   vec3 n = normalize(vN);
   if (!gl_FrontFacing) n = -n;
-  if (uHasNormal) { // normal map in a tangent frame from screen-space derivatives
+  if (uHasNormal && !uBase) { // normal map in a tangent frame from screen-space derivatives
     vec3 dp1 = dFdx(vP), dp2 = dFdy(vP); vec2 du1 = dFdx(vUv), du2 = dFdy(vUv);
     vec3 t = dp2 * du1.y - dp1 * du2.y; vec3 b = dp1 * du2.x - dp2 * du1.x;
     float s = inversesqrt(max(dot(t, t), dot(b, b)) + 1e-12);
@@ -61,6 +62,10 @@ void main() {
     n = normalize(mat3(t * s, b * s, n) * vec3(m.xy * 0.8, m.z));
   }
   vec3 base = pow(texture(uColor, vUv).rgb, vec3(2.2));
+  if (uBase) { // the round stand: weathered dark stone on top, a lighter worn edge
+    float g = fract(sin(dot(floor(vP.xz * 90.0), vec2(12.9898, 78.233))) * 43758.5453);
+    base = mix(vec3(0.05, 0.048, 0.045), vec3(0.11, 0.1, 0.09), vUv.x) * (0.85 + 0.3 * g);
+  }
   vec3 key = normalize(vec3(-0.5, 0.75, 0.6)), rim = normalize(vec3(0.7, 0.35, -0.8));
   float d = max(dot(n, key), 0.0), r = pow(max(dot(n, rim), 0.0), 2.0);
   float hemi = 0.5 + 0.5 * n.y;
@@ -79,7 +84,8 @@ export class ModelView {
     const p = gl.createProgram();
     gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(p);
     this.prog = p;
-    this.loc = { mvp: gl.getUniformLocation(p, 'uMVP'), rot: gl.getUniformLocation(p, 'uRot'), color: gl.getUniformLocation(p, 'uColor'), normal: gl.getUniformLocation(p, 'uNormal'), hasN: gl.getUniformLocation(p, 'uHasNormal') };
+    this.loc = { mvp: gl.getUniformLocation(p, 'uMVP'), rot: gl.getUniformLocation(p, 'uRot'), color: gl.getUniformLocation(p, 'uColor'), normal: gl.getUniformLocation(p, 'uNormal'), hasN: gl.getUniformLocation(p, 'uHasNormal'), base: gl.getUniformLocation(p, 'uBase') };
+    this.stand = this.makeStand();
     this.rest = -0.45; // three-quarter view at rest
     this.yaw = this.rest; this.spin = false; this.mesh = null; this.want = null;
     const on = () => { this.spin = true; this.kick(); }, off = () => { this.spin = false; this.kick(); };
@@ -124,6 +130,40 @@ export class ModelView {
     this.mesh = { vao, bufs, texs, count: m.idx.data.length, type: m.idx.data instanceof Uint32Array ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, min: m.pos.min, max: m.pos.max };
   }
 
+  /**
+   * The round stand under the soldier's feet: a disc of radius BASE_R from y = 0 down to -BASE_H, with
+   * a bevelled top edge. uv.x carries the shade (0 top, 1 edge).
+   */
+  makeStand() {
+    const gl = this.gl, N = 72, R = BASE_R, B = 0.018, Hh = BASE_H;
+    const P = [], Nn = [], U = [], I = [];
+    const ring = (r, y, ny, nr, shade) => {
+      const start = P.length / 3;
+      for (let i = 0; i <= N; i++) {
+        const a = (i / N) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+        P.push(r * c, y, r * s); Nn.push(nr * c, ny, nr * s); U.push(shade, 0);
+      }
+      return start;
+    };
+    const strip = (a, b) => { for (let i = 0; i < N; i++) I.push(a + i, b + i, a + i + 1, a + i + 1, b + i, b + i + 1); };
+    const centre = P.length / 3; P.push(0, 0, 0); Nn.push(0, 1, 0); U.push(0, 0);
+    const top = ring(R - B, 0, 1, 0, 0);
+    for (let i = 0; i < N; i++) I.push(centre, top + i + 1, top + i);
+    const bev0 = ring(R - B, 0, 0.7, 0.7, 0.6), bev1 = ring(R, -B, 0.7, 0.7, 0.8);
+    strip(bev0, bev1);
+    const side0 = ring(R, -B, 0, 1, 1), side1 = ring(R, -Hh, 0, 1, 0.75);
+    strip(side0, side1);
+    const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+    const attr = (name, data, n) => {
+      const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+      const l = gl.getAttribLocation(this.prog, name); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, n, gl.FLOAT, false, 0, 0);
+    };
+    attr('aPos', P, 3); attr('aNrm', Nn, 3); attr('aUv', U, 2);
+    const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(I), gl.STATIC_DRAW);
+    gl.bindVertexArray(null);
+    return { vao, count: I.length };
+  }
+
   /** Keep animating while turning or easing back to rest. */
   kick() { if (!this.raf) this.raf = requestAnimationFrame((t) => this.frame(t)); }
 
@@ -153,14 +193,14 @@ export class ModelView {
     gl.enable(gl.DEPTH_TEST);
     gl.useProgram(this.prog);
     // orthographic camera, slightly from above, fitting the figure's height (and its turning width)
-    const H = M.max[1] - M.min[1], R = Math.max(Math.hypot(M.max[0], M.max[2]), Math.hypot(M.min[0], M.min[2]));
+    const y0 = Math.min(M.min[1], -BASE_H), H = M.max[1] - y0, R = Math.max(BASE_R, Math.hypot(M.max[0], M.max[2]), Math.hypot(M.min[0], M.min[2]));
     // one framing for every soldier (the widest kit, 0.8), so all armies show at the same size
     const aspect = w / h, half = Math.max(H * 0.53, (Math.max(0.8, R) * 1.05) / aspect);
-    const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw), tilt = 0.12, ct = Math.cos(tilt), st = Math.sin(tilt);
+    const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw), tilt = 0.2, ct = Math.cos(tilt), st = Math.sin(tilt);
     // rows of R = Rx(tilt) * Ry(yaw)
     const r00 = cy, r01 = 0, r02 = sy, r10 = st * sy, r11 = ct, r12 = -st * cy, r20 = -ct * sy, r21 = st, r22 = ct * cy;
     const sx = 1 / (half * aspect), sY = 1 / half, sz = -1 / (R * 4 + H);
-    const yc = H * 0.5 + M.min[1];
+    const yc = H * 0.5 + y0;
     // MVP = Scale * R * Translate(0, -yc, 0), column-major
     const mvp = new Float32Array([
       sx * r00, sY * r10, sz * r20, 0,
@@ -173,8 +213,12 @@ export class ModelView {
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, M.texs[0]); gl.uniform1i(this.loc.color, 0);
     gl.uniform1i(this.loc.hasN, M.texs.length > 1 ? 1 : 0);
     if (M.texs[1]) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, M.texs[1]); gl.uniform1i(this.loc.normal, 1); }
+    gl.uniform1i(this.loc.base, 0);
     gl.bindVertexArray(M.vao);
     gl.drawElements(gl.TRIANGLES, M.count, M.type, 0);
+    gl.uniform1i(this.loc.base, 1);
+    gl.bindVertexArray(this.stand.vao);
+    gl.drawElements(gl.TRIANGLES, this.stand.count, gl.UNSIGNED_SHORT, 0);
     gl.bindVertexArray(null);
   }
 }
