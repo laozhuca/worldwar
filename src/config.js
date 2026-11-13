@@ -12,7 +12,7 @@ export const MAP_H = 2 * MAP_R + 1;
 
 export const PLAYER = 0;
 export const ENEMY = 1;
-export const TEAM_NAMES = ['Allied', 'Central'];
+export const TEAM_NAMES = ['Entente', 'Central'];
 
 export const UNIT_TYPES = {
   rifle: {
@@ -124,11 +124,11 @@ export const SEASONS = {
 
 // Playable nations (uniform art: assets/soldiers/<key>/, portraits: assets/art/soldier-<key>.png when supplied).
 export const NATIONS = {
-  uk: { name: 'Britain', alliance: 'allied' },
-  france: { name: 'France', alliance: 'allied' },
-  usa: { name: 'United States', alliance: 'allied' },
-  italy: { name: 'Italy', alliance: 'allied' },
-  russia: { name: 'Russia', alliance: 'allied' },
+  uk: { name: 'Britain', alliance: 'entente' },
+  france: { name: 'France', alliance: 'entente' },
+  usa: { name: 'United States', alliance: 'entente' },
+  italy: { name: 'Italy', alliance: 'entente' },
+  russia: { name: 'Russia', alliance: 'entente' },
   germany: { name: 'Germany', alliance: 'central' },
   austria: { name: 'Austria-Hungary', alliance: 'central' },
   ottoman: { name: 'Ottoman Empire', alliance: 'central' },

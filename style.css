@@ -236,16 +236,16 @@ button.big.back { background: #2b3038; }
 
 /* end of battle: a painting for the player's side (victory or defeat) fills the screen, the result panel sits over its lower part */
 #overlay.result { background: #0b0c0e center / cover no-repeat; align-items: flex-end; padding-bottom: 5vh; }
-#overlay.victory-allied { background-image: url('assets/art/victory-allied.webp'); background-position: center 30%; }
+#overlay.victory-entente { background-image: url('assets/art/victory-entente.webp'); background-position: center 30%; }
 #overlay.victory-central { background-image: url('assets/art/victory-central.webp'); background-position: center 8%; }
 #overlay.result #end-panel { background: rgba(14, 15, 17, 0.74); border-color: rgba(201, 178, 122, 0.4); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); max-width: min(720px, 92vw); text-align: center; }
 #overlay.result #end-panel .start-row { justify-content: center; }
 #end-scene { font-style: italic; color: var(--muted); letter-spacing: 2px; font-size: 13px; margin-bottom: 2px; }
 #end-scene::before, #end-scene::after { content: ' — '; }
-#overlay.defeat-allied { background-image: url('assets/art/defeat-allied.webp'); background-position: center 40%; }
+#overlay.defeat-entente { background-image: url('assets/art/defeat-entente.webp'); background-position: center 40%; }
 #overlay.defeat-central { background-image: url('assets/art/defeat-central.webp'); background-position: center 40%; }
 /* defeat paintings: the helmet lies in the lower half, so the result panel goes over the dark sky */
-#overlay.defeat-allied, #overlay.defeat-central { align-items: flex-start; padding-top: 5vh; padding-bottom: 0; }
+#overlay.defeat-entente, #overlay.defeat-central { align-items: flex-start; padding-top: 5vh; padding-bottom: 0; }
 
 /* loading screen: over the menu painting, a progress bar and a tip */
 #overlay.loading-mode { background: #0b0c0e url('assets/art/loading-background.webp') center / contain no-repeat; background-origin: content-box; padding: 3vh 3vw; }
@@ -280,7 +280,7 @@ button.big.back { background: #2b3038; }
   clip-path: polygon(0 0, 100% 0, 94% 50%, 100% 100%, 0 100%, 6% 50%);
   border-top: 2px solid var(--gold); border-bottom: 2px solid var(--gold);
 }
-.ribbon.allied { background: linear-gradient(var(--ally-hi), var(--ally) 60%, #1d2f4f); }
+.ribbon.entente { background: linear-gradient(var(--ally-hi), var(--ally) 60%, #1d2f4f); }
 .ribbon.central { background: linear-gradient(var(--cent-hi), var(--cent) 60%, #4a1714); }
 .ribbon.unknown { background: linear-gradient(#55595f, #2c2f33); }
 .you-mark { color: var(--gold-hi); font-size: 13px; letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 8px rgba(240, 200, 120, 0.7); }
@@ -311,7 +311,7 @@ button.big.back { background: #2b3038; }
 .camp-centre { display: flex; flex-direction: column; align-items: center; gap: 1vh; }
 #front-map { width: min(300px, 100%); filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.7)); }
 #front-map .fm-half { cursor: pointer; transition: opacity 0.2s; opacity: 0.55; }
-#front-map .fm-half.allied { fill: var(--ally-hi); }
+#front-map .fm-half.entente { fill: var(--ally-hi); }
 #front-map .fm-half.central { fill: var(--cent-hi); }
 #front-map .fm-half.unknown { fill: #55595f; }
 #front-map.start-west #fm-west, #front-map.start-east #fm-east, #front-map.start-random .fm-half { opacity: 0.9; }
@@ -458,7 +458,7 @@ button.big.back { background: #2b3038; }
 #overlay.setup-mode .camp-title h1 { background: none; -webkit-background-clip: border-box; background-clip: border-box; color: #efe4cb; filter: none; font-weight: normal; letter-spacing: 8px; font-size: clamp(22px, 3.6vh, 36px); }
 /* alliance names: plain lettering with a thin line in the side's colour */
 #overlay.setup-mode .ribbon { background: none; clip-path: none; border: 0; min-width: 0; padding: 2px 4px 5px; font-size: clamp(15px, 2.2vh, 22px); letter-spacing: 4px; color: #efe4cb; box-shadow: inset 0 -2px 0 currentColor; }
-#overlay.setup-mode .ribbon.allied { color: #c9d4e6; box-shadow: inset 0 -2px 0 rgba(120, 150, 200, 0.85); }
+#overlay.setup-mode .ribbon.entente { color: #c9d4e6; box-shadow: inset 0 -2px 0 rgba(120, 150, 200, 0.85); }
 #overlay.setup-mode .ribbon.central { color: #e8cfc8; box-shadow: inset 0 -2px 0 rgba(190, 95, 80, 0.85); }
 #overlay.setup-mode .ribbon.unknown { box-shadow: inset 0 -2px 0 rgba(230, 220, 200, 0.5); }
 #overlay.setup-mode .you-mark { color: #d9ccb2; text-shadow: inherit; font-size: 11px; }
@@ -471,7 +471,7 @@ button.big.back { background: #2b3038; }
 /* the front map: muted sepia-tinted halves, a thin pale frame */
 #overlay.setup-mode #front-map { filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5)) sepia(0.35); }
 #overlay.setup-mode #front-map .fm-frame { stroke: rgba(239, 228, 203, 0.7); stroke-width: 1; }
-#overlay.setup-mode #front-map .fm-half.allied { fill: #5c7090; }
+#overlay.setup-mode #front-map .fm-half.entente { fill: #5c7090; }
 #overlay.setup-mode #front-map .fm-half.central { fill: #94574c; }
 /* options as plain text: the chosen one underlined */
 #overlay.setup-mode .start-seg button, #overlay.setup-mode .rand-side {

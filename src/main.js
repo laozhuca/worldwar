@@ -17,7 +17,7 @@ const app = {
   helpOpen: true,
   season: 'winter',
   nations: ['uk', 'germany'],
-  side: 'allied', // 'allied' | 'central' | 'random'
+  side: 'entente', // 'entente' | 'central' | 'random'
   start: 'west', // 'west' | 'east' | 'random'
   overlayOpen() { return !document.getElementById('overlay').classList.contains('hidden'); },
   togglePause() {
@@ -59,20 +59,20 @@ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 /** Nations to play with: the chosen ones, or a fresh random draw of side and nations. */
 function chosenNations() {
   if (app.side !== 'random') return [...app.nations];
-  const side = Math.random() < 0.5 ? 'allied' : 'central';
-  return [pick(ofSide(side)), pick(ofSide(side === 'allied' ? 'central' : 'allied'))];
+  const side = Math.random() < 0.5 ? 'entente' : 'central';
+  return [pick(ofSide(side)), pick(ofSide(side === 'entente' ? 'central' : 'entente'))];
 }
 /** Tell the player which army they lead (once per battle, when it starts). */
 function announce(state) {
   if (!state.messages.some((m) => m.kind === 'side')) pushMessage(state, `You command the army of ${NATIONS[state.nations[0]].name}, starting in the ${state.start === 'east' ? 'lower right' : 'upper left'}, against ${NATIONS[state.nations[1]].name}.`, 'side');
 }
 /** The New Campaign screen: our army on the left, the enemy on the right, cycled with the arrows. */
-const ALLIANCE = { allied: 'Allies', central: 'Central Powers' };
-let fixedSide = 'allied'; // the side shown while "Random side" is off
+const ALLIANCE = { entente: 'Entente', central: 'Central Powers' };
+let fixedSide = 'entente'; // the side shown while "Random side" is off
 function renderSetup() {
   const random = app.side === 'random';
   if (!random) fixedSide = app.side;
-  const mySide = random ? null : app.side, foeSide = mySide === 'allied' ? 'central' : 'allied';
+  const mySide = random ? null : app.side, foeSide = mySide === 'entente' ? 'central' : 'entente';
   if (!random) {
     if (NATIONS[app.nations[0]].alliance !== mySide) app.nations[0] = ofSide(mySide)[0];
     if (NATIONS[app.nations[1]].alliance !== foeSide) app.nations[1] = ofSide(foeSide)[0];
@@ -116,7 +116,7 @@ function showModel(key, nation) {
 /** An arrow beside a soldier: the next / previous nation of that side; one of its soldiers answers. */
 document.querySelectorAll('[data-cycle]').forEach((b) => b.addEventListener('click', () => {
   if (app.side === 'random') return;
-  const slot = +b.dataset.cycle, side = slot ? (app.side === 'allied' ? 'central' : 'allied') : app.side;
+  const slot = +b.dataset.cycle, side = slot ? (app.side === 'entente' ? 'central' : 'entente') : app.side;
   const list = ofSide(side), i = list.indexOf(app.nations[slot]);
   app.nations[slot] = list[(i + +b.dataset.d + list.length) % list.length];
   renderSetup();
@@ -124,7 +124,7 @@ document.querySelectorAll('[data-cycle]').forEach((b) => b.addEventListener('cli
 }));
 document.getElementById('btn-swap').addEventListener('click', () => {
   if (app.side === 'random') return;
-  app.side = app.side === 'allied' ? 'central' : 'allied';
+  app.side = app.side === 'entente' ? 'central' : 'entente';
   app.nations = [app.nations[1], app.nations[0]];
   renderSetup();
   sound.init(); voices.speakFor(app.nations[0]);
@@ -228,7 +228,7 @@ function showEnd(state) {
   app.started = false;
   showPanel('end-panel', 'menu');
   // the result is shown over a painting for the player's side: triumph, or a helmet left in the mud
-  const side = NATIONS[state.nations[PLAYER]] ? NATIONS[state.nations[PLAYER]].alliance : 'allied';
+  const side = NATIONS[state.nations[PLAYER]] ? NATIONS[state.nations[PLAYER]].alliance : 'entente';
   const scene = document.getElementById('end-scene');
   scene.classList.toggle('hidden', !won);
   document.getElementById('overlay').classList.add('result', `${won ? 'victory' : 'defeat'}-${side}`);
@@ -395,7 +395,7 @@ let backTo = 'menu'; // where a panel's Back button goes: the main menu, or stra
 /** Show one overlay panel (the battle pauses underneath). */
 function showPanel(id, back = 'menu') {
   backTo = back;
-  document.getElementById('overlay').classList.remove('result', 'victory-allied', 'victory-central', 'defeat-allied', 'defeat-central');
+  document.getElementById('overlay').classList.remove('result', 'victory-entente', 'victory-central', 'defeat-entente', 'defeat-central');
   for (const p of PANELS) document.getElementById(p).classList.toggle('hidden', p !== id);
   document.getElementById('overlay').classList.toggle('menu-mode', id === 'menu-panel');
   document.getElementById('overlay').classList.toggle('loading-mode', id === 'loading-panel');
