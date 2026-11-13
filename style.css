@@ -568,3 +568,8 @@ button.big.back { background: #2b3038; }
 @media (max-width: 1360px) { #topbar { gap: 10px; } .res em { display: none; } }
 @media (max-width: 1100px) { #topbar .title span { display: none; } #topbar button { padding: 4px 7px; } }
 #overlay.plain-mode #loading-panel { width: min(680px, 94vw); }
+/* New Game screen: back on the trench painting (scaled past its torn paper edges) */
+#overlay.setup-mode {
+  background: linear-gradient(rgba(8, 9, 11, 0.5), rgba(8, 9, 11, 0.15) 30%, rgba(8, 9, 11, 0.25) 70%, rgba(8, 9, 11, 0.8)),
+    #0b0c0e url('assets/art/loading-background.webp') center / max(110vw, 147vh) auto no-repeat;
+}
