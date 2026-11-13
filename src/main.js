@@ -65,7 +65,10 @@ function chosenNations() {
 }
 /** Tell the player which army they lead (once per battle, when it starts). */
 function announce(state) {
-  if (!state.messages.some((m) => m.kind === 'side')) pushMessage(state, `You command the army of ${NATIONS[state.nations[0]].name}, starting in the ${state.start === 'east' ? 'lower right' : 'upper left'}, against ${NATIONS[state.nations[1]].name}.`, 'side');
+  if (state.messages.some((m) => m.kind === 'side')) return;
+  // a new battle: the trumpet sounds (the samples load with the battle, so wait for them briefly)
+  if (sound.sampleLoad) Promise.race([sound.sampleLoad, new Promise((r) => setTimeout(r, 3000))]).then(() => sound.play('trumpet', 1));
+  pushMessage(state, `You command the army of ${NATIONS[state.nations[0]].name}, starting in the ${state.start === 'east' ? 'lower right' : 'upper left'}, against ${NATIONS[state.nations[1]].name}.`, 'side');
 }
 /** The New Campaign screen: our army on the left, the enemy on the right, cycled with the arrows. */
 const ALLIANCE = { entente: 'Entente', central: 'Central Powers' };
