@@ -181,7 +181,7 @@ export class UI {
     orderMove(this.state, mv, x, y, kind);
     this.speak(kind === 'charge' ? 'charge' : 'move', mv);
     // marching boots for about a third of move orders (charges have their whistle and cry)
-    if (kind !== 'charge' && mv.some((u) => u.type !== 'artillery') && Math.random() < 0.33) this.sound.play('boots', 1);
+    if (kind !== 'charge' && mv.some((u) => u.type !== 'artillery') && Math.random() < 0.33) this.sound.play(this.state.season === 'winter' ? 'bootsSnow' : 'boots', 1); // crunching snow in winter
     this.state.effects.push({ type: 'boom', x, y, age: 0.55, life: 0.7 });
     return true;
   }
