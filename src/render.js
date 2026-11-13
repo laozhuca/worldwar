@@ -120,7 +120,9 @@ export class Renderer {
     // The battlefield is a diamond of radius MAP_R + 0.5 tiles around the map centre, a 2:1 rectangle on screen.
     // The ground canvas covers exactly that rectangle (plus a margin above for tall props).
     const RR = MAP_R + 0.5, C = MAP_W / 2;
-    this.view = { x0: -MAP_R * TW / 2, x1: MAP_R * TW / 2, y0: (2 * C - MAP_R) * TH / 2, y1: (2 * C + MAP_R) * TH / 2 };
+    // the camera may go right to the battlefield's edge, plus a small margin so the edge tiles show whole
+    const E = RR + 0.6;
+    this.view = { x0: -E * TW / 2, x1: E * TW / 2, y0: (2 * C - E) * TH / 2, y1: (2 * C + E) * TH / 2 };
     this.OX = (RR * TW) / 2;
     this.OY = TH * 2 - ((2 * C - RR) * TH) / 2;
     this.gw = RR * TW;

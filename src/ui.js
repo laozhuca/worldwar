@@ -445,7 +445,8 @@ export class UI {
     if (this.keys.has('w') || this.keys.has('arrowup')) dy -= sp;
     if (this.keys.has('s') || this.keys.has('arrowdown')) dy += sp;
     if (this.mouse.inside && !this.touchMode && !this.dragBox && !this.panDrag && !this.app.overlayOpen()) {
-      const m = 10;
+      // edge-scroll band: wider on big screens (24 px up to 64 px)
+      const m = Math.max(24, Math.min(64, Math.max(this.r.vw, this.r.vh) * 0.035));
       if (this.mouse.x < m) dx -= sp;
       if (this.mouse.x > this.r.vw - m) dx += sp;
       if (this.mouse.y < m) dy -= sp;

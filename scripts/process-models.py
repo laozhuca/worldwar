@@ -3,7 +3,7 @@
 
 Keeps the mesh (positions, normals, uvs, indices), the base colour and normal textures resized to
 1024 px JPEG, and drops the metallic/roughness texture (the viewer uses constant values).
-The model is recentred: feet at y = 0, centred on x / z.  Usage: python3 scripts/process-models.py
+The model is recentred: feet at y = 0, turning axis through the centre of the feet.  Usage: python3 scripts/process-models.py
 (needs Pillow).  The nation each source model is for is listed in MODELS below.
 """
 import io, json, struct, os
@@ -46,7 +46,12 @@ def convert(src, dst):
     # recentre: feet on y = 0, centred on x and z
     p = list(struct.unpack('<%df' % (pa['count'] * 3), pos))
     xs, ys, zs = p[0::3], p[1::3], p[2::3]
-    cx, cz, y0 = (min(xs) + max(xs)) / 2, (min(zs) + max(zs)) / 2, min(ys)
+    # turn about the man, not his kit: centre on his feet (the lowest tenth of the model), so a rifle or
+    # a pack sticking out to one side doesn't throw the turning axis off him
+    y0, H = min(ys), max(ys) - min(ys)
+    feet = [(x, z) for x, y, z in zip(xs, ys, zs) if y < y0 + 0.1 * H]
+    cx = (min(f[0] for f in feet) + max(f[0] for f in feet)) / 2
+    cz = (min(f[1] for f in feet) + max(f[1] for f in feet)) / 2
     for k in range(pa['count']): p[3 * k] -= cx; p[3 * k + 1] -= y0; p[3 * k + 2] -= cz
     pos = struct.pack('<%df' % len(p), *p)
     lo = [min(p[0::3]), min(p[1::3]), min(p[2::3])]; hi = [max(p[0::3]), max(p[1::3]), max(p[2::3])]
