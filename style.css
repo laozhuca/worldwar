@@ -599,3 +599,12 @@ button.big.back { background: #2b3038; }
 #overlay.setup-mode .swap:hover .swap-label { text-decoration: underline; text-underline-offset: 4px; }
 #overlay.setup-mode .swap:disabled { cursor: default; }
 #overlay.setup-mode .swap:disabled:hover .swap-label { text-decoration: none; }
+/* larger lettering for Swap sides and Difficulty */
+#overlay.setup-mode .swap .swap-label { font-size: 15px; letter-spacing: 3px; }
+#overlay.setup-mode .swap span { font-size: 34px; }
+#overlay.setup-mode .diff-label { font-size: 15px; letter-spacing: 3px; margin-top: 8px; }
+#overlay.setup-mode #diff-btns button { font-size: 16px; padding: 2px 10px; }
+@media (max-width: 860px), (max-height: 600px) {
+  #overlay.setup-mode .swap .swap-label, #overlay.setup-mode .diff-label { font-size: 12px; }
+  #overlay.setup-mode #diff-btns button { font-size: 13px; }
+}
