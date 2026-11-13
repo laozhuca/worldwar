@@ -251,6 +251,7 @@ const clockIcon = document.getElementById('clock-icon');
 const mini = document.getElementById('minimap');
 const mctx = mini.getContext('2d');
 
+const NOISY = new Set(['rifle', 'mg', 'boom', 'artyfire', 'death', 'incoming']);
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
@@ -266,6 +267,9 @@ function frame(now) {
 
   // sounds, attenuated by distance from the camera centre
   const center = renderer.screenToMap(renderer.vw / 2, renderer.vh / 2);
+  // a lull: after 20 s of battle time without gunfire, shells or cries, a duck quacks once (until the next shot)
+  if (s.events.some((ev) => NOISY.has(ev.type)) || s.quiet === undefined) { s.quiet = s.time; s.quacked = false; }
+  else if (!s.quacked && s.time - s.quiet >= 20 && app.started && !app.paused) { s.quacked = true; sound.play('duck', 0.9); }
   for (const ev of s.events) {
     const d = ev.x === undefined ? 0 : Math.hypot(ev.x - center.x, ev.y - center.y);
     sound.play(ev.type, Math.max(0, 1 - d / (28 / renderer.cam.zoom)), ev.id);
