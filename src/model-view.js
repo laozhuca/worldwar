@@ -154,7 +154,8 @@ export class ModelView {
     gl.useProgram(this.prog);
     // orthographic camera, slightly from above, fitting the figure's height (and its turning width)
     const H = M.max[1] - M.min[1], R = Math.max(Math.hypot(M.max[0], M.max[2]), Math.hypot(M.min[0], M.min[2]));
-    const aspect = w / h, half = Math.max(H * 0.53, (R * 1.05) / aspect);
+    // one framing for every soldier (the widest kit, 0.8), so all armies show at the same size
+    const aspect = w / h, half = Math.max(H * 0.53, (Math.max(0.8, R) * 1.05) / aspect);
     const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw), tilt = 0.12, ct = Math.cos(tilt), st = Math.sin(tilt);
     // rows of R = Rx(tilt) * Ry(yaw)
     const r00 = cy, r01 = 0, r02 = sy, r10 = st * sy, r11 = ct, r12 = -st * cy, r20 = -ct * sy, r21 = st, r22 = ct * cy;
