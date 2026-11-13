@@ -408,7 +408,7 @@ const PANELS = ['menu-panel', 'setup-panel', 'help-panel', 'credits-panel', 'exi
 let backTo = 'menu'; // where a panel's Back button goes: the main menu, or straight back to the battle
 /** Show one overlay panel (the battle pauses underneath). */
 // New Game and Saved battles share a backdrop, drawn at random each time one of them opens
-const SETUP_BACKDROPS = ['assets/art/menu-mortar-grey.webp', 'assets/art/menu-rider-grey.webp'];
+const SETUP_BACKDROPS = ['assets/art/menu-mortar-grey.webp', 'assets/art/menu-rider-grey.webp', 'assets/art/menu-assault-grey.webp', 'assets/art/menu-vickers-grey.webp'];
 let lastPanel = null;
 function showPanel(id, back = 'menu') {
   backTo = back;
