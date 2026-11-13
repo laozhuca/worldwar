@@ -409,10 +409,10 @@ button.big.back { background: #2b3038; }
 .cycle { position: relative; z-index: 3; }
 
 /* the Christmas-truce photo card fills the screen; the menu sits over the open sky and field on its left */
-#overlay.menu-mode { background: #0b0c0e url('assets/art/menu-background.webp') center / cover no-repeat; padding: 0; }
+#overlay.menu-mode { background: #0b0c0e url('assets/art/menu-background.webp') right center / cover no-repeat; padding: 0; }
 #overlay.menu-mode #menu-panel { left: clamp(16px, 7vw, 140px); right: auto; top: 50%; transform: translateY(-50%); width: min(340px, 88vw); background: rgba(16, 14, 12, 0.62); border-color: rgba(201, 178, 122, 0.4); }
 @media (max-aspect-ratio: 1/1) {
-  #overlay.menu-mode { background-position: 78% center; }
+  #overlay.menu-mode { background-position: 88% center; }
   #overlay.menu-mode #menu-panel { left: 50%; transform: translate(-50%, -50%); }
 }
 @media (max-height: 500px) and (min-aspect-ratio: 1/1) {
@@ -421,5 +421,5 @@ button.big.back { background: #2b3038; }
 /* New Game screen over the same photo */
 #overlay.setup-mode {
   background: linear-gradient(rgba(8, 9, 11, 0.5), rgba(8, 9, 11, 0.15) 30%, rgba(8, 9, 11, 0.25) 70%, rgba(8, 9, 11, 0.8)),
-    #0b0c0e url('assets/art/menu-background.webp') center / cover no-repeat;
+    #0b0c0e url('assets/art/menu-background.webp') right center / cover no-repeat;
 }
