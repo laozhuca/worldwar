@@ -232,6 +232,8 @@ function showEnd(state) {
   const scene = document.getElementById('end-scene');
   scene.classList.toggle('hidden', !won);
   document.getElementById('overlay').classList.add('result', `${won ? 'victory' : 'defeat'}-${side}`);
+  // the painting is set here too, so a cached stylesheet from an older version can't leave it blank
+  document.getElementById('overlay').style.backgroundImage = `url('assets/art/${won ? 'victory' : 'defeat'}-${side}.webp')`;
   if (won) scene.textContent = side === 'central' ? 'Triumph on the Trench Ridge' : 'Triumphant Soldiers at Dawn';
 }
 
@@ -396,6 +398,7 @@ let backTo = 'menu'; // where a panel's Back button goes: the main menu, or stra
 function showPanel(id, back = 'menu') {
   backTo = back;
   document.getElementById('overlay').classList.remove('result', 'victory-entente', 'victory-central', 'defeat-entente', 'defeat-central');
+  document.getElementById('overlay').style.backgroundImage = '';
   for (const p of PANELS) document.getElementById(p).classList.toggle('hidden', p !== id);
   document.getElementById('overlay').classList.toggle('menu-mode', id === 'menu-panel');
   document.getElementById('overlay').classList.toggle('loading-mode', id === 'loading-panel');
