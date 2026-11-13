@@ -622,17 +622,52 @@ function launchShell(state, u, tx, ty) {
   state.events.push({ type: 'artyfire', x: u.x, y: u.y });
 }
 
+/**
+ * The trench tile whose cut the point (x, y) lies in, or null. A trench is narrower than its tile: the
+ * cut is the middle of the tile (half-width 0.25) plus arms running to the trench tiles it joins; the
+ * rest of the tile is parapet and open ground.
+ */
+const CUT = 0.25;
+function trenchCutAt(map, x, y) {
+  const t = tileAt(map, x, y);
+  if (!t || !t.trench) return null;
+  const lx = x - t.x - 0.5, ly = y - t.y - 0.5;
+  if (Math.abs(lx) <= CUT && Math.abs(ly) <= CUT) return t;
+  const joins = (dx, dy) => { const n = tileAt(map, t.x + dx + 0.5, t.y + dy + 0.5); return n && n.trench; };
+  if (Math.abs(lx) <= CUT && ((ly < 0 && joins(0, -1)) || (ly > 0 && joins(0, 1)))) return t;
+  if (Math.abs(ly) <= CUT && ((lx < 0 && joins(-1, 0)) || (lx > 0 && joins(1, 0)))) return t;
+  return null;
+}
+/** Are two trench tiles part of the same trench run, within `steps` connected sections of each other? */
+function sameTrench(map, a, b, steps = 2) {
+  if (a === b) return true;
+  let frontier = [a]; const seen = new Set([a]);
+  for (let k = 0; k < steps; k++) {
+    const next = [];
+    for (const t of frontier) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const n = tileAt(map, t.x + dx + 0.5, t.y + dy + 0.5);
+      if (!n || !n.trench || seen.has(n)) continue;
+      if (n === b) return true;
+      seen.add(n); next.push(n);
+    }
+    frontier = next;
+  }
+  return false;
+}
+
 function explode(state, s) {
   const { map } = state;
-  const hitTile = tileAt(map, s.x, s.y);
-  const outside = !(hitTile && hitTile.trench); // the shell burst outside any trench
+  // where the shell burst: inside a trench cut, or outside (parapet, open ground)
+  const cut = trenchCutAt(map, s.x, s.y);
   // share of an outside burst that reaches men in this trench tile (wrecked works shelter less)
   const nearMiss = (tt) => TRENCH_NEAR_MISS + (1 - TRENCH_NEAR_MISS) * TRENCH_WRECK_LOSS * Math.min(1, (tt.dmg || 0) / 100);
   for (const u of state.units) {
     if (u.dead) continue;
     const d = Math.hypot(u.x - s.x, u.y - s.y);
     const tt = u.inTrench ? tileAt(map, u.x, u.y) : null;
-    const sheltered = outside && tt && tt.trench;
+    // a burst in this man's own trench (his section or one joined to it) reaches him in full; one on the
+    // parapet, in the open, or in a different trench spends itself on the earth walls
+    const sheltered = tt && tt.trench && !(cut && sameTrench(map, cut, tt));
     if (d < 1.6) {
       let cover = tt && tt.trench ? trenchCover(TRENCH_ARTY, tt) : (u.pinned ? 0.8 : 1);
       if (sheltered) cover *= nearMiss(tt);

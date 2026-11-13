@@ -247,23 +247,23 @@ test('artillery has a minimum range', () => {
   assert.equal(orderBarrage(s, [gun], gun.x + dx * (A.artyMinRange + 4), gun.y), 1, 'in range');
 });
 
-test('men in a trench are sheltered from shells bursting outside it', () => {
-  const blast = (inside) => {
+test('near misses: a burst in the trench cut hits in full, one beside it on the same tile does not', () => {
+  const blast = (where) => {
     const s = createGame({ aiTeams: [] });
     const u = s.units.find((x) => x.team === ENEMY && x.type === 'rifle' && x.inTrench);
     s.units = [u];
     const t = tileAt(s.map, u.x, u.y);
-    // a point 0.7 tiles away: in the same trench, or out on open ground
-    let p = null;
-    for (let a = 0; a < 64 && !p; a++) {
-      const x = u.x + Math.cos(a / 10) * 0.7, y = u.y + Math.sin(a / 10) * 0.7, q = tileAt(s.map, x, y);
-      if (q && !!q.trench === inside && (!inside || q === t)) p = { x, y };
-    }
+    u.x = t.x + 0.5; u.y = t.y + 0.5;
+    const joins = (dx, dy) => { const n = tileAt(s.map, t.x + dx + 0.5, t.y + dy + 0.5); return n && n.trench; };
+    // along the trench (an arm towards a joined section), or across it onto the parapet of the same tile
+    const arm = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([dx, dy]) => joins(dx, dy));
+    const side = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([dx, dy]) => !joins(dx, dy)) || [arm[1], arm[0]];
+    const [dx, dy] = where === 'cut' ? arm : side;
     const hp = u.hp;
-    s.shells.push({ ...p, t: 0.01, flight: 1, team: PLAYER, fromX: 0, fromY: 0 });
+    s.shells.push({ x: u.x + dx * 0.42, y: u.y + dy * 0.42, t: 0.01, flight: 1, team: PLAYER, fromX: 0, fromY: 0 });
     update(s, 0.05);
     return hp - u.hp;
   };
-  const hit = blast(true), miss = blast(false);
-  assert.ok(miss > 0 && miss < hit * 0.5, `outside burst ${miss.toFixed(1)} vs direct hit ${hit.toFixed(1)}`);
+  const hit = blast('cut'), miss = blast('parapet');
+  assert.ok(miss > 0 && miss < hit * 0.5, `parapet burst ${miss.toFixed(1)} vs burst in the trench ${hit.toFixed(1)}, same distance`);
 });
