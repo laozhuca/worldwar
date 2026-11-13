@@ -1,4 +1,4 @@
-# WorldWar — Trench Command
+# WorldWar
 
 A 2D isometric (45°) real-time strategy game about the Western Front in World War 1.
 Trenches, machine guns, barbed wire and artillery decide everything. Walk into no man's
