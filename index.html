@@ -95,17 +95,6 @@
             <div class="plate" id="plate-mine">Britain</div>
           </div>
           <div class="camp-centre">
-            <svg id="front-map" viewBox="0 0 240 130" aria-label="Starting position: click a half of the front">
-              <defs><clipPath id="fm-clip"><rect x="2" y="2" width="236" height="126" rx="10"/></clipPath></defs>
-              <g clip-path="url(#fm-clip)">
-                <path id="fm-west" d="M0 0 H150 L136 18 L146 34 L124 52 L132 70 L108 86 L114 104 L88 130 H0 Z"/>
-                <path id="fm-east" d="M150 0 H240 V130 H88 L114 104 L108 86 L132 70 L124 52 L146 34 L136 18 Z"/>
-                <path class="fm-line" d="M150 0 L136 18 L146 34 L124 52 L132 70 L108 86 L114 104 L88 130"/>
-              </g>
-              <rect class="fm-frame" x="2" y="2" width="236" height="126" rx="10"/>
-              <text id="fm-you-w" x="58" y="58">YOU</text><text id="fm-you-e" x="182" y="88">YOU</text>
-              <text class="fm-hq" x="22" y="26">HQ</text><text class="fm-hq" x="200" y="118">HQ</text>
-            </svg>
             <button id="btn-swap" class="swap" title="Swap sides"><span>⇄</span><em class="swap-label">Swap sides</em></button>
             <button id="btn-random-side" class="rand-side" title="Side and nations drawn when the battle starts">🎲 Random side</button>
             <div class="diff-label">Difficulty</div>
@@ -120,6 +109,17 @@
               <button data-start="east" title="Start in the lower right">↘ Lower right</button>
               <button data-start="random" title="Random starting position">🎲</button>
             </div>
+            <svg id="front-map" viewBox="0 0 240 130" aria-label="Starting position: click a half of the front">
+              <defs><clipPath id="fm-clip"><rect x="2" y="2" width="236" height="126" rx="10"/></clipPath></defs>
+              <g clip-path="url(#fm-clip)">
+                <path id="fm-west" d="M0 0 H150 L136 18 L146 34 L124 52 L132 70 L108 86 L114 104 L88 130 H0 Z"/>
+                <path id="fm-east" d="M150 0 H240 V130 H88 L114 104 L108 86 L132 70 L124 52 L146 34 L136 18 Z"/>
+                <path class="fm-line" d="M150 0 L136 18 L146 34 L124 52 L132 70 L108 86 L114 104 L88 130"/>
+              </g>
+              <rect class="fm-frame" x="2" y="2" width="236" height="126" rx="10"/>
+              <text id="fm-you-w" x="58" y="58">YOU</text><text id="fm-you-e" x="182" y="88">YOU</text>
+              <text class="fm-hq" x="22" y="26">HQ</text><text class="fm-hq" x="200" y="118">HQ</text>
+            </svg>
           </div>
           <div class="army" id="army-foe">
             <div class="ribbon" id="ribbon-foe">Central Powers</div>
