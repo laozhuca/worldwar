@@ -179,9 +179,10 @@ export class UI {
     const mv = kind === 'charge' ? units.filter((u) => u.type === 'rifle') : units;
     if (!mv.length) { pushMessage(this.state, 'Only rifle squads can charge', 'warn'); return true; }
     orderMove(this.state, mv, x, y, kind);
-    this.speak(kind === 'charge' ? 'charge' : 'move', mv);
-    // marching boots for about a third of move orders (charges have their whistle and cry)
-    if (kind !== 'charge' && mv.some((u) => u.type !== 'artillery') && Math.random() < 0.33) this.sound.play(this.state.season === 'winter' ? 'bootsSnow' : 'boots', 1); // crunching snow in winter
+    // a third of infantry move orders are answered by marching boots (crunching snow in winter) instead
+    // of a voice; charges always get their shout, whistle and battle cry
+    if (kind !== 'charge' && mv.some((u) => u.type !== 'artillery') && Math.random() < 0.33) this.sound.play(this.state.season === 'winter' ? 'bootsSnow' : 'boots', 1);
+    else this.speak(kind === 'charge' ? 'charge' : 'move', mv);
     this.state.effects.push({ type: 'boom', x, y, age: 0.55, life: 0.7 });
     return true;
   }
