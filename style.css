@@ -615,3 +615,6 @@ button.big.back { background: #2b3038; }
 #overlay.plain-mode #boot-panel h1 { font-size: clamp(30px, 5vh, 46px); letter-spacing: 12px; }
 #overlay.plain-mode #btn-enter { animation: enter-pulse 2.4s ease-in-out infinite; }
 @keyframes enter-pulse { 0%, 100% { opacity: 0.65; } 50% { opacity: 1; } }
+
+/* loading screens: the drawn photograph (already greyed), lightly darkened */
+#overlay.plain-mode.loading-mode { background: linear-gradient(rgba(12, 10, 8, 0.35), rgba(12, 10, 8, 0.6)), #0b0c0e var(--load-bg, url('assets/art/menu-mortar-grey.webp')) right center / cover no-repeat; }

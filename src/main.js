@@ -416,6 +416,11 @@ function showPanel(id, back = 'menu') {
     const pick = SETUP_BACKDROPS[Math.floor(Math.random() * SETUP_BACKDROPS.length)];
     document.getElementById('overlay').style.setProperty('--setup-bg', `url('${pick}')`);
   }
+  // loading screens: one of the four photographs (machine gun, infantry, artillery, horseman) at random
+  if ((id === 'loading-panel' || id === 'boot-panel') && lastPanel !== id) {
+    const pick = SETUP_BACKDROPS[Math.floor(Math.random() * SETUP_BACKDROPS.length)];
+    document.getElementById('overlay').style.setProperty('--load-bg', `url('${pick}')`);
+  }
   lastPanel = id;
   if (id !== 'end-panel') sound.stopEnding(); // leaving the victory / defeat screen
   document.getElementById('overlay').classList.remove('result', 'victory-entente', 'victory-central', 'defeat-entente', 'defeat-central');
@@ -481,7 +486,7 @@ async function boot() {
   const fill = document.getElementById('boot-fill'), item = document.getElementById('boot-item');
   const img = (src) => new Promise((r) => { const i = new Image(); i.onload = i.onerror = r; i.src = src; });
   const jobs = [
-    ['Photographs', Promise.all(['assets/art/menu-truce-clear.webp', ...SETUP_BACKDROPS, 'assets/art/loading-background.webp'].map(img))],
+    ['Photographs', Promise.all(['assets/art/menu-truce-clear.webp', ...SETUP_BACKDROPS].map(img))],
     ['Soldiers', fetch('assets/models/manifest.json').then((r) => r.json()).then((m) => Promise.all(app.nations.filter((n) => m[n]).map((n) => fetch('assets/models/' + m[n]).then((r) => r.arrayBuffer()))))],
     ['Portraits', Promise.all(Object.keys(NATIONS).map((n) => img(portraitOf(n))))],
     ['Music', new Promise((r) => { const a = new Audio('assets/music/ombra-di-guerra.mp3'); a.preload = 'auto'; a.oncanplaythrough = a.onerror = r; a.load(); })],
