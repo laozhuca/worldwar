@@ -297,6 +297,8 @@ export function update(state, dt) {
 
   for (const s of state.shells) {
     s.t -= dt;
+    // one shell in five is heard coming in: a falling whistle, 2 s before it lands
+    if (s.incoming && s.t <= 2) { s.incoming = false; state.events.push({ type: 'incoming', x: s.x, y: s.y }); }
     if (s.t <= 0) explode(state, s);
   }
   state.shells = state.shells.filter((s) => s.t > 0);
@@ -619,7 +621,7 @@ function launchShell(state, u, tx, ty) {
   const a = rand() * Math.PI * 2;
   const r = Math.pow(rand(), 0.7) * spread;
   const flight = 1.2 + d * 0.05;
-  state.shells.push({ x: tx + Math.cos(a) * r, y: ty + Math.sin(a) * r, t: flight, flight, team: u.team, fromX: u.x, fromY: u.y });
+  state.shells.push({ x: tx + Math.cos(a) * r, y: ty + Math.sin(a) * r, t: flight, flight, team: u.team, fromX: u.x, fromY: u.y, incoming: rand() < 0.2 });
   if (d > 0.01) { u.hx = u.aimX = (tx - u.x) / d; u.hy = u.aimY = (ty - u.y) / d; }
   state.effects.push({ type: 'gunflash', x: u.x, y: u.y, age: 0, life: 0.35, facing: u.facing, hx: u.hx, hy: u.hy });
   state.events.push({ type: 'artyfire', x: u.x, y: u.y });
