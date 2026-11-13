@@ -618,3 +618,4 @@ button.big.back { background: #2b3038; }
 
 /* loading screens: the drawn photograph (already greyed), lightly darkened */
 #overlay.plain-mode.loading-mode { background: linear-gradient(rgba(12, 10, 8, 0.35), rgba(12, 10, 8, 0.6)), #0b0c0e var(--load-bg, url('assets/art/menu-mortar-grey.webp')) right center / cover no-repeat; }
+#overlay.setup-mode #start-btns button { font-size: 15px; padding: 2px 10px; }
