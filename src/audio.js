@@ -17,7 +17,7 @@ export class Sound {
   /** Recorded sound effects (assets/sfx), decoded once audio is unlocked. */
   loadSamples() {
     if (this.sampleLoad || !this.ctx) return;
-    const SETS = { artyfire: ['fire'], boom: ['shell-2', 'shell-3', 'shell-4'], rifle: ['rifle-1', 'rifle-2', 'rifle-3', 'rifle-4', 'rifle-5'], mg: ['mg-1', 'mg-2', 'mg-3', 'mg-4'], whistle: ['whistle'], cry: ['battle-cry'], death: ['death-1', 'death-2', 'death-3', 'death-4'], boots: ['boots'], bootsSnow: ['boots-snow'], trumpet: ['trumpet'], incoming: ['whistle-in-1', 'whistle-in-2'], duck: ['duck-1', 'duck-2'] };
+    const SETS = { artyfire: ['fire'], boom: ['shell-2', 'shell-3', 'shell-4'], rifle: ['rifle-1', 'rifle-2', 'rifle-3', 'rifle-4', 'rifle-5'], mg: ['mg-1', 'mg-2', 'mg-3', 'mg-4'], whistle: ['whistle'], cry: ['battle-cry'], death: ['death-1', 'death-2', 'death-3', 'death-4'], boots: ['boots'], bootsSnow: ['boots-snow'], trumpet: ['trumpet'], incoming: ['whistle-in-1', 'whistle-in-2'], duck: ['duck-1', 'duck-2', 'bird-1', 'bird-2'] }; // a lull: a duck or a bird
     this.sampleLoad = Promise.all(Object.entries(SETS).map(([type, names]) => Promise.all(names.map((n) =>
       fetch(`assets/sfx/${n}.mp3`).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a)).catch(() => null)))
       .then((bufs) => { const ok = bufs.filter(Boolean); if (ok.length) this.samples[type] = ok; })));
