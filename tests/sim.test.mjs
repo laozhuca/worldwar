@@ -109,7 +109,7 @@ test('the battlefield is a diamond: nothing exists or moves outside it', () => {
 });
 
 test('player can start on the east line', () => {
-  const s = createGame({ start: 'east', aiTeams: [PLAYER, ENEMY] });
+  const s = createGame({ start: 'east', aiTeams: [PLAYER, ENEMY], difficulty: 'hard' });
   assert.ok(s.map.hq[PLAYER].x > s.map.w / 2, 'player HQ in the east');
   assert.ok(s.map.hq[ENEMY].x < s.map.w / 2, 'enemy HQ in the west');
   const mine = s.units.filter((u) => u.team === PLAYER);
@@ -266,4 +266,14 @@ test('near misses: a burst in the trench cut hits in full, one beside it on the 
   };
   const hit = blast('cut'), miss = blast('parapet');
   assert.ok(miss > 0 && miss < hit * 0.5, `parapet burst ${miss.toFixed(1)} vs burst in the trench ${hit.toFixed(1)}, same distance`);
+});
+
+test('difficulty sets how the computer fights and what it is supplied', () => {
+  const easy = createGame({ difficulty: 'easy' }), hard = createGame({ difficulty: 'hard' });
+  assert.ok(easy.ais[0].level.force < hard.ais[0].level.force);
+  assert.ok(easy.ais[0].offensive > hard.ais[0].offensive, 'easy attacks later');
+  for (const s of [easy, hard]) { s.supplyTimer = 0.01; s.resources = [{ men: 0, ammo: 0, supplies: 0 }, { men: 0, ammo: 0, supplies: 0 }]; update(s, 0.05); }
+  assert.ok(easy.resources[ENEMY].ammo < hard.resources[ENEMY].ammo, 'the enemy is supplied by level');
+  assert.equal(easy.resources[PLAYER].ammo, hard.resources[PLAYER].ammo, 'the player is not');
+  createGame();
 });

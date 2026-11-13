@@ -1,17 +1,19 @@
 // Computer commander. Works for either team (used for the enemy, and for both in tests).
-import { PLAYER, UNIT_TYPES } from './config.js';
+import { PLAYER, UNIT_TYPES, DIFFICULTY } from './config.js';
 import { tileAt, frontLine, clampToMap } from './map.js';
 import { buyUnit, orderMove, orderBarrage, orderHalt, placeBuild, teamDir } from './game.js';
 
 const rand = Math.random;
 
-export function createAI(team) {
+export function createAI(team, difficulty = 'medium') {
+  const level = DIFFICULTY[difficulty] || DIFFICULTY.medium;
   return {
     team,
+    level,
     think: 0.5,
     harass: 35 + rand() * 15,
     defensive: 0,
-    offensive: 170 + rand() * 40,
+    offensive: level.firstAttack + rand() * 40,
     wireTimer: 8,
     op: null,
   };
@@ -44,6 +46,7 @@ export function updateAI(state, ai, dt) {
   const me = ai.team, foe = 1 - me, dir = teamDir(me);
   const { map } = state;
   const res = state.resources[me];
+  const L = ai.level || DIFFICULTY.medium;
   const mine = state.units.filter((u) => !u.dead && u.team === me);
   const foes = state.units.filter((u) => !u.dead && u.team === foe);
   const front = frontLine(map, me);
@@ -55,8 +58,8 @@ export function updateAI(state, ai, dt) {
   for (const u of mine) count[u.type]++;
   if (count.artillery < 2) buyUnit(state, me, 'artillery');
   else if (count.mg < 4) buyUnit(state, me, 'mg');
-  else if (count.rifle < 15 || (count.rifle < 22 && res.men > 24)) buyUnit(state, me, 'rifle');
-  else if (count.artillery < 3 && res.supplies > 120) buyUnit(state, me, 'artillery');
+  else if (count.rifle < L.rifleCap - 7 || (count.rifle < L.rifleCap && res.men > 24)) buyUnit(state, me, 'rifle');
+  else if (L.guns > 2 && count.artillery < 3 && res.supplies > 120) buyUnit(state, me, 'artillery');
 
   // --- defensive posts along the front trench
   const posts = [];
@@ -120,7 +123,7 @@ export function updateAI(state, ai, dt) {
     const threats = foes.filter((f) => !f.inTrench && (f.x - frontX) * dir > -2 && Math.abs(f.x - frontX) < 13);
     if (threats.length) {
       const tgt = densest(threats);
-      if (orderBarrage(state, [ready[0]], tgt.x, tgt.y)) ai.defensive = 9;
+      if (orderBarrage(state, [ready[0]], tgt.x, tgt.y)) ai.defensive = L.defensiveGap;
       ready = readyBatteries(mine);
     }
   }
@@ -167,11 +170,11 @@ export function updateAI(state, ai, dt) {
           // reserves, topped up from squads holding our line near the point of attack
           const line = rifles.filter((u) => u.ai.role === 'post' && Math.abs(u.y - best.y) < 7 && u.men >= 4)
             .sort((a, b) => Math.abs(a.y - best.y) - Math.abs(b.y - best.y));
-          const force = reserves.concat(line).slice(0, 8);
+          const force = reserves.concat(line).slice(0, L.force);
           if (force.length >= 4) startOp(state, ai, 'attack', best, force, front);
         }
       }
-      ai.offensive = ai.op ? 120 + rand() * 60 : 25;
+      ai.offensive = ai.op ? L.attackGap[0] + rand() * (L.attackGap[1] - L.attackGap[0]) : 25;
     }
   }
 
@@ -211,7 +214,7 @@ function opUnits(state, ai) {
   const op = ai.op;
   let units = op.ids.map((id) => state.units.find((u) => u.id === id)).filter((u) => u && !u.dead);
   const men = units.reduce((a, u) => a + u.men, 0);
-  if (men < 22 && op.stage !== 'charge') {
+  if (men < 22 && op.stage !== 'charge' && (ai.level || DIFFICULTY.medium).topUp) {
     const extra = state.units.filter((u) => !u.dead && u.team === ai.team && u.type === 'rifle' && u.ai.role === 'reserve' && !u.order).slice(0, 2);
     for (const u of extra) {
       u.ai.role = 'op'; op.ids.push(u.id);
@@ -258,7 +261,7 @@ function updateOp(state, ai, dt) {
     if (units.every((u) => !u.order) || op.timer <= 0) { op.stage = 'prep'; op.timer = 25; op.guns = []; }
   } else if (op.stage === 'prep') {
     // every ready battery in range: the objective, then any machine gun covering the approach
-    const ready = readyBatteries(mine).filter((g) => inRange(g, T.x, T.y));
+    const ready = readyBatteries(mine).filter((g) => inRange(g, T.x, T.y)).slice(0, (ai.level || DIFFICULTY.medium).guns);
     if (ready.length) {
       const mgs = foes.filter((f) => f.type === 'mg' && Math.hypot(f.x - T.x, f.y - T.y) < 7 && Math.hypot(f.x - T.x, f.y - T.y) > 2.5);
       ready.forEach((g, i) => {
@@ -286,7 +289,7 @@ function updateOp(state, ai, dt) {
     const taken = tile && tile.owner === me && clear;
     if (taken) {
       op.steps++;
-      if (op.kind === 'counter' || op.steps > 6) return end();
+      if (op.kind === 'counter' || op.steps >= (ai.level || DIFFICULTY.medium).steps) return end();
       // on to the next objective; a squad stays to hold this one
       const hold = units.length > 3 ? units.reduce((a, u) => (u.men < a.men ? u : a)) : null;
       if (hold) { op.ids = op.ids.filter((id) => id !== hold.id); hold.ai.role = 'hold'; hold.order = null; }

@@ -1,12 +1,12 @@
-// node scripts/ai-bench.mjs [minutes] [battles]
+// node scripts/ai-bench.mjs [minutes] [battles] [easy|medium|hard]
 // AI benchmark: (a) the enemy AI against a passive player army (holds its trenches, no commander);
 // (b) AI vs AI. Reports how deep the attacks get and who wins.
 import { createGame, update } from '../src/game.js';
 import { PLAYER, ENEMY } from '../src/config.js';
 import { teamDir } from '../src/map.js';
-const MIN = +(process.argv[2] || 20), N = +(process.argv[3] || 6);
+const MIN = +(process.argv[2] || 20), N = +(process.argv[3] || 6), LEVEL = process.argv[4] || 'medium';
 function run(aiTeams, seed) {
-  const s = createGame({ seed, aiTeams });
+  const s = createGame({ seed, aiTeams, difficulty: LEVEL });
   let deepest = 0; // furthest enemy-captured player trench, in tiles from the player's front towards its HQ
   const hq = s.map.hq[PLAYER];
   const startFront = s.map.tiles.filter((t) => t.trench && t.owner === PLAYER).reduce((m, t) => Math.max(m, t.x * teamDir(PLAYER)), -1e9);

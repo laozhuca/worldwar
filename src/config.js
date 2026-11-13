@@ -114,6 +114,18 @@ export const BASE_INCOME = { men: 14, ammo: 70, supplies: 45 };
 export const CAPTURE_BONUS = { men: 0.5, ammo: 2, supplies: 1.5 }; // per captured enemy trench tile
 export const START_RES = { men: 30, ammo: 350, supplies: 200 };
 
+// Difficulty: how the computer commander fights (your own army and supplies are the same at every level).
+//   income      share of the normal supply convoys it receives
+//   firstAttack seconds before its first offensive; attackGap: seconds between offensives [min, max]
+//   force       most squads it commits to an offensive; guns: batteries that prepare each objective
+//   topUp       whether it feeds reserves into a weakening attack; steps: objectives per offensive
+//   rifleCap    the infantry it keeps; defensiveGap: seconds between its defensive barrages
+export const DIFFICULTY = {
+  easy: { name: 'Easy', income: 0.75, firstAttack: 360, attackGap: [300, 380], force: 5, guns: 1, topUp: false, steps: 2, rifleCap: 13, defensiveGap: 20 },
+  medium: { name: 'Medium', income: 1, firstAttack: 240, attackGap: [190, 260], force: 6, guns: 2, topUp: true, steps: 4, rifleCap: 18, defensiveGap: 12 },
+  hard: { name: 'Hard', income: 1.25, firstAttack: 170, attackGap: [120, 180], force: 8, guns: 9, topUp: true, steps: 7, rifleCap: 22, defensiveGap: 9 },
+};
+
 export const SUPPRESSION_DECAY = 12; // per second
 export const CHARGE_SPEED = 2.0; // a run is much faster than the walk
 export const MELEE_RANGE = 0.9;

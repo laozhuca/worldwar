@@ -19,6 +19,7 @@ const app = {
   nations: ['uk', 'germany'],
   side: 'entente', // 'entente' | 'central' | 'random'
   start: 'west', // 'west' | 'east' | 'random'
+  difficulty: (() => { try { return localStorage.getItem('ww-diff') || 'medium'; } catch { return 'medium'; } })(),
   overlayOpen() { return !document.getElementById('overlay').classList.contains('hidden'); },
   togglePause() {
     this.paused = !this.paused;
@@ -129,6 +130,14 @@ document.getElementById('btn-swap').addEventListener('click', () => {
   renderSetup();
   sound.init(); voices.speakFor(app.nations[0]);
 });
+// difficulty: remembered between visits
+const showDiff = () => document.querySelectorAll('[data-diff]').forEach((x) => x.classList.toggle('active', x.dataset.diff === app.difficulty));
+document.querySelectorAll('[data-diff]').forEach((b) => b.addEventListener('click', () => {
+  app.difficulty = b.dataset.diff;
+  try { localStorage.setItem('ww-diff', app.difficulty); } catch {}
+  showDiff();
+}));
+showDiff();
 document.getElementById('btn-random-side').addEventListener('click', () => { app.side = app.side === 'random' ? fixedSide : 'random'; renderSetup(); });
 // clicking a half of the front map picks where we start
 document.getElementById('fm-west').addEventListener('click', () => document.querySelector('[data-start="west"]').click());
@@ -157,8 +166,8 @@ document.getElementById('btn-start').addEventListener('click', async () => {
   sound.startMusic();
   const sameNations = app.side !== 'random' && app.state.nations.join() === app.nations.join();
   const sameStart = app.start !== 'random' && app.state.start === app.start;
-  if (app.state.time >= 1 || app.state.season !== app.season || !sameNations || !sameStart) {
-    app.state = createGame({ season: app.season, nations: chosenNations(), start: chosenStart() });
+  if (app.state.time >= 1 || app.state.season !== app.season || !sameNations || !sameStart || app.state.difficulty !== app.difficulty) {
+    app.state = createGame({ season: app.season, nations: chosenNations(), start: chosenStart(), difficulty: app.difficulty });
     useArmies(app.state);
     renderer.groundDrawn = false;
     ui.selected.clear();
@@ -173,7 +182,7 @@ document.getElementById('btn-start').addEventListener('click', async () => {
   resumeBattle();
 });
 document.getElementById('btn-restart').addEventListener('click', async () => {
-  app.state = createGame({ seed: Math.floor(Math.random() * 1e6), season: app.season, nations: chosenNations(), start: chosenStart() });
+  app.state = createGame({ seed: Math.floor(Math.random() * 1e6), season: app.season, nations: chosenNations(), start: chosenStart(), difficulty: app.state.difficulty || app.difficulty });
   useArmies(app.state);
   ui.selected.clear();
   ui.setMode(null);
@@ -341,7 +350,8 @@ const summary = (info) => {
   const m = Math.floor(info.time / 60), sec = Math.floor(info.time % 60);
   const season = info.season ? info.season[0].toUpperCase() + info.season.slice(1) : '';
   const when = new Date(info.savedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-  return { title: `${a} vs ${e} · ${season} · ${m}m ${sec}s in`, when: `saved ${when}` };
+  const diff = info.difficulty ? ` · ${info.difficulty[0].toUpperCase()}${info.difficulty.slice(1)}` : '';
+  return { title: `${a} vs ${e} · ${season}${diff} · ${m}m ${sec}s in`, when: `saved ${when}` };
 };
 /** Start screen: "Continue" resumes the newest save of all; "Load…" lists them. */
 function showContinue() {

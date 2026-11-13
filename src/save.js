@@ -32,7 +32,7 @@ export function describe(json) {
   try {
     const d = JSON.parse(json);
     if (d.version !== SAVE_VERSION || d.map.w !== MAP_W || d.map.h !== MAP_H) return null;
-    return { savedAt: d.savedAt, time: d.rest.time, nations: d.rest.nations, season: d.rest.season, start: d.rest.start };
+    return { savedAt: d.savedAt, time: d.rest.time, nations: d.rest.nations, season: d.rest.season, start: d.rest.start, difficulty: d.rest.difficulty || 'medium' };
   } catch { return null; }
 }
 

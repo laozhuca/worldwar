@@ -16,11 +16,12 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export { teamDir };
 
 export function createGame(opts = {}) {
-  const { seed = 1916, aiTeams = [ENEMY], season = 'winter', nations = ['uk', 'germany'], start = 'west' } = opts;
+  const { seed = 1916, aiTeams = [ENEMY], season = 'winter', nations = ['uk', 'germany'], start = 'west', difficulty = 'medium' } = opts;
   const map = createMap(seed, start === 'east' ? ENEMY : PLAYER);
   const state = {
     season,
     start,
+    difficulty,
     nations,
     time: 0,
     map,
@@ -33,7 +34,7 @@ export function createGame(opts = {}) {
     resources: [{ ...START_RES }, { ...START_RES }],
     supplyTimer: SUPPLY_INTERVAL,
     winner: -1,
-    ais: aiTeams.map((t) => createAI(t)),
+    ais: aiTeams.map((t) => createAI(t, difficulty)),
     visTimer: 0,
     captureTimer: 0,
     captureMsgCooldown: 0,
@@ -326,8 +327,10 @@ function deliverSupplies(state) {
     const { captured } = territory(state, team);
     const res = state.resources[team];
     const gain = {};
+    const ai = state.ais.find((a) => a.team === team);
+    const share = ai && ai.level ? ai.level.income : 1; // difficulty: the computer's supply
     for (const k of ['men', 'ammo', 'supplies']) {
-      gain[k] = Math.round(BASE_INCOME[k] * ramp + CAPTURE_BONUS[k] * captured);
+      gain[k] = Math.round((BASE_INCOME[k] * ramp + CAPTURE_BONUS[k] * captured) * share);
       res[k] += gain[k];
     }
     if (team === PLAYER) {

@@ -69,6 +69,8 @@ shells fall and lifts the barrage, then pushes on trench line by trench line tow
 a squad to hold each objective, bringing up reserves, moving its guns forward, and digging in where
 it stands when the attack is spent. It raises more infantry when it can afford to.
 
+**Difficulty** (New Game screen, remembered): **Easy**: the enemy attacks rarely (first after about 6 minutes), with up to 5 squads and one battery, no reinforcement of a failing attack, two objectives per offensive, a smaller army and 75% of the supply. **Medium**: steadier offensives (first after about 4 minutes) with up to 6 squads and two batteries. **Hard**: frequent offensives (first after about 3 minutes) with up to 8 squads and every gun, pushing on objective after objective, a bigger army and 125% of the supply. Your own army is the same at every level. `node scripts/ai-bench.mjs 20 5 hard` measures a level against a passive defender.
+
 ## Controls
 
 | Input | Action |
