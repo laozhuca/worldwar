@@ -180,6 +180,8 @@ export class UI {
     if (!mv.length) { pushMessage(this.state, 'Only rifle squads can charge', 'warn'); return true; }
     orderMove(this.state, mv, x, y, kind);
     this.speak(kind === 'charge' ? 'charge' : 'move', mv);
+    // marching boots for about a third of move orders (charges have their whistle and cry)
+    if (kind !== 'charge' && mv.some((u) => u.type !== 'artillery') && Math.random() < 0.33) this.sound.play('boots', 1);
     this.state.effects.push({ type: 'boom', x, y, age: 0.55, life: 0.7 });
     return true;
   }
