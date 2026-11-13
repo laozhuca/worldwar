@@ -61,8 +61,13 @@ as `file://`, because it uses ES modules.
 
 **Voices**: units answer when you select them (rifle squads, MG teams and batteries each have their own lines, mixed with general replies) or give an order (move, charge, bombard, halt); new units report for duty, and squads call out when pinned down in the open, in their army's own language ("Over the top, lads!", "En avant ! À la baïonnette !", "Sturm! Hurra!", "Ура! В атаку!", "Allah Allah! Hücum!"), spoken by recorded voice actors (`assets/voice/`, 190 clips for all eight armies; Austria-Hungary speaks Hungarian, as its Honvéd regiments did) and shown in a speech bubble over the unit. Each squad plays the recordings at a slightly different pitch. Where no recording exists, the browser's speech synthesis stands in. All voices are male: speech synthesis doesn't report a voice's sex, so only voices known to be male (by name: Windows/Edge, macOS/iOS, Chrome's "UK English Male") are used. With no male voice for the language a male English voice speaks the English line (the bubble keeps the original); with no male voice at all the soldiers stay silent and only the bubble shows. 🗣 toggles voices; 🔊 mutes everything.
 
-The enemy commander garrisons its line, uses defensive and harassing barrages,
-counter-attacks lost trenches, repairs its wire and launches its own offensives.
+The enemy commander garrisons its line, uses defensive and harassing barrages, counter-attacks lost
+trenches, repairs its wire and trenches, and launches real offensives: it picks the weakest point of
+your line (fewest defenders, least wire, towards your HQ), gathers 4–8 squads, bombards the objective
+and the machine guns covering it with every battery in range, times the charge to arrive as the last
+shells fall and lifts the barrage, then pushes on trench line by trench line towards your HQ, leaving
+a squad to hold each objective, bringing up reserves, moving its guns forward, and digging in where
+it stands when the attack is spent. It raises more infantry when it can afford to.
 
 ## Controls
 
