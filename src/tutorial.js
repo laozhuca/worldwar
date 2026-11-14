@@ -3,7 +3,7 @@
 // they go over the top, the guns open up, they charge, and a machine gun the barrage missed kills them.
 // The scene is a script of awaits on what the player does; captions show dialogue and instructions.
 import { PLAYER, ENEMY, UNIT_TYPES } from './config.js';
-import { createGame, spawnUnit, damageUnit, orderMove } from './game.js';
+import { createGame, spawnUnit, damageUnit, orderMove, orderBarrage } from './game.js';
 import { frontLine } from './map.js';
 import { iso } from './render.js';
 
@@ -35,6 +35,13 @@ export function createTutorialGame() {
   }
   const gun = spawnUnit(s, 'artillery', PLAYER, ours[M] - 4 + 0.5, M + 1.5); // in range of the enemy trench
   gun.invulnerable = true; gun.story = 'gun';
+  // the rest of the divisional artillery along the line: they fire with ours, each on its own stretch
+  for (const dy of [-13, -7, 6, 12]) {
+    const r = M + dy;
+    if (ours[r] < 0 || theirs[r] < 0) continue;
+    const g = spawnUnit(s, 'artillery', PLAYER, ours[r] - 4 + 0.5, r + 0.5);
+    g.invulnerable = true; g.story = 'guns'; g.storyTarget = { x: theirs[r] + 0.5, y: r + 0.5 };
+  }
   // the enemy: machine guns along the trench ahead, the nearest straight in front of the section, with
   // riflemen between them; silent until the charge
   const mg = spawnUnit(s, 'mg', ENEMY, theirs[M] + 0.5, M + 0.5);
@@ -60,6 +67,7 @@ export function runTutorial(state, ctx) {
 
   const touch = matchMedia('(pointer: coarse)').matches;
   const company = state.units.filter((u) => u.story === 'company');
+  const batteries = state.units.filter((u) => u.story === 'guns');
   let holding = false; // the battle waits for the player's order
   const show = (speaker, text, instruction = '', image = null) => {
     box.classList.remove('hidden');
@@ -131,14 +139,19 @@ export function runTutorial(state, ctx) {
     await step(touch ? 'Press the glowing Bombard button.' : 'Press the glowing Bombard button (or B).', () => ui.mode === 'bombard');
     state.marker = { ...objective, label: 'Enemy trench' };
     look(pair.x + (objective.x - pair.x) * 0.6, objective.y, 1.05); // both our trench and theirs well inside the view
-    await step(`${click} the marked enemy trench to shell it.`, () => gun.barrage || gun.cooldown > 0);
+    await step(`${click} the marked enemy trench to shell it. The other batteries will fire along the rest of the line.`, () => gun.barrage || gun.cooldown > 0);
     if (gun.barrage) Object.assign(gun.barrage, { x: objective.x, y: objective.y, remaining: Math.min(gun.barrage.remaining, 5) });
+    // the other batteries open up with ours, all along the enemy line
+    batteries.forEach((g, i) => {
+      orderBarrage(state, [g], g.storyTarget.x, g.storyTarget.y);
+      if (g.barrage) Object.assign(g.barrage, { remaining: 5, timer: 0.4 + i * 0.7 });
+    });
     // the men wait in the trench while the shells fall
     follow = { get x() { return pair.x + (objective.x - pair.x) * 0.4; }, get y() { return pair.y; } };
     await say(ARCHER, 'Go on, give it to \'em!');
     await say(HALE, 'Nothing could live through that.');
     await say(LT, 'Two minutes, lads. Fix bayonets.');
-    await waitFor(() => !gun.barrage);
+    await waitFor(() => !gun.barrage && batteries.every((g) => !g.barrage));
     follow = null;
     await say('', 'The barrage lifts onto the German support line.');
 
