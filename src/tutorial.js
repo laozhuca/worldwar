@@ -140,18 +140,20 @@ export function runTutorial(state, ctx) {
     state.marker = { ...objective, label: 'Enemy trench' };
     look(pair.x + (objective.x - pair.x) * 0.6, objective.y, 1.05); // both our trench and theirs well inside the view
     await step(`${click} the marked enemy trench to shell it. The other batteries will fire along the rest of the line.`, () => gun.barrage || gun.cooldown > 0);
-    if (gun.barrage) Object.assign(gun.barrage, { x: objective.x, y: objective.y, remaining: Math.min(gun.barrage.remaining, 5) });
+    if (gun.barrage) Object.assign(gun.barrage, { x: objective.x, y: objective.y, remaining: Math.min(gun.barrage.remaining, 3) });
     // the other batteries open up with ours, all along the enemy line
     batteries.forEach((g, i) => {
       orderBarrage(state, [g], g.storyTarget.x, g.storyTarget.y);
-      if (g.barrage) Object.assign(g.barrage, { remaining: 5, timer: 0.4 + i * 0.7 });
+      if (g.barrage) Object.assign(g.barrage, { remaining: 3, timer: 0.4 + i * 0.7 });
     });
     // the men wait in the trench while the shells fall
     follow = { get x() { return pair.x + (objective.x - pair.x) * 0.4; }, get y() { return pair.y; } };
     await say(ARCHER, 'Go on, give it to \'em!');
     await say(HALE, 'Nothing could live through that.');
     await say(LT, 'Two minutes, lads. Fix bayonets.');
-    await waitFor(() => !gun.barrage && batteries.every((g) => !g.barrage));
+    // the barrage lifts as the talk ends: no more shells are fired, and those in the air land
+    for (const g of [gun, ...batteries]) if (g.barrage) { g.barrage = null; g.cooldown = 4; }
+    await waitFor(() => state.shells.length === 0);
     follow = null;
     await say('', 'The barrage lifts onto the German support line.');
 
