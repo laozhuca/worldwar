@@ -595,10 +595,10 @@ document.getElementById('m-tutorial').addEventListener('click', async () => {
       panel.classList.remove('play');
       requestAnimationFrame(() => {
         const vh = roll.clientHeight, th = text.scrollHeight;
-        const from = vh, to = Math.min(0, vh * 0.5 - th);
+        const from = vh, to = -th; // rolls on until the last line has left the top
         panel.style.setProperty('--roll-from', `${from}px`);
         panel.style.setProperty('--roll-to', `${to}px`);
-        panel.style.setProperty('--roll-time', `${Math.max(14, (from - to) / 22)}s`); // about 22 px a second
+        panel.style.setProperty('--roll-time', `${Math.max(10, (from - to) / 38)}s`); // about 38 px a second
         void panel.offsetWidth; // restart the animations
         panel.classList.add('play');
       });

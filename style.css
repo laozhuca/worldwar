@@ -715,3 +715,9 @@ body.tutorial #topbar .res:not(:has(#clock)) { display: none; }
 .card-dots { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
 .card-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(230, 219, 195, 0.25); transition: background 0.3s; }
 .card-dots i.on { background: #e6dbc3; }
+
+/* dialogue (with the speaker's picture) in the middle of the screen */
+#story.center { top: 50%; transform: translate(-50%, -55%); padding: 20px 34px 22px; background: radial-gradient(ellipse at 50% 50%, rgba(14, 12, 10, 0.86), rgba(14, 12, 10, 0.6) 65%, rgba(14, 12, 10, 0)); }
+#story.center .pic { width: 170px; height: 170px; }
+#story.center .pic.letter { width: 300px; height: auto; }
+@media (max-height: 640px) { #story.center .pic { width: 96px; height: 96px; } #story.center .pic.letter { width: 180px; } }

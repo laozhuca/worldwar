@@ -73,6 +73,7 @@ export function runTutorial(state, ctx) {
     hint.textContent = instruction;
     hint.classList.toggle('hidden', !instruction);
     box.classList.toggle('waiting', !!instruction);
+    box.classList.toggle('center', !!text); // dialogue in the middle of the screen; instructions at the top
   };
   // highlights: a ring on the map (a unit or a place) and a glow on a command button
   const glow = (sel) => { document.querySelectorAll('.tut-glow').forEach((e) => e.classList.remove('tut-glow')); if (sel) document.querySelectorAll(sel).forEach((e) => e.classList.add('tut-glow')); };
