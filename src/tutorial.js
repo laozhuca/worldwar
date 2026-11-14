@@ -121,16 +121,34 @@ export function runTutorial(state, ctx) {
     await say(ARCHER, 'Walk. With sixty pounds on our backs.');
     await say(HALE, 'Will... if I don\'t come back, give this letter to my mum.', LETTER);
     await say(ARCHER, 'Give it her yourself. We\'ll be in their trench by breakfast.');
-    await say(LT, 'Two minutes, lads. Fix bayonets.');
+    await say(LT, 'The guns open the attack, lads. Stand to.');
 
-    // 1. select the section
+    // 1. the guns first: select the battery, press Bombard, mark the target
+    state.marker = { unit: gun.id, label: 'Field battery' };
+    look(gun.x + 3, gun.y, 1.8);
+    await step(`${click} the field battery behind your trench to select it.`, () => ui.selected.has(gun.id));
+    glow('[data-cmd="bombard"]');
+    await step(touch ? 'Press the glowing Bombard button.' : 'Press the glowing Bombard button (or B).', () => ui.mode === 'bombard');
+    state.marker = { ...objective, label: 'Enemy trench' };
+    look(pair.x + (objective.x - pair.x) * 0.6, objective.y, 1.05); // both our trench and theirs well inside the view
+    await step(`${click} the marked enemy trench to shell it.`, () => gun.barrage || gun.cooldown > 0);
+    if (gun.barrage) Object.assign(gun.barrage, { x: objective.x, y: objective.y, remaining: Math.min(gun.barrage.remaining, 5) });
+    // the men wait in the trench while the shells fall
+    follow = { get x() { return pair.x + (objective.x - pair.x) * 0.4; }, get y() { return pair.y; } };
+    await say(ARCHER, 'Go on, give it to \'em!');
+    await say(HALE, 'Nothing could live through that.');
+    await say(LT, 'Two minutes, lads. Fix bayonets.');
+    await waitFor(() => !gun.barrage);
+    follow = null;
+    await say('', 'The barrage lifts onto the German support line.');
+
+    // 2. the whistle: select the section, and the whole company goes over the top
+    ui.selected.clear();
     state.marker = { unit: pair.id, label: 'Hale & Archer' };
     look(pair.x + 2, pair.y, 2.4);
-    await selectPair();
-
-    // 2. the whistle: the whole company goes over the top
     sound.play('whistle', 1);
     await say(LT, 'Over the top!');
+    await selectPair();
     state.marker = { ...out, label: 'Shell hole' };
     look(pair.x + 3.5, pair.y, 2.1);
     await step(`${rclick} the marked shell hole to lead them out into no man's land.`, () => pair.order && pair.order.kind === 'move');
@@ -141,26 +159,7 @@ export function runTutorial(state, ctx) {
     await say(ARCHER, 'Quiet as a church out here...');
     await waitFor(() => !pair.order || near(pair, out, 1.2));
 
-    // 3. the guns: select the battery, press Bombard, mark the target
-    follow = null;
-    await say(LT, 'Halt! Wait for the guns!');
-    state.marker = { unit: gun.id, label: 'Field battery' };
-    look(gun.x + 3, gun.y, 1.8);
-    await step(`${click} the field battery behind your trench to select it.`, () => ui.selected.has(gun.id));
-    glow('[data-cmd="bombard"]');
-    await step(touch ? 'Press the glowing Bombard button.' : 'Press the glowing Bombard button (or B).', () => ui.mode === 'bombard');
-    state.marker = { ...objective, label: 'Enemy trench' };
-    look(pair.x + (objective.x - pair.x) * 0.6, objective.y, 1.05); // both the men and the trench well inside the view
-    await step(`${click} the marked enemy trench to shell it.`, () => gun.barrage || gun.cooldown > 0);
-    if (gun.barrage) Object.assign(gun.barrage, { x: objective.x, y: objective.y, remaining: Math.min(gun.barrage.remaining, 5) });
-    // from here the camera keeps both the men and the enemy trench in view
-    follow = { get x() { return pair.x + (objective.x - pair.x) * 0.45; }, get y() { return pair.y; } };
-    await say(ARCHER, 'Go on, give it to \'em!');
-    await say(HALE, 'Nothing could live through that.');
-    await waitFor(() => !gun.barrage);
-    await say('', 'The barrage lifts onto the German support line.');
-
-    // 4. the charge: select the section, press Charge, mark the target
+    // 3. the charge: select the section, press Charge, mark the target
     follow = null;
     if (!ui.selected.has(pair.id) || ui.selected.size > 1) {
       ui.selected.clear();
@@ -180,7 +179,7 @@ export function runTutorial(state, ctx) {
     follow = { get x() { return pair.x + (objective.x - pair.x) * 0.35; }, get y() { return pair.y; } };
     box.classList.add('hidden');
 
-    // 5. the machine guns the barrage missed
+    // 4. the machine guns the barrage missed
     await waitFor(() => near(pair, mg, UNIT_TYPES.mg.range - 0.5) || !pair.order);
     for (const u of state.units) if (u.team === ENEMY) { u.holdFire = false; if (u.type === 'mg') u.setup = 0; }
     for (const u of company) u.invulnerable = false;
