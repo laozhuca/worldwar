@@ -721,3 +721,6 @@ body.tutorial #topbar .res:not(:has(#clock)) { display: none; }
 #story.center .pic { width: 170px; height: 170px; }
 #story.center .pic.letter { width: 300px; height: auto; }
 @media (max-height: 640px) { #story.center .pic { width: 96px; height: 96px; } #story.center .pic.letter { width: 180px; } }
+
+#epitaph-panel .tut-done { margin: 1.6vh 0 0; font-size: clamp(15px, 2.1vh, 19px); letter-spacing: 1px; color: #fff3d6; text-align: center; }
+#overlay.plain-mode #epitaph-panel .start-row { margin-top: 0.6vh; }
