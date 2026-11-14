@@ -257,15 +257,16 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   const s = app.state;
-  if (!app.paused) {
+  const held = tutorial && tutorial.holding(); // the tutorial's battle waits for the player's order
+  if (!app.paused && !held) {
     acc += dt * app.speed;
     let n = 0;
     while (acc >= STEP && n < 12) { update(s, STEP); acc -= STEP; n++; }
     if (n >= 12) acc = 0;
   }
-  if (tutorial && !app.paused) tutorial.tick(app.paused ? 0 : dt * app.speed);
+  if (tutorial && !app.paused) tutorial.tick(held ? dt : dt * app.speed);
   ui.update(dt);
-  renderer.update(dt, app.paused ? 0 : dt * app.speed, s);
+  renderer.update(dt, app.paused || held ? 0 : dt * app.speed, s);
 
   // sounds, attenuated by distance from the camera centre
   const center = renderer.screenToMap(renderer.vw / 2, renderer.vh / 2);

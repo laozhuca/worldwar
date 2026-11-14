@@ -447,7 +447,8 @@ export class UI {
     if (this.keys.has('d') || this.keys.has('arrowright')) dx += sp;
     if (this.keys.has('w') || this.keys.has('arrowup')) dy -= sp;
     if (this.keys.has('s') || this.keys.has('arrowdown')) dy += sp;
-    if (this.mouse.inside && !this.touchMode && !this.dragBox && !this.panDrag && !this.app.overlayOpen()) {
+    // no edge scrolling in the tutorial: its camera frames each step, and a resting mouse must not move it
+    if (this.mouse.inside && !this.touchMode && !this.dragBox && !this.panDrag && !this.app.overlayOpen() && !this.state.tutorial) {
       // edge-scroll band: wider on big screens (24 px up to 64 px)
       const m = Math.max(24, Math.min(64, Math.max(this.r.vw, this.r.vh) * 0.035));
       if (this.mouse.x < m) dx -= sp;
