@@ -330,7 +330,7 @@ function deliverSupplies(state) {
     const res = state.resources[team];
     const gain = {};
     const ai = state.ais.find((a) => a.team === team);
-    const share = ai && ai.level ? ai.level.income : 1; // difficulty: the computer's supply
+    const share = ai && ai.level ? ai.level.income : (state.playerIncome ?? 1); // difficulty / campaign level: the supply share
     for (const k of ['men', 'ammo', 'supplies']) {
       gain[k] = Math.round((BASE_INCOME[k] * ramp + CAPTURE_BONUS[k] * captured) * share);
       res[k] += gain[k];

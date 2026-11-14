@@ -32,6 +32,7 @@
     </div>
 
     <div id="messages"></div>
+    <div id="objectives" class="hidden"></div>
     <div id="story" class="hidden"><img class="pic hidden" alt=""><div class="who"></div><div class="line"></div><div class="hint"></div></div>
     <div id="modehint" class="hidden"></div>
 
@@ -76,6 +77,7 @@
           <button id="m-resume" class="big hidden">▶ Resume battle</button>
           <button id="btn-continue" class="big hidden">Continue saved battle<small></small></button>
           <button id="m-new" class="big">New game</button>
+          <button id="m-campaign" class="big">Campaign</button>
           <button id="m-tutorial" class="big">Tutorial: 1 July 1916</button>
           <button id="btn-load" class="big">Load game</button>
           <button id="m-help" class="big">Instructions</button>
@@ -208,6 +210,40 @@
         </table>
         <p class="muted">In memory of all who served on every side of the Great War, 1914–1918.</p>
         <button class="big back" data-back>Back</button>
+      </div>
+      <div class="panel hidden" id="campaign-panel">
+        <h1>Campaign</h1>
+        <p class="lead">Five battles of the Great War, on four fronts. Each is won by a different kind of soldiering.</p>
+        <div id="level-list"></div>
+        <button class="big back" data-back>Back</button>
+      </div>
+      <div class="panel hidden" id="briefing-panel">
+        <div class="brief-num"></div>
+        <h1 class="brief-title"></h1>
+        <div class="brief-where"></div>
+        <p class="lead brief-history"></p>
+        <div class="brief-cols">
+          <div><h3>Objectives</h3><ul class="brief-objectives"></ul></div>
+          <div><h3>Conditions</h3><ul class="brief-rules"></ul></div>
+        </div>
+        <h3>Medals</h3><ul class="brief-medals"></ul>
+        <div class="start-row">
+          <button id="btn-level-start" class="big">To the front</button>
+          <button class="big back" id="btn-brief-back">Back</button>
+        </div>
+      </div>
+      <div class="panel hidden" id="debrief-panel">
+        <div class="brief-num"></div>
+        <h1 class="debrief-title"></h1>
+        <p class="debrief-reason"></p>
+        <p class="lead debrief-history"></p>
+        <p class="debrief-stats muted"></p>
+        <h3>Medals</h3><ul class="debrief-medals"></ul>
+        <div class="start-row">
+          <button id="btn-level-next" class="big">Next battle</button>
+          <button id="btn-level-retry" class="big">Try again</button>
+          <button class="big back" id="btn-debrief-campaign">Campaign</button>
+        </div>
       </div>
       <div class="panel hidden" id="epitaph-panel">
         <h1>1 July 1916</h1>

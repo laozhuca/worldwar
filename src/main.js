@@ -5,6 +5,7 @@ import { Voices } from './voice.js';
 import { serialize, deserialize, describe } from './save.js';
 import { ModelView } from './model-view.js';
 import { createTutorialGame, runTutorial } from './tutorial.js';
+import { LEVELS, levelById, createLevelGame, stepCampaign, loadProgress, recordResult, clockHours, dayTime } from './campaign.js';
 import { Sound } from './audio.js';
 import { PLAYER, NATIONS } from './config.js';
 import { hourOf } from './atmosphere.js';
@@ -222,6 +223,7 @@ document.getElementById('btn-sound').addEventListener('click', (e) => {
 let endShown = false;
 function showEnd(state) {
   endShown = true;
+  if (state.campaign) { clearSave(); app.started = false; showDebrief(state); return; }
   clearSave(); // a finished battle can't be continued
   const won = state.winner === PLAYER;
   document.getElementById('end-title').textContent = won ? 'Victory' : 'Defeat';
@@ -247,6 +249,7 @@ let last = performance.now();
 let acc = 0;
 let miniTimer = 0;
 let clockTimer = 0;
+let campaignTimer = 0;
 const clockEl = document.getElementById('clock');
 const clockIcon = document.getElementById('clock-icon');
 const mini = document.getElementById('minimap');
@@ -261,7 +264,7 @@ function frame(now) {
   if (!app.paused && !held) {
     acc += dt * app.speed;
     let n = 0;
-    while (acc >= STEP && n < 12) { update(s, STEP); acc -= STEP; n++; }
+    while (acc >= STEP && n < 12) { update(s, STEP); if (s.campaign) stepCampaign(s); acc -= STEP; n++; }
     if (n >= 12) acc = 0;
   }
   if (tutorial && !app.paused) tutorial.tick(held ? dt : dt * app.speed);
@@ -294,6 +297,8 @@ function frame(now) {
     clockEl.textContent = `${hh}:${mm}`;
     clockIcon.textContent = rain ? '🌧' : night ? '🌙' : (s.season === 'winter' ? '❄' : '☁');
   }
+  campaignTimer -= dt;
+  if (campaignTimer <= 0) { campaignTimer = 0.5; showObjectives(s); }
   if (s.winner >= 0 && !endShown) showEnd(s);
   requestAnimationFrame(frame);
 }
@@ -352,6 +357,7 @@ const summary = (info) => {
   const m = Math.floor(info.time / 60), sec = Math.floor(info.time % 60);
   const season = info.season ? info.season[0].toUpperCase() + info.season.slice(1) : '';
   const when = new Date(info.savedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  if (info.level && levelById(info.level)) { const L = levelById(info.level), mm = Math.floor(info.time / 60); return { title: `Campaign ${L.n}: ${L.title} · ${mm}m in`, when: `saved ${new Date(info.savedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}` }; }
   const diff = info.difficulty ? ` · ${info.difficulty[0].toUpperCase()}${info.difficulty.slice(1)}` : '';
   return { title: `${a} vs ${e} · ${season}${diff} · ${m}m ${sec}s in`, when: `saved ${when}` };
 };
@@ -406,7 +412,7 @@ document.getElementById('btn-save').addEventListener('click', () => {
 document.getElementById('btn-save-close').addEventListener('click', () => closeSlots());
 
 // ------------------------------------------------------------ menus
-const PANELS = ['menu-panel', 'setup-panel', 'help-panel', 'credits-panel', 'exit-panel', 'save-panel', 'end-panel', 'loading-panel', 'boot-panel', 'epitaph-panel'];
+const PANELS = ['menu-panel', 'setup-panel', 'help-panel', 'credits-panel', 'exit-panel', 'save-panel', 'end-panel', 'loading-panel', 'boot-panel', 'epitaph-panel', 'campaign-panel', 'briefing-panel', 'debrief-panel'];
 let backTo = 'menu'; // where a panel's Back button goes: the main menu, or straight back to the battle
 /** Show one overlay panel (the battle pauses underneath). */
 // New Game and Saved battles share a backdrop, drawn at random each time one of them opens
@@ -433,7 +439,8 @@ function showPanel(id, back = 'menu') {
   document.getElementById('overlay').classList.toggle('setup-mode', id === 'setup-panel');
   document.getElementById('overlay').classList.toggle('save-mode', id === 'save-panel');
   // the other screens: plain lettering on the darkened photo, like the main menu
-  document.getElementById('overlay').classList.toggle('plain-mode', ['help-panel', 'credits-panel', 'save-panel', 'exit-panel', 'loading-panel', 'boot-panel', 'epitaph-panel'].includes(id));
+  document.getElementById('overlay').classList.toggle('plain-mode', ['help-panel', 'credits-panel', 'save-panel', 'exit-panel', 'loading-panel', 'boot-panel', 'epitaph-panel', 'campaign-panel', 'briefing-panel', 'debrief-panel'].includes(id));
+  document.getElementById('overlay').classList.toggle('debrief-mode', id === 'debrief-panel');
   document.getElementById('overlay').classList.toggle('epitaph-mode', id === 'epitaph-panel');
   document.getElementById('overlay').classList.remove('hidden');
   app.paused = true;
@@ -622,3 +629,85 @@ document.getElementById('m-tutorial').addEventListener('click', async () => {
 document.getElementById('btn-epitaph-new').addEventListener('click', () => showPanel('setup-panel'));
 // leaving the tutorial for another game ends its script
 for (const id of ['btn-start', 'btn-continue', 'btn-restart']) document.getElementById(id).addEventListener('click', () => { if (app.state.tutorial || tutorial) endTutorial(); }, true);
+
+// ------------------------------------------------------------ campaign
+/** The objectives panel during a campaign battle. */
+function showObjectives(s) {
+  const box = document.getElementById('objectives');
+  const L = s.campaign && levelById(s.campaign.id);
+  box.classList.toggle('hidden', !L || !app.started);
+  if (!L || !app.started) return;
+  const [head, ...rest] = L.tracker(s);
+  box.innerHTML = `<div class="ob-when">${dayTime(clockHours(s))}</div><div class="ob-head">${head}</div>` + rest.map((t) => `<div>${t}</div>`).join('');
+}
+const medalHtml = (names, got) => names.map((m, i) => `<li class="${got[i] ? 'got' : ''}"><b>${got[i] ? '★' : '☆'}</b> ${m}</li>`).join('');
+function showCampaign() {
+  const p = loadProgress();
+  document.getElementById('level-list').replaceChildren(...LEVELS.map((L) => {
+    const open = L.n <= p.unlocked && !L.soon, b = document.createElement('button');
+    b.className = 'level' + (open ? '' : ' locked');
+    const stars = p.medals[L.id] || 0;
+    b.innerHTML = `<span class="ln">${L.n}</span><span class="lt">${L.title}<small>${L.place} · ${L.date}</small></span><span class="lm">${L.soon ? 'Coming soon' : open ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : 'Locked'}</span>`;
+    b.disabled = !open;
+    b.onclick = () => showBriefing(L.id);
+    return b;
+  }));
+  showPanel('campaign-panel');
+}
+let briefed = null;
+function showBriefing(id) {
+  const L = levelById(id), p = loadProgress();
+  briefed = id;
+  const P = document.getElementById('briefing-panel');
+  P.querySelector('.brief-num').textContent = `Battle ${L.n} of ${LEVELS.length}`;
+  P.querySelector('.brief-title').textContent = L.title;
+  P.querySelector('.brief-where').textContent = `${L.place} · ${L.date} · ${NATIONS[L.nations[0]].name} against ${NATIONS[L.nations[1]].name}`;
+  P.querySelector('.brief-history').textContent = L.history;
+  P.querySelector('.brief-objectives').innerHTML = L.objectives.map((t) => `<li>${t}</li>`).join('');
+  P.querySelector('.brief-rules').innerHTML = L.rules.map((t) => `<li>${t}</li>`).join('');
+  const best = p.medals[id] || 0;
+  P.querySelector('.brief-medals').innerHTML = medalHtml(L.medals, L.medals.map((_, i) => i < best));
+  showPanel('briefing-panel');
+}
+async function startLevel(id) {
+  if (app.started && app.state.winner < 0 && !app.state.tutorial && !app.state.campaign) saveGame('auto');
+  endTutorial();
+  const state = createLevelGame(id);
+  app.state = state;
+  app.season = state.season;
+  useArmies(state);
+  ui.selected.clear(); ui.setMode(null);
+  renderer.groundDrawn = false;
+  ui.centerOnFront();
+  endShown = false;
+  lastSave = 0;
+  await loadBattle(state);
+  announce(state);
+  app.started = true;
+  resumeBattle();
+}
+function showDebrief(s) {
+  const L = levelById(s.campaign.id), won = s.campaign.result === 'won' || s.winner === PLAYER;
+  if (!s.campaign.result) s.campaign.result = won ? 'won' : 'lost';
+  const medals = recordResult(s);
+  const P = document.getElementById('debrief-panel');
+  P.querySelector('.brief-num').textContent = `Battle ${L.n}: ${L.title}`;
+  P.querySelector('.debrief-title').textContent = won ? 'Victory' : 'Defeat';
+  P.querySelector('.debrief-reason').textContent = s.campaign.reason || '';
+  P.querySelector('.debrief-history').textContent = won ? L.debrief.won : L.debrief.lost;
+  P.querySelector('.debrief-stats').textContent = `${dayTime(clockHours(s))}. Our losses: ${s.stats.lost[PLAYER]} men. Enemy losses: ${s.stats.lost[1 - PLAYER]} men.`;
+  P.querySelector('.debrief-medals').innerHTML = medalHtml(L.medals, medals);
+  const next = LEVELS.find((x) => x.n === L.n + 1);
+  document.getElementById('btn-level-next').classList.toggle('hidden', !won || !next || !!next.soon);
+  briefed = L.id;
+  showPanel('debrief-panel');
+  const side = NATIONS[s.nations[PLAYER]] ? NATIONS[s.nations[PLAYER]].alliance : 'entente';
+  document.getElementById('overlay').style.backgroundImage = `linear-gradient(rgba(10, 8, 6, 0.6), rgba(10, 8, 6, 0.85)), url('assets/art/${won ? `victory-${side}` : 'defeat-poppies'}.webp')`;
+  sound.playEnding(won ? 'victory' : 'defeat');
+}
+document.getElementById('m-campaign').addEventListener('click', showCampaign);
+document.getElementById('btn-level-start').addEventListener('click', () => startLevel(briefed));
+document.getElementById('btn-brief-back').addEventListener('click', showCampaign);
+document.getElementById('btn-debrief-campaign').addEventListener('click', showCampaign);
+document.getElementById('btn-level-retry').addEventListener('click', () => showBriefing(briefed));
+document.getElementById('btn-level-next').addEventListener('click', () => { const L = levelById(briefed), n = LEVELS.find((x) => x.n === L.n + 1); if (n) showBriefing(n.id); });

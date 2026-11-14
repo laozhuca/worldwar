@@ -727,3 +727,36 @@ body.tutorial #topbar .res:not(:has(#clock)) { display: none; }
 
 #epitaph-panel.play .roll-text.rested { animation: epitaph-rest 2.4s ease-out forwards; transform: translateY(var(--rest-y, 0)); }
 @keyframes epitaph-rest { from { opacity: 0; transform: translateY(var(--rest-y, 0)); } to { opacity: 1; transform: translateY(var(--rest-y, 0)); } }
+
+/* ---------- campaign ---------- */
+#objectives {
+  position: absolute; right: 12px; top: 50px; z-index: 4; width: min(330px, 60vw); padding: 10px 14px; pointer-events: none;
+  color: #e6dbc3; font-size: 13px; line-height: 1.5; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  background: linear-gradient(to left, rgba(14, 12, 10, 0.82), rgba(14, 12, 10, 0.55));
+  border-right: 2px solid rgba(201, 178, 122, 0.7);
+}
+#objectives .ob-when { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #cdbfa3; }
+#objectives .ob-head { font-size: 16px; color: #fff3d6; letter-spacing: 1px; margin: 2px 0 4px; }
+@media (max-width: 700px), (max-height: 500px) { #objectives { top: 44px; font-size: 11px; width: 220px; } #objectives .ob-head { font-size: 13px; } }
+#overlay.plain-mode #campaign-panel, #overlay.plain-mode #briefing-panel, #overlay.plain-mode #debrief-panel { width: min(760px, 94vw); }
+#level-list { display: flex; flex-direction: column; gap: 4px; margin: 14px 0 6px; }
+#overlay.plain-mode .panel button.level {
+  display: flex; align-items: center; gap: 16px; padding: 10px 6px; text-align: left; border-bottom: 1px solid rgba(230, 219, 195, 0.14);
+  font-size: 18px; letter-spacing: 1px; text-transform: none;
+}
+.level .ln { width: 30px; font-size: 26px; color: #c9b27a; text-align: center; flex: none; }
+.level .lt { flex: 1; color: #efe4cb; }
+.level .lt small { display: block; font-size: 12px; color: #b9ad94; letter-spacing: 1px; }
+.level .lm { flex: none; font-size: 15px; color: #e8c98a; letter-spacing: 2px; }
+#overlay.plain-mode .panel button.level.locked { opacity: 0.45; cursor: default; }
+#overlay.plain-mode .panel button.level.locked:hover { text-decoration: none; }
+#overlay.plain-mode .panel button.level:not(.locked):hover { background: rgba(230, 219, 195, 0.06); text-decoration: none; }
+.brief-num { letter-spacing: 3px; text-transform: uppercase; font-size: 12px; color: #cdbfa3; }
+.brief-where { font-style: italic; color: #d9ccb2; margin: -4px 0 6px; }
+.brief-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+@media (max-width: 700px) { .brief-cols { grid-template-columns: 1fr; gap: 0; } }
+.brief-medals li, .debrief-medals li { list-style: none; margin-left: -18px; color: #b9ad94; }
+.brief-medals li.got, .debrief-medals li.got { color: #fff3d6; }
+.brief-medals b, .debrief-medals b { color: #e8c98a; font-weight: normal; margin-right: 4px; }
+.debrief-reason { font-size: 18px; color: #fff3d6; margin: 0 0 8px; }
+#overlay.plain-mode.debrief-mode { background-size: cover; background-position: center; }
