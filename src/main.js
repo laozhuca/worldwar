@@ -600,7 +600,14 @@ document.getElementById('m-tutorial').addEventListener('click', async () => {
         panel.style.setProperty('--roll-to', `${to}px`);
         panel.style.setProperty('--roll-time', `${Math.max(10, (from - to) / 38)}s`); // about 38 px a second
         void panel.offsetWidth; // restart the animations
+        text.classList.remove('rested');
+        text.style.removeProperty('--rest-y');
         panel.classList.add('play');
+        // once the last line has rolled out, the text fades back in, centred, and stays
+        text.onanimationend = () => {
+          text.style.setProperty('--rest-y', `${Math.max(0, (roll.clientHeight - text.scrollHeight) / 2)}px`);
+          text.classList.add('rested');
+        };
       });
       // the lessons, one card at a time
       const cards = [...panel.querySelectorAll('.card')], dots = [...panel.querySelectorAll('.card-dots i')];

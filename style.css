@@ -724,3 +724,6 @@ body.tutorial #topbar .res:not(:has(#clock)) { display: none; }
 
 #epitaph-panel .tut-done { margin: 1.6vh 0 0; font-size: clamp(15px, 2.1vh, 19px); letter-spacing: 1px; color: #fff3d6; text-align: center; }
 #overlay.plain-mode #epitaph-panel .start-row { margin-top: 0.6vh; }
+
+#epitaph-panel.play .roll-text.rested { animation: epitaph-rest 2.4s ease-out forwards; transform: translateY(var(--rest-y, 0)); }
+@keyframes epitaph-rest { from { opacity: 0; transform: translateY(var(--rest-y, 0)); } to { opacity: 1; transform: translateY(var(--rest-y, 0)); } }
