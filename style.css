@@ -704,3 +704,14 @@ body.tutorial #topbar .res:not(:has(#clock)) { display: none; }
 #epitaph-panel.play .card:nth-child(4) { animation-delay: 6.6s; }
 @keyframes card-in { from { opacity: 0; transform: rotateY(90deg) translateY(12px); } to { opacity: 1; transform: rotateY(0) translateY(0); } }
 @media (max-height: 640px) { #epitaph-panel .card { padding: 8px 10px; } #epitaph-panel .card p { font-size: 12px; } #epitaph-panel .card b { font-size: 20px; } }
+
+/* flash cards: one at a time, in the same spot, wide and low */
+#epitaph-panel .cards { display: grid; perspective: 900px; width: min(660px, 92vw); flex-wrap: nowrap; }
+#epitaph-panel .card { grid-area: 1 / 1; width: auto; display: flex; align-items: center; gap: 18px; padding: 10px 22px; opacity: 0; transform: rotateX(90deg); transition: opacity 0.45s, transform 0.45s; animation: none !important; }
+#epitaph-panel .card.on { opacity: 1; transform: rotateX(0); }
+#epitaph-panel .card b { font-size: 40px; flex: none; }
+#epitaph-panel .card h4 { margin: 0 0 2px; font-size: 15px; }
+#epitaph-panel .card p { font-size: 15px; }
+.card-dots { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+.card-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(230, 219, 195, 0.25); transition: background 0.3s; }
+.card-dots i.on { background: #e6dbc3; }

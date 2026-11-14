@@ -602,6 +602,13 @@ document.getElementById('m-tutorial').addEventListener('click', async () => {
         void panel.offsetWidth; // restart the animations
         panel.classList.add('play');
       });
+      // the lessons, one card at a time
+      const cards = [...panel.querySelectorAll('.card')], dots = [...panel.querySelectorAll('.card-dots i')];
+      let n = -1;
+      const next = () => { n = (n + 1) % cards.length; cards.forEach((c, i) => c.classList.toggle('on', i === n)); dots.forEach((d, i) => d.classList.toggle('on', i === n)); };
+      clearInterval(window.__cardTimer);
+      cards.forEach((c) => c.classList.remove('on'));
+      setTimeout(() => { next(); window.__cardTimer = setInterval(() => { if (panel.classList.contains('hidden')) clearInterval(window.__cardTimer); else next(); }, 5000); }, 2500);
     },
   });
 });
