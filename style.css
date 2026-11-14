@@ -670,3 +670,37 @@ body.tutorial #topbar .res:not(:has(#clock)) { display: none; }
 #story .pic.letter { width: 240px; height: auto; }
 #story .pic.hidden { display: none; }
 @media (max-height: 640px) { #story .pic { width: 84px; height: 84px; margin-bottom: 4px; } #story .pic.letter { width: 160px; height: auto; } }
+
+/* tutorial dialogue: larger */
+#story .who { font-size: 14px; }
+#story .line { font-size: 24px; }
+#story .hint, #story.waiting .hint { font-size: 20px; }
+@media (max-width: 700px), (max-height: 500px) { #story .line { font-size: 17px; } #story .hint, #story.waiting .hint { font-size: 15px; } }
+
+/* the epitaph: the story rolls up like closing credits, the lessons are dealt below as cards */
+#overlay.plain-mode #epitaph-panel { position: absolute; inset: 0; max-width: none; max-height: none; display: flex; flex-direction: column; align-items: center; padding: 4vh 4vw 3vh; overflow: hidden; }
+#overlay.plain-mode #epitaph-panel h1 { margin: 0 0 1vh; }
+#epitaph-panel .roll { position: relative; width: min(820px, 92vw); flex: 1 1 auto; min-height: 120px; overflow: hidden;
+  -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent); mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent); }
+#epitaph-panel .roll-text { position: absolute; left: 0; right: 0; top: 0; text-align: center; transform: translateY(var(--roll-from, 100%)); }
+#epitaph-panel .roll-text p { font-size: clamp(19px, 2.8vh, 28px); line-height: 1.55; font-style: italic; color: #eadfc8; margin: 0 0 1.1em; }
+#epitaph-panel .roll-text p.muted { font-size: clamp(14px, 2vh, 18px); color: #b9ad94; }
+#epitaph-panel.play .roll-text { animation: epitaph-roll var(--roll-time, 30s) linear forwards; }
+@keyframes epitaph-roll { from { transform: translateY(var(--roll-from, 100%)); } to { transform: translateY(var(--roll-to, 0)); } }
+#overlay.plain-mode #epitaph-panel h3.cards-title { margin: 1.5vh 0 1vh; }
+#epitaph-panel .cards { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; perspective: 900px; }
+#epitaph-panel .card {
+  width: clamp(150px, 19vw, 220px); padding: 12px 14px 14px; text-align: left; color: #e6dbc3;
+  background: linear-gradient(rgba(34, 28, 22, 0.92), rgba(20, 16, 12, 0.92)); border: 1px solid rgba(230, 219, 195, 0.28);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55); border-radius: 3px; opacity: 0; transform: rotateY(90deg);
+}
+#epitaph-panel .card b { display: block; font-size: 28px; color: #c9b27a; font-weight: normal; line-height: 1; }
+#epitaph-panel .card h4 { margin: 6px 0 4px; font-weight: normal; letter-spacing: 2px; text-transform: uppercase; font-size: 14px; color: #fff3d6; }
+#epitaph-panel .card p { margin: 0; font-size: 14px; line-height: 1.45; color: #d9ccb2; }
+#epitaph-panel.play .card { animation: card-in 0.7s ease-out forwards; }
+#epitaph-panel.play .card:nth-child(1) { animation-delay: 3s; }
+#epitaph-panel.play .card:nth-child(2) { animation-delay: 4.2s; }
+#epitaph-panel.play .card:nth-child(3) { animation-delay: 5.4s; }
+#epitaph-panel.play .card:nth-child(4) { animation-delay: 6.6s; }
+@keyframes card-in { from { opacity: 0; transform: rotateY(90deg) translateY(12px); } to { opacity: 1; transform: rotateY(0) translateY(0); } }
+@media (max-height: 640px) { #epitaph-panel .card { padding: 8px 10px; } #epitaph-panel .card p { font-size: 12px; } #epitaph-panel .card b { font-size: 20px; } }

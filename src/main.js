@@ -590,6 +590,18 @@ document.getElementById('m-tutorial').addEventListener('click', async () => {
       tutorial = null;
       showPanel('epitaph-panel');
       sound.playEnding('defeat');
+      // the story rolls up from below the view until its last line rests near the middle
+      const panel = document.getElementById('epitaph-panel'), roll = panel.querySelector('.roll'), text = panel.querySelector('.roll-text');
+      panel.classList.remove('play');
+      requestAnimationFrame(() => {
+        const vh = roll.clientHeight, th = text.scrollHeight;
+        const from = vh, to = Math.min(0, vh * 0.5 - th);
+        panel.style.setProperty('--roll-from', `${from}px`);
+        panel.style.setProperty('--roll-to', `${to}px`);
+        panel.style.setProperty('--roll-time', `${Math.max(14, (from - to) / 22)}s`); // about 22 px a second
+        void panel.offsetWidth; // restart the animations
+        panel.classList.add('play');
+      });
     },
   });
 });
