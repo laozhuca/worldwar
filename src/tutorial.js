@@ -8,6 +8,10 @@ import { frontLine } from './map.js';
 import { iso } from './render.js';
 
 const HALE = 'Pte. Tom Hale', ARCHER = 'Pte. Will Archer', LT = 'Lieutenant';
+// pictures shown above a speaker's lines (the letter replaces Hale's face when he speaks of it)
+const FACES = { [HALE]: 'assets/art/story-hale.webp', [ARCHER]: 'assets/art/story-archer.webp' };
+const LETTER = 'assets/art/story-letter.webp';
+for (const src of [...Object.values(FACES), LETTER]) { const i = new Image(); i.src = src; } // ready before they are needed
 
 /** The battlefield for the scene: our section in the front trench, a battery behind, the enemy waiting. */
 export function createTutorialGame() {
@@ -47,7 +51,7 @@ export function createTutorialGame() {
 export function runTutorial(state, ctx) {
   const { ui, renderer, sound } = ctx;
   const box = document.getElementById('story');
-  const who = box.querySelector('.who'), line = box.querySelector('.line'), hint = box.querySelector('.hint');
+  const who = box.querySelector('.who'), line = box.querySelector('.line'), hint = box.querySelector('.hint'), pic = box.querySelector('.pic');
   const find = (tag) => state.units.find((u) => u.story === tag);
   const pair = find('pair'), gun = find('gun'), mg = find('mg');
   let stopped = false, follow = null;
@@ -57,8 +61,12 @@ export function runTutorial(state, ctx) {
   const touch = matchMedia('(pointer: coarse)').matches;
   const company = state.units.filter((u) => u.story === 'company');
   let holding = false; // the battle waits for the player's order
-  const show = (speaker, text, instruction = '') => {
+  const show = (speaker, text, instruction = '', image = null) => {
     box.classList.remove('hidden');
+    const src = image || (text ? FACES[speaker] : null);
+    pic.classList.toggle('hidden', !src);
+    pic.classList.toggle('letter', src === LETTER);
+    if (src && pic.getAttribute('src') !== src) pic.setAttribute('src', src);
     who.textContent = speaker || '';
     line.textContent = text || '';
     line.classList.toggle('hidden', !text);
@@ -72,8 +80,8 @@ export function runTutorial(state, ctx) {
   const stop = () => { stopped = true; holding = false; box.classList.add('hidden'); clear(); for (const w of waits) w.reject(new Error('stopped')); waits.length = 0; };
   const waitFor = (test) => new Promise((resolve, reject) => { if (stopped) return reject(new Error('stopped')); waits.push({ test, resolve, reject }); });
   // one line of dialogue: shown for a time that suits its length; a click or Space moves on
-  const say = (speaker, text) => {
-    show(speaker, text, '');
+  const say = (speaker, text, image = null) => {
+    show(speaker, text, '', image);
     const until = clock + 2.2 + text.split(' ').length * 0.3;
     return new Promise((resolve, reject) => {
       speech = { until, resolve };
@@ -110,7 +118,7 @@ export function runTutorial(state, ctx) {
     await say(ARCHER, 'Seven days the guns have been going. Can\'t be a German left alive over there.');
     await say(HALE, 'That\'s what the officers say. Wire\'s all cut. We just walk across.');
     await say(ARCHER, 'Walk. With sixty pounds on our backs.');
-    await say(HALE, 'Will... if I don\'t come back, give this letter to my mum.');
+    await say(HALE, 'Will... if I don\'t come back, give this letter to my mum.', LETTER);
     await say(ARCHER, 'Give it her yourself. We\'ll be in their trench by breakfast.');
     await say(LT, 'Two minutes, lads. Fix bayonets.');
 
