@@ -892,6 +892,7 @@ export class Renderer {
     }
 
     this.drawBarrageMarkers(ctx, state);
+    if (state.marker) this.drawStoryMarker(ctx, state.marker, state.time);
     this.drawShells(ctx, state);
     this.drawThrownBodies(ctx, state, false); // jolted bodies stay low, under the smoke
     this.drawEffects(ctx, state);
@@ -951,6 +952,22 @@ export class Renderer {
   }
 
   /** The fallen: 3D-rendered bodies in 6 poses x 8 directions (older saves: the 2-view dead pose). */
+  /** The tutorial's target marker: a pulsing ring on the ground with a short label. */
+  drawStoryMarker(ctx, m, time) {
+    const p = iso(m.x, m.y), k = (time * 1.2) % 1;
+    ctx.save();
+    ctx.strokeStyle = `rgba(255, 236, 190, ${0.9 - k * 0.7})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, 14 + k * 22, 7 + k * 11, 0, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255, 236, 190, 0.85)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, 12, 6, 0, 0, TAU); ctx.stroke();
+    if (m.label) {
+      ctx.font = 'italic 12px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText(m.label, p.x + 1, p.y - 15);
+      ctx.fillStyle = '#fff3d6'; ctx.fillText(m.label, p.x, p.y - 16);
+    }
+    ctx.restore();
+  }
+
   drawDecals(ctx, state) {
     for (const b of state.decals) {
       const age = state.time - b.t;

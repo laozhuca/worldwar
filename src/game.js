@@ -312,7 +312,7 @@ export function update(state, dt) {
   state.visTimer -= dt;
   if (state.visTimer <= 0) { state.visTimer = 0.25; refreshVisibility(state); }
 
-  checkVictory(state);
+  if (!state.tutorial) checkVictory(state); // the tutorial's story ends the scene itself
 }
 
 export function territory(state, team) {
@@ -437,7 +437,7 @@ function updateUnit(state, u, dt) {
 
   // --- small-arms fire
   u.fireTimer = Math.max(0, u.fireTimer - dt * (u.moving ? 0.6 : 1));
-  if (t.range && !charging && u.target && u.setup <= 0 && u.fireTimer <= 0) {
+  if (t.range && !charging && !u.holdFire && u.target && u.setup <= 0 && u.fireTimer <= 0) {
     if (dist(u, u.target) <= t.range) {
       fire(state, u, u.target, t);
       u.fireTimer = t.fireInterval * (0.85 + rand() * 0.3);
@@ -529,7 +529,7 @@ function fire(state, u, target, t) {
  * away from it, and many are torn apart; small-arms deaths drop where they stand, intact.
  */
 export function damageUnit(state, u, amount, blast = null, shooter = null) {
-  if (u.dead || amount <= 0) return;
+  if (u.dead || amount <= 0 || u.invulnerable) return; // invulnerable: kept alive by a scripted scene
   const t = UNIT_TYPES[u.type];
   const before = u.men;
   u.hp -= amount;

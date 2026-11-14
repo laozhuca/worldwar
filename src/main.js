@@ -4,6 +4,7 @@ import { UI } from './ui.js';
 import { Voices } from './voice.js';
 import { serialize, deserialize, describe } from './save.js';
 import { ModelView } from './model-view.js';
+import { createTutorialGame, runTutorial } from './tutorial.js';
 import { Sound } from './audio.js';
 import { PLAYER, NATIONS } from './config.js';
 import { hourOf } from './atmosphere.js';
@@ -262,6 +263,7 @@ function frame(now) {
     while (acc >= STEP && n < 12) { update(s, STEP); acc -= STEP; n++; }
     if (n >= 12) acc = 0;
   }
+  if (tutorial && !app.paused) tutorial.tick(app.paused ? 0 : dt * app.speed);
   ui.update(dt);
   renderer.update(dt, app.paused ? 0 : dt * app.speed, s);
 
@@ -285,7 +287,7 @@ function frame(now) {
   clockTimer -= dt;
   if (clockTimer <= 0) {
     clockTimer = 0.5;
-    const h = hourOf(s.time);
+    const h = hourOf(s.time, s.startHour, s.dayLength);
     const hh = String(Math.floor(h)).padStart(2, '0'), mm = String(Math.floor((h % 1) * 60)).padStart(2, '0');
     const night = renderer.atmo.darkness(s) > 0.3, rain = renderer.atmo.rain(s) > 0.3;
     clockEl.textContent = `${hh}:${mm}`;
@@ -313,6 +315,7 @@ let lastSave = 0;
 /** Save the battle into a slot ('auto' for the automatic save). Automatic saves don't announce themselves. */
 function saveGame(slot = 'auto') {
   const s = app.state, quiet = slot === 'auto';
+  if (s.tutorial) { if (!quiet) pushMessage(s, 'The tutorial cannot be saved', 'warn'); return false; }
   if (s.winner >= 0 || s.time < 1) { if (!quiet) pushMessage(s, 'Nothing to save yet', 'warn'); return false; }
   try {
     store.set(slotKey(slot), serialize(s));
@@ -402,7 +405,7 @@ document.getElementById('btn-save').addEventListener('click', () => {
 document.getElementById('btn-save-close').addEventListener('click', () => closeSlots());
 
 // ------------------------------------------------------------ menus
-const PANELS = ['menu-panel', 'setup-panel', 'help-panel', 'credits-panel', 'exit-panel', 'save-panel', 'end-panel', 'loading-panel', 'boot-panel'];
+const PANELS = ['menu-panel', 'setup-panel', 'help-panel', 'credits-panel', 'exit-panel', 'save-panel', 'end-panel', 'loading-panel', 'boot-panel', 'epitaph-panel'];
 let backTo = 'menu'; // where a panel's Back button goes: the main menu, or straight back to the battle
 /** Show one overlay panel (the battle pauses underneath). */
 // New Game and Saved battles share a backdrop, drawn at random each time one of them opens
@@ -429,7 +432,8 @@ function showPanel(id, back = 'menu') {
   document.getElementById('overlay').classList.toggle('setup-mode', id === 'setup-panel');
   document.getElementById('overlay').classList.toggle('save-mode', id === 'save-panel');
   // the other screens: plain lettering on the darkened photo, like the main menu
-  document.getElementById('overlay').classList.toggle('plain-mode', ['help-panel', 'credits-panel', 'save-panel', 'exit-panel', 'loading-panel', 'boot-panel'].includes(id));
+  document.getElementById('overlay').classList.toggle('plain-mode', ['help-panel', 'credits-panel', 'save-panel', 'exit-panel', 'loading-panel', 'boot-panel', 'epitaph-panel'].includes(id));
+  document.getElementById('overlay').classList.toggle('epitaph-mode', id === 'epitaph-panel');
   document.getElementById('overlay').classList.remove('hidden');
   app.paused = true;
   document.getElementById('btn-pause').textContent = '▶';
@@ -555,3 +559,39 @@ async function loadBattle(state) {
   step('Ready');
   await new Promise((r) => setTimeout(r, 250));
 }
+
+// ------------------------------------------------------------ tutorial: 1 July 1916
+let tutorial = null;
+function endTutorial() {
+  if (tutorial) tutorial.stop();
+  tutorial = null;
+  document.body.classList.remove('tutorial');
+}
+document.getElementById('m-tutorial').addEventListener('click', async () => {
+  if (app.started && app.state.winner < 0 && !app.state.tutorial) saveGame('auto'); // the battle being left stays in the automatic save
+  endTutorial();
+  const state = createTutorialGame();
+  app.state = state;
+  app.season = state.season;
+  useArmies(state);
+  ui.selected.clear(); ui.setMode(null);
+  renderer.groundDrawn = false;
+  endShown = false;
+  document.body.classList.add('tutorial');
+  await loadBattle(state);
+  app.started = true;
+  resumeBattle();
+  tutorial = runTutorial(state, {
+    ui, renderer, sound,
+    onEnd: () => {
+      app.started = false;
+      document.body.classList.remove('tutorial');
+      tutorial = null;
+      showPanel('epitaph-panel');
+      sound.playEnding('defeat');
+    },
+  });
+});
+document.getElementById('btn-epitaph-new').addEventListener('click', () => showPanel('setup-panel'));
+// leaving the tutorial for another game ends its script
+for (const id of ['btn-start', 'btn-continue', 'btn-restart']) document.getElementById(id).addEventListener('click', () => { if (app.state.tutorial || tutorial) endTutorial(); }, true);

@@ -32,6 +32,7 @@
     </div>
 
     <div id="messages"></div>
+    <div id="story" class="hidden"><div class="who"></div><div class="line"></div><div class="hint"></div></div>
     <div id="modehint" class="hidden"></div>
 
     <div id="bottom">
@@ -75,6 +76,7 @@
           <button id="m-resume" class="big hidden">▶ Resume battle</button>
           <button id="btn-continue" class="big hidden">Continue saved battle<small></small></button>
           <button id="m-new" class="big">New game</button>
+          <button id="m-tutorial" class="big">Tutorial: 1 July 1916</button>
           <button id="btn-load" class="big">Load game</button>
           <button id="m-help" class="big">Instructions</button>
           <button id="m-credits" class="big">Credits</button>
@@ -206,6 +208,23 @@
         </table>
         <p class="muted">In memory of all who served on every side of the Great War, 1914–1918.</p>
         <button class="big back" data-back>Back</button>
+      </div>
+      <div class="panel hidden" id="epitaph-panel">
+        <h1>1 July 1916</h1>
+        <p class="lead">Private Thomas Hale, 19, and Private William Archer, 22, fell in no man's land a few minutes after leaving their trench. They were two of the 19,240 British soldiers killed on the first day of the Battle of the Somme.</p>
+        <p>Seven days of shelling had not cut the wire, and the machine gunners had waited out the barrage in their deep dugouts. When the guns lifted, they climbed back to their parapets before the attackers could cross.</p>
+        <h3>How to win ground</h3>
+        <ul>
+          <li>Bombard the <b>wire</b> first, to cut lanes through it.</li>
+          <li>Bombard the <b>machine guns</b> and the trench you want, so their crews keep their heads down.</li>
+          <li><b>Charge</b> while the last shells are still falling, and reach the trench as the barrage lifts.</li>
+          <li>Then dig in and wire the new line before the counter-attack.</li>
+        </ul>
+        <p class="muted">Hale and Archer are fictional; the figures are not.</p>
+        <div class="start-row">
+          <button id="btn-epitaph-new" class="big">New game</button>
+          <button class="big back" data-back>Main menu</button>
+        </div>
       </div>
       <div class="panel" id="boot-panel">
         <h1>WORLDWAR</h1>

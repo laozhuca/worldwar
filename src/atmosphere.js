@@ -23,8 +23,8 @@ const TWILIGHT = [
 // Battles begin in plain daylight, well clear of the dawn colours (which fade out by about 08:25).
 const START_HOUR = 9;
 
-export function hourOf(time) {
-  return (START_HOUR + (time / DAY_LENGTH) * 24) % 24;
+export function hourOf(time, start = START_HOUR, dayLength = DAY_LENGTH) {
+  return (start + (time / dayLength) * 24) % 24;
 }
 
 export class Atmosphere {
@@ -56,7 +56,7 @@ export class Atmosphere {
     this.grainPattern = null;
   }
 
-  hour(state) { return hourOf(state.time); }
+  hour(state) { return hourOf(state.time, state.startHour, state.dayLength); }
 
   /** 0 = broad daylight, ~0.6 = night. */
   darkness(state) {
@@ -94,6 +94,7 @@ export class Atmosphere {
   /** How hard it is raining (0-1). Only the Mud season has rain: showers that come and go at random. */
   rain(state) {
     const season = SEASONS[state.season] || SEASONS.winter;
+    if (state.tutorial) return 0; // a dry summer morning
     return season.precip === 'showers' ? this.shower.level : 0;
   }
   /** Winter snowfall strength: heavier and lighter spells. */
