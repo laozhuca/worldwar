@@ -1527,7 +1527,9 @@ export class Renderer {
     const map = this.map, t = map && tileAt(map, mx, my);
     if (!t || !t.trench) return false;
     const open = (dx, dy) => { const n = tileAt(map, t.x + dx, t.y + dy); return !!(n && n.trench); };
-    const W = 0.17, LIFT = 4; // the inside edge of the parapet (the trench is 0.22 wide each side), and its height in px
+    // the trench's top edge, as the trench tiles model it: 0.22 each side of the centre line at the floor, the
+    // walls sloping out to the rim (hasty works most); the spoil of the parapet rises ~2 px above the rim
+    const W = 0.22 + ([0, 0.08, 0.015, 0][t.trench] || 0), LIFT = t.trench === 3 ? 0.8 : 1.8;
     const rims = [];
     if (!open(0, 1)) rims.push([iso(t.x - 5, t.y + 0.5 + W), iso(t.x + 6, t.y + 0.5 + W)]); // the +y side
     if (!open(1, 0)) rims.push([iso(t.x + 0.5 + W, t.y + 6), iso(t.x + 0.5 + W, t.y - 5)]); // the +x side
