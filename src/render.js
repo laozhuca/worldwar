@@ -1687,8 +1687,13 @@ export class Renderer {
       men.forEach((s, i) => {
         if (s.y >= p.y) drawGunNow(); // crew behind the gun first, the rest in front
         let pn = pose, fr = 0;
-        if (climbing) { // over the parapet (frames forwards) or down into the trench (backwards), each man a little apart
-          const k = Math.max(0, Math.min(0.999, u.climb.t / u.climb.dur + (hsh(s.k, 5) - 0.5) * 0.25));
+        if (climbing) {
+          // over the parapet (frames forwards) or down into the trench (backwards), rank by rank: the rank
+          // nearer where the squad is going first, the other after it; each man a little apart from his mates
+          const row = Math.floor(s.k / 3), frontRank = dir * (u.hx || 0) >= 0 ? 0 : 1; // rank 0 stands on the enemy side
+          const lead = row === frontRank;
+          const R = u.climb.rank || u.climb.dur, start = lead ? 0 : R * 0.8;
+          const k = Math.max(0, Math.min(0.999, (u.climb.t - start) / R + (hsh(s.k, 5) - 0.5) * 0.15));
           const f = Math.floor((u.climb.out ? k : 1 - k) * 8);
           // down in the trench (the first frames) the trench's near parapet hides his legs; on top, nothing does
           const tc = f <= 4 ? { x: u.climb.tx + 0.5, y: u.climb.ty + 0.5 } : null;
