@@ -3,7 +3,7 @@
 // state.campaign as plain data, so a campaign battle saves and loads like any other.
 import { PLAYER, ENEMY, DIFFICULTY } from './config.js';
 import { createGame, spawnUnit, pushMessage, orderMove } from './game.js';
-import { frontLine, teamDir } from './map.js';
+import { frontLine, teamDir, tileAt } from './map.js';
 
 const DAY_LENGTH = 420; // seconds of game time per 24 hours (as atmosphere.js)
 
@@ -213,7 +213,69 @@ export const LEVELS = [
       return [won, won && c.doneAt < 19.5, won && state.barrageLimit[PLAYER] >= 3];
     },
   },
-  { id: 'brusilov', n: 3, title: 'The Brusilov Breakthrough', place: 'Galicia', date: 'June 1916', nations: ['russia', 'austria'], soon: true },
+  {
+    id: 'brusilov', n: 3, title: 'The Brusilov Breakthrough', place: 'Galicia', date: 'June 1916',
+    nations: ['russia', 'austria'], season: 'mud', start: 'west', startHour: 4,
+    history: 'June 1916. General Brusilov has broken every rule of the Western Front. There is no single great blow aimed at one point: his armies attack together along hundreds of miles, after a short, sharp bombardment, from saps dug right up to the enemy wire. Opposite you the Austro-Hungarian line is thinly held, its best divisions sent away to Italy. It will not stay that way: reserves are already on the railway. Strike fast and wide, and take their headquarters before the line can be shored up.',
+    objectives: ['Take the enemy headquarters.', 'Do it within three days: by midnight on day 3.', 'Do not let the enemy take your headquarters.'],
+    rules: ['The enemy line is thinly held at first: half its usual garrison, and half its wire.', 'Austrian reserves arrive on the evening of day 1 and again on day 2: the longer you wait, the stronger the line.', 'You have five batteries and a large army: attack along the whole front, not at one point.'],
+    medals: ['The breakthrough', 'Before the second reserves: enemy headquarters taken by day 2, 20:00', 'A broad front: half the enemy front line in your hands at the end'],
+    debrief: {
+      won: 'The Austro-Hungarian line gave way along its whole length. The Brusilov Offensive was the greatest Russian victory of the war: in a few weeks it took some 400,000 prisoners and nearly knocked Austria-Hungary out of the war, before German reserves and Russian exhaustion brought it to a halt.',
+      lost: 'The reserves came up in time and the line held. Even the Brusilov Offensive, the most successful attack of the war on any front until 1918, was in the end stopped this way, and its cost in Russian lives helped bring the revolution of 1917.',
+    },
+    setup(state) {
+      const { map } = state;
+      state.resources[PLAYER] = { men: 40, ammo: 520, supplies: 160 };
+      // a big army: four more squads and three more batteries behind the line
+      reinforce(state, PLAYER, 4);
+      const d = teamDir(PLAYER), f = frontLine(map, PLAYER), M = Math.floor(map.h / 2);
+      for (const dy of [-13, 0, 13]) spawnUnit(state, 'artillery', PLAYER, f[M + dy] - d * 6 + 0.5, M + dy + 0.5);
+      // a thin line: half the enemy's rifle squads gone (sent to Italy)
+      const rifles = state.units.filter((u) => u.team === ENEMY && u.type === 'rifle');
+      const gone = new Set(rifles.filter((_, i) => i % 2 === 1).map((u) => u.id));
+      const mgs = state.units.filter((u) => u.team === ENEMY && u.type === 'mg');
+      gone.add(mgs[mgs.length - 1].id); // and one of his machine guns
+      state.units = state.units.filter((u) => !gone.has(u.id));
+      // neglected wire: half of it is gone
+      let k = 0;
+      for (const t of map.tiles) if (t.wire && t.origWire === ENEMY && k++ % 2) t.wire = 0;
+      map.dirty = true;
+      state.resources[ENEMY] = { men: 6, ammo: 200, supplies: 60 };
+      const ai = state.ais[0];
+      ai.level = { ...DIFFICULTY.medium, firstAttack: 1200, attackGap: [600, 800], income: 0.6 };
+      ai.offensive = 1200;
+      state.campaign.efront = (() => { const ef = frontLine(map, ENEMY), out = []; ef.forEach((x, y) => { if (x >= 0) out.push(y * map.w + x); }); return out; })();
+    },
+    events: [
+      { at: 4.1, run: (s) => pushMessage(s, 'The enemy line is thin. Attack everywhere at once, before his reserves come up.', 'side') },
+      { at: 16, run: (s) => pushMessage(s, 'Air reconnaissance: Austrian reserves are coming up by rail. They will reach the line this evening.', 'warn') },
+      { at: 20, run: (s) => { reinforce(s, ENEMY, 5); reinforce(s, ENEMY, 1, 'mg'); pushMessage(s, 'Austrian reserves have reached their line.', 'warn'); } },
+      { at: 24 + 4, run: (s) => pushMessage(s, 'Day 2. More reserves are on the way, German divisions among them.', 'side') },
+      { at: 24 + 20, run: (s) => { reinforce(s, ENEMY, 6); reinforce(s, ENEMY, 2, 'mg'); pushMessage(s, 'Fresh enemy reserves have reached their line.', 'warn'); } },
+      { at: 48 + 4, run: (s) => pushMessage(s, 'Day 3. The breakthrough must be made today.', 'side') },
+    ],
+    check(state) {
+      if (clockHours(state) >= 72) return { result: 'lost', reason: 'Three days have passed and the enemy line still holds.' };
+      return null;
+    },
+    tracker(state) {
+      const h = clockHours(state), c = state.campaign;
+      const held = c.efront.filter((i) => state.map.tiles[i].owner === PLAYER).length;
+      const next = h < 20 ? `Enemy reserves arrive in ${left(20 - h)}` : h < 44 ? `More enemy reserves in ${left(44 - h)}` : 'All enemy reserves have arrived';
+      return [
+        'Take the enemy headquarters',
+        next,
+        `Enemy front line taken: ${held} / ${c.efront.length}`,
+        `Time left: ${left(Math.max(0, 72 - h))}`,
+      ];
+    },
+    medalsEarned(state) {
+      const c = state.campaign, won = c.result === 'won';
+      const held = c.efront.filter((i) => state.map.tiles[i].owner === PLAYER).length;
+      return [won, won && c.endHour < 44, won && held >= c.efront.length / 2];
+    },
+  },
   { id: 'chunuk', n: 4, title: 'Counter-attack at Chunuk Bair', place: 'Gallipoli', date: 'August 1915', nations: ['ottoman', 'uk'], soon: true },
   { id: 'amiens', n: 5, title: 'The Black Day', place: 'Amiens, France', date: 'August 1918', nations: ['usa', 'germany'], soon: true },
 ];
@@ -238,8 +300,9 @@ export function stepCampaign(state) {
   if (!c || c.result) return;
   const L = levelById(c.id);
   if (state.winner >= 0) { // the ordinary rules ended it
+    c.endHour = clockHours(state);
     c.result = state.winner === PLAYER ? 'won' : 'lost';
-    c.reason = c.reason || (state.winner === PLAYER ? 'The enemy is broken.' : 'Our headquarters has fallen.');
+    c.reason = c.reason || (state.winner === PLAYER ? (tileAt(state.map, state.map.hq[ENEMY].x, state.map.hq[ENEMY].y).owner === PLAYER ? 'The enemy headquarters has fallen.' : 'The enemy is broken.') : 'Our headquarters has fallen.');
     return;
   }
   const h = clockHours(state);

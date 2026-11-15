@@ -87,3 +87,27 @@ test('Silence the Guns: three concrete nests, rationed barrages, win on silencin
   assert.equal(l.campaign.result, 'lost');
   createGame();
 });
+
+test('The Brusilov Breakthrough: a thin line, reserves on day 1 and 2, win by taking the HQ, lose after 3 days', () => {
+  const s = createLevelGame('brusilov');
+  const foes = () => s.units.filter((u) => !u.dead && u.team === ENEMY && u.type !== 'artillery').length;
+  const mine = s.units.filter((u) => u.team === PLAYER).length;
+  const start = foes();
+  assert.ok(mine > 20, 'a big army');
+  s.time = ((20 - 4) / 24) * 420 + 0.1; stepCampaign(s);
+  assert.equal(foes(), start + 6, 'first reserves');
+  s.time = ((44 - 4) / 24) * 420 + 0.1; stepCampaign(s);
+  assert.equal(foes(), start + 14, 'second reserves');
+  assert.equal(s.campaign.result, null);
+  const hq = s.map.hq[ENEMY];
+  s.map.tiles[hq.y * s.map.w + hq.x].owner = PLAYER;
+  update(s, 1 / 30); stepCampaign(s);
+  assert.equal(s.campaign.result, 'won');
+  assert.equal(s.campaign.reason, 'The enemy headquarters has fallen.');
+  assert.ok(levelById('brusilov').medalsEarned(s)[0]);
+
+  const l = createLevelGame('brusilov');
+  l.time = ((72 - 4) / 24) * 420 + 1; stepCampaign(l);
+  assert.equal(l.campaign.result, 'lost');
+  createGame();
+});
