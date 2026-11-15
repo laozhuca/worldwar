@@ -473,9 +473,8 @@ function figure(nat, J, seed) {
 export function soldierScene(nationKey, poseName, frame, view, portrait = false) {
   const nat = NATIONS[nationKey];
   const J = pose(poseName, frame);
-  // in a trench the man is whole, standing on the fire step below ground; an invisible pit the size of
-  // the trench (half-width 0.22, floor 0.25 below ground, as the trench tiles) hides what its near wall
-  // would hide, so his legs show exactly as far down as one can see into the trench
+  // in a trench the man is rendered whole, standing on the fire step below ground level (z = 0 is the
+  // ground); the game hides whatever the trench's near edge covers when it draws him (render.js)
   const pit = J.cut != null && !portrait;
   if (pit) J.pit = true;
   const fig = figure(nat, J, hash(nationKey.length, frame) * 10);
@@ -483,18 +482,15 @@ export function soldierScene(nationKey, poseName, frame, view, portrait = false)
   const zoff = J.cut != null ? J.cut : 0; // trench pose: parapet line (the ground) at z = 0
   const toLocal = (x, y, z) => [(x * c + y * s) / K, (-x * s + y * c) / K, z / K + zoff];
   const ground = J.cut == null && !portrait;
-  const PIT_R = 0.22, PIT_D = 0.25;
-  const occluder = (x, y, z) => Math.min(Math.max(z, PIT_R - Math.hypot(x, y)), z + PIT_D);
   const sdf = (x, y, z) => {
     const p = toLocal(x, y, z);
     const d = fig.eval(p)[0] * K;
-    return ground ? Math.min(d, z) : pit ? Math.min(d, occluder(x, y, z)) : d;
+    return ground ? Math.min(d, z) : d;
   };
   const shade = (x, y, z, nx, ny, nz) => {
     const p = toLocal(x, y, z);
     const [d, mat] = fig.eval(p);
     if (ground && z < d * K) return { kind: 'catcher' };
-    if (pit && occluder(x, y, z) < d * K) return { kind: 'none' }; // the trench wall or floor: the game draws those
     const col = fig.colour(mat, p);
     const spec = mat === 'hat' && (nat.head === 'brodie' || nat.head === 'adrian' || nat.head === 'pickelhaube') ? 0.35 : mat === 'metal' || mat === 'steel' || mat === 'hat2' ? 0.6 : 0.03;
     return { kind: 'solid', col, spec, shin: 30 };

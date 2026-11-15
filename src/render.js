@@ -846,6 +846,7 @@ export class Renderer {
 
   draw(state, ui) {
     const ctx = this.ctx;
+    this.map = state.map;
     // the low sun at dawn and dusk: shadows point away from it, longer the lower it is
     // rain clouds hide the sun: a shower dims the shadows, heavy rain removes them
     const tw = this.atmo.twilight(state), overcast = Math.min(1, this.atmo.rain(state) * 1.6);
@@ -1507,10 +1508,36 @@ export class Renderer {
     return { view: best[1], mirror: best[2] };
   }
 
-  drawSoldier(ctx, nation, poseName, frame, hx, hy, x, y) {
+  drawSoldier(ctx, nation, poseName, frame, hx, hy, x, y, at) {
     const { view, mirror } = Renderer.viewFor(hx, hy);
+    // a man in a trench is drawn whole, standing down in it: the trench's near edge hides his lower body
+    const clipped = at && poseName[0] === 't' && this.trenchMask(ctx, at.x, at.y);
     // units are drawn slightly larger than life for legibility
-    return this.drawFrame(ctx, 'soldiers-' + nation, `${poseName}${frame}_${view}`, x, y, 1.35, mirror);
+    const ok = this.drawFrame(ctx, 'soldiers-' + nation, `${poseName}${frame}_${view}`, x, y, 1.35, mirror);
+    if (clipped) ctx.restore();
+    return ok;
+  }
+
+  /**
+   * Clip to what can be seen of a man standing in the trench at map (mx, my): everything below the
+   * trench's near rims (its sides facing the camera, at +x and +y, where the trench does not run on)
+   * is hidden behind the parapet. Returns true if it saved the context (the caller restores it).
+   */
+  trenchMask(ctx, mx, my) {
+    const map = this.map, t = map && tileAt(map, mx, my);
+    if (!t || !t.trench) return false;
+    const open = (dx, dy) => { const n = tileAt(map, t.x + dx, t.y + dy); return !!(n && n.trench); };
+    const W = 0.17, LIFT = 4; // the inside edge of the parapet (the trench is 0.22 wide each side), and its height in px
+    const rims = [];
+    if (!open(0, 1)) rims.push([iso(t.x - 5, t.y + 0.5 + W), iso(t.x + 6, t.y + 0.5 + W)]); // the +y side
+    if (!open(1, 0)) rims.push([iso(t.x + 0.5 + W, t.y + 6), iso(t.x + 0.5 + W, t.y - 5)]); // the +x side
+    if (!rims.length) return false;
+    ctx.save();
+    for (const [a, b] of rims) { // keep the half-plane above each rim line (raised to the parapet's top)
+      a.y -= LIFT; b.y -= LIFT;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(b.x, b.y - 2000); ctx.lineTo(a.x, a.y - 2000); ctx.closePath(); ctx.clip();
+    }
+    return true;
   }
 
   /** Howitzer from the supplied art: a faces -x, b faces +y; mirrored for -y / +x. */
@@ -1625,7 +1652,7 @@ export class Renderer {
         mx += -u.hy * lat + u.hx * lag; my += u.hx * lat + u.hy * lag;
       }
       const s = iso(mx, my);
-      s.k = i; s.fx = ox; s.fy = oy;
+      s.k = i; s.fx = ox; s.fy = oy; s.mx = mx; s.my = my;
       men.push(s);
     }
     men.sort((a, b) => a.y - b.y);
@@ -1684,11 +1711,11 @@ export class Renderer {
           const slot = Math.floor(time / 25 + hsh(s.k, 7) * 4), r = hsh(s.k, 11 + slot);
           if (r > 0.4 && r <= 0.68) { hx = -u.hy; hy = u.hx; } else if (r > 0.68 && r <= 0.94) { hx = u.hy; hy = -u.hx; } else if (r > 0.94) { hx = -u.hx; hy = -u.hy; }
         }
-        if (idle && this.drawSoldier(ctx, nation, (pn === 'trench' ? 't' : '') + idle.anim, idle.frame, hx, hy, s.x, s.y)) {
+        if (idle && this.drawSoldier(ctx, nation, (pn === 'trench' ? 't' : '') + idle.anim, idle.frame, hx, hy, s.x, s.y, { x: s.mx, y: s.my })) {
           if (idle.anim === 'smoke' && idle.puff > 0) this.drawSmokeWisp(ctx, s.x, s.y - (pn === 'trench' ? 7 : 20), idle.puff, s.k);
           return;
         }
-        if (!this.drawSoldier(ctx, nation, pn, fr, hx, hy, s.x, s.y)) drawMan(ctx, s.x, s.y, u.team, pose === 'crawl' ? 'prone' : pose, u.facing, phase + i * 1.7, false);
+        if (!this.drawSoldier(ctx, nation, pn, fr, hx, hy, s.x, s.y, { x: s.mx, y: s.my })) drawMan(ctx, s.x, s.y, u.team, pose === 'crawl' ? 'prone' : pose, u.facing, phase + i * 1.7, false);
       });
       drawGunNow();
     }
