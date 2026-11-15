@@ -5,7 +5,7 @@ import { Voices } from './voice.js';
 import { serialize, deserialize, describe } from './save.js';
 import { ModelView } from './model-view.js';
 import { createTutorialGame, runTutorial } from './tutorial.js';
-import { LEVELS, levelById, createLevelGame, stepCampaign, loadProgress, recordResult, clockHours, dayTime } from './campaign.js';
+import { LEVELS, levelById, createLevelGame, stepCampaign, loadProgress, recordResult, markTutorialDone, clockHours, dayTime } from './campaign.js';
 import { Sound } from './audio.js';
 import { PLAYER, NATIONS } from './config.js';
 import { hourOf } from './atmosphere.js';
@@ -453,6 +453,7 @@ function showPanel(id, back = 'menu') {
   app.paused = true;
   document.getElementById('btn-pause').textContent = '▶';
   if (id === 'menu-panel') {
+    labelCampaign();
     const live = app.started && app.state.winner < 0;
     document.getElementById('m-resume').classList.toggle('hidden', !live);
     showContinue();
@@ -582,7 +583,7 @@ function endTutorial() {
   tutorial = null;
   document.body.classList.remove('tutorial');
 }
-document.getElementById('m-tutorial').addEventListener('click', async () => {
+async function startTutorial() {
   if (app.started && app.state.winner < 0 && !app.state.tutorial) saveGame('auto'); // the battle being left stays in the automatic save
   endTutorial();
   const state = createTutorialGame();
@@ -602,6 +603,7 @@ document.getElementById('m-tutorial').addEventListener('click', async () => {
       app.started = false;
       document.body.classList.remove('tutorial');
       tutorial = null;
+      markTutorialDone();
       showPanel('epitaph-panel');
       sound.playEnding('defeat');
       // the story rolls up from below the view until its last line rests near the middle
@@ -632,7 +634,7 @@ document.getElementById('m-tutorial').addEventListener('click', async () => {
       setTimeout(() => { next(); window.__cardTimer = setInterval(() => { if (panel.classList.contains('hidden')) clearInterval(window.__cardTimer); else next(); }, 5000); }, 2500);
     },
   });
-});
+}
 document.getElementById('btn-epitaph-new').addEventListener('click', () => showPanel('setup-panel'));
 // leaving the tutorial for another game ends its script
 for (const id of ['btn-start', 'btn-continue', 'btn-restart']) document.getElementById(id).addEventListener('click', () => { if (app.state.tutorial || tutorial) endTutorial(); }, true);
@@ -650,11 +652,15 @@ function showObjectives(s) {
 const medalHtml = (names, got) => names.map((m, i) => `<li class="${got[i] ? 'got' : ''}"><b>${got[i] ? '★' : '☆'}</b> ${m}</li>`).join('');
 function showCampaign() {
   const p = loadProgress();
-  document.getElementById('level-list').replaceChildren(...LEVELS.map((L) => {
-    const open = L.n <= p.unlocked && !L.soon, b = document.createElement('button');
+  const pro = document.createElement('button');
+  pro.className = 'level prologue';
+  pro.innerHTML = `<span class="ln">·</span><span class="lt">Prologue: 1 July 1916<small>The Somme · the tutorial</small></span><span class="lm">${p.tutorial ? '✓ Done' : 'Start here'}</span>`;
+  pro.onclick = startTutorial;
+  document.getElementById('level-list').replaceChildren(pro, ...LEVELS.map((L) => {
+    const open = L.n <= p.unlocked && !L.soon && p.tutorial, b = document.createElement('button');
     b.className = 'level' + (open ? '' : ' locked');
     const stars = p.medals[L.id] || 0;
-    b.innerHTML = `<span class="ln">${L.n}</span><span class="lt">${L.title}<small>${L.place} · ${L.date}</small></span><span class="lm">${L.soon ? 'Coming soon' : open ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : 'Locked'}</span>`;
+    b.innerHTML = `<span class="ln">${L.n}</span><span class="lt">${L.title}<small>${L.place} · ${L.date}</small></span><span class="lm">${L.soon ? 'Coming soon' : open ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : !p.tutorial ? 'After the prologue' : 'Locked'}</span>`;
     b.disabled = !open;
     b.onclick = () => showBriefing(L.id);
     return b;
@@ -721,7 +727,10 @@ function showDebrief(s) {
   document.getElementById('overlay').style.backgroundImage = `linear-gradient(rgba(10, 8, 6, 0.6), rgba(10, 8, 6, 0.85)), url('assets/art/${won ? `victory-${side}` : 'defeat-poppies'}.webp')`;
   sound.playEnding(won ? 'victory' : 'defeat');
 }
-document.getElementById('m-campaign').addEventListener('click', showCampaign);
+// first time: the Campaign entry is the tutorial; afterwards the campaign, with the tutorial as its prologue
+document.getElementById('m-campaign').addEventListener('click', () => (loadProgress().tutorial ? showCampaign() : startTutorial()));
+function labelCampaign() { document.getElementById('m-campaign').textContent = loadProgress().tutorial ? 'Campaign' : 'Tutorial'; }
+labelCampaign();
 document.getElementById('btn-level-start').addEventListener('click', () => startLevel(briefed));
 document.getElementById('btn-brief-back').addEventListener('click', showCampaign);
 document.getElementById('btn-debrief-campaign').addEventListener('click', showCampaign);

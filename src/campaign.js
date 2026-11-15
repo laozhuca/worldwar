@@ -129,8 +129,19 @@ export function stepCampaign(state) {
 
 // ------------------------------------------------------------------ progress (the browser keeps it)
 const KEY = 'ww-campaign';
+/** { unlocked: highest open level, medals: { id: best }, tutorial: prologue done }. */
 export function loadProgress() {
-  try { return JSON.parse(localStorage.getItem(KEY)) || { unlocked: 1, medals: {} }; } catch { return { unlocked: 1, medals: {} }; }
+  let p;
+  try { p = JSON.parse(localStorage.getItem(KEY)); } catch {}
+  p = p || { unlocked: 1, medals: {} };
+  if (p.tutorial === undefined) p.tutorial = p.unlocked > 1 || Object.keys(p.medals).length > 0; // players from before the prologue keep their access
+  return p;
+}
+/** The prologue (tutorial) is done: battle 1 opens. */
+export function markTutorialDone() {
+  const p = loadProgress();
+  p.tutorial = true;
+  try { localStorage.setItem(KEY, JSON.stringify(p)); } catch {}
 }
 /** Record a finished level: medals (best kept) and the next level unlocked on a win. */
 export function recordResult(state) {
