@@ -64,7 +64,7 @@ test('Silence the Guns: three concrete nests, rationed barrages, win on silencin
   assert.equal(guns.length, 3);
   const nest = s.units.find((q) => q.id === c.nests[0]);
   const fired = orderBarrage(s, guns, nest.x, nest.y);
-  assert.equal(s.barrageLimit[PLAYER], 9 - fired);
+  assert.equal(s.barrageLimit[PLAYER], 12 - fired);
   s.barrageLimit[PLAYER] = 0;
   for (const g of guns) { g.barrage = null; g.cooldown = 0; }
   assert.equal(orderBarrage(s, guns, nest.x, nest.y), 0, 'no shells left');

@@ -883,11 +883,14 @@ export class Renderer {
       const q = state.map.hq[team];
       objs.push({ k: q.x + q.y + 1, kind: 'hq', q, team });
     }
-    for (const u of state.units) if (u.visible) objs.push({ k: u.x + u.y, kind: 'unit', u });
+    // concrete MG bunkers: always drawn (their places are known); the gun and crew inside are not
+    if (state.bunkers) for (const b of state.bunkers) objs.push({ k: b.x + b.y + 0.3, kind: 'bunker', b, u: state.units.find((u) => u.id === b.id) });
+    for (const u of state.units) if (u.visible && !u.nest) objs.push({ k: u.x + u.y, kind: 'unit', u });
     objs.sort((a, b) => a.k - b.k);
     for (const o of objs) {
       if (o.kind === 'decor') this.drawDecor(ctx, o.t);
       else if (o.kind === 'hq') this.drawHQ(ctx, state, o.q, o.team);
+      else if (o.kind === 'bunker') this.drawBunker(ctx, o.b, o.u, state.time, ui.selected.has(o.b.id));
       else this.drawUnit(ctx, o.u, ui.selected.has(o.u.id), state.time);
     }
 
@@ -1211,6 +1214,95 @@ export class Renderer {
       ctx.fillStyle = S > 0.2 ? '#dde2e7' : '#6d6a64';
       ctx.fillRect(c.x - 10, c.y - 14, 6, 2); ctx.fillRect(c.x - 4, c.y - 8, 10, 1.5);
     }
+  }
+
+  /**
+   * A concrete machine-gun pillbox: an octagonal blockhouse with a slab roof, firing slits all round
+   * and a ring of sandbags at its foot. Wrecked once its gun is silenced: blackened, the roof cracked
+   * and slumped, rubble about it, smoke curling out of the slits.
+   */
+  drawBunker(ctx, b, u, time, selected) {
+    const live = u && !u.dead, R = 0.66, H = 22, RR = R * 1.1, T = 4;
+    const P = (dx, dy, z = 0) => { const p = iso(b.x + dx, b.y + dy); return { x: p.x, y: p.y - z }; };
+    const ring = (r, n = 8, rot = Math.PI / 8) => Array.from({ length: n }, (_, k) => { const a = rot + (k * TAU) / n; return [Math.cos(a) * r, Math.sin(a) * r]; });
+    const poly = (pts) => { ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath(); };
+    const shade = (nx, ny, base) => { const k = 0.78 - 0.28 * ((nx - ny) / Math.SQRT2); return `rgb(${Math.round(base[0] * k)},${Math.round(base[1] * k)},${Math.round(base[2] * k)})`; };
+    const conc = live ? [148, 144, 134] : [88, 82, 74];
+    ctx.save();
+    // shadow and the sandbag ring at the foot
+    ctx.fillStyle = 'rgba(0,0,0,0.32)';
+    const c0 = P(0.1, 0.1);
+    ctx.beginPath(); ctx.ellipse(c0.x, c0.y, 40, 19, 0, 0, TAU); ctx.fill();
+    const bags = ring(R * 1.28, 18, 0);
+    const drawBags = (front) => bags.forEach(([x, y], i) => {
+      if ((x + y > 0) !== front) return;
+      const p = P(x, y, 2);
+      ctx.fillStyle = live ? (i % 2 ? '#7d6e55' : '#6f614a') : (i % 2 ? '#4f4739' : '#463f33');
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, 8, 4, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(30,24,16,0.5)'; ctx.lineWidth = 0.8; ctx.stroke();
+    });
+    drawBags(false);
+    // walls: the faces turned towards the viewer, far ones first
+    const base = ring(R), slump = live ? 0 : 1;
+    const faces = base.map((a, i) => { const c = base[(i + 1) % 8]; const nx = (a[0] + c[0]) / 2, ny = (a[1] + c[1]) / 2; return { a, c, nx, ny }; })
+      .filter((f) => f.nx + f.ny > 0.01).sort((p, q) => (p.nx + p.ny) - (q.nx + q.ny));
+    const zTop = (x, y) => H - slump * Math.max(0, (x - y)) * 5; // a wrecked roof sags to one side
+    for (const f of faces) {
+      const pa = P(f.a[0], f.a[1]), pc = P(f.c[0], f.c[1]);
+      const ta = P(f.a[0], f.a[1], zTop(f.a[0], f.a[1])), tc = P(f.c[0], f.c[1], zTop(f.c[0], f.c[1]));
+      poly([pa, pc, tc, ta]); ctx.fillStyle = shade(f.nx, f.ny, conc); ctx.fill();
+      ctx.strokeStyle = 'rgba(40,38,34,0.55)'; ctx.lineWidth = 0.7; ctx.stroke();
+      // the firing slit
+      const s1 = (k, z) => P(f.a[0] + (f.c[0] - f.a[0]) * k, f.a[1] + (f.c[1] - f.a[1]) * k, z);
+      poly([s1(0.22, H - 7), s1(0.78, H - 7), s1(0.78, H - 4), s1(0.22, H - 4)]);
+      ctx.fillStyle = '#16130f'; ctx.fill();
+      // weathering streaks below it
+      ctx.strokeStyle = 'rgba(60,56,48,0.25)'; ctx.lineWidth = 1;
+      for (const k of [0.3, 0.55, 0.7]) { const t1 = s1(k, H - 4), t2 = s1(k, 3); ctx.beginPath(); ctx.moveTo(t1.x, t1.y); ctx.lineTo(t2.x, t2.y); ctx.stroke(); }
+    }
+    drawBags(true);
+    // the roof slab: its edge, then its top
+    const top = ring(RR);
+    const zR = (x, y) => zTop(x * R / RR, y * R / RR);
+    for (let i = 0; i < 8; i++) {
+      const a = top[i], c = top[(i + 1) % 8], nx = (a[0] + c[0]) / 2, ny = (a[1] + c[1]) / 2;
+      if (nx + ny <= 0.01) continue;
+      poly([P(a[0], a[1], zR(a[0], a[1])), P(c[0], c[1], zR(c[0], c[1])), P(c[0], c[1], zR(c[0], c[1]) + T), P(a[0], a[1], zR(a[0], a[1]) + T)]);
+      ctx.fillStyle = shade(nx, ny, conc.map((v) => v * 0.92)); ctx.fill();
+    }
+    poly(top.map(([x, y]) => P(x, y, zR(x, y) + T)));
+    const g = ctx.createLinearGradient(P(-RR, -RR, H).x, P(-RR, -RR, H).y, P(RR, RR, H).x, P(RR, RR, H).y);
+    g.addColorStop(0, live ? '#ada99e' : '#6e665c'); g.addColorStop(1, live ? '#85817a' : '#4a443d');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = 'rgba(40,38,34,0.6)'; ctx.lineWidth = 0.8; ctx.stroke();
+    // earth and turf thrown over the roof as camouflage
+    const mid = P(0, 0, H + T);
+    ctx.fillStyle = live ? 'rgba(96,84,60,0.55)' : 'rgba(40,34,28,0.6)';
+    ctx.beginPath(); ctx.ellipse(mid.x - 3, mid.y + 1, 17, 7, 0, 0, TAU); ctx.fill();
+    if (live) {
+      // the gun's muzzle flash at a slit when it fires
+      if (u.visible && u.firing > 0) {
+        const fl = P(-0.2 + Math.random() * 0.4, R * 0.95, H - 5.5);
+        ctx.fillStyle = 'rgba(255,220,120,0.95)';
+        ctx.beginPath(); ctx.arc(fl.x, fl.y, 2.5 + Math.random() * 2.5, 0, TAU); ctx.fill();
+      }
+      if (selected) { ctx.strokeStyle = 'rgba(220,230,150,0.9)'; ctx.lineWidth = 1.5; const p = P(0, 0); ctx.beginPath(); ctx.ellipse(p.x, p.y, 46, 22, 0, 0, TAU); ctx.stroke(); }
+    } else {
+      // cracks, rubble, and smoke from the slits
+      ctx.strokeStyle = 'rgba(20,16,12,0.85)'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(mid.x - 20, mid.y - 2); ctx.lineTo(mid.x - 6, mid.y + 3); ctx.lineTo(mid.x + 4, mid.y - 3); ctx.lineTo(mid.x + 18, mid.y + 4); ctx.stroke();
+      for (let i = 0; i < 9; i++) {
+        const a = i * 2.4 + b.x, r = R * (1.1 + (i % 3) * 0.18), p = P(Math.cos(a) * r, Math.sin(a) * r, 1);
+        ctx.fillStyle = i % 2 ? '#5d564d' : '#77706a';
+        ctx.beginPath(); ctx.ellipse(p.x, p.y, 3 + (i % 3), 2, a, 0, TAU); ctx.fill();
+      }
+      for (let i = 0; i < 4; i++) {
+        const k = (time * 0.2 + i / 4) % 1;
+        ctx.fillStyle = `rgba(60,58,54,${0.35 * (1 - k)})`;
+        ctx.beginPath(); ctx.arc(mid.x + k * 12 + Math.sin(k * 5 + i) * 3, mid.y - 6 - k * 34, 3 + k * 9, 0, TAU); ctx.fill();
+      }
+    }
+    ctx.restore();
   }
 
   drawHQ(ctx, state, q, team) {

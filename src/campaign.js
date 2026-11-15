@@ -56,6 +56,17 @@ function relieve(state, team, nation) {
   return out;
 }
 
+/** The trench tile of a team's line `off` tiles behind its front line in row y (front = 0, support = 7, reserve = 11). */
+function trenchBehind(map, team, y, off) {
+  const f = frontLine(map, team), x0 = f[y] - teamDir(team) * off;
+  let best = null, bd = Infinity;
+  for (let dy = 0; dy <= 2 && !best; dy++) for (const yy of [y - dy, y + dy]) for (let x = x0 - 2; x <= x0 + 2; x++) {
+    const t = tileAt(map, x, yy);
+    if (t && t.trench && t.origOwner === team && Math.abs(x - x0) + Math.abs(yy - y) < bd) { bd = Math.abs(x - x0) + Math.abs(yy - y); best = t; }
+  }
+  return best;
+}
+
 // ------------------------------------------------------------------ the levels
 export const LEVELS = [
   {
@@ -129,8 +140,8 @@ export const LEVELS = [
     id: 'isonzo', n: 2, title: 'Silence the Guns', place: 'The Isonzo, Italy', date: 'August 1916',
     nations: ['italy', 'austria'], season: 'mud', start: 'west', startHour: 5,
     history: 'The Sixth Battle of the Isonzo. Five times the Italian army has thrown itself at the Austro-Hungarian line above the river, and five times it has been cut down by machine guns firing from concrete emplacements in the rock. This time the guns must be found and silenced first. Three nests command the whole sector; until they fall, no attack can cross the open ground. Your batteries have been given shells for only a handful of barrages: make every one count.',
-    objectives: ['Silence all three machine-gun nests in the enemy front line.', 'Do it before nightfall on day 2.', 'Do not let the enemy take your headquarters.'],
-    rules: ['The nests sit in concrete: shellfire alone rarely finishes them. Bombard, then send the infantry in while the crews are pinned.', 'Shells are rationed: 9 battery barrages for the whole battle.', 'The enemy holds deep wire and counter-attacks any trench he loses.'],
+    objectives: ['Silence all three machine-gun nests in the enemy lines.', 'Do it before nightfall on day 2.', 'Do not let the enemy take your headquarters.'],
+    rules: ['The nests are concrete pillboxes, one in each of his three lines: front, support and reserve. Shellfire alone rarely finishes them: bombard, then send the infantry in while the crews are pinned.', 'The deeper nests lie beyond the reach of your guns from where they stand: take ground and bring the batteries forward.', 'Shells are rationed: 12 battery barrages for the whole battle.', 'The enemy holds deep wire and counter-attacks any trench he loses.'],
     medals: ['The guns are silenced', 'Swift work: all three silenced before nightfall on day 1', 'Shells to spare: 3 or more barrages unused'],
     debrief: {
       won: 'With the machine guns silent, the Italian infantry crossed the open ground at last. In August 1916 the Sixth Battle of the Isonzo took Monte Sabotino and San Michele, and Gorizia fell: the greatest Italian victory of the war until its final year.',
@@ -139,7 +150,7 @@ export const LEVELS = [
     setup(state) {
       const { map } = state, W = map.w;
       state.resources[PLAYER] = { men: 30, ammo: 420, supplies: 140 };
-      state.barrageLimit = { [PLAYER]: 9 };
+      state.barrageLimit = { [PLAYER]: 12 };
       // three batteries, dug in just behind the front line opposite the nests, within range of them
       const q = map.hq[PLAYER], d = teamDir(PLAYER), f = frontLine(map, PLAYER);
       spawnUnit(state, 'artillery', PLAYER, q.x + 0.5, q.y + 0.5);
@@ -150,27 +161,33 @@ export const LEVELS = [
       const ai = state.ais[0];
       ai.level = { ...DIFFICULTY.hard, firstAttack: 900, attackGap: [500, 700] };
       ai.offensive = 900;
-      // the three machine guns of his front line become the nests: concrete emplacements, and they never move
-      const nests = state.units.filter((u) => u.team === ENEMY && u.type === 'mg').slice(0, 3);
-      for (const u of nests) {
-        u.ai.role = 'nest'; u.nest = true;
-        const x0 = Math.floor(u.x), y0 = Math.floor(u.y);
-        // a rifle squad guarding each side of the nest
+      // the nests: concrete pillboxes in depth, one in each of his three lines (front on one flank,
+      // support in the centre, reserve on the other flank); they never move
+      const nests = [[0, M - 10], [7, M + 1], [11, M + 10]].map(([off, y]) => {
+        const t = trenchBehind(map, ENEMY, y, off);
+        const u = spawnUnit(state, 'mg', ENEMY, t.x + 0.5, t.y + 0.5);
+        u.ai.role = 'nest'; u.nest = true; u.inTrench = true; u.setup = 0;
+        // a rifle squad guarding each side of it
         for (const dy of [-2, 2]) {
-          const g = spawnUnit(state, 'rifle', ENEMY, u.x, u.y + dy);
-          g.ai.role = 'hold';
+          const gt = trenchBehind(map, ENEMY, t.y + dy, off);
+          spawnUnit(state, 'rifle', ENEMY, gt.x + 0.5, gt.y + 0.5).ai.role = 'hold';
         }
-        for (let y = y0 - 1; y <= y0 + 1; y++) for (let x = x0 - 1; x <= x0 + 1; x++) {
-          const t = map.tiles[y * W + x];
-          if (t && t.trench && t.owner === ENEMY) t.trench = 3;
+        for (let yy = t.y - 1; yy <= t.y + 1; yy++) for (let xx = t.x - 1; xx <= t.x + 1; xx++) {
+          const n = map.tiles[yy * W + xx];
+          if (n && n.trench && n.owner === ENEMY) n.trench = 3;
         }
-      }
+        return u;
+      });
+      // the ordinary machine gun on the front line nearest the first nest makes way for it
+      const near = state.units.find((u) => u.team === ENEMY && u.type === 'mg' && !u.nest && Math.abs(u.y - nests[0].y) < 3);
+      if (near) state.units = state.units.filter((u) => u !== near);
+      state.bunkers = nests.map((u) => ({ id: u.id, x: u.x, y: u.y }));
       map.dirty = true;
       state.campaign.nests = nests.map((u) => u.id);
       state.campaign.silenced = [];
     },
     events: [
-      { at: 5.2, run: (s) => pushMessage(s, 'Three machine-gun nests are marked on the enemy line. Silence them all before nightfall tomorrow.', 'side') },
+      { at: 5.2, run: (s) => pushMessage(s, 'Three machine-gun nests are marked in the enemy lines, one in each line. Silence them all before nightfall tomorrow.', 'side') },
       { at: 24 + 5, run: (s) => pushMessage(s, 'Day 2. The attack must succeed by nightfall.', 'side') },
       { at: 24 + 16, run: (s) => pushMessage(s, 'Three hours of daylight left.', 'warn') },
     ],
