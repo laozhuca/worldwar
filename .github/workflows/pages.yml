@@ -29,6 +29,7 @@ jobs:
         run: npm test
       - name: Assemble site
         run: |
+          node scripts/stamp.mjs
           mkdir _site
           cp -r index.html style.css src assets _site/ && rm -rf _site/assets/*/manifest.json.bak
       - uses: actions/configure-pages@v5
