@@ -172,7 +172,8 @@ export class ModelView {
     const dt = this.last ? Math.min(0.05, (t - this.last) / 1000) : 0.016;
     this.last = t;
     let moving = false;
-    if (this.spin) { this.yaw += dt * 1.6; moving = true; } else {
+    if (!this.canvas.offsetParent) { this.last = 0; return; } // hidden: rest until shown again (the resize observer wakes it)
+    if (this.spin) { this.yaw += dt * 1.6; moving = true; } else if (this.auto) { this.yaw += dt * 0.3; moving = true; } else { // auto: a slow, endless turn
       // ease back to the rest angle by the shortest way round
       let d = ((this.rest - this.yaw) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
       if (Math.abs(d) > 0.002) { this.yaw += d * Math.min(1, dt * 5); moving = true; } else this.yaw = this.rest;
