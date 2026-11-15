@@ -5,7 +5,7 @@ import { sdCapsule, sdRoundBox, vnoise, fbm, hash, clamp, mix3 } from './core.mj
 export const K = 0.195; // metres -> world units (a 1.75 m man is ~0.34 tile tall)
 
 export const NATIONS = {
-  uk:      { name: 'Britain',         alliance: 'allied',  uni: [0.42, 0.33, 0.2],  putt: [0.5, 0.41, 0.26],  web: [0.62, 0.53, 0.35], hat: [0.36, 0.33, 0.21], hat2: [0.3, 0.27, 0.18], head: 'brodie' },
+  uk:      { name: 'Britain',         alliance: 'allied',  uni: [0.38, 0.31, 0.2],  putt: [0.5, 0.41, 0.26],  web: [0.62, 0.53, 0.35], hat: [0.36, 0.33, 0.21], hat2: [0.3, 0.27, 0.18], head: 'brodie', fine: true },
   france:  { name: 'France',          alliance: 'allied',  uni: [0.36, 0.42, 0.53], putt: [0.33, 0.37, 0.45], web: [0.36, 0.23, 0.14], hat: [0.3, 0.35, 0.44], hat2: [0.6, 0.48, 0.25], head: 'adrian', coat: true },
   usa:     { name: 'United States',   alliance: 'allied',  uni: [0.37, 0.3, 0.19],  putt: [0.43, 0.36, 0.24], web: [0.58, 0.5, 0.34],  hat: [0.31, 0.29, 0.2],  hat2: [0.25, 0.23, 0.16], head: 'brodie' },
   italy:   { name: 'Italy',           alliance: 'allied',  uni: [0.3, 0.32, 0.27],  putt: [0.31, 0.33, 0.28], web: [0.36, 0.23, 0.14], hat: [0.34, 0.36, 0.31], hat2: [0.5, 0.42, 0.25], head: 'adrian' },
@@ -309,10 +309,11 @@ function figure(nat, J, seed) {
       prims.push({ k: 's', c: m, r: 0.075, mat: 'gore' });
       continue;
     }
-    cap(L.hip, L.knee, 0.085, 0.07, 'trou');
+    cap(L.hip, L.knee, nat.fine ? 0.092 : 0.085, nat.fine ? 0.068 : 0.07, 'trou');
     if (L.cut === 'knee') { prims.push({ k: 's', c: L.knee, r: 0.068, mat: 'gore' }); continue; }
     cap(L.knee, L.ankle, 0.062, 0.05, 'putt');
     cap(L.ankle, L.toe, 0.055, 0.045, 'boot');
+    if (nat.fine) cap(add(L.ankle, [0, 0, -0.03]), add(L.toe, [0.02, 0, -0.012]), 0.05, 0.04, 'boot'); // the sole and welt of the ammunition boot
   }
   for (const [cx, cy, rx, ry] of J.pool || []) prims.push({ k: 'pool', c: [cx, cy, 0], rx, ry, mat: 'blood' });
   // torso (two overlapping capsules for a broad chest), arms, head
@@ -320,24 +321,52 @@ function figure(nat, J, seed) {
   cap(J.P, J.chest, 0.15, 0.16, 'uni');
   cap(add(J.chest, [0, 0.1, 0]), add(J.chest, [0, -0.1, 0]), 0.12, 0.12, 'uni');
   cap(J.chest, J.neck, 0.1, 0.06, 'uni');
+  if (nat.fine) cap(add(J.neck, mul(sub(J.chest, J.neck), 0.25)), add(J.neck, mul(sub(J.neck, J.chest), 0.12)), 0.072, 0.07, 'uni'); // stand-and-fall collar
   }
   for (const [side, sh, el, h] of has('arms') ? [['L', J.shL, J.elL, J.hL], ['R', J.shR, J.elR, J.hR]] : has('arm') ? [['L', J.shL, J.elL, J.hL]] : []) {
-    cap(sh, el, 0.058, 0.05, 'uni');
+    cap(sh, el, nat.fine ? 0.066 : 0.058, nat.fine ? 0.054 : 0.05, 'uni');
     if (J.armCut === side) { prims.push({ k: 's', c: el, r: 0.055, mat: 'gore' }); continue; } // torn off at the elbow
     cap(el, h, 0.05, 0.042, 'uni');
+    if (nat.fine) { const w = add(h, mul(norm(sub(el, h)), 0.06)); cap(w, add(w, mul(norm(sub(el, h)), 0.035)), 0.05, 0.05, 'uni'); } // turned-back cuff
     prims.push({ k: 's', c: h, r: 0.042, mat: 'skin' });
   }
   if (has('head')) prims.push({ k: 's', c: J.head, r: 0.105, mat: 'skin' });
+  if (has('head') && nat.fine) { // nose and ears, so the face reads under the helmet brim
+    const hf = J.fwd || (J.belly === 'side' ? [0, -1, 0] : J.lying ? [0, 0, J.dead ? 1 : -1] : [1, 0, 0]);
+    const hs = norm([-hf[1], hf[0], 0.0001]), hu = norm([hf[1] * hs[2] - hf[2] * hs[1], hf[2] * hs[0] - hf[0] * hs[2], hf[0] * hs[1] - hf[1] * hs[0]]);
+    const upv = J.lying ? J.up : hu[2] < 0 ? mul(hu, -1) : hu;
+    prims.push({ k: 's', c: add(add(J.head, mul(hf, 0.1)), mul(upv, -0.01)), r: 0.022, mat: 'skin' });
+    for (const sd of [1, -1]) prims.push({ k: 's', c: add(J.head, mul(hs, 0.1 * sd)), r: 0.024, mat: 'skin' });
+  }
   // equipment: belt with pouches, pack + bedroll, canteen
   if (has('torso')) {
   const fwd = J.fwd || (J.belly === 'side' ? [0, -1, 0] : J.lying ? [0, 0, J.dead ? 1 : -1] : [1, 0, 0]); // belly direction
   const belt = add(J.P, mul(J.up, 0.12));
+  const back = mul(fwd, -1), packC = add(add(J.P, mul(J.up, 0.38)), mul(back, 0.2));
+  if (nat.fine) {
+    // 1908 pattern webbing: a belt round the tunic (not a bolster), five-pocket ammunition pouches on each
+    // side of the chest, haversack and entrenching tool on the left hip, the water bottle on the right
+    const up = J.up, side = norm([up[1] * fwd[2] - up[2] * fwd[1], up[2] * fwd[0] - up[0] * fwd[2], up[0] * fwd[1] - up[1] * fwd[0]]);
+    prims.push({ k: 'band', c: belt, u: up, f: fwd, s: side, R: 0.158, w: 0.032, t: 0.016, mat: 'web' });
+    prims.push({ k: 'b', c: add(belt, mul(fwd, 0.165)), h: [0.012, 0.03, 0.026], r: 0.006, mat: 'brass' });
+    if (!J.lying) cap(belt, add(belt, mul(up, -0.17)), 0.158, 0.172, 'uni'); // the tunic skirt below the belt
+    for (const sd of [1, -1]) {
+      for (const [dz, dy] of [[0.05, 0.045], [0.05, 0.1], [0.115, 0.045], [0.115, 0.1]]) // two rows of pockets, outboard of the buckle
+        prims.push({ k: 'b', c: add(add(add(belt, mul(up, dz)), mul(fwd, 0.155)), mul(side, dy * sd)), h: [0.022, 0.026, 0.03], r: 0.008, mat: 'web' });
+      prims.push({ k: 'b', c: add(add(add(J.chest, mul(up, 0.04)), mul(fwd, 0.12)), mul(side, 0.075 * sd)), h: [0.01, 0.04, 0.04], r: 0.008, mat: 'uni' }); // breast pocket
+      // shoulder straps down the back to the pack
+      cap(add(J[sd > 0 ? 'shL' : 'shR'], mul(back, 0.06)), add(packC, add(mul(side, 0.09 * sd), mul(up, 0.1))), 0.02, 0.02, 'web');
+    }
+    prims.push({ k: 'b', c: add(add(add(belt, mul(side, 0.15)), mul(back, 0.1)), mul(up, -0.08)), h: [0.04, 0.09, 0.08], r: 0.02, mat: 'web' }); // haversack
+    cap(add(add(add(belt, mul(side, 0.12)), mul(back, 0.16)), mul(up, 0.02)), add(add(add(belt, mul(side, 0.06)), mul(back, 0.17)), mul(up, -0.2)), 0.016, 0.016, 'wood'); // entrenching-tool helve
+    prims.push({ k: 'c', a: add(add(add(belt, mul(side, -0.16)), mul(back, 0.07)), mul(up, -0.02)), b: add(add(add(belt, mul(side, -0.16)), mul(back, 0.07)), mul(up, -0.13)), ra: 0.045, rb: 0.045, mat: 'webT' }); // covered water bottle
+  } else {
   cap(add(belt, [0, 0.16, 0]), add(belt, [0, -0.16, 0]), 0.165, 0.165, 'webT');
   for (const s of [-0.1, 0.1]) prims.push({ k: 'b', c: add(belt, add(mul(fwd, 0.15), [0, s, 0.02])), h: [0.03, 0.055, 0.045], r: 0.012, mat: 'web' });
-  const back = mul(fwd, -1), packC = add(add(J.P, mul(J.up, 0.38)), mul(back, 0.2));
+  }
   prims.push({ k: 'b', c: packC, h: [0.07, 0.15, 0.14], r: 0.04, mat: 'pack' });
   cap(add(add(packC, mul(J.up, 0.16)), [0, 0.17, 0]), add(add(packC, mul(J.up, 0.16)), [0, -0.17, 0]), 0.06, 0.06, 'pack');
-  prims.push({ k: 's', c: add(add(belt, mul(back, 0.08)), [0, 0.2, -0.06]), r: 0.055, mat: 'metal2' });
+  if (!nat.fine) prims.push({ k: 's', c: add(add(belt, mul(back, 0.08)), [0, 0.2, -0.06]), r: 0.055, mat: 'metal2' });
   // webbing straps over the shoulders
   if (nat.cross) { // straps crossed over the chest, each from one shoulder to the other hip
     cap(add(J.shL, mul(fwd, 0.08)), add(belt, add(mul(fwd, 0.14), [0, -0.1, 0.01])), 0.022, 0.022, 'strap');
@@ -367,6 +396,11 @@ function figure(nat, J, seed) {
     switch (q.k) {
       case 'c': return sdCapsule(p[0], p[1], p[2], q.a[0], q.a[1], q.a[2], q.b[0], q.b[1], q.b[2], q.ra, q.rb);
       case 's': return Math.hypot(p[0] - q.c[0], p[1] - q.c[1], p[2] - q.c[2]) - q.r;
+      case 'band': { // a belt: a flat ring round the body, in the plane across the body's up axis
+        const d = [p[0] - q.c[0], p[1] - q.c[1], p[2] - q.c[2]];
+        const a = d[0] * q.f[0] + d[1] * q.f[1] + d[2] * q.f[2], b = d[0] * q.s[0] + d[1] * q.s[1] + d[2] * q.s[2], h = d[0] * q.u[0] + d[1] * q.u[1] + d[2] * q.u[2];
+        return Math.max(Math.abs(Math.hypot(a, b * 0.93) - q.R) - q.t, Math.abs(h) - q.w) - 0.004;
+      }
       case 'b': return sdRoundBox(p[0] - q.c[0], p[1] - q.c[1], p[2] - q.c[2], q.h[0], q.h[1], q.h[2], q.r);
       case 'pool': { // a thin, slightly irregular stain lying on the ground
         const ex = (p[0] - q.c[0]) / q.rx, ey = (p[1] - q.c[1]) / q.ry;
@@ -397,8 +431,16 @@ function figure(nat, J, seed) {
     const grime = clamp((0.5 - p[2]) * 1.4, 0, 0.6) * (fbm(p[0] * 12, p[1] * 12, p[2] * 12, 2) + 0.3);
     let c;
     switch (mat) {
-      case 'uni': c = mix3(mul(nat.uni, 0.82), mul(nat.uni, 1.1), n); break;
-      case 'trou': { const t = nat.trou || nat.uni; c = mix3(mul(t, 0.82), mul(t, 1.1), n); break; }
+      case 'uni': case 'trou': {
+        const t = mat === 'trou' && nat.trou ? nat.trou : nat.uni;
+        c = mix3(mul(t, 0.82), mul(t, 1.1), n);
+        if (nat.fine) { // folds and creases in the serge, and wear lighter on the edges
+          const fold = fbm(p[0] * 9 + 3, p[1] * 9, p[2] * 18, 3);
+          c = mix3(c, mul(t, 0.6), clamp((0.42 - fold) * 2.2, 0, 0.55));
+          c = mix3(c, mul(t, 1.22), clamp((fold - 0.68) * 2.5, 0, 0.35));
+        }
+        break;
+      }
       case 'strap': c = mix3(mul(nat.strap || nat.web, 0.85), nat.strap || nat.web, n); break;
       case 'putt': c = ((p[2] * 60) % 1) < 0.25 ? mul(nat.putt, 0.75) : nat.putt; break;
       case 'boot': return BOOT;
@@ -408,6 +450,7 @@ function figure(nat, J, seed) {
       case 'web': case 'webT': c = mix3(mul(nat.web, 0.85), nat.web, n); break;
       case 'pack': c = mix3(mul(nat.web[0] > 0.5 ? nat.web : [0.5, 0.44, 0.32], 0.85), nat.web[0] > 0.5 ? nat.web : [0.5, 0.44, 0.32], n); break;
       case 'metal2': return [0.3, 0.3, 0.28];
+      case 'brass': return [0.62, 0.48, 0.22];
       case 'blood': return mix3([0.16, 0.1, 0.07], [0.22, 0.14, 0.1], n); // dried brown, half soaked into the mud
       case 'gore': return mix3([0.24, 0.09, 0.06], [0.32, 0.14, 0.09], n);
       case 'wood': return mix3(mul(WOOD, 0.8), WOOD, n);
