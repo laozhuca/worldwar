@@ -17,6 +17,19 @@ export const NATIONS = {
   marins:  { name: 'France',          alliance: 'allied',  uni: [0.14, 0.17, 0.3],  putt: [0.07, 0.07, 0.08], web: [0.22, 0.17, 0.12],  hat: [0.1, 0.12, 0.22],  hat2: [0.78, 0.12, 0.08], head: 'bachi', coat: true, trou: [0.09, 0.09, 0.13], strap: [0.8, 0.76, 0.64], cross: true },
   ottoman: { name: 'Ottoman Empire',  alliance: 'central', uni: [0.41, 0.34, 0.24], putt: [0.4, 0.34, 0.25],  web: [0.38, 0.23, 0.13], hat: [0.52, 0.1, 0.08], hat2: [0.05, 0.05, 0.05], head: 'fez' },
 };
+/**
+ * Colour variants of an army, so a squad is not a row of identical men: 1 worn (a darker, dirtier
+ * uniform and a darker helmet), 2 faded (a sun-bleached uniform, the helmet under a light cloth cover).
+ */
+export function variantOf(nat, v) {
+  if (!v) return nat;
+  const m = (c, k) => c.map((x) => Math.min(1, x * k));
+  const toward = (c, t, k) => c.map((x, i) => x + (t[i] - x) * k);
+  if (v === 1) return { ...nat, uni: m(nat.uni, 0.78), trou: nat.trou && m(nat.trou, 0.82), putt: m(nat.putt, 0.8), hat: m(nat.hat, 0.68), web: m(nat.web, 0.85) };
+  return { ...nat, uni: toward(m(nat.uni, 1.14), [0.55, 0.53, 0.47], 0.24), trou: nat.trou && toward(nat.trou, [0.42, 0.42, 0.42], 0.15), putt: m(nat.putt, 1.12), hat: toward(nat.hat, [0.6, 0.54, 0.42], 0.6) };
+}
+/** The poses rendered in every colour variant (the ones seen most); others use the ordinary colours. */
+export const VARIANT_POSES = [['walk', 8], ['twalk', 8], ['charge', 8], ['stand', 1], ['fire', 4], ['trench', 1], ['walks', 8], ['walkt', 8]];
 const SKIN = [0.72, 0.55, 0.43], BOOT = [0.22, 0.17, 0.12], WOOD = [0.38, 0.21, 0.12], METAL = [0.18, 0.18, 0.19], STEEL = [0.55, 0.56, 0.58];
 
 // ------------------------------------------------------------------ poses
@@ -89,7 +102,7 @@ export function pose(name, frame = 0) {
   const hipL = (p) => add(p, [0, 0.1, 0]), hipR = (p) => add(p, [0, -0.1, 0]);
   let sway = 0, carry = [0, 0, 0];
   const load = name === 'carrymg' ? 'mg' : name === 'carrytri' ? 'tri' : null; // walking with the MG or its tripod on the shoulder
-  if (name === 'walk' || name === 'twalk' || name === 'charge' || load) {
+  if (name === 'walk' || name === 'walks' || name === 'walkt' || name === 'twalk' || name === 'charge' || load) {
     // Gait cycle (8 frames). Per leg: thigh swings sinusoidally; the knee is nearly straight through
     // stance and flexes during swing (peaking just after toe-off). Pelvis is highest at mid-stance and
     // lowest at heel strike (walk); a run is highest in the flight phase, with a deeper knee bend.
@@ -108,6 +121,8 @@ export function pose(name, frame = 0) {
     legs = [leg(hipL(P), tL, kL), leg(hipR(P), tR, kR)];
     carry = run ? [0.05 * Math.sin(ph), 0.02 * Math.sin(ph), 0.02 * Math.cos(2 * ph)] : [0.015 * Math.sin(ph), 0.015 * Math.sin(ph), 0.01 * Math.cos(2 * ph)];
     if (run) rifleMode = 'charge';
+    if (name === 'walks') rifleMode = 'slope'; // rifle at the slope, on the left shoulder
+    if (name === 'walkt') rifleMode = 'trail'; // rifle at the trail, held low in the right hand
   } else if (name === 'stand' || name === 'fire') {
     legs = [leg(hipL(P), 0.12, 0.05), leg(hipR(P), -0.1, 0.04)];
     if (name === 'fire') { rifleMode = 'aim'; lean = frame === 1 ? 0.04 : 0.1; } // frame 1: the kick of the shot
@@ -166,6 +181,10 @@ export function pose(name, frame = 0) {
       { a: add(sh, [-0.28, -0.02, 0.05]), b: add(sh, [0.45, 0.0, -0.06]), ra: 0.02, rb: 0.016, mat: 'metal2' },
       { a: add(sh, [-0.36, -0.05, 0.02]), b: add(sh, [-0.36, 0.05, 0.02]), ra: 0.04, rb: 0.04, mat: 'metal' },
     ];
+  } else if (rifleMode === 'slope' || rifleMode === 'trail') {
+    const ph = (frame / 8) * Math.PI * 2, swing = 0.14 * Math.sin(ph);
+    if (rifleMode === 'slope') { hL = add(P, [0.14, 0.17, 0.3]); hR = add(P, [0.06 - swing, -0.22, 0.02]); }
+    else { hR = add(P, [0.06 + swing * 0.4, -0.23, -0.04]); hL = add(P, [0.06 - swing, 0.22, 0.02]); }
   } else if (rifleMode === 'load') {
     const shellAt = [add(P, [0.52, 0, -0.42]), add(P, [0.3, 0, 0.38]), add(P, [0.58, 0, 0.38]), add(P, [0.7, 0, 0.4])][frame];
     hR = add(shellAt, [-0.08, -0.07, -0.02]); hL = add(shellAt, [0.06, 0.07, 0.02]);
@@ -180,7 +199,9 @@ export function pose(name, frame = 0) {
   else if (rifleMode === 'charge') { hR = add(add(P, [0.3 + lean * 0.3, -0.14, 0.05 + lean * 0.15]), carry); hL = add(add(P, [0.66 + lean * 0.4, -0.06, 0.13 + lean * 0.2]), carry); }
   else if (rifleMode === 'aim') { hR = add(neck, [0.16, -0.14, -0.12]); hL = add(neck, [0.52, -0.06, -0.15]); head = add(head, [0.05, -0.03, -0.03]); }
   else { hR = tool.a; hL = add(tool.a, mul(norm(sub(tool.b, tool.a)), 0.35)); }
-  if (rifleMode !== 'none' && rifleMode !== 'carry' && rifleMode !== 'work' && rifleMode !== 'load' && rifleMode !== 'ears') {
+  if (rifleMode === 'slope') rifle = { butt: add(hL, [0.04, 0, -0.06]), muzzle: add(shL, [-0.3, 0.04, 0.52]) };
+  else if (rifleMode === 'trail') rifle = { butt: add(hR, [-0.42, 0, -0.03]), muzzle: add(hR, [0.62, 0, 0.1]) };
+  else if (rifleMode !== 'none' && rifleMode !== 'carry' && rifleMode !== 'work' && rifleMode !== 'load' && rifleMode !== 'ears') {
     if (rifleMode === 'aim' && frame === 1) { hR = add(hR, [-0.04, 0, 0.01]); hL = add(hL, [-0.03, 0, 0.05]); head = add(head, [-0.03, 0, 0.01]); } // the kick: muzzle up, shoulder back
     const dir = norm(sub(hL, hR));
     rifle = { butt: add(hR, mul(dir, rifleMode === 'aim' ? -0.18 : -0.32)), muzzle: add(hR, mul(dir, 0.95)), bayonet: rifleMode === 'charge' };
@@ -562,8 +583,8 @@ function figure(nat, J, seed) {
  * Scene for one soldier sprite. view 'a': facing world +x (toward camera, screen right-down);
  * view 'b': facing world -y (away, screen right-up). The game mirrors these for the other two.
  */
-export function soldierScene(nationKey, poseName, frame, view, portrait = false) {
-  const nat = NATIONS[nationKey];
+export function soldierScene(nationKey, poseName, frame, view, portrait = false, variant = 0) {
+  const nat = variantOf(NATIONS[nationKey], variant);
   const J = pose(poseName, frame);
   // in a trench the man is rendered whole, standing on the fire step below ground level (z = 0 is the
   // ground); the game hides whatever the trench's near edge covers when it draws him (render.js)
@@ -730,7 +751,7 @@ export function partScene(nationKey, name, dir) {
 }
 
 /** All sprite jobs: [name, args]. */
-export const SOLDIER_POSES = [['stand', 1], ['walk', 8], ['twalk', 8], ['carrymg', 8], ['carrytri', 8], ['mgwork', 4], ['gunload', 4], ['ears', 1], ['charge', 8], ['crawl', 6], ['fire', 4], ['trench', 1], ['tclimb', 8], ['prone', 1], ['dig', 2], ['dead', 1]];
+export const SOLDIER_POSES = [['stand', 1], ['walk', 8], ['walks', 8], ['walkt', 8], ['twalk', 8], ['carrymg', 8], ['carrytri', 8], ['mgwork', 4], ['gunload', 4], ['ears', 1], ['charge', 8], ['crawl', 6], ['fire', 4], ['trench', 1], ['tclimb', 8], ['prone', 1], ['dig', 2], ['dead', 1]];
 /** Idle animations: standing and in-trench versions, 4 frames each. */
 export const IDLE_POSES = IDLE.flatMap((n) => [[n, 4], ['t' + n, 4]]);
 

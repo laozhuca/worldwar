@@ -12,7 +12,7 @@ import { deflateSync } from 'node:zlib';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ASSETS = join(here, '..', 'assets');
-const { NATIONS, SOLDIER_POSES, IDLE_POSES, CORPSES, PARTS, FALL_FRAMES, FALLS } = await import('../tools/render3d/soldier.mjs');
+const { NATIONS, SOLDIER_POSES, IDLE_POSES, CORPSES, PARTS, FALL_FRAMES, FALLS, VARIANT_POSES } = await import('../tools/render3d/soldier.mjs');
 export const SCALE = 3; // render at 3x so props stay crisp when zoomed in
 
 function jobs() {
@@ -38,6 +38,9 @@ function jobs() {
   for (let d = 0; d < 8; d++) for (let f = 0; f < 8; f++) list.push({ name: `gun_d${d}_f${f}`, kind: 'gun', args: [d, f] });
   for (const nation of Object.keys(NATIONS)) for (const [pose, frames] of [...SOLDIER_POSES, ...IDLE_POSES]) for (let f = 0; f < frames; f++) for (const view of ['a', 'b'])
     list.push({ name: `${pose}${f}_${view}`, dir: `soldiers/${nation}`, kind: 'soldier', args: [nation, pose, f, view], scale: 4 });
+  // colour variants (worn, faded) of the poses seen most
+  for (const nation of Object.keys(NATIONS)) for (const v of [1, 2]) for (const [pose, frames] of VARIANT_POSES) for (let f = 0; f < frames; f++) for (const view of ['a', 'b'])
+    list.push({ name: `${pose}${f}_${view}_v${v}`, dir: `soldiers/${nation}`, kind: 'soldier', args: [nation, pose, f, view, false, v], scale: 4 });
   for (const nation of Object.keys(NATIONS)) for (let v = 0; v < CORPSES.length; v++) for (let d = 0; d < 8; d++)
     list.push({ name: `corpse_v${v}_d${d}`, dir: `soldiers/${nation}`, kind: 'corpse', args: [nation, v, d], scale: 4 });
   for (const nation of Object.keys(NATIONS)) for (let v = 0; v < FALLS.length; v++) for (let d = 0; d < 8; d++) for (let f = 0; f < FALL_FRAMES; f++)

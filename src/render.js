@@ -1508,12 +1508,13 @@ export class Renderer {
     return { view: best[1], mirror: best[2] };
   }
 
-  drawSoldier(ctx, nation, poseName, frame, hx, hy, x, y, at) {
+  drawSoldier(ctx, nation, poseName, frame, hx, hy, x, y, at, variant = 0) {
     const { view, mirror } = Renderer.viewFor(hx, hy);
     // a man in a trench is drawn whole, standing down in it: the trench's near edge hides his lower body
     const clipped = at && poseName[0] === 't' && this.trenchMask(ctx, at.x, at.y);
-    // units are drawn slightly larger than life for legibility
-    const ok = this.drawFrame(ctx, 'soldiers-' + nation, `${poseName}${frame}_${view}`, x, y, 1.35, mirror);
+    // units are drawn slightly larger than life for legibility; a colour variant where the pose has one
+    const name = `${poseName}${frame}_${view}`;
+    const ok = (variant && this.drawFrame(ctx, 'soldiers-' + nation, `${name}_v${variant}`, x, y, 1.35, mirror)) || this.drawFrame(ctx, 'soldiers-' + nation, name, x, y, 1.35, mirror);
     if (clipped) ctx.restore();
     return ok;
   }
@@ -1701,6 +1702,8 @@ export class Renderer {
       men.forEach((s, i) => {
         if (s.y >= p.y) drawGunNow(); // crew behind the gun first, the rest in front
         let pn = pose, fr = 0;
+        // every man his own: a worn or faded uniform (helmet and all), and his own way of carrying his rifle on the march
+        const cv = hsh(s.k, 21), vr = cv < 0.4 ? 0 : cv < 0.7 ? 1 : 2;
         if (climbing) {
           // over the parapet (frames forwards) or down into the trench (backwards), rank by rank: the rank
           // nearer where the squad is going first, the other after it; each man a little apart from his mates
@@ -1718,6 +1721,7 @@ export class Renderer {
           const k = s.k, cyc = (u.roll || 0) / (g[1] * (0.92 + 0.16 * hsh(k, 2))) + hsh(k, 3);
           fr = Math.floor((cyc - Math.floor(cyc)) * g[0]) % g[0];
           if (carried && pose === 'walk') pn = s.k === 0 ? 'carrymg' : s.k === 1 ? 'carrytri' : 'walk'; // the gun and its tripod carried
+          if (pn === 'walk') { const st = hsh(s.k, 23); pn = st < 0.5 ? 'walk' : st < 0.75 ? 'walks' : 'walkt'; }
         }
         // setting the gun up, or taking it down: the team kneels round it, hands busy at the mounting
         if ((u.type === 'mg' || u.type === 'artillery') && !u.inTrench && (u.packing > 0 || (u.setup > 0 && !u.order))) {
@@ -1764,11 +1768,12 @@ export class Renderer {
           const slot = Math.floor(time / 25 + hsh(s.k, 7) * 4), r = hsh(s.k, 11 + slot);
           if (r > 0.4 && r <= 0.68) { hx = -u.hy; hy = u.hx; } else if (r > 0.68 && r <= 0.94) { hx = u.hy; hy = -u.hx; } else if (r > 0.94) { hx = -u.hx; hy = -u.hy; }
         }
-        if (idle && this.drawSoldier(ctx, nation, (pn === 'trench' ? 't' : '') + idle.anim, idle.frame, hx, hy, s.x, s.y, { x: s.mx, y: s.my })) {
+        if (idle && this.drawSoldier(ctx, nation, (pn === 'trench' ? 't' : '') + idle.anim, idle.frame, hx, hy, s.x, s.y, { x: s.mx, y: s.my }, vr)) {
           if (idle.anim === 'smoke' && idle.puff > 0) this.drawSmokeWisp(ctx, s.x, s.y - (pn === 'trench' ? 7 : 20), idle.puff, s.k);
           return;
         }
-        if (!this.drawSoldier(ctx, nation, pn, fr, hx, hy, s.x, s.y, { x: s.mx, y: s.my })) drawMan(ctx, s.x, s.y, u.team, pose === 'crawl' ? 'prone' : pose, u.facing, phase + i * 1.7, false);
+        if (!this.drawSoldier(ctx, nation, pn, fr, hx, hy, s.x, s.y, { x: s.mx, y: s.my }, vr)
+          && !((pn === 'walks' || pn === 'walkt') && this.drawSoldier(ctx, nation, 'walk', fr, hx, hy, s.x, s.y, null, vr))) drawMan(ctx, s.x, s.y, u.team, pose === 'crawl' ? 'prone' : pose, u.facing, phase + i * 1.7, false);
       });
       drawGunNow();
     }
