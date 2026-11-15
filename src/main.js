@@ -5,7 +5,7 @@ import { Voices } from './voice.js';
 import { serialize, deserialize, describe } from './save.js';
 import { ModelView } from './model-view.js';
 import { createTutorialGame, runTutorial } from './tutorial.js';
-import { LEVELS, levelById, createLevelGame, stepCampaign, loadProgress, recordResult, markTutorialDone, clockHours, dayTime } from './campaign.js';
+import { LEVELS, PROLOGUE, levelById, createLevelGame, stepCampaign, loadProgress, recordResult, markTutorialDone, clockHours, dayTime } from './campaign.js';
 import { Sound } from './audio.js';
 import { PLAYER, NATIONS } from './config.js';
 import { hourOf } from './atmosphere.js';
@@ -662,7 +662,7 @@ function showCampaign() {
   const pro = document.createElement('button');
   pro.className = 'level prologue';
   pro.innerHTML = `<span class="ln">·</span><span class="lt">Prologue: 1 July 1916<small>The Somme · the tutorial</small></span><span class="lm">${p.tutorial ? '✓ Done' : 'Start here'}</span>`;
-  pro.onclick = startTutorial;
+  pro.onclick = () => showBriefing('prologue');
   document.getElementById('level-list').replaceChildren(pro, ...LEVELS.map((L) => {
     const open = L.n <= p.unlocked && !L.soon && p.tutorial, b = document.createElement('button');
     b.className = 'level' + (open ? '' : ' locked');
@@ -676,10 +676,10 @@ function showCampaign() {
 }
 let briefed = null;
 function showBriefing(id) {
-  const L = levelById(id), p = loadProgress();
+  const L = id === 'prologue' ? PROLOGUE : levelById(id), p = loadProgress();
   briefed = id;
   const P = document.getElementById('briefing-panel');
-  P.querySelector('.brief-num').textContent = `Battle ${L.n} of ${LEVELS.length}`;
+  P.querySelector('.brief-num').textContent = L.n ? `Battle ${L.n} of ${LEVELS.length}` : 'Prologue · the tutorial';
   P.querySelector('.brief-title').textContent = L.title;
   // the two armies of the battle, in 3D (fixed: a historical battle)
   [['mine', L.nations[0]], ['foe', L.nations[1]]].forEach(([k, n]) => {
@@ -694,8 +694,9 @@ function showBriefing(id) {
   P.querySelector('.brief-history').textContent = L.history;
   P.querySelector('.brief-objectives').innerHTML = L.objectives.map((t) => `<li>${t}</li>`).join('');
   P.querySelector('.brief-rules').innerHTML = L.rules.map((t) => `<li>${t}</li>`).join('');
-  const best = p.medals[id] || 0;
-  P.querySelector('.brief-medals').innerHTML = medalHtml(L.medals, L.medals.map((_, i) => i < best));
+  const best = p.medals[id] || 0, medals = L.medals || [];
+  P.querySelector('.brief-medals').innerHTML = medalHtml(medals, medals.map((_, i) => i < best));
+  P.querySelector('.brief-medals').hidden = P.querySelector('.brief-medals-h').hidden = !medals.length; // the prologue has none
   showPanel('briefing-panel');
 }
 // a campaign level's picture of a moment (the relief arriving), shown with its announcement for a few seconds
@@ -760,10 +761,10 @@ function showDebrief(s) {
 }
 // first time: the Campaign entry is the tutorial; afterwards the campaign, with the tutorial as its prologue
 byId('btn-epitaph-campaign').addEventListener('click', () => showCampaign());
-byId('m-campaign').addEventListener('click', () => (loadProgress().tutorial ? showCampaign() : startTutorial()));
+byId('m-campaign').addEventListener('click', () => (loadProgress().tutorial ? showCampaign() : showBriefing('prologue')));
 function labelCampaign() { document.getElementById('m-campaign').textContent = loadProgress().tutorial ? 'Campaign' : 'Tutorial'; }
 labelCampaign();
-byId('btn-level-start').addEventListener('click', () => startLevel(briefed));
+byId('btn-level-start').addEventListener('click', () => (briefed === 'prologue' ? startTutorial() : startLevel(briefed)));
 byId('btn-brief-back').addEventListener('click', showCampaign);
 byId('btn-debrief-campaign').addEventListener('click', showCampaign);
 byId('btn-level-retry').addEventListener('click', () => showBriefing(briefed));
