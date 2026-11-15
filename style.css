@@ -760,3 +760,5 @@ body.tutorial #topbar .res:not(:has(#clock)) { display: none; }
 .brief-medals b, .debrief-medals b { color: #e8c98a; font-weight: normal; margin-right: 4px; }
 .debrief-reason { font-size: 18px; color: #fff3d6; margin: 0 0 8px; }
 #overlay.plain-mode.debrief-mode { background-size: cover; background-position: center; }
+/* no double-tap zoom anywhere (the map handles its own pinch zoom) */
+html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }

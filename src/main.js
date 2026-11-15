@@ -150,7 +150,14 @@ ui.centerOnFront();
 window.addEventListener('resize', () => renderer.resize());
 // the map has its own area between the top bar and the command panel: follow its size as they change
 if (window.ResizeObserver) new ResizeObserver(() => { renderer.resize(); renderer.clampCam(); }).observe(canvas);
-window.worldwar = { app, renderer, ui, sound }; // handy for debugging in the console
+window.worldwar = { app, renderer, ui, sound };
+// no browser right-click menu anywhere in the game, and no page zoom on phones (double-tap or pinch outside
+// the map; the map's own pinch zoom is handled in ui.js)
+window.addEventListener('contextmenu', (e) => e.preventDefault());
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault()); // iOS Safari
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => { const now = Date.now(); if (now - lastTouchEnd < 320 && !e.target.closest('#view')) e.preventDefault(); lastTouchEnd = now; }, { passive: false });
+document.addEventListener('dblclick', (e) => { if (!e.target.closest('#view')) e.preventDefault(); }); // handy for debugging in the console
 
 document.querySelectorAll('[data-season]').forEach((b) => b.addEventListener('click', () => {
   app.season = b.dataset.season;
