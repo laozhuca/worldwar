@@ -1,4 +1,228 @@
 {
+ "carrymg0_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg0_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg1_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg1_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg2_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg2_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg3_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg3_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg4_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg4_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg5_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg5_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg6_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg6_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg7_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrymg7_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri0_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri0_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri1_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri1_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri2_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri2_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri3_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri3_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri4_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri4_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri5_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri5_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri6_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri6_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri7_a": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
+ "carrytri7_b": {
+  "w": 192,
+  "h": 161,
+  "ax": 93,
+  "ay": 96,
+  "scale": 4
+ },
  "charge0_a": {
   "w": 192,
   "h": 161,

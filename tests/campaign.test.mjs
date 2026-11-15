@@ -239,3 +239,19 @@ test('MG teams and batteries climb out of trenches too, group by group', async (
   }
   createGame();
 });
+
+test('A machine gun packs up before it moves and sets up again before it fires', async () => {
+  const { orderMove, MG_PACK } = await import('../src/game.js');
+  const s = createGame(); s.ais.length = 0;
+  const u = s.units.find((q) => q.team === PLAYER && q.type === 'mg');
+  s.units = [u]; u.setup = 0; u.order = null;
+  const x0 = u.x;
+  orderMove(s, [u], u.x - 2 * Math.sign(s.map.hq[ENEMY].x - u.x), u.y);
+  assert.ok(u.packing > 0, 'packing up');
+  for (let i = 0; i < 30 * (MG_PACK - 0.3); i++) update(s, 1 / 30);
+  assert.ok(Math.abs(u.x - x0) < 1e-6, 'does not move while packing');
+  for (let i = 0; i < 30 * 8 && u.order; i++) update(s, 1 / 30);
+  assert.ok(!u.order && Math.abs(u.x - x0) > 1, 'moved off');
+  assert.ok(u.setup > 0, 'must set up again');
+  createGame();
+});

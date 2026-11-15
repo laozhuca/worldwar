@@ -85,7 +85,7 @@ export function spawnUnit(state, type, team, x, y) {
     hp: t.men * t.hpPerMan,
     order: null,
     fireTimer: rand() * (t.fireInterval || 1),
-    setup: 0,
+    setup: type === 'mg' ? t.setup : 0, // a new MG team arrives with its gun packed: it must set up before it can fire
     suppression: 0,
     pinned: false,
     target: null,
@@ -154,6 +154,8 @@ export function orderMove(state, units, tx, ty, kind = 'move') {
     ({ x, y } = clampToMap(x, y));
     if (wantTrench && n > 1) ({ x, y } = snapToTrench(map, x, y));
     ({ x, y } = offRock(map, x, y)); // nobody can stand on the rocks
+    // a machine gun that is set up must first be dismounted and packed before its team can move off
+    if (u.type === 'mg' && !u.order && !(u.setup > 0) && !(u.packing > 0)) u.packing = MG_PACK;
     u.order = { kind, x, y };
     u.digSite = null;
     if (u.barrage) u.barrage = null; // a battery limbers up to move: its barrage is over
@@ -363,6 +365,7 @@ function steer(map, u, mx, my) {
   return { mx: -mx, my: -my };
 }
 
+export const MG_PACK = 2.5; // seconds to dismount and pack a machine gun before its team can move (setting up again takes UNIT_TYPES.mg.setup)
 export const CLIMB_GAP = 0.8; // each group starts climbing at 80% of the previous group's climb
 /** Seconds each group takes to climb out of / into a trench, and how many groups climb in turn. */
 export const CLIMB = { rifle: { out: 2.0, in: 1.4, groups: 2 }, mg: { out: 2.2, in: 1.6, groups: 2 }, artillery: { out: 2.6, in: 2.0, groups: 3 } };
@@ -426,7 +429,8 @@ function updateUnit(state, u, dt) {
 
   // --- movement
   u.moving = false;
-  if (u.order) {
+  if (u.packing > 0) { u.packing = u.order ? Math.max(0, u.packing - dt) : 0; } // dismounting the gun first
+  else if (u.order) {
     const dx = u.order.x - u.x, dy = u.order.y - u.y;
     const d = Math.hypot(dx, dy);
     let speed = t.speed * terrainFactor(tile) * (u.order.kind === 'charge' ? CHARGE_SPEED : 1);
@@ -492,7 +496,7 @@ function updateUnit(state, u, dt) {
 
   // --- small-arms fire
   u.fireTimer = Math.max(0, u.fireTimer - dt * (u.moving ? 0.6 : 1));
-  if (t.range && !charging && !u.holdFire && u.target && u.setup <= 0 && u.fireTimer <= 0) {
+  if (t.range && !charging && !u.holdFire && u.target && u.setup <= 0 && !(u.packing > 0) && u.fireTimer <= 0) {
     if (dist(u, u.target) <= t.range) {
       fire(state, u, u.target, t);
       u.fireTimer = t.fireInterval * (0.85 + rand() * 0.3);

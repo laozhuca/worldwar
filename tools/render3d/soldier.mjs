@@ -88,7 +88,8 @@ export function pose(name, frame = 0) {
   let P = [0, 0, 0.94], lean = 0.04, legs, hands, rifleMode = 'port', head = null, tool = null;
   const hipL = (p) => add(p, [0, 0.1, 0]), hipR = (p) => add(p, [0, -0.1, 0]);
   let sway = 0, carry = [0, 0, 0];
-  if (name === 'walk' || name === 'charge') {
+  const load = name === 'carrymg' ? 'mg' : name === 'carrytri' ? 'tri' : null; // walking with the MG or its tripod on the shoulder
+  if (name === 'walk' || name === 'charge' || load) {
     // Gait cycle (8 frames). Per leg: thigh swings sinusoidally; the knee is nearly straight through
     // stance and flexes during swing (peaking just after toe-off). Pelvis is highest at mid-stance and
     // lowest at heel strike (walk); a run is highest in the flight phase, with a deeper knee bend.
@@ -129,15 +130,35 @@ export function pose(name, frame = 0) {
   head = head || add(P, mul(up, 0.71));
   const shL = add(add(P, mul(up, 0.5)), [0, 0.2, 0]), shR = add(add(P, mul(up, 0.5)), [0, -0.2, 0]);
   let hR, hL, rifle = null;
-  if (rifleMode === 'port') { hR = add(add(P, [0.22, -0.16, 0.08]), carry); hL = add(add(P, [0.38, 0.06, 0.26]), carry); }
+  let extras = null;
+  if (load) {
+    // the right hand steadies the load on the right shoulder; the left arm swings with the stride
+    rifleMode = 'carry';
+    const sh = add(shR, [0, -0.02, 0.07]);
+    hR = add(sh, [0.16, 0.03, 0.02]);
+    hL = add(P, [0.1 + 0.12 * Math.sin((frame / 8) * Math.PI * 2), 0.2, 0.0]);
+    if (load === 'mg') extras = [ // the water-cooled gun: jacket, barrel, breech and spade grips, ammunition box in the left hand
+      { a: add(sh, [-0.32, 0.01, 0.0]), b: add(sh, [0.4, 0.0, 0.05]), ra: 0.05, rb: 0.048, mat: 'metal' },
+      { a: add(sh, [0.4, 0.0, 0.05]), b: add(sh, [0.62, 0.0, 0.07]), ra: 0.018, rb: 0.016, mat: 'metal' },
+      { a: add(sh, [-0.5, 0.0, -0.01]), b: add(sh, [-0.32, 0.0, 0.0]), ra: 0.045, rb: 0.045, mat: 'metal' },
+      { a: add(sh, [-0.56, -0.04, -0.03]), b: add(sh, [-0.56, 0.04, -0.03]), ra: 0.012, rb: 0.012, mat: 'metal' },
+      { a: add(hL, [0, 0, -0.04]), b: add(hL, [0, 0, -0.14]), ra: 0.05, rb: 0.05, mat: 'box' },
+    ];
+    else extras = [ // the folded tripod: three legs bundled together, the crosshead at the back
+      { a: add(sh, [-0.3, 0.0, 0.03]), b: add(sh, [0.55, 0.03, -0.12]), ra: 0.022, rb: 0.018, mat: 'metal2' },
+      { a: add(sh, [-0.3, 0.02, 0.0]), b: add(sh, [0.5, -0.03, -0.16]), ra: 0.02, rb: 0.016, mat: 'metal2' },
+      { a: add(sh, [-0.28, -0.02, 0.05]), b: add(sh, [0.45, 0.0, -0.06]), ra: 0.02, rb: 0.016, mat: 'metal2' },
+      { a: add(sh, [-0.36, -0.05, 0.02]), b: add(sh, [-0.36, 0.05, 0.02]), ra: 0.04, rb: 0.04, mat: 'metal' },
+    ];
+  } else if (rifleMode === 'port') { hR = add(add(P, [0.22, -0.16, 0.08]), carry); hL = add(add(P, [0.38, 0.06, 0.26]), carry); }
   else if (rifleMode === 'charge') { hR = add(add(P, [0.3 + lean * 0.3, -0.14, 0.05 + lean * 0.15]), carry); hL = add(add(P, [0.66 + lean * 0.4, -0.06, 0.13 + lean * 0.2]), carry); }
   else if (rifleMode === 'aim') { hR = add(neck, [0.16, -0.14, -0.12]); hL = add(neck, [0.52, -0.06, -0.15]); head = add(head, [0.05, -0.03, -0.03]); }
   else { hR = tool.a; hL = add(tool.a, mul(norm(sub(tool.b, tool.a)), 0.35)); }
-  if (rifleMode !== 'none') {
+  if (rifleMode !== 'none' && rifleMode !== 'carry') {
     const dir = norm(sub(hL, hR));
     rifle = { butt: add(hR, mul(dir, rifleMode === 'aim' ? -0.18 : -0.32)), muzzle: add(hR, mul(dir, 0.95)), bayonet: rifleMode === 'charge' };
   }
-  return { P, up, chest, neck, head, shL, shR, elL: elbow(shL, hL, 1), elR: elbow(shR, hR, -1), hL, hR, legs, rifle, tool, cut: name === 'trench' ? 1.12 : null };
+  return { P, up, chest, neck, head, shL, shR, elL: elbow(shL, hL, 1), elR: elbow(shR, hR, -1), hL, hR, legs, rifle, tool, cut: name === 'trench' ? 1.12 : null, extras };
 }
 
 /**
@@ -492,6 +513,7 @@ function figure(nat, J, seed) {
       case 'pack': c = mix3(mul(nat.web[0] > 0.5 ? nat.web : [0.5, 0.44, 0.32], 0.85), nat.web[0] > 0.5 ? nat.web : [0.5, 0.44, 0.32], n); break;
       case 'metal2': return [0.3, 0.3, 0.28];
       case 'brass': return [0.62, 0.48, 0.22];
+      case 'box': return [0.25, 0.26, 0.17]; // an ammunition box
       case 'blood': return mix3([0.16, 0.1, 0.07], [0.22, 0.14, 0.1], n); // dried brown, half soaked into the mud
       case 'gore': return mix3([0.24, 0.09, 0.06], [0.32, 0.14, 0.09], n);
       case 'wood': return mix3(mul(WOOD, 0.8), WOOD, n);
@@ -679,7 +701,7 @@ export function partScene(nationKey, name, dir) {
 }
 
 /** All sprite jobs: [name, args]. */
-export const SOLDIER_POSES = [['stand', 1], ['walk', 8], ['charge', 8], ['crawl', 6], ['fire', 1], ['trench', 1], ['tclimb', 8], ['prone', 1], ['dig', 2], ['dead', 1]];
+export const SOLDIER_POSES = [['stand', 1], ['walk', 8], ['carrymg', 8], ['carrytri', 8], ['charge', 8], ['crawl', 6], ['fire', 1], ['trench', 1], ['tclimb', 8], ['prone', 1], ['dig', 2], ['dead', 1]];
 /** Idle animations: standing and in-trench versions, 4 frames each. */
 export const IDLE_POSES = IDLE.flatMap((n) => [[n, 4], ['t' + n, 4]]);
 

@@ -545,7 +545,8 @@ export class UI {
         const t = UNIT_TYPES[u.type];
         let status = u.pinned ? 'PINNED' : u.order ? (u.order.kind === 'charge' ? 'charging' : 'moving') : u.barrage ? 'firing barrage' : u.digging ? 'digging' : u.inTrench ? 'in trench' : 'in the open';
         if (u.type === 'artillery' && u.cooldown > 0 && !u.barrage) status = `reloading ${Math.ceil(u.cooldown)}s`;
-        if (u.type === 'mg' && u.setup > 0 && !u.order) status = 'setting up';
+        if (u.type === 'mg' && u.packing > 0) status = 'packing up';
+        else if (u.type === 'mg' && u.setup > 0 && !u.order) status = 'setting up';
         else if (u.type === 'artillery' && u.setup > 0 && !u.order) status = 'unlimbering';
         // MG teams and batteries show their weapon, rifle squads a soldier of the army
         const por = u.type === 'mg' || u.type === 'artillery' ? `<img class="portrait equip" src="assets/art/card-${u.type}.webp" alt="">`

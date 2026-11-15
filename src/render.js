@@ -1678,7 +1678,8 @@ export class Renderer {
     let gunDrawn = u.type !== 'artillery';
     const drawGunNow = () => { if (!gunDrawn) { gunDrawn = true; if (!this.drawGun3D(ctx, p, u, time) && !this.drawGunArt(ctx, p, u)) this.drawGun(ctx, p, u, time); } };
     if (!useSpr) drawGunNow();
-    if (u.type === 'mg') {
+    const carried = u.type === 'mg' && u.order && !(u.packing > 0); // on the move the gun and tripod are on the men's shoulders
+    if (u.type === 'mg' && !carried) {
       const { view, mirror } = Renderer.viewFor(u.hx, u.hy);
       const g = iso(u.x + u.hx * 0.12, u.y + u.hy * 0.12);
       let ok = false;
@@ -1716,6 +1717,7 @@ export class Renderer {
         if (g) {
           const k = s.k, cyc = (u.roll || 0) / (g[1] * (0.92 + 0.16 * hsh(k, 2))) + hsh(k, 3);
           fr = Math.floor((cyc - Math.floor(cyc)) * g[0]) % g[0];
+          if (carried && pose === 'walk') pn = s.k === 0 ? 'carrymg' : s.k === 1 ? 'carrytri' : 'walk'; // the gun and its tripod carried
         }
         else if (pose === 'stand') {
           if (u.digging && i % 2 === 0) { pn = 'dig'; fr = Math.floor(phase / 2 + i) % 2; }
