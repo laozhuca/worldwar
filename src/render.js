@@ -1625,7 +1625,7 @@ export class Renderer {
         mx += -u.hy * lat + u.hx * lag; my += u.hx * lat + u.hy * lag;
       }
       const s = iso(mx, my);
-      s.k = i;
+      s.k = i; s.fx = ox; s.fy = oy;
       men.push(s);
     }
     men.sort((a, b) => a.y - b.y);
@@ -1672,6 +1672,14 @@ export class Renderer {
         // at rest each man faces his own way (mostly towards the enemy, some to the sides, the odd one
         // behind), turning now and then; anything to shoot at turns them all back to the front
         let hx = u.hx, hy = u.hy;
+        // closing up after a halt: each man walks (not glides) in to his place in the ranks
+        const closing = u.type === 'rifle' && pn === 'stand' && !moving && SP > 1.03;
+        if (closing && Math.hypot(s.fx, s.fy) > 0.08) {
+          const l = Math.hypot(s.fx, s.fy);
+          const cyc = time * 1.1 + hsh(s.k, 3);
+          if (!this.drawSoldier(ctx, nation, 'walk', Math.floor((cyc - Math.floor(cyc)) * 8) % 8, -s.fx / l, -s.fy / l, s.x, s.y)) drawMan(ctx, s.x, s.y, u.team, 'walk', u.facing, phase + i * 1.7, false);
+          return;
+        }
         if (quiet && (pn === 'stand' || pn === 'trench') && u.type === 'rifle') {
           const slot = Math.floor(time / 25 + hsh(s.k, 7) * 4), r = hsh(s.k, 11 + slot);
           if (r > 0.4 && r <= 0.68) { hx = -u.hy; hy = u.hx; } else if (r > 0.68 && r <= 0.94) { hx = u.hy; hy = -u.hx; } else if (r > 0.94) { hx = -u.hx; hy = -u.hy; }
