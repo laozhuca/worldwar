@@ -28,7 +28,15 @@ test('Hold Until Relieved: the relief at dawn on day 4 wins; losing half the fro
   assert.equal(s.campaign.relievedAt, undefined);
   s.time += 2; stepCampaign(s);
   assert.ok(s.campaign.relievedAt !== undefined, 'relief arrived');
-  s.time += 13; stepCampaign(s);
+  const relief = s.units.filter((u) => s.campaign.relief.includes(u.id));
+  assert.ok(relief.length >= 12, 'a big relieving force');
+  assert.ok(s.events.some((e) => e.type === 'cheer'), 'the men cheer');
+  s.time += 30; stepCampaign(s);
+  assert.equal(s.campaign.result, null, 'not won while the relief is still marching up');
+  for (const u of relief) { u.x = u.reliefTo.x; u.y = u.reliefTo.y; }
+  stepCampaign(s);
+  assert.ok(s.campaign.manned, 'the relief is in the line');
+  s.time += 5; stepCampaign(s);
   assert.equal(s.campaign.result, 'won');
   assert.equal(s.winner, PLAYER);
   assert.ok(levelById('ypres').medalsEarned(s)[0]);

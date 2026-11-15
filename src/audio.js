@@ -29,10 +29,16 @@ export class Sound {
     this.play('cry', 1, undefined, 1.5); // the men roar 1.5 s after the whistle blows
   }
 
+  /** A whole division cheering: battle cries layered and staggered, with a trumpet over them. */
+  cheer() {
+    for (const [d, v] of [[0, 1], [0.35, 0.8], [0.8, 0.9], [1.4, 0.7], [2.1, 0.6]]) this.playSample('cry', v, d);
+    this.playSample('trumpet', 0.7, 0.6);
+  }
+
   playSample(type, vol, delay = 0) {
     const bufs = this.samples[type];
     if (!bufs) return false;
-    const MAX = { boom: 8, artyfire: 4, rifle: 6, death: 3, incoming: 3 }[type] || 4; // cap overlapping long tails in a heavy barrage
+    const MAX = { cry: 6, boom: 8, artyfire: 4, rifle: 6, death: 3, incoming: 3 }[type] || 4; // cap overlapping long tails in a heavy barrage
     const c = this.ctx, act = (this.active[type] ||= []);
     // a new impact always plays; at the cap the oldest tail fades out over 0.4 s to make room
     if (act.length >= MAX) {
@@ -202,6 +208,7 @@ export class Sound {
   play(type, vol = 1, id, delay = 0) {
     if (!this.ctx || !this.enabled || vol <= 0.02) return;
     if (type === 'mg' && this.samples.mg && id !== undefined) { this.playGun(id, vol); return; }
+    if (type === 'cheer') { this.cheer(); return; }
     const now = performance.now();
     const gap = { boom: 60, artyfire: 90, mg: 110, rifle: 70, supply: 500, whistle: 2500, cry: 2500, death: 250, boots: 3000, bootsSnow: 3000, incoming: 300 }[type] || 80;
     if (now - (this.last[type] || 0) < gap) return;

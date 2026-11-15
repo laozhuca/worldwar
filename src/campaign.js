@@ -37,6 +37,24 @@ function reinforce(state, team, n, kind = 'rifle') {
   return out;
 }
 
+/**
+ * A relieving force marching onto the battlefield from the team's rear edge: one squad every second
+ * row along the whole front, each making for the front-line trench in its row. Returns the squads.
+ */
+function relieve(state, team) {
+  const { map } = state, f = frontLine(map, team), west = teamDir(team) > 0, out = [];
+  for (let y = 1; y < map.h - 1; y += 2) {
+    if (f[y] < 0) continue;
+    let x = west ? 0 : map.w - 1;
+    while (map.tiles[y * map.w + x].off && x >= 0 && x < map.w) x += west ? 1 : -1; // the battlefield's edge in this row
+    const u = spawnUnit(state, 'rifle', team, x + 0.5, y + 0.5);
+    orderMove(state, [u], f[y] + 0.5, y + 0.5);
+    u.reliefTo = { x: f[y] + 0.5, y: y + 0.5 };
+    out.push(u);
+  }
+  return out;
+}
+
 // ------------------------------------------------------------------ the levels
 export const LEVELS = [
   {
@@ -70,11 +88,26 @@ export const LEVELS = [
       { at: 24 + 0, run: (s) => pushMessage(s, 'Day 2. The relief is still two days away.', 'side') },
       { at: 48 + 0, run: (s) => pushMessage(s, 'Day 3. The relief has left Poperinge. Hold on one more day.', 'side') },
       ...[13, 29, 38, 52, 62, 71].map((at) => ({ at, run: (s) => { reinforce(s, ENEMY, 4); pushMessage(s, 'A fresh German battalion is coming up behind their line.', 'warn'); } })),
-      { at: 72 + 6, run: (s) => { reinforce(s, PLAYER, 6); s.campaign.relievedAt = s.time; pushMessage(s, 'The relief has arrived! The relieving division is coming up behind our line.', 'good'); } },
+      { at: 72 + 6, run: (s) => {
+        s.campaign.relief = relieve(s, PLAYER).map((u) => u.id);
+        s.campaign.relievedAt = s.time;
+        pushMessage(s, 'The relief has arrived! The relieving division is marching up to our line.', 'good');
+        s.events.push({ type: 'cheer' });
+      } },
     ],
     check(state) {
       const c = state.campaign;
-      if (c.relievedAt !== undefined && state.time - c.relievedAt > 12) return { result: 'won', reason: 'Relieved. You held the line.' };
+      if (c.relievedAt !== undefined) {
+        // won when most of the relief has reached the front line (or, failing that, after a minute)
+        const rel = state.units.filter((u) => c.relief.includes(u.id) && !u.dead);
+        const there = rel.filter((u) => Math.hypot(u.x - u.reliefTo.x, u.y - u.reliefTo.y) < 2.5).length;
+        if (!c.manned && (there >= rel.length * 0.8 || state.time - c.relievedAt > 60)) {
+          c.manned = state.time;
+          pushMessage(state, 'The relief is in our trenches. The line is held!', 'good');
+          state.events.push({ type: 'cheer' });
+        }
+        if (c.manned && state.time - c.manned > 4) return { result: 'won', reason: 'Relieved. You held the line.' };
+      }
       if (frontHeld(state) < c.front.length / 2) return { result: 'lost', reason: 'More than half of your front line has fallen.' };
       return null;
     },
