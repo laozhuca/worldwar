@@ -122,7 +122,7 @@ export class Renderer {
     const RR = MAP_R + 0.5, C = MAP_W / 2;
     // the camera may go right to the battlefield's edge, plus a small margin so the edge tiles show whole
     const E = RR + 0.6;
-    this.view = { x0: -E * TW / 2, x1: E * TW / 2, y0: (2 * C - E) * TH / 2, y1: (2 * C + E) * TH / 2 };
+    this.view = this.baseView = { x0: -E * TW / 2, x1: E * TW / 2, y0: (2 * C - E) * TH / 2, y1: (2 * C + E) * TH / 2 };
     this.OX = (RR * TW) / 2;
     this.OY = TH * 2 - ((2 * C - RR) * TH) / 2;
     this.gw = RR * TW;
@@ -860,6 +860,12 @@ export class Renderer {
       this.groundDrawn = true;
       this.lastGround = now;
     }
+    // a backdrop beyond the battlefield (a town behind the lines): the camera may scroll out to it
+    const bd = state.backdrop;
+    if (bd) {
+      const c = iso(bd.x, bd.y), B = this.baseView;
+      this.view = { x0: Math.min(B.x0, c.x - 460), x1: Math.max(B.x1, c.x + 460), y0: Math.min(B.y0, c.y - bd.ay * bd.k - 60), y1: Math.max(B.y1, c.y + 200) };
+    } else this.view = this.baseView;
     const z = this.cam.zoom, d = this.dpr;
     const sh = this.atmo.shake;
     const shx = (Math.random() - 0.5) * sh, shy = (Math.random() - 0.5) * sh;
@@ -868,7 +874,9 @@ export class Renderer {
     ctx.fillRect(0, 0, this.vw, this.vh);
     ctx.setTransform(d * z, 0, 0, d * z, d * (this.vw / 2 - this.cam.x * z + shx), d * (this.vh / 2 - this.cam.y * z + shy));
     ctx.imageSmoothingEnabled = true;
+    if (bd) this.drawBackdropGround(ctx, bd);
     ctx.drawImage(this.ground, -this.OX, -this.OY, this.gw, this.gh);
+    if (bd) this.drawBackdrop(ctx, bd);
 
     this.updateTracks(state);
     this.drawTracks(ctx, state);
@@ -1215,6 +1223,76 @@ export class Renderer {
       ctx.fillRect(c.x + 6, c.y - 4, 5, 4);
       ctx.fillStyle = S > 0.2 ? '#dde2e7' : '#6d6a64';
       ctx.fillRect(c.x - 10, c.y - 14, 6, 2); ctx.fillRect(c.x - 4, c.y - 8, 10, 1.5);
+    }
+  }
+
+  /** Load a backdrop's picture (a pre-rendered town seen through the game's camera). */
+  loadBackdrop(bd) {
+    if (!bd) return Promise.resolve();
+    this.backdrops = this.backdrops || {};
+    if (!this.backdrops[bd.img]) this.backdrops[bd.img] = retry(() => loadImage(bd.img)).then((im) => { this.backdrops[bd.img].img = im; return im; }).catch(() => null);
+    return this.backdrops[bd.img];
+  }
+
+  /**
+   * The country around a backdrop, beyond the battlefield's edge: ground in the battlefield's own colour
+   * and grain, fading into the dark, so the town stands on earth rather than in the void. Built once
+   * per ground redraw (the colour is sampled from the battlefield beside it).
+   */
+  drawBackdropGround(ctx, bd) {
+    const c = iso(bd.x, bd.y);
+    // built once per backdrop, season and texture set (not on every ground redraw: it samples and scales 2.6M pixels)
+    const key = `${bd.img}|${bd.x}|${bd.y}|${this.S}|${!!this.tex}`;
+    if ((!this.skirt || this.skirt.key !== key) && this.groundDrawn) {
+      const W = 2200, H = 1200, cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      const g = cv.getContext('2d');
+      const ox = W / 2 - c.x, oy = H / 2 + 40 - c.y; // canvas position of the world origin
+      // the battlefield's own ground textures, laid through the same isometric projection at the same scale
+      if (this.tex) {
+        const K = 1 / 96, S = this.S ?? 0;
+        g.setTransform((TW / 2) * K, (TH / 2) * K, (-TW / 2) * K, (TH / 2) * K, ox, oy);
+        const rect = () => g.fillRect((bd.x - 40) / K, (bd.y - 40) / K, 80 / K, 80 / K);
+        g.fillStyle = this.pattern(g, 'mud'); rect();
+        g.globalAlpha = 0.35; g.fillStyle = this.pattern(g, 'earth'); rect();
+        if (S > 0.2) { g.globalAlpha = Math.min(1, S * 0.85); g.fillStyle = this.pattern(g, 'snow'); rect(); }
+        g.globalAlpha = 1; g.setTransform(1, 0, 0, 1, 0, 0);
+      } else { g.fillStyle = '#3a352f'; g.fillRect(0, 0, W, H); }
+      g.globalAlpha = 0.5; g.fillStyle = g.createPattern(this.groundNoise(), 'repeat'); g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+      // match the brightness of the battlefield beside it (its relief shading and grading darken the raw textures)
+      try {
+        const mean = (data) => { let r = 0, gg = 0, b = 0, n = 0; for (let k = 0; k < data.length; k += 16) if (data[k + 3] > 200) { r += data[k]; gg += data[k + 1]; b += data[k + 2]; n++; } return n > 50 ? [r / n, gg / n, b / n] : null; };
+        // the rear corner of the battlefield: the top-left of the ground image, below its margin for tall props
+        const want = mean(this.ground.getContext('2d').getImageData(Math.round(60 * GS), Math.round((TH * 4 + 60) * GS), Math.round(200 * GS), Math.round(120 * GS)).data);
+        const have = mean(g.getImageData(W / 2 - 150, H / 2 - 80, 300, 160).data);
+        if (want && have) { // scale every pixel (brighter or darker) so the means agree
+          const id = g.getImageData(0, 0, W, H), d = id.data, f = [0, 1, 2].map((k) => want[k] / Math.max(1, have[k]));
+          for (let k = 0; k < d.length; k += 4) { d[k] *= f[0]; d[k + 1] *= f[1]; d[k + 2] *= f[2]; }
+          g.putImageData(id, 0, 0);
+        }
+      } catch (e) { /* keep it as it is */ }
+      // fade out towards the edges of the patch
+      g.globalCompositeOperation = 'destination-in';
+      const m = g.createRadialGradient(W / 2, W / 2, 0, W / 2, W / 2, W / 2);
+      m.addColorStop(0, 'rgba(0,0,0,1)'); m.addColorStop(0.3, 'rgba(0,0,0,1)'); m.addColorStop(0.55, 'rgba(0,0,0,0.75)'); m.addColorStop(0.8, 'rgba(0,0,0,0.3)'); m.addColorStop(1, 'rgba(0,0,0,0)');
+      g.setTransform(1, 0, 0, H / W, 0, 0); g.fillStyle = m; g.fillRect(0, 0, W, W);
+      g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over';
+      this.skirt = { cv, key, ox, oy };
+    }
+    const s = this.skirt;
+    if (s) ctx.drawImage(s.cv, -s.ox, -s.oy);
+  }
+
+  /** The backdrop itself, and its name beneath it. */
+  drawBackdrop(ctx, bd) {
+    const e = this.backdrops && this.backdrops[bd.img], im = e && e.img;
+    if (!im) { this.loadBackdrop(bd); return; }
+    const c = iso(bd.x, bd.y);
+    ctx.drawImage(im, c.x - bd.ax * bd.k, c.y - bd.ay * bd.k, im.width * bd.k, im.height * bd.k);
+    if (bd.name) {
+      ctx.font = 'italic 15px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(bd.name, c.x + 1, c.y + 132);
+      ctx.fillStyle = 'rgba(240,230,205,0.85)'; ctx.fillText(bd.name, c.x, c.y + 131);
     }
   }
 

@@ -113,6 +113,9 @@ export const LEVELS = [
       lost: 'Your line broke before the reinforcements could reach you. At Dixmude in 1914 it did not: the Fusiliers Marins, ordered to hold for four days, held for more than three weeks, and the Germans never reached the Channel ports.',
     },
     setup(state) {
+      // the town of Dixmude behind our headquarters, beyond the battlefield's edge (scenery only)
+      const hq = state.map.hq[PLAYER];
+      state.backdrop = { img: 'assets/art/town-dixmude.webp', name: 'Dixmude', x: hq.x + 0.5 - teamDir(PLAYER) * 9.5, y: hq.y + 0.5, ax: 440, ay: 444, k: 0.5 };
       // strong works: our trenches sandbagged
       for (const t of state.map.tiles) if (t.trench && t.owner === PLAYER) t.trench = Math.max(t.trench, 2);
       state.map.dirty = true;

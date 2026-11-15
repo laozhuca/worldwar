@@ -561,6 +561,7 @@ async function loadBattle(state) {
     [`The ${nat(state.nations[0])} army`, renderer.loadAtlas('soldiers-' + state.nations[0])],
     [`The ${nat(state.nations[1])} army`, renderer.loadAtlas('soldiers-' + state.nations[1])],
     ...((state.campaign && levelById(state.campaign.id).allies) || []).map((n) => [`The ${nat(n)} army`, renderer.loadAtlas('soldiers-' + n)]),
+    ...(state.backdrop ? [[state.backdrop.name || 'The town', renderer.loadBackdrop(state.backdrop)]] : []),
     ['Shell bursts', renderer.loadImpact()],
     ['Sounds of battle', sound.sampleLoad],
     ['Voices', voices.prepare(state.nations[PLAYER])],
