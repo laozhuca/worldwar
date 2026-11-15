@@ -363,7 +363,9 @@ function steer(map, u, mx, my) {
   return { mx: -mx, my: -my };
 }
 
-export const CLIMB_GAP = 0.8; // the second rank starts climbing at 80% of the first rank's climb
+export const CLIMB_GAP = 0.8; // each group starts climbing at 80% of the previous group's climb
+/** Seconds each group takes to climb out of / into a trench, and how many groups climb in turn. */
+export const CLIMB = { rifle: { out: 2.0, in: 1.4, groups: 2 }, mg: { out: 2.2, in: 1.6, groups: 2 }, artillery: { out: 2.6, in: 2.0, groups: 3 } };
 
 function terrainFactor(tile) {
   if (!tile) return 1;
@@ -383,15 +385,17 @@ function updateUnit(state, u, dt) {
   // climbing out of a trench, or down into one, takes time: the men haul themselves over the parapet.
   // Out: as soon as the ground just ahead is no longer trench (the men are at the trench wall).
   // In: on stepping onto a trench tile.
-  if (u.type === 'rifle' && u.order && !u.climb) {
+  if (u.order && !u.climb) {
     const charge = u.order.kind === 'charge';
-    // the squad climbs rank by rank: each rank takes `rank` seconds, the second starting as the first is
-    // most of the way over (CLIMB_GAP), so the whole climb lasts rank * (1 + CLIMB_GAP)
-    if (u.inTrench && wasIn === false) u.climb = { t: 0, rank: 1.4, dur: 1.4 * (1 + CLIMB_GAP), out: false, tx: tile.x, ty: tile.y };
+    // the unit climbs group by group (a rifle squad's two ranks, an MG team's two pairs, a battery crew's
+    // three pairs, hauling the gun): each group takes `rank` seconds, the next starting as the one before is
+    // most of the way over (CLIMB_GAP), so the whole climb lasts rank * (1 + CLIMB_GAP * (groups - 1))
+    const C = CLIMB[u.type], climb = (out) => { const r = out ? (charge && u.type === 'rifle' ? 1.4 : C.out) : C.in; return { t: 0, rank: r, dur: r * (1 + CLIMB_GAP * (C.groups - 1)), out, tx: tile.x, ty: tile.y }; };
+    if (u.inTrench && wasIn === false) u.climb = climb(false);
     else if (u.inTrench && !u.overTop) {
       const dx = u.order.x - u.x, dy = u.order.y - u.y, d = Math.hypot(dx, dy) || 1;
       const ahead = d > 0.45 && tileAt(state.map, u.x + (dx / d) * 0.4, u.y + (dy / d) * 0.4);
-      if (ahead && !ahead.trench) { const r = charge ? 1.4 : 2.0; u.climb = { t: 0, rank: r, dur: r * (1 + CLIMB_GAP), out: true, tx: tile.x, ty: tile.y }; }
+      if (ahead && !ahead.trench) u.climb = climb(true);
     }
   }
   if (u.climb) {

@@ -220,3 +220,22 @@ test('Climbing out of and into trenches takes time and slows the men', async () 
   assert.ok(climbedIn, 'climbs down into the trench');
   createGame();
 });
+
+test('MG teams and batteries climb out of trenches too, group by group', async () => {
+  const { orderMove, spawnUnit, CLIMB, CLIMB_GAP } = await import('../src/game.js');
+  for (const type of ['mg', 'artillery']) {
+    const s = createGame(); s.ais.length = 0;
+    const t = s.map.tiles.find((q) => q.trench && q.owner === PLAYER && !tileOk(s, q.x + 1, q.y));
+    function tileOk(st, x, y) { const n = st.map.tiles[y * st.map.w + x]; return n && n.trench; }
+    const u = spawnUnit(s, type, PLAYER, t.x + 0.5, t.y + 0.5);
+    s.units = [u];
+    update(s, 1 / 30);
+    assert.ok(u.inTrench);
+    orderMove(s, [u], t.x + 3.5, t.y + 0.5);
+    let time = 0;
+    for (let i = 0; i < 30 * 20 && u.order; i++) { update(s, 1 / 30); if (u.climb && u.climb.out) time += 1 / 30; }
+    const want = CLIMB[type].out * (1 + CLIMB_GAP * (CLIMB[type].groups - 1));
+    assert.ok(time > want * 0.9, `${type} climbs out in turn (${time.toFixed(1)} s of ${want.toFixed(1)})`);
+  }
+  createGame();
+});

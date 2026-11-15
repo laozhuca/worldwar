@@ -1621,7 +1621,7 @@ export class Renderer {
     const dir = teamDir(u.team);
     const charging = !!(u.order && u.order.kind === 'charge');
     // pinned men keep moving by crawling; otherwise walk, or run when charging
-    const climbing = !!(u.climb && u.type === 'rifle');
+    const climbing = !!u.climb;
     const pose = climbing ? 'tclimb' : u.inTrench && !u.overTop ? 'trench' : u.pinned ? (u.moving ? 'crawl' : 'prone') : charging ? 'charge' : u.order ? 'walk' : 'stand';
     const moving = u.moving && pose !== 'trench';
     const hsh = (k, j) => { const v = Math.sin(u.seed * 1000 + k * 12.9898 + j * 78.233) * 43758.5453; return v - Math.floor(v); };
@@ -1659,6 +1659,19 @@ export class Renderer {
       men.push(s);
     }
     men.sort((a, b) => a.y - b.y);
+    // which turn each group has in a climb: the group furthest along the way the unit is going goes first
+    const climbOrder = (u, men, g) => {
+      if (!u._order || u._order.t !== u.climb) {
+        const sums = {};
+        for (const m of men) {
+          const gg = u.type === 'rifle' ? Math.floor(m.k / 3) : u.type === 'mg' ? m.k % 2 : Math.floor(m.k / 2);
+          (sums[gg] ||= []).push(m.fx * u.hx + m.fy * u.hy);
+        }
+        const ranked = Object.keys(sums).map(Number).sort((a, b) => (sums[b].reduce((x, y) => x + y, 0) / sums[b].length) - (sums[a].reduce((x, y) => x + y, 0) / sums[a].length) || a - b);
+        u._order = { t: u.climb, at: Object.fromEntries(ranked.map((gg, i) => [gg, i])) };
+      }
+      return u._order.at[g] ?? 0;
+    };
     const phase = time * (charging ? 14 : 9) + u.seed * 10;
     const nation = u.nation || (this.nations && this.nations[u.team]);
     const useSpr = this.hasArmy(nation);
@@ -1690,9 +1703,9 @@ export class Renderer {
         if (climbing) {
           // over the parapet (frames forwards) or down into the trench (backwards), rank by rank: the rank
           // nearer where the squad is going first, the other after it; each man a little apart from his mates
-          const row = Math.floor(s.k / 3), frontRank = dir * (u.hx || 0) >= 0 ? 0 : 1; // rank 0 stands on the enemy side
-          const lead = row === frontRank;
-          const R = u.climb.rank || u.climb.dur, start = lead ? 0 : R * 0.8;
+          // the groups that climb in turn: a rifle squad's ranks, an MG team's pairs, a battery crew's pairs
+          const group = u.type === 'rifle' ? Math.floor(s.k / 3) : u.type === 'mg' ? s.k % 2 : Math.floor(s.k / 2);
+          const R = u.climb.rank || u.climb.dur, start = R * 0.8 * climbOrder(u, men, group);
           const k = Math.max(0, Math.min(0.999, (u.climb.t - start) / R + (hsh(s.k, 5) - 0.5) * 0.15));
           const f = Math.floor((u.climb.out ? k : 1 - k) * 8);
           // down in the trench (the first frames) the trench's near parapet hides his legs; on top, nothing does
