@@ -10,6 +10,9 @@ import { Sound } from './audio.js';
 import { PLAYER, NATIONS } from './config.js';
 import { hourOf } from './atmosphere.js';
 
+// An element by id, or a detached stand-in, so one missing element (an old cached page) cannot stop the rest of the wiring.
+const byId = (id) => document.getElementById(id) || document.createElement('div');
+
 const STEP = 1 / 30;
 
 const app = {
@@ -122,7 +125,7 @@ document.querySelectorAll('[data-cycle]').forEach((b) => b.addEventListener('cli
   renderSetup();
   sound.init(); voices.speakFor(app.nations[slot]);
 }));
-document.getElementById('btn-swap').addEventListener('click', () => {
+byId('btn-swap').addEventListener('click', () => {
   if (app.side === 'random') return;
   app.side = app.side === 'entente' ? 'central' : 'entente';
   app.nations = [app.nations[1], app.nations[0]];
@@ -137,7 +140,7 @@ document.querySelectorAll('[data-diff]').forEach((b) => b.addEventListener('clic
   showDiff();
 }));
 showDiff();
-document.getElementById('btn-random-side').addEventListener('click', () => { app.side = app.side === 'random' ? fixedSide : 'random'; renderSetup(); });
+byId('btn-random-side').addEventListener('click', () => { app.side = app.side === 'random' ? fixedSide : 'random'; renderSetup(); });
 const chosenStart = () => (app.start === 'random' ? (Math.random() < 0.5 ? 'west' : 'east') : app.start);
 document.querySelectorAll('[data-start]').forEach((b) => b.addEventListener('click', () => {
   app.start = b.dataset.start;
@@ -163,7 +166,7 @@ document.querySelectorAll('[data-season]').forEach((b) => b.addEventListener('cl
   app.season = b.dataset.season;
   document.querySelectorAll('[data-season]').forEach((x) => x.classList.toggle('active', x === b));
 }));
-document.getElementById('btn-start').addEventListener('click', async () => {
+byId('btn-start').addEventListener('click', async () => {
   sound.init();
   voices.prepare();
   sound.startMusic();
@@ -184,7 +187,7 @@ document.getElementById('btn-start').addEventListener('click', async () => {
   announce(app.state);
   resumeBattle();
 });
-document.getElementById('btn-restart').addEventListener('click', async () => {
+byId('btn-restart').addEventListener('click', async () => {
   app.state = createGame({ seed: Math.floor(Math.random() * 1e6), season: app.season, nations: chosenNations(), start: chosenStart(), difficulty: app.state.difficulty || app.difficulty });
   useArmies(app.state);
   ui.selected.clear();
@@ -200,13 +203,13 @@ document.getElementById('btn-restart').addEventListener('click', async () => {
 });
 const FILM = ['', 'sepia(0.55) contrast(1.08) saturate(0.85)', 'grayscale(1) contrast(1.15)'];
 let film = 0;
-document.getElementById('btn-film').addEventListener('click', () => {
+byId('btn-film').addEventListener('click', () => {
   film = (film + 1) % FILM.length;
   canvas.style.filter = FILM[film];
 });
-document.getElementById('btn-pause').addEventListener('click', () => app.togglePause());
-document.getElementById('btn-help').addEventListener('click', () => app.toggleHelp());
-document.getElementById('btn-speed').addEventListener('click', (e) => {
+byId('btn-pause').addEventListener('click', () => app.togglePause());
+byId('btn-help').addEventListener('click', () => app.toggleHelp());
+byId('btn-speed').addEventListener('click', (e) => {
   app.speed = app.speed === 1 ? 2 : app.speed === 2 ? 3 : 1;
   e.target.textContent = app.speed + '×';
 });
@@ -218,7 +221,7 @@ const musicBtn = document.getElementById('btn-music');
 const showMusic = () => { musicBtn.style.opacity = sound.musicOn ? '1' : '0.4'; };
 showMusic();
 musicBtn.addEventListener('click', () => { sound.init(); sound.startMusic(); sound.setMusic(!sound.musicOn); showMusic(); });
-document.getElementById('btn-sound').addEventListener('click', (e) => {
+byId('btn-sound').addEventListener('click', (e) => {
   sound.init();
   sound.setEnabled(!sound.enabled);
   voices.enabled = sound.enabled;
@@ -410,13 +413,13 @@ function openSlots(from) {
 }
 function closeSlots() { goBack(); }
 showContinue();
-document.getElementById('btn-continue').addEventListener('click', (e) => loadGame(e.currentTarget.dataset.slot));
-document.getElementById('btn-load').addEventListener('click', () => openSlots('menu'));
-document.getElementById('btn-save').addEventListener('click', () => {
+byId('btn-continue').addEventListener('click', (e) => loadGame(e.currentTarget.dataset.slot));
+byId('btn-load').addEventListener('click', () => openSlots('menu'));
+byId('btn-save').addEventListener('click', () => {
   if (!document.getElementById('save-panel').classList.contains('hidden')) closeSlots();
   else openSlots(app.overlayOpen() ? 'menu' : 'game');
 });
-document.getElementById('btn-save-close').addEventListener('click', () => closeSlots());
+byId('btn-save-close').addEventListener('click', () => closeSlots());
 
 // ------------------------------------------------------------ menus
 const PANELS = ['menu-panel', 'setup-panel', 'help-panel', 'credits-panel', 'exit-panel', 'save-panel', 'end-panel', 'loading-panel', 'boot-panel', 'epitaph-panel', 'campaign-panel', 'briefing-panel', 'debrief-panel'];
@@ -471,28 +474,28 @@ function goBack() {
   else showPanel('menu-panel');
 }
 document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', goBack));
-document.getElementById('m-resume').addEventListener('click', resumeBattle);
-document.getElementById('m-new').addEventListener('click', () => {
+byId('m-resume').addEventListener('click', resumeBattle);
+byId('m-new').addEventListener('click', () => {
   if (app.started && app.state.winner < 0) saveGame('auto'); // the battle being left stays in the automatic save
   showPanel('setup-panel');
 });
-document.getElementById('m-help').addEventListener('click', () => showPanel('help-panel'));
-document.getElementById('m-credits').addEventListener('click', () => showPanel('credits-panel'));
-document.getElementById('btn-menu').addEventListener('click', () => {
+byId('m-help').addEventListener('click', () => showPanel('help-panel'));
+byId('m-credits').addEventListener('click', () => showPanel('credits-panel'));
+byId('btn-menu').addEventListener('click', () => {
   if (app.overlayOpen() && !document.getElementById('menu-panel').classList.contains('hidden') && app.started) resumeBattle();
   else showPanel('menu-panel');
 });
 // the WORLDWAR title in the top bar opens the menu too, like ☰
 document.querySelector('#topbar .title').addEventListener('click', () => document.getElementById('btn-menu').click());
-document.getElementById('btn-end-menu').addEventListener('click', () => showPanel('menu-panel'));
-document.getElementById('m-exit').addEventListener('click', () => {
+byId('btn-end-menu').addEventListener('click', () => showPanel('menu-panel'));
+byId('m-exit').addEventListener('click', () => {
   if (app.started && app.state.winner < 0) saveGame('auto'); // nothing is lost by leaving
   app.started = false;
   if (sound.ctx) sound.ctx.suspend(); // silence (the music preference is kept)
   showPanel('exit-panel');
   try { window.close(); } catch {} // only works when the game was opened by a script; otherwise this screen stays
 });
-document.getElementById('btn-exit-back').addEventListener('click', () => {
+byId('btn-exit-back').addEventListener('click', () => {
   if (sound.ctx) sound.ctx.resume();
   showPanel('menu-panel');
 });
@@ -635,7 +638,7 @@ async function startTutorial() {
     },
   });
 }
-document.getElementById('btn-epitaph-new').addEventListener('click', () => showPanel('setup-panel'));
+byId('btn-epitaph-new').addEventListener('click', () => showPanel('setup-panel'));
 // leaving the tutorial for another game ends its script
 for (const id of ['btn-start', 'btn-continue', 'btn-restart']) document.getElementById(id).addEventListener('click', () => { if (app.state.tutorial || tutorial) endTutorial(); }, true);
 
@@ -728,12 +731,12 @@ function showDebrief(s) {
   sound.playEnding(won ? 'victory' : 'defeat');
 }
 // first time: the Campaign entry is the tutorial; afterwards the campaign, with the tutorial as its prologue
-document.getElementById('btn-epitaph-campaign').addEventListener('click', () => showCampaign());
-document.getElementById('m-campaign').addEventListener('click', () => (loadProgress().tutorial ? showCampaign() : startTutorial()));
+byId('btn-epitaph-campaign').addEventListener('click', () => showCampaign());
+byId('m-campaign').addEventListener('click', () => (loadProgress().tutorial ? showCampaign() : startTutorial()));
 function labelCampaign() { document.getElementById('m-campaign').textContent = loadProgress().tutorial ? 'Campaign' : 'Tutorial'; }
 labelCampaign();
-document.getElementById('btn-level-start').addEventListener('click', () => startLevel(briefed));
-document.getElementById('btn-brief-back').addEventListener('click', showCampaign);
-document.getElementById('btn-debrief-campaign').addEventListener('click', showCampaign);
-document.getElementById('btn-level-retry').addEventListener('click', () => showBriefing(briefed));
-document.getElementById('btn-level-next').addEventListener('click', () => { const L = levelById(briefed), n = LEVELS.find((x) => x.n === L.n + 1); if (n) showBriefing(n.id); });
+byId('btn-level-start').addEventListener('click', () => startLevel(briefed));
+byId('btn-brief-back').addEventListener('click', showCampaign);
+byId('btn-debrief-campaign').addEventListener('click', showCampaign);
+byId('btn-level-retry').addEventListener('click', () => showBriefing(briefed));
+byId('btn-level-next').addEventListener('click', () => { const L = levelById(briefed), n = LEVELS.find((x) => x.n === L.n + 1); if (n) showBriefing(n.id); });
