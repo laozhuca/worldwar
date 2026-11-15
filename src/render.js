@@ -879,6 +879,7 @@ export class Renderer {
     // depth-sorted objects
     const objs = [];
     for (const t of state.map.tiles) if (t.decor) objs.push({ k: t.x + t.y + 1, kind: 'decor', t });
+    for (const t of state.map.tiles) if (t.rock) objs.push({ k: t.x + t.y + 1, kind: 'rock', t });
     for (const team of [PLAYER, ENEMY]) {
       const q = state.map.hq[team];
       objs.push({ k: q.x + q.y + 1, kind: 'hq', q, team });
@@ -890,6 +891,7 @@ export class Renderer {
     for (const o of objs) {
       if (o.kind === 'decor') this.drawDecor(ctx, o.t);
       else if (o.kind === 'hq') this.drawHQ(ctx, state, o.q, o.team);
+      else if (o.kind === 'rock') this.drawRock(ctx, o.t);
       else if (o.kind === 'bunker') this.drawBunker(ctx, o.b, o.u, state.time, ui.selected.has(o.b.id));
       else this.drawUnit(ctx, o.u, ui.selected.has(o.u.id), state.time);
     }
@@ -1214,6 +1216,16 @@ export class Renderer {
       ctx.fillStyle = S > 0.2 ? '#dde2e7' : '#6d6a64';
       ctx.fillRect(c.x - 10, c.y - 14, 6, 2); ctx.fillRect(c.x - 4, c.y - 8, 10, 1.5);
     }
+  }
+
+  /** An impassable snow-capped rock outcrop (pre-rendered), a little larger than its tile. */
+  drawRock(ctx, t) {
+    const h = hash(t.x * 3.7, t.y * 1.9), c = iso(t.x + 0.5 + (h - 0.5) * 0.15, t.y + 0.5 + (hash(t.y, t.x) - 0.5) * 0.15);
+    const snow = (this.S ?? 1) > 0.7 ? '_s' : '';
+    if (this.drawFrame(ctx, this.propGroup(), `rock${(t.rock - 1) % 4}${snow}`, c.x, c.y, 1.4 + h * 0.35, h > 0.5)) return;
+    ctx.fillStyle = '#77736b'; // fallback: a plain grey boulder
+    ctx.beginPath(); ctx.ellipse(c.x, c.y - 10, 22, 16, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#e6eaf0'; ctx.beginPath(); ctx.ellipse(c.x - 3, c.y - 20, 12, 6, 0, 0, TAU); ctx.fill();
   }
 
   /**

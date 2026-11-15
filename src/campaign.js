@@ -56,6 +56,38 @@ function relieve(state, team, nation) {
   return out;
 }
 
+/**
+ * Impassable rock outcrops (the Alpine karst): small clusters of 1-4 tiles, kept clear of trenches,
+ * wire, headquarters and troops, and apart from each other so men can always walk round them.
+ */
+function scatterRocks(state, count, seed) {
+  const { map } = state;
+  let r = seed >>> 0;
+  const rnd = () => ((r = (r * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const near = (t, d, f) => { for (let y = t.y - d; y <= t.y + d; y++) for (let x = t.x - d; x <= t.x + d; x++) { const n = tileAt(map, x, y); if (n && f(n)) return true; } return false; };
+  const ok = (t) => t && !t.off && !t.trench && !t.wire && !t.rock && !t.build
+    && !near(t, 2, (n) => n.trench || n.wire) && !near(t, 3, (n) => n.rock)
+    && [map.hq[0], map.hq[1]].every((q) => Math.hypot(q.x - t.x, q.y - t.y) > 5)
+    && !state.units.some((u) => Math.hypot(u.x - t.x - 0.5, u.y - t.y - 0.5) < 2);
+  let placed = 0;
+  for (let tries = 0; tries < 2000 && placed < count; tries++) {
+    const t = map.tiles[Math.floor(rnd() * map.tiles.length)];
+    if (!ok(t)) continue;
+    const cluster = [t];
+    t.rock = 1 + Math.floor(rnd() * 4);
+    const extra = Math.floor(rnd() * 4);
+    for (let k = 0; k < extra; k++) {
+      const b = cluster[Math.floor(rnd() * cluster.length)], dir = [[1, 0], [-1, 0], [0, 1], [0, -1]][Math.floor(rnd() * 4)];
+      const n = tileAt(map, b.x + dir[0], b.y + dir[1]);
+      if (n && !n.off && !n.trench && !n.wire && !n.rock && !near(n, 1, (q) => q.trench || q.wire)) { n.rock = 1 + Math.floor(rnd() * 4); cluster.push(n); }
+    }
+    for (const c of cluster) { c.decor = null; c.crater = 0; }
+    placed++;
+  }
+  map.rocks = true;
+  map.dirty = true;
+}
+
 /** The trench tile of a team's line `off` tiles behind its front line in row y (front = 0, support = 7, reserve = 11). */
 function trenchBehind(map, team, y, off) {
   const f = frontLine(map, team), x0 = f[y] - teamDir(team) * off;
@@ -138,7 +170,7 @@ export const LEVELS = [
   },
   {
     id: 'isonzo', n: 2, title: 'Silence the Guns', place: 'The Isonzo, Italy', date: 'August 1916',
-    nations: ['italy', 'austria'], season: 'mud', start: 'west', startHour: 5,
+    nations: ['italy', 'austria'], season: 'thaw', start: 'west', startHour: 5,
     history: 'The Sixth Battle of the Isonzo. Five times the Italian army has thrown itself at the Austro-Hungarian line above the river, and five times it has been cut down by machine guns firing from concrete emplacements in the rock. This time the guns must be found and silenced first. Three nests command the whole sector; until they fall, no attack can cross the open ground. Your batteries have been given shells for only a handful of barrages: make every one count.',
     objectives: ['Silence all three machine-gun nests in the enemy lines.', 'Do it before nightfall on day 2.', 'Do not let the enemy take your headquarters.'],
     rules: ['The nests are concrete pillboxes, one in each of his three lines: front, support and reserve. Shellfire alone rarely finishes them: bombard, then send the infantry in while the crews are pinned.', 'The deeper nests lie beyond the reach of your guns from where they stand: take ground and bring the batteries forward.', 'Shells are rationed: 12 battery barrages for the whole battle.', 'The enemy holds deep wire and counter-attacks any trench he loses.'],
@@ -182,6 +214,7 @@ export const LEVELS = [
       const near = state.units.find((u) => u.team === ENEMY && u.type === 'mg' && !u.nest && Math.abs(u.y - nests[0].y) < 3);
       if (near) state.units = state.units.filter((u) => u !== near);
       state.bunkers = nests.map((u) => ({ id: u.id, x: u.x, y: u.y }));
+      scatterRocks(state, 18, 1916);
       map.dirty = true;
       state.campaign.nests = nests.map((u) => u.id);
       state.campaign.silenced = [];

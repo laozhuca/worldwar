@@ -4,7 +4,7 @@ import {
   BASE_INCOME, CAPTURE_BONUS, START_RES, SUPPRESSION_DECAY, CHARGE_SPEED, MELEE_RANGE,
   WIRE_SLOW, BUILD_RADIUS_FRIENDLY, BUILD_RADIUS_ENEMY, DIG_RADIUS, DIG_RATE,
 } from './config.js';
-import { createMap, tileAt, frontLine, teamDir, clampToMap } from './map.js';
+import { createMap, tileAt, frontLine, teamDir, clampToMap, rockAt, offRock } from './map.js';
 import { createAI, updateAI } from './ai.js';
 
 let nextId = 1;
@@ -153,6 +153,7 @@ export function orderMove(state, units, tx, ty, kind = 'move') {
     let y = ty + (col - (rowCount - 1) / 2) * 1.25;
     ({ x, y } = clampToMap(x, y));
     if (wantTrench && n > 1) ({ x, y } = snapToTrench(map, x, y));
+    ({ x, y } = offRock(map, x, y)); // nobody can stand on the rocks
     u.order = { kind, x, y };
     u.digSite = null;
   });
@@ -344,6 +345,23 @@ function deliverSupplies(state) {
   }
 }
 
+/**
+ * Walking round the rocks: a unit with an outcrop ahead turns aside (always to the same side until the
+ * way ahead is clear again) by as little as it can. Outcrops are small and kept apart, so this is enough.
+ */
+function steer(map, u, mx, my) {
+  const clear = (ax, ay) => !rockAt(map, u.x + ax * 0.08, u.y + ay * 0.08) && !rockAt(map, u.x + ax * 0.3, u.y + ay * 0.3) && !rockAt(map, u.x + ax * 0.65, u.y + ay * 0.65);
+  if (clear(mx, my)) { u.detour = 0; return { mx, my }; }
+  for (const deg of [25, 50, 75, 100, 125, 150]) {
+    for (const sg of u.detour ? [u.detour] : [1, -1]) {
+      const a = (deg * Math.PI / 180) * sg, c = Math.cos(a), s = Math.sin(a);
+      const rx = mx * c - my * s, ry = mx * s + my * c;
+      if (clear(rx, ry)) { u.detour = sg; return { mx: rx, my: ry }; }
+    }
+  }
+  return { mx: -mx, my: -my };
+}
+
 function terrainFactor(tile) {
   if (!tile) return 1;
   let f = 1;
@@ -392,12 +410,18 @@ function updateUnit(state, u, dt) {
       if (u.order.kind === 'charge') u.chargeBonus = 3;
       u.order = null;
     } else {
-      u.x += (dx / d) * step; u.y += (dy / d) * step;
+      let mx = dx / d, my = dy / d;
+      const rocky = state.map.rocks ?? (state.map.rocks = state.map.tiles.some((q) => q.rock));
+      if (rocky) ({ mx, my } = steer(state.map, u, mx, my));
+      const nx = u.x + mx * step, ny = u.y + my * step;
+      if (!rocky || !rockAt(state.map, nx, ny)) { u.x = nx; u.y = ny; }
+      else if (!rockAt(state.map, nx, u.y)) u.x = nx; // slide along the face of the rock
+      else if (!rockAt(state.map, u.x, ny)) u.y = ny;
       ({ x: u.x, y: u.y } = clampToMap(u.x, u.y));
       u.moving = true;
-      u.hx = dx / d; u.hy = dy / d;
+      u.hx = mx; u.hy = my;
       u.roll += step;
-      const sx = dx - dy; // screen-space horizontal direction
+      const sx = mx - my; // screen-space horizontal direction
       if (Math.abs(sx) > 0.05) u.facing = Math.sign(sx);
     }
     u.setup = t.setup || 0;

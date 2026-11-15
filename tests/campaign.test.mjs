@@ -154,3 +154,27 @@ test('The Black Day: three lines, Anglo-American army, counter-attacks, take the
   assert.equal(l.campaign.result, 'lost');
   createGame();
 });
+
+test('Rocks: impassable, units walk round them and never stand on them', async () => {
+  const { orderMove } = await import('../src/game.js');
+  const { rockAt } = await import('../src/map.js');
+  const s = createLevelGame('isonzo');
+  const rocks = s.map.tiles.filter((t) => t.rock);
+  assert.ok(rocks.length > 15, 'outcrops placed');
+  assert.ok(rocks.every((t) => !t.trench && !t.wire));
+  // a quiet field: one squad, no enemy
+  s.ais.length = 0;
+  s.units = s.units.filter((u) => u.team === PLAYER && u.type === 'rifle').slice(0, 1);
+  const u = s.units[0];
+  let tried = 0, arrived = 0;
+  for (const r of rocks.slice(0, 8)) for (const [ox, oy] of [[-3.5, 0.5], [0.5, -3.5]]) {
+    u.x = r.x + ox; u.y = r.y + oy; u.order = null; u.hp = 1000; u.suppression = 0; u.detour = 0;
+    if (rockAt(s.map, u.x, u.y) || !s.map.tiles[Math.floor(u.y) * s.map.w + Math.floor(u.x)] || s.map.tiles[Math.floor(u.y) * s.map.w + Math.floor(u.x)].off) continue;
+    if (!orderMove(s, [u], r.x + 0.5 - ox + 0.5 * Math.sign(-ox), r.y + 0.5 - oy + 0.5 * Math.sign(-oy))) continue;
+    tried++;
+    for (let i = 0; i < 30 * 40 && u.order; i++) { update(s, 1 / 30); assert.ok(!rockAt(s.map, u.x, u.y), 'never on a rock'); }
+    if (!u.order) arrived++;
+  }
+  assert.ok(tried >= 8 && arrived === tried, `walked round ${arrived} of ${tried}`);
+  createGame();
+});

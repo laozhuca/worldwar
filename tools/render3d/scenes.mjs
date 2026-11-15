@@ -579,6 +579,55 @@ export function hqScene(snow) {
   return { bounds: [-0.85, -0.75, -0.1, 0.9, 0.75, 0.78], sdf, shade, supersample: 2 };
 }
 
+// ===================================================================== Alpine rock outcrop
+/**
+ * A craggy limestone outcrop (the Karst above the Isonzo): a few fractured blocks leaning together, bedded
+ * in scree, snow lying in every ledge and on the tops. Impassable in the game. Footprint ~1.2 tiles.
+ * heavy: deep winter snow (the snow sheet); otherwise snow only on the upper ledges.
+ */
+export function rockScene(variant, heavy) {
+  const blocks = [];
+  const n = 3 + (variant % 3);
+  for (let k = 0; k < n; k++) {
+    const a = hash(variant, k, 1) * TAU, r = k ? 0.12 + hash(variant, k, 2) * 0.22 : 0;
+    const h = (k ? 0.22 + hash(variant, k, 3) * 0.3 : 0.5 + hash(variant, 0, 4) * 0.25);
+    blocks.push({ x: Math.cos(a) * r, y: Math.sin(a) * r, hx: 0.16 + hash(variant, k, 5) * 0.14, hy: 0.14 + hash(variant, k, 6) * 0.13, h,
+      rot: hash(variant, k, 7) * TAU, tilt: (hash(variant, k, 8) - 0.5) * 0.5 });
+  }
+  const block = (b, x, y, z) => {
+    const c = Math.cos(b.rot), s = Math.sin(b.rot);
+    let lx = (x - b.x) * c + (y - b.y) * s, ly = -(x - b.x) * s + (y - b.y) * c;
+    lx -= z * b.tilt; // leaning
+    const taper = 1 - (z / (b.h + 0.01)) * 0.45; // narrowing towards the top
+    const d = sdRoundBox(lx, ly, z - b.h / 2, b.hx * taper, b.hy * taper, b.h / 2, 0.03);
+    // fractured faces: bedding planes and joints
+    const strata = Math.abs(((z + hash(variant, 9) * 0.1) * 11) % 1 - 0.5) < 0.06 ? 0.008 : 0;
+    return d + (fbm(x * 9 + variant, y * 9, z * 9, 3) - 0.5) * 0.06 + (vnoise(x * 34, y * 34, z * 34) - 0.5) * 0.015 + strata;
+  };
+  const rock = (x, y, z) => { let d = 1; for (const b of blocks) d = smin(d, block(b, x, y, z), 0.035); return d; };
+  const scree = (x, y, z) => {
+    const r = Math.hypot(x / 0.62, y / 0.58);
+    return (z - (0.07 * Math.max(0, 1 - r * r) + (fbm(x * 16, y * 16, variant, 3) - 0.5) * 0.04 * Math.max(0, 1.1 - r))) * 0.7;
+  };
+  const sdf = (x, y, z) => Math.min(rock(x, y, z), scree(x, y, z));
+  const shade = (x, y, z, nx, ny, nz) => {
+    const isRock = rock(x, y, z) < scree(x, y, z);
+    const r = Math.hypot(x / 0.62, y / 0.58);
+    if (!isRock && (z < -0.004 || Math.max(Math.abs(x), Math.abs(y)) > 0.69)) return { kind: 'none' }; // the edge of the render volume
+    if (!isRock && r > 0.98) return { kind: 'catcher' };
+    // snow lies on every upward-facing ledge, more of it higher up and in the heavy-snow version
+    const lie = nz - (heavy ? 0.3 : 0.5) - (isRock ? 0 : heavy ? 0.25 : 0.6) + z * (heavy ? 0.5 : 0.4) + (fbm(x * 26, y * 26, z * 26, 3) - 0.5) * 0.4;
+    if (lie > 0.25) return { kind: 'solid', col: mix3(C.snow, [0.7, 0.74, 0.8], clamp(0.6 - lie, 0, 0.5)), spec: 0.12, alpha: isRock ? 1 : clamp((0.98 - r) * 3, 0.05, 1) };
+    const n = fbm(x * 30, y * 30, z * 30, 4);
+    if (!isRock) return { kind: 'solid', col: mix3([0.16, 0.155, 0.15], [0.36, 0.35, 0.33], n), spec: 0.05, alpha: clamp((0.98 - r) * 3, 0.05, 1) };
+    let col = mix3([0.34, 0.33, 0.31], [0.62, 0.61, 0.58], n); // pale karst limestone
+    col = mix3(col, [0.2, 0.2, 0.18], clamp(fbm(x * 8, y * 8, z * 40, 2) * 1.5 - 0.6, 0, 0.5)); // dark weathering streaks
+    col = mix3(col, [0.3, 0.33, 0.24], clamp(fbm(x * 50 + 7, y * 50, z * 50, 2) * 2 - 1.2, 0, 0.4)); // lichen
+    return { kind: 'solid', col, spec: 0.08 };
+  };
+  return { bounds: [-0.72, -0.72, -0.1, 0.72, 0.72, 0.95], sdf, shade, supersample: 2 };
+}
+
 // ===================================================================== MG pillbox
 /**
  * Concrete machine-gun pillbox: an octagonal blockhouse with board-marked walls, a firing slit in every

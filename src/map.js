@@ -40,6 +40,21 @@ export function rowsOf(x, inset = 0) {
   return half < 0 ? null : [MID - half, MID + half];
 }
 
+/** True where an impassable rock outcrop stands. */
+export function rockAt(map, x, y) {
+  const t = tileAt(map, x, y);
+  return !!(t && t.rock);
+}
+/** The nearest point off the rocks (the point itself if it is clear). */
+export function offRock(map, x, y) {
+  if (!rockAt(map, x, y)) return { x, y };
+  for (let r = 1; r <= 4; r++) for (let k = 0; k < 8 * r; k++) {
+    const a = (k / (8 * r)) * Math.PI * 2, px = x + Math.cos(a) * r * 0.75, py = y + Math.sin(a) * r * 0.75;
+    if (tileAt(map, px, py) && !rockAt(map, px, py)) return { x: px, y: py };
+  }
+  return { x, y };
+}
+
 export function tileAt(map, x, y) {
   const ix = Math.floor(x), iy = Math.floor(y);
   if (ix < 0 || iy < 0 || ix >= map.w || iy >= map.h) return null;
