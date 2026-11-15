@@ -103,7 +103,7 @@ function trenchBehind(map, team, y, off) {
 export const LEVELS = [
   {
     id: 'ypres', n: 1, title: 'Hold Until Relieved', place: 'Dixmude, Belgium', date: 'October 1914',
-    nations: ['france', 'germany'], season: 'mud', start: 'west', startHour: 6.5,
+    nations: ['marins', 'germany'], allies: ['france'], season: 'mud', start: 'west', startHour: 6.5,
     advance: { [PLAYER]: 6 }, // our lines stand forward of the town, leaving room for it behind the HQ
     history: 'October 1914. The German army is driving for the Channel ports along the river Yser, and only a thin line stands in its way. At Dixmude, Admiral Ronarc\'h and his brigade of French naval infantry, the Fusiliers Marins, sailors who have never fought on land, are ordered to hold the town and its bridgehead for at least four days, until reinforcements can come up. Dig in, and hold.',
     objectives: ['Hold until the relief arrives at dawn on day 4.', 'Do not let the enemy take your headquarters.', 'Do not lose more than half of your front line.'],
@@ -143,7 +143,7 @@ export const LEVELS = [
       { at: 48 + 0, run: (s) => pushMessage(s, 'Day 3. The reinforcements are on the road from Dunkirk. Hold on one more day.', 'side') },
       ...[13, 29, 38, 52, 62, 71].map((at) => ({ at, run: (s) => { reinforce(s, ENEMY, 4); pushMessage(s, 'Fresh German reserves are coming up behind their line.', 'warn'); } })),
       { at: 72 + 6, run: (s) => {
-        s.campaign.relief = relieve(s, PLAYER).map((u) => u.id);
+        s.campaign.relief = relieve(s, PLAYER, 'france').map((u) => u.id);
         s.campaign.relievedAt = s.time;
         pushMessage(s, 'The reinforcements have arrived! A fresh French division is marching up to our line.', 'good');
         s.events.push({ type: 'cheer' });

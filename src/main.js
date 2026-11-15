@@ -60,7 +60,7 @@ function useArmies(state) {
   document.getElementById('matchup').textContent = `${a} vs ${b}`;
 }
 useArmies(app.state);
-const ofSide = (side) => Object.keys(NATIONS).filter((k) => NATIONS[k].alliance === side);
+const ofSide = (side) => Object.keys(NATIONS).filter((k) => NATIONS[k].alliance === side && !NATIONS[k].campaign);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 /** Nations to play with: the chosen ones, or a fresh random draw of side and nations. */
 function chosenNations() {

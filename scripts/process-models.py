@@ -13,7 +13,7 @@ SRC, OUT = 'art-src/models', 'assets/models'
 MODELS = {  # source file -> nation
     'British_Tommy_WWI_Sol': 'uk', 'Doughboy_on_Watch': 'usa', 'The_Poilu_s_Vigil': 'france',
     'Alpine_Sentry': 'italy', 'Ottoman_Sentinel': 'ottoman', 'Imperial_Sentry': 'germany',
-    'The_Watchful_Infantry': 'russia', 'Frontline_Sentinel': 'austria',
+    'The_Watchful_Infantry': 'russia', 'Frontline_Sentinel': 'austria', 'The_Anchored_Sentinel': 'marins',
 }
 TEX = 1024
 

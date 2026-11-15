@@ -148,4 +148,6 @@ export const NATIONS = {
   germany: { name: 'Germany', alliance: 'central' },
   austria: { name: 'Austria-Hungary', alliance: 'central' },
   ottoman: { name: 'Ottoman Empire', alliance: 'central' },
+  // campaign-only uniforms (not offered in a new game): the French naval infantry at Dixmude
+  marins: { name: 'France', alliance: 'entente', campaign: true, voice: 'france' },
 };

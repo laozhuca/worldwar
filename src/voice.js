@@ -3,6 +3,10 @@
 // Recorded voices (assets/voice, built by scripts/process-voices.mjs) are used when available.
 // Otherwise only male synthesized voices are used; without a male voice for the language a male English voice speaks the English line.
 
+/** Campaign-only uniforms speak with their nation's voices (the Fusiliers Marins are French). */
+const VOICE_OF = { marins: 'france' };
+const voiceOf = (n) => VOICE_OF[n] || n;
+
 export const LINES = {
   uk: { lang: 'en-GB',
     select: ['Sir?', 'Ready, sir.', 'Awaiting orders.', 'Yes, sir?'],
@@ -180,6 +184,7 @@ export class Voices {
    * one (a commander only listens to the latest reply), with a short gap so rapid clicks don't stutter.
    */
   bark(unit, nation, kind) {
+    nation = voiceOf(nation);
     const N = LINES[nation] || LINES.uk;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     if (kind === 'select' && now - this.last < 700) return null; // orders always get an answer
@@ -243,6 +248,7 @@ export class Voices {
 
   /** Decode the recordings of the player's army (needs the audio context, which a first click creates). */
   prepare(nation = this.nation) {
+    nation = voiceOf(nation);
     this.nation = nation;
     const ctx = this.sound && this.sound.ctx;
     if (!ctx || !this.recordings || !nation || !this.recordings[nation]) return Promise.resolve();
@@ -262,6 +268,7 @@ export class Voices {
 
   /** Decoded recordings for this kind of line; a selected unit mixes general and unit-type replies. */
   clipsFor(nation, kind, unit) {
+    nation = voiceOf(nation);
     const R = this.recordings && this.recordings[nation];
     if (!R) return [];
     if (nation !== this.nation || !this.sound || !this.sound.ctx) this.prepare(nation);
@@ -274,6 +281,7 @@ export class Voices {
    * select lines, decoded on demand. Needs the audio context (call after a click).
    */
   async speakFor(nation) {
+    nation = voiceOf(nation);
     const R = this.recordings && this.recordings[nation], ctx = this.sound && this.sound.ctx;
     if (!R || !ctx || !this.on || !this.enabled) return;
     const list = (R.select || []).concat(R.select_rifle || []);

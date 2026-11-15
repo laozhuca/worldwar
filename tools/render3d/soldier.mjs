@@ -12,6 +12,9 @@ export const NATIONS = {
   russia:  { name: 'Russia',          alliance: 'allied',  uni: [0.39, 0.34, 0.25], putt: [0.38, 0.33, 0.25], web: [0.55, 0.48, 0.33], hat: [0.41, 0.38, 0.25], hat2: [0.06, 0.06, 0.06], head: 'peaked', coat: true },
   germany: { name: 'Germany',         alliance: 'central', uni: [0.31, 0.32, 0.28], putt: [0.3, 0.31, 0.27],  web: [0.34, 0.21, 0.13], hat: [0.07, 0.07, 0.07], hat2: [0.72, 0.56, 0.25], head: 'pickelhaube' },
   austria: { name: 'Austria-Hungary', alliance: 'central', uni: [0.38, 0.39, 0.4],  putt: [0.37, 0.38, 0.39], web: [0.36, 0.22, 0.13], hat: [0.39, 0.4, 0.41], hat2: [0.66, 0.54, 0.26], head: 'kepi' },
+  // the Fusiliers Marins (French naval infantry, Dixmude 1914): navy greatcoat, dark trousers, black
+  // leggings, white crossed straps over a black leather belt, the sailor's cap with its red pompom
+  marins:  { name: 'France',          alliance: 'allied',  uni: [0.14, 0.17, 0.3],  putt: [0.07, 0.07, 0.08], web: [0.22, 0.17, 0.12],  hat: [0.1, 0.12, 0.22],  hat2: [0.78, 0.12, 0.08], head: 'bachi', coat: true, trou: [0.09, 0.09, 0.13], strap: [0.8, 0.76, 0.64], cross: true },
   ottoman: { name: 'Ottoman Empire',  alliance: 'central', uni: [0.41, 0.34, 0.24], putt: [0.4, 0.34, 0.25],  web: [0.38, 0.23, 0.13], hat: [0.52, 0.1, 0.08], hat2: [0.05, 0.05, 0.05], head: 'fez' },
 };
 const SKIN = [0.72, 0.55, 0.43], BOOT = [0.22, 0.17, 0.12], WOOD = [0.38, 0.21, 0.12], METAL = [0.18, 0.18, 0.19], STEEL = [0.55, 0.56, 0.58];
@@ -273,6 +276,13 @@ function headgear(nat, p, h) {
       const brass = Math.min(spike, plate);
       return brass < Math.min(dome, visor) ? [brass, 'hat2'] : [Math.min(dome, visor), 'hat'];
     }
+    case 'bachi': { // the sailor's cap: a band, a flat round crown tipped back, the red pompom on top
+      const band = Math.max(r2 - 0.11, Math.abs(z - 0.05) - 0.03);
+      const zc = z - 0.088 - x * 0.08;
+      const crown = Math.max(Math.hypot(x + 0.01, y) - 0.145, Math.abs(zc) - 0.018) - 0.006;
+      const pom = Math.hypot(x + 0.01, y, z - 0.128) - 0.032 + (fbm(x * 90, y * 90, z * 90, 2) - 0.5) * 0.012;
+      return pom < Math.min(band, crown) ? [pom, 'hat2'] : [Math.min(band, crown), 'hat'];
+    }
     case 'kepi': {
       const cap = sdRoundBox(x - 0.005, y, z - 0.09, 0.115, 0.105, 0.065, 0.03);
       const visor = Math.max(Math.hypot(x - 0.06, y) - 0.11, Math.max(Math.abs(z - 0.035 + (x - 0.1) * 0.3) - 0.006, -x + 0.07));
@@ -329,8 +339,13 @@ function figure(nat, J, seed) {
   cap(add(add(packC, mul(J.up, 0.16)), [0, 0.17, 0]), add(add(packC, mul(J.up, 0.16)), [0, -0.17, 0]), 0.06, 0.06, 'pack');
   prims.push({ k: 's', c: add(add(belt, mul(back, 0.08)), [0, 0.2, -0.06]), r: 0.055, mat: 'metal2' });
   // webbing straps over the shoulders
-  cap(add(J.shL, mul(fwd, 0.08)), add(belt, add(mul(fwd, 0.14), [0, 0.08, 0])), 0.022, 0.022, 'web');
-  cap(add(J.shR, mul(fwd, 0.08)), add(belt, add(mul(fwd, 0.14), [0, -0.08, 0])), 0.022, 0.022, 'web');
+  if (nat.cross) { // straps crossed over the chest, each from one shoulder to the other hip
+    cap(add(J.shL, mul(fwd, 0.08)), add(belt, add(mul(fwd, 0.14), [0, -0.1, 0.01])), 0.022, 0.022, 'strap');
+    cap(add(J.shR, mul(fwd, 0.08)), add(belt, add(mul(fwd, 0.15), [0, 0.1, 0.01])), 0.022, 0.022, 'strap');
+  } else {
+    cap(add(J.shL, mul(fwd, 0.08)), add(belt, add(mul(fwd, 0.14), [0, 0.08, 0])), 0.022, 0.022, 'web');
+    cap(add(J.shR, mul(fwd, 0.08)), add(belt, add(mul(fwd, 0.14), [0, -0.08, 0])), 0.022, 0.022, 'web');
+  }
   if (nat.coat && !J.lying) prims.push({ k: 'skirt', top: add(J.P, mul(J.up, 0.05)), mat: 'uni' });
   }
   // rifle / shovel
@@ -382,7 +397,9 @@ function figure(nat, J, seed) {
     const grime = clamp((0.5 - p[2]) * 1.4, 0, 0.6) * (fbm(p[0] * 12, p[1] * 12, p[2] * 12, 2) + 0.3);
     let c;
     switch (mat) {
-      case 'uni': case 'trou': c = mix3(mul(nat.uni, 0.82), mul(nat.uni, 1.1), n); break;
+      case 'uni': c = mix3(mul(nat.uni, 0.82), mul(nat.uni, 1.1), n); break;
+      case 'trou': { const t = nat.trou || nat.uni; c = mix3(mul(t, 0.82), mul(t, 1.1), n); break; }
+      case 'strap': c = mix3(mul(nat.strap || nat.web, 0.85), nat.strap || nat.web, n); break;
       case 'putt': c = ((p[2] * 60) % 1) < 0.25 ? mul(nat.putt, 0.75) : nat.putt; break;
       case 'boot': return BOOT;
       case 'skin': return mix3(SKIN, [0.55, 0.4, 0.32], n * 0.5);
