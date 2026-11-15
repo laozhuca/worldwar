@@ -376,7 +376,26 @@ function terrainFactor(tile) {
 function updateUnit(state, u, dt) {
   const t = UNIT_TYPES[u.type];
   const tile = tileAt(state.map, u.x, u.y);
+  const wasIn = u.inTrench;
   u.inTrench = !!tile && tile.trench > 0;
+  // climbing out of a trench, or down into one, takes time: the men haul themselves over the parapet.
+  // Out: as soon as the ground just ahead is no longer trench (the men are at the trench wall).
+  // In: on stepping onto a trench tile.
+  if (u.type === 'rifle' && u.order && !u.climb) {
+    const charge = u.order.kind === 'charge';
+    if (u.inTrench && wasIn === false) u.climb = { t: 0, dur: 1.4, out: false, tx: tile.x, ty: tile.y };
+    else if (u.inTrench && !u.overTop) {
+      const dx = u.order.x - u.x, dy = u.order.y - u.y, d = Math.hypot(dx, dy) || 1;
+      const ahead = d > 0.45 && tileAt(state.map, u.x + (dx / d) * 0.4, u.y + (dy / d) * 0.4);
+      if (ahead && !ahead.trench) u.climb = { t: 0, dur: charge ? 1.4 : 2.0, out: true, tx: tile.x, ty: tile.y };
+    }
+  }
+  if (u.climb) {
+    u.climb.t += dt;
+    if (u.climb.t >= u.climb.dur || !u.order) { if (u.climb.out && u.order && u.inTrench) u.overTop = true; u.climb = null; }
+  }
+  // out over the parapet: walking on top of the trench's edge until clear of it (no second climb)
+  if (u.overTop && (!u.inTrench || !u.order)) u.overTop = false;
   u.suppression = Math.max(0, u.suppression - dt * SUPPRESSION_DECAY);
   if (u.shock > 0) { u.shock -= dt; u.suppression = Math.max(u.suppression, 75); }
   const charging = !!(u.order && u.order.kind === 'charge');
@@ -403,6 +422,7 @@ function updateUnit(state, u, dt) {
     const dx = u.order.x - u.x, dy = u.order.y - u.y;
     const d = Math.hypot(dx, dy);
     let speed = t.speed * terrainFactor(tile) * (u.order.kind === 'charge' ? CHARGE_SPEED : 1);
+    if (u.climb) speed *= 0.25; // over the parapet, or down into the trench
     if (u.pinned) speed *= 0.3;
     else if (u.order.kind !== 'charge' && u.suppression > 40) speed *= 0.6;
     const step = speed * dt;

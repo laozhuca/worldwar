@@ -41,8 +41,49 @@ function elbow(sh, hand, side) {
   return add(m, mul(bend, h));
 }
 
+/**
+ * Climbing out of a trench (frames 0..7; played backwards it is getting in). Local metres, x towards the
+ * parapet: the man starts on the fire step (feet at z = 0, the ground at z = 1.12), reaches up and grips
+ * the parapet, hauls himself up with a knee over the edge, kneels on top and stands up on the ground.
+ * The rifle is slung across his back throughout.
+ */
+const GROUND = 1.12;
+function climbPose(frame) {
+  const G = GROUND;
+  // keyframes: pelvis, lean, hands, and each leg as hip offsets -> knee, ankle, toe (absolute)
+  const KEYS = [
+    { P: [0, 0, 0.94], lean: 0.25, hL: [0.52, 0.2, G + 0.06], hR: [0.52, -0.2, G + 0.06],
+      L: [[0.1, 0.1, 0.5], [0.08, 0.1, 0.05], [0.24, 0.1, 0.01]], R: [[0.05, -0.1, 0.5], [0, -0.1, 0.05], [0.16, -0.1, 0.01]] },
+    { P: [0.12, 0, 1.18], lean: 0.55, hL: [0.5, 0.21, G + 0.05], hR: [0.5, -0.21, G + 0.05],
+      L: [[0.42, 0.1, 1.05], [0.2, 0.1, 0.7], [0.32, 0.1, 0.66]], R: [[0.12, -0.1, 0.72], [0.06, -0.1, 0.3], [0.2, -0.1, 0.28]] },
+    { P: [0.3, 0, G + 0.38], lean: 0.75, hL: [0.62, 0.2, G + 0.04], hR: [0.6, -0.2, G + 0.04],
+      L: [[0.55, 0.1, G + 0.12], [0.42, 0.1, G + 0.02], [0.56, 0.1, G + 0.01]], R: [[0.3, -0.1, G + 0.06], [0.0, -0.1, G + 0.12], [-0.12, -0.1, G + 0.08]] },
+    { P: [0.42, 0, G + 0.62], lean: 0.35, hL: [0.72, 0.18, G + 0.6], hR: [0.66, -0.18, G + 0.5],
+      L: [[0.72, 0.1, G + 0.42], [0.66, 0.1, G + 0.03], [0.82, 0.1, G + 0.01]], R: [[0.36, -0.1, G + 0.12], [0.08, -0.1, G + 0.06], [-0.04, -0.1, G + 0.02]] },
+    { P: [0.55, 0, G + 0.93], lean: 0.08, hL: [0.72, 0.2, G + 0.86], hR: [0.66, -0.22, G + 0.78],
+      L: [[0.62, 0.1, G + 0.48], [0.6, 0.1, G + 0.05], [0.76, 0.1, G + 0.01]], R: [[0.52, -0.1, G + 0.48], [0.48, -0.1, G + 0.05], [0.64, -0.1, G + 0.01]] },
+  ];
+  const k = (frame / 7) * (KEYS.length - 1), i = Math.min(KEYS.length - 2, Math.floor(k)), f = k - i;
+  const A = KEYS[i], B = KEYS[i + 1], s = f * f * (3 - 2 * f); // eased between keys
+  const L3 = (a, b) => add(a, mul(sub(b, a), s)), L1 = (a, b) => a + (b - a) * s;
+  const P = L3(A.P, B.P), lean = L1(A.lean, B.lean);
+  const up = [Math.sin(lean), 0, Math.cos(lean)];
+  const chest = add(P, mul(up, 0.42)), neck = add(P, mul(up, 0.56)), head = add(P, mul(up, 0.71));
+  const shL = add(add(P, mul(up, 0.5)), [0, 0.2, 0]), shR = add(add(P, mul(up, 0.5)), [0, -0.2, 0]);
+  const hL = L3(A.hL, B.hL), hR = L3(A.hR, B.hR);
+  const legOf = (side) => {
+    const [k0, a0, t0] = A[side], [k1, a1, t1] = B[side];
+    return { hip: add(P, [0, side === 'L' ? 0.1 : -0.1, 0]), knee: L3(k0, k1), ankle: L3(a0, a1), toe: L3(t0, t1) };
+  };
+  // the rifle slung diagonally across his back, muzzle up behind the left shoulder
+  const back = mul(up, 1), bw = [-Math.cos(lean), 0, Math.sin(lean)];
+  const rifle = { butt: add(add(P, mul(bw, 0.17)), [0, -0.18, 0.12]), muzzle: add(add(add(P, mul(back, 0.95)), mul(bw, 0.2)), [0, 0.2, 0]) };
+  return { P, up, chest, neck, head, shL, shR, elL: elbow(shL, hL, 1), elR: elbow(shR, hR, -1), hL, hR, legs: [legOf('L'), legOf('R')], rifle, tool: null, cut: GROUND, climb: true };
+}
+
 /** Returns joints for a named pose and animation frame. */
 export function pose(name, frame = 0) {
+  if (name === 'tclimb') return climbPose(frame);
   if (IDLE.includes(name.replace(/^t/, ''))) return idlePose(name, frame);
   let P = [0, 0, 0.94], lean = 0.04, legs, hands, rifleMode = 'port', head = null, tool = null;
   const hipL = (p) => add(p, [0, 0.1, 0]), hipR = (p) => add(p, [0, -0.1, 0]);
@@ -497,7 +538,7 @@ export function soldierScene(nationKey, poseName, frame, view, portrait = false)
   };
   if (portrait) { const P = 0.5 * K; return { bounds: [-P, -P, 0, P + 0.4 * K, P, 1.95 * K], sdf, shade, supersample: 3 }; }
   const E = 1.3 * K;
-  return { bounds: [-E, -E, pit ? -0.27 : -0.01, E + 0.25, E + 0.2, (2.0 - zoff) * K], sdf, shade, supersample: 3 };
+  return { bounds: [-E, -E, pit ? -0.27 : -0.01, E + 0.25, E + 0.2, ((J.climb ? 3.0 : 2.0) - zoff) * K], sdf, shade, supersample: 3 };
 }
 
 /** A fallen soldier: CORPSES[variant], turned to one of 8 directions (dir x 45 degrees). */
@@ -638,7 +679,7 @@ export function partScene(nationKey, name, dir) {
 }
 
 /** All sprite jobs: [name, args]. */
-export const SOLDIER_POSES = [['stand', 1], ['walk', 8], ['charge', 8], ['crawl', 6], ['fire', 1], ['trench', 1], ['prone', 1], ['dig', 2], ['dead', 1]];
+export const SOLDIER_POSES = [['stand', 1], ['walk', 8], ['charge', 8], ['crawl', 6], ['fire', 1], ['trench', 1], ['tclimb', 8], ['prone', 1], ['dig', 2], ['dead', 1]];
 /** Idle animations: standing and in-trench versions, 4 frames each. */
 export const IDLE_POSES = IDLE.flatMap((n) => [[n, 4], ['t' + n, 4]]);
 

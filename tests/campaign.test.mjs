@@ -199,3 +199,24 @@ test('Artillery cannot fire on the move: moving ends a barrage, and the guns unl
   assert.ok(shells() > 0, 'firing once set up');
   createGame();
 });
+
+test('Climbing out of and into trenches takes time and slows the men', async () => {
+  const { orderMove } = await import('../src/game.js');
+  const s = createGame(); s.ais.length = 0;
+  const u = s.units.find((q) => q.team === PLAYER && q.type === 'rifle' && q.inTrench);
+  s.units = [u];
+  // out over the parapet towards the enemy
+  orderMove(s, [u], u.x + 3 * (s.map.hq[ENEMY].x > u.x ? 1 : -1), u.y);
+  let climbedOut = false, outTime = 0;
+  for (let i = 0; i < 30 * 12 && u.order; i++) { update(s, 1 / 30); if (u.climb && u.climb.out) { climbedOut = true; outTime += 1 / 30; } }
+  assert.ok(climbedOut, 'climbs out');
+  assert.ok(outTime > 1.5, `the climb takes time (${outTime.toFixed(1)} s)`);
+  assert.ok(!u.inTrench);
+  // and back down into it
+  const back = s.map.tiles.find((t) => t.trench && Math.hypot(t.x + 0.5 - u.x, t.y + 0.5 - u.y) < 4);
+  orderMove(s, [u], back.x + 0.5, back.y + 0.5);
+  let climbedIn = false;
+  for (let i = 0; i < 30 * 12 && u.order; i++) { update(s, 1 / 30); if (u.climb && !u.climb.out) climbedIn = true; }
+  assert.ok(climbedIn, 'climbs down into the trench');
+  createGame();
+});

@@ -1621,7 +1621,8 @@ export class Renderer {
     const dir = teamDir(u.team);
     const charging = !!(u.order && u.order.kind === 'charge');
     // pinned men keep moving by crawling; otherwise walk, or run when charging
-    const pose = u.inTrench ? 'trench' : u.pinned ? (u.moving ? 'crawl' : 'prone') : charging ? 'charge' : u.order ? 'walk' : 'stand';
+    const climbing = !!(u.climb && u.type === 'rifle');
+    const pose = climbing ? 'tclimb' : u.inTrench && !u.overTop ? 'trench' : u.pinned ? (u.moving ? 'crawl' : 'prone') : charging ? 'charge' : u.order ? 'walk' : 'stand';
     const moving = u.moving && pose !== 'trench';
     const hsh = (k, j) => { const v = Math.sin(u.seed * 1000 + k * 12.9898 + j * 78.233) * 43758.5453; return v - Math.floor(v); };
     const men = [];
@@ -1686,6 +1687,13 @@ export class Renderer {
       men.forEach((s, i) => {
         if (s.y >= p.y) drawGunNow(); // crew behind the gun first, the rest in front
         let pn = pose, fr = 0;
+        if (climbing) { // over the parapet (frames forwards) or down into the trench (backwards), each man a little apart
+          const k = Math.max(0, Math.min(0.999, u.climb.t / u.climb.dur + (hsh(s.k, 5) - 0.5) * 0.25));
+          const f = Math.floor((u.climb.out ? k : 1 - k) * 8);
+          // down in the trench (the first frames) the trench's near parapet hides his legs; on top, nothing does
+          const tc = f <= 4 ? { x: u.climb.tx + 0.5, y: u.climb.ty + 0.5 } : null;
+          if (this.drawSoldier(ctx, nation, 'tclimb', f, u.hx, u.hy, s.x, s.y, tc)) return;
+        }
         const g = GAIT[pose];
         if (g) {
           const k = s.k, cyc = (u.roll || 0) / (g[1] * (0.92 + 0.16 * hsh(k, 2))) + hsh(k, 3);
