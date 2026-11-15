@@ -16,8 +16,8 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export { teamDir };
 
 export function createGame(opts = {}) {
-  const { seed = 1916, aiTeams = [ENEMY], season = 'winter', nations = ['uk', 'germany'], start = 'west', difficulty = 'medium' } = opts;
-  const map = createMap(seed, start === 'east' ? ENEMY : PLAYER);
+  const { seed = 1916, aiTeams = [ENEMY], season = 'winter', nations = ['uk', 'germany'], start = 'west', difficulty = 'medium', advance = {} } = opts;
+  const map = createMap(seed, start === 'east' ? ENEMY : PLAYER, advance);
   const state = {
     season,
     start,
@@ -411,7 +411,7 @@ function updateUnit(state, u, dt) {
       u.order = null;
     } else {
       let mx = dx / d, my = dy / d;
-      const rocky = state.map.rocks ?? (state.map.rocks = state.map.tiles.some((q) => q.rock));
+      const rocky = state.map.rocks ?? (state.map.rocks = state.map.tiles.some((q) => q.rock || q.block));
       if (rocky) ({ mx, my } = steer(state.map, u, mx, my));
       const nx = u.x + mx * step, ny = u.y + my * step;
       if (!rocky || !rockAt(state.map, nx, ny)) { u.x = nx; u.y = ny; }

@@ -40,10 +40,10 @@ export function rowsOf(x, inset = 0) {
   return half < 0 ? null : [MID - half, MID + half];
 }
 
-/** True where an impassable rock outcrop stands. */
+/** True where nobody can walk: a rock outcrop, or the buildings of a town. */
 export function rockAt(map, x, y) {
   const t = tileAt(map, x, y);
-  return !!(t && t.rock);
+  return !!(t && (t.rock || t.block));
 }
 /** The nearest point off the rocks (the point itself if it is clear). */
 export function offRock(map, x, y) {
@@ -77,10 +77,15 @@ export function frontLine(map, team) {
   return out;
 }
 
-export function createMap(seed = 1916, westTeam = PLAYER) {
+/**
+ * advance: { [team]: tiles } moves a team's whole trench system (front, support, reserve, HQ) that far
+ * forward towards the enemy, leaving more ground behind its headquarters (a campaign level's town).
+ */
+export function createMap(seed = 1916, westTeam = PLAYER, advance = {}) {
   WEST_TEAM = westTeam;
   const WT = westTeam, ET = 1 - westTeam;
-  const FRONT_X = { [WT]: WEST_FRONT, [ET]: EAST_FRONT };
+  const ADV = (team) => advance[team] || 0;
+  const FRONT_X = { [WT]: WEST_FRONT + ADV(WT), [ET]: EAST_FRONT - ADV(ET) };
   const rnd = mulberry32(seed);
   const w = MAP_W, h = MAP_H;
   const tiles = new Array(w * h);
@@ -156,7 +161,7 @@ export function createMap(seed = 1916, westTeam = PLAYER) {
   const system = (team) => {
     const west = team === WT, X = (x) => (west ? x : w - 1 - x), sgn = west ? 1 : -1;
     const heavy = team === ENEMY, lvl = heavy ? 2 : 1;
-    const F = WEST_FRONT, SUPPORT = F - 7, RESERVE = F - 11, HQ = F - 14;
+    const F = WEST_FRONT + ADV(team), SUPPORT = F - 7, RESERVE = F - 11, HQ = F - 14;
     line(X(F), team, lvl, -sgn);
     line(X(SUPPORT), team, lvl, -sgn);
     line(X(RESERVE), team, 2, 0);
@@ -177,7 +182,7 @@ export function createMap(seed = 1916, westTeam = PLAYER) {
       if (!heavy && (y % 9 === 4 || y % 9 === 5)) continue;
       const belts = heavy ? [[2, 0.97], [3, 0.85], [4, 0.4]] : [[2, 0.92], [3, 0.55]];
       for (const [dx, p] of belts) {
-        const t = T(X(WEST_FRONT + dx), y);
+        const t = T(X(WEST_FRONT + ADV(team) + dx), y);
         if (t && !t.trench && rnd() < p) { t.wire = 100; t.origWire = team; }
       }
     }

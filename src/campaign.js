@@ -104,6 +104,7 @@ export const LEVELS = [
   {
     id: 'ypres', n: 1, title: 'Hold Until Relieved', place: 'Dixmude, Belgium', date: 'October 1914',
     nations: ['france', 'germany'], season: 'mud', start: 'west', startHour: 6.5,
+    advance: { [PLAYER]: 6 }, // our lines stand forward of the town, leaving room for it behind the HQ
     history: 'October 1914. The German army is driving for the Channel ports along the river Yser, and only a thin line stands in its way. At Dixmude, Admiral Ronarc\'h and his brigade of French naval infantry, the Fusiliers Marins, sailors who have never fought on land, are ordered to hold the town and its bridgehead for at least four days, until reinforcements can come up. Dig in, and hold.',
     objectives: ['Hold until the relief arrives at dawn on day 4.', 'Do not let the enemy take your headquarters.', 'Do not lose more than half of your front line.'],
     rules: ['Your trenches are strong: sandbagged all along your line.', 'Supplies are short: the convoys bring 70% of the usual.', 'The enemy attacks in strength every few hours, day and night, and fresh battalions come up behind him.'],
@@ -113,9 +114,15 @@ export const LEVELS = [
       lost: 'Your line broke before the reinforcements could reach you. At Dixmude in 1914 it did not: the Fusiliers Marins, ordered to hold for four days, held for more than three weeks, and the Germans never reached the Channel ports.',
     },
     setup(state) {
-      // the town of Dixmude behind our headquarters, beyond the battlefield's edge (scenery only)
+      // the town of Dixmude on the battlefield behind our headquarters: its buildings are impassable
       const hq = state.map.hq[PLAYER];
-      state.backdrop = { img: 'assets/art/town-dixmude.webp', name: 'Dixmude', x: hq.x + 0.5 - teamDir(PLAYER) * 9.5, y: hq.y + 0.5, ax: 440, ay: 444, k: 0.5 };
+      const town = { img: 'assets/art/town-dixmude.webp', x: hq.x + 0.5 - teamDir(PLAYER) * 4.7, y: hq.y + 0.5, ax: 440, ay: 444, k: 0.5, hx: 2.1, hy: 4.4 };
+      state.backdrop = town;
+      for (const t of state.map.tiles) {
+        if (t.off || Math.abs(t.x + 0.5 - town.x) > town.hx || Math.abs(t.y + 0.5 - town.y) > town.hy) continue;
+        t.block = 1; t.decor = null; t.crater = 0; t.trench = 0; t.wire = 0;
+      }
+      state.map.rocks = true;
       // strong works: our trenches sandbagged
       for (const t of state.map.tiles) if (t.trench && t.owner === PLAYER) t.trench = Math.max(t.trench, 2);
       state.map.dirty = true;
@@ -520,7 +527,7 @@ export const levelById = (id) => LEVELS.find((l) => l.id === id);
 /** A new battle for a campaign level. */
 export function createLevelGame(id, opts = {}) {
   const L = levelById(id);
-  const state = createGame({ seed: opts.seed ?? 1915 + L.n, season: L.season, nations: L.nations, start: L.start, difficulty: 'hard', aiTeams: opts.aiTeams });
+  const state = createGame({ seed: opts.seed ?? 1915 + L.n, season: L.season, nations: L.nations, start: L.start, difficulty: 'hard', aiTeams: opts.aiTeams, advance: L.advance });
   state.startHour = L.startHour;
   state.campaign = { id, fired: [], result: null, reason: '' };
   L.setup(state);
