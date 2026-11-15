@@ -66,6 +66,7 @@ export const UNIT_TYPES = {
     artyRange: 36,
     artyMinRange: 10, // the guns can't drop shells closer than this
     barrageShells: 8,
+    setup: 4, // the guns must be unlimbered before they can fire again after moving
     shellInterval: 6, // a gun fires every ~6 s (was 1.2)
     cooldown: 14,
     shellAmmo: 4,

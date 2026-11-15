@@ -156,6 +156,7 @@ export function orderMove(state, units, tx, ty, kind = 'move') {
     ({ x, y } = offRock(map, x, y)); // nobody can stand on the rocks
     u.order = { kind, x, y };
     u.digSite = null;
+    if (u.barrage) u.barrage = null; // a battery limbers up to move: its barrage is over
   });
   return n;
 }
@@ -429,8 +430,8 @@ function updateUnit(state, u, dt) {
     u.setup = Math.max(0, u.setup - dt);
   }
 
-  // --- artillery barrage
-  if (u.barrage) {
+  // --- artillery barrage: never on the move, and only once the guns are unlimbered
+  if (u.barrage && !u.order && !(u.setup > 0)) {
     const b = u.barrage;
     b.timer -= dt;
     if (b.timer <= 0) {

@@ -178,3 +178,24 @@ test('Rocks: impassable, units walk round them and never stand on them', async (
   assert.ok(tried >= 8 && arrived === tried, `walked round ${arrived} of ${tried}`);
   createGame();
 });
+
+test('Artillery cannot fire on the move: moving ends a barrage, and the guns unlimber before firing', async () => {
+  const { orderBarrage, orderMove } = await import('../src/game.js');
+  const s = createGame();
+  s.ais.length = 0;
+  const g = s.units.find((u) => u.team === PLAYER && u.type === 'artillery');
+  const tx = g.x + 20 * (s.map.hq[ENEMY].x > g.x ? 1 : -1), ty = g.y;
+  assert.equal(orderBarrage(s, [g], tx, ty), 1);
+  orderMove(s, [g], g.x, g.y + 3);
+  assert.equal(g.barrage, null, 'moving ends the barrage');
+  const shells = () => s.shells.length;
+  for (let i = 0; i < 30 * 3 && g.order; i++) { update(s, 1 / 30); assert.equal(shells(), 0, 'no shells on the move'); }
+  // a new barrage waits for the guns to be unlimbered
+  g.order = null; g.setup = 4; g.cooldown = 0;
+  assert.equal(orderBarrage(s, [g], tx, ty), 1);
+  for (let i = 0; i < 30 * 3.5; i++) update(s, 1 / 30);
+  assert.equal(shells(), 0, 'still unlimbering');
+  for (let i = 0; i < 30 * 2; i++) update(s, 1 / 30);
+  assert.ok(shells() > 0, 'firing once set up');
+  createGame();
+});
