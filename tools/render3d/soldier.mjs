@@ -89,7 +89,7 @@ export function pose(name, frame = 0) {
   const hipL = (p) => add(p, [0, 0.1, 0]), hipR = (p) => add(p, [0, -0.1, 0]);
   let sway = 0, carry = [0, 0, 0];
   const load = name === 'carrymg' ? 'mg' : name === 'carrytri' ? 'tri' : null; // walking with the MG or its tripod on the shoulder
-  if (name === 'walk' || name === 'charge' || load) {
+  if (name === 'walk' || name === 'twalk' || name === 'charge' || load) {
     // Gait cycle (8 frames). Per leg: thigh swings sinusoidally; the knee is nearly straight through
     // stance and flexes during swing (peaking just after toe-off). Pelvis is highest at mid-stance and
     // lowest at heel strike (walk); a run is highest in the flight phase, with a deeper knee bend.
@@ -167,7 +167,7 @@ export function pose(name, frame = 0) {
     const dir = norm(sub(hL, hR));
     rifle = { butt: add(hR, mul(dir, rifleMode === 'aim' ? -0.18 : -0.32)), muzzle: add(hR, mul(dir, 0.95)), bayonet: rifleMode === 'charge' };
   }
-  return { P, up, chest, neck, head, shL, shR, elL: elbow(shL, hL, 1), elR: elbow(shR, hR, -1), hL, hR, legs, rifle, tool, cut: name === 'trench' ? 1.12 : null, extras };
+  return { P, up, chest, neck, head, shL, shR, elL: elbow(shL, hL, 1), elR: elbow(shR, hR, -1), hL, hR, legs, rifle, tool, cut: name === 'trench' ? 1.12 : name === 'twalk' ? 1.22 : null, extras }; // twalk: along the trench floor
 }
 
 /**
@@ -710,7 +710,7 @@ export function partScene(nationKey, name, dir) {
 }
 
 /** All sprite jobs: [name, args]. */
-export const SOLDIER_POSES = [['stand', 1], ['walk', 8], ['carrymg', 8], ['carrytri', 8], ['mgwork', 4], ['charge', 8], ['crawl', 6], ['fire', 1], ['trench', 1], ['tclimb', 8], ['prone', 1], ['dig', 2], ['dead', 1]];
+export const SOLDIER_POSES = [['stand', 1], ['walk', 8], ['twalk', 8], ['carrymg', 8], ['carrytri', 8], ['mgwork', 4], ['charge', 8], ['crawl', 6], ['fire', 1], ['trench', 1], ['tclimb', 8], ['prone', 1], ['dig', 2], ['dead', 1]];
 /** Idle animations: standing and in-trench versions, 4 frames each. */
 export const IDLE_POSES = IDLE.flatMap((n) => [[n, 4], ['t' + n, 4]]);
 

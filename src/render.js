@@ -1622,13 +1622,13 @@ export class Renderer {
     const charging = !!(u.order && u.order.kind === 'charge');
     // pinned men keep moving by crawling; otherwise walk, or run when charging
     const climbing = !!u.climb;
-    const pose = climbing ? 'tclimb' : u.inTrench && !u.overTop ? 'trench' : u.pinned ? (u.moving ? 'crawl' : 'prone') : charging ? 'charge' : u.order ? 'walk' : 'stand';
+    const pose = climbing ? 'tclimb' : u.inTrench && !u.overTop ? (u.moving ? 'twalk' : 'trench') : u.pinned ? (u.moving ? 'crawl' : 'prone') : charging ? 'charge' : u.order ? 'walk' : 'stand';
     const moving = u.moving && pose !== 'trench';
     const hsh = (k, j) => { const v = Math.sin(u.seed * 1000 + k * 12.9898 + j * 78.233) * 43758.5453; return v - Math.floor(v); };
     const men = [];
     const count = u.type === 'artillery' ? u.men : u.men;
     // a squad opens out on the move (wider still at the charge) and closes up again when it halts, smoothly
-    const spreadTo = moving && u.type === 'rifle' ? (pose === 'charge' ? 1.9 : 1.7) : 1;
+    const spreadTo = moving && u.type === 'rifle' && pose !== 'twalk' ? (pose === 'charge' ? 1.9 : 1.7) : 1; // in a trench they keep close
     const sdt = Math.min(0.5, Math.max(0, time - (u._spT ?? time)));
     u._spT = time;
     u._sp = (u._sp ?? spreadTo) + (spreadTo - (u._sp ?? spreadTo)) * Math.min(1, sdt * 1.5);
@@ -1694,7 +1694,7 @@ export class Renderer {
     if (useSpr) {
       // Steps advance with ground actually covered (so men slow their stride in wire and mud) rather than
       // on a clock; each man has his own phase and a slightly different stride, so a squad never marches in lockstep.
-      const GAIT = { walk: [8, 0.55], charge: [8, 1.0], crawl: [6, 0.3] };
+      const GAIT = { walk: [8, 0.55], twalk: [8, 0.55], charge: [8, 1.0], crawl: [6, 0.3] };
       // idle moments only when nothing is happening: no target, not digging, not shot at, guns at rest
       const quiet = (u.type === 'rifle' || u.type === 'artillery') && !u.target && !u.digging && !u.order && !(u.firing > 0)
         && (u.suppression || 0) < 15 && !(u.type === 'artillery' && (u.barrage || u.cooldown > 0));
