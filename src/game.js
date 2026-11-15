@@ -554,7 +554,7 @@ const TORN_PARTS = { 3: ['leg'], 4: ['arm'], 5: ['leg', 'leg'] };
 function fallen(state, u, blast, shooter) {
   const x0 = u.x + (rand() - 0.5) * 0.7, y0 = u.y + (rand() - 0.5) * 0.7;
   const torn = blast && rand() < 0.6;
-  const body = { x: x0, y: y0, team: u.team, t: state.time, v: torn ? 3 + Math.floor(rand() * 3) : Math.floor(rand() * 3), dir: Math.floor(rand() * 8) };
+  const body = { x: x0, y: y0, team: u.team, nation: u.nation, t: state.time, v: torn ? 3 + Math.floor(rand() * 3) : Math.floor(rand() * 3), dir: Math.floor(rand() * 8) };
   // blood sprays away from the shooter or the burst
   const src = blast || shooter;
   if (src) {
@@ -610,7 +610,7 @@ function fallen(state, u, blast, shooter) {
     const dx = ax * c - ay * sn, dy = ax * sn + ay * c;
     const dist = 0.8 + near * 2 + rand() * 1.2, h = 0.8 + near * 1.4 + rand() * 0.8;
     const land = clampToMap(x0 + dx * dist, y0 + dy * dist);
-    state.decals.push({ x: land.x, y: land.y, team: u.team, t: state.time, part, dir: Math.floor(rand() * 4),
+    state.decals.push({ x: land.x, y: land.y, team: u.team, nation: u.nation, t: state.time, part, dir: Math.floor(rand() * 4),
       fly: { x0, y0, h, dur: 0.6 + h * 0.45, spin: (rand() < 0.5 ? -1 : 1) * (9 + rand() * 9) } });
   }
 }

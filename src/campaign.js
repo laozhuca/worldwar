@@ -41,13 +41,14 @@ function reinforce(state, team, n, kind = 'rifle') {
  * A relieving force marching onto the battlefield from the team's rear edge: one squad every second
  * row along the whole front, each making for the front-line trench in its row. Returns the squads.
  */
-function relieve(state, team) {
+function relieve(state, team, nation) {
   const { map } = state, f = frontLine(map, team), west = teamDir(team) > 0, out = [];
   for (let y = 1; y < map.h - 1; y += 2) {
     if (f[y] < 0) continue;
     let x = west ? 0 : map.w - 1;
     while (map.tiles[y * map.w + x].off && x >= 0 && x < map.w) x += west ? 1 : -1; // the battlefield's edge in this row
     const u = spawnUnit(state, 'rifle', team, x + 0.5, y + 0.5);
+    if (nation) u.nation = nation; // allies in their own uniform
     orderMove(state, [u], f[y] + 0.5, y + 0.5);
     u.reliefTo = { x: f[y] + 0.5, y: y + 0.5 };
     out.push(u);
@@ -59,13 +60,13 @@ function relieve(state, team) {
 export const LEVELS = [
   {
     id: 'ypres', n: 1, title: 'Hold Until Relieved', place: 'Ypres, Belgium', date: 'April 1915',
-    nations: ['uk', 'germany'], season: 'mud', start: 'west', startHour: 6.5,
-    history: 'Spring 1915. The Germans have broken the line north of Ypres, and every battalion that can hold a rifle has been thrown into the gap. Yours holds a stretch of sandbagged trench with orders that leave no room for doubt: hold until the relieving division comes up. It will not reach you before the dawn of the fourth day.',
+    nations: ['uk', 'germany'], allies: ['france'], season: 'mud', start: 'west', startHour: 6.5,
+    history: 'Spring 1915. The Germans have broken the line north of Ypres, and every battalion that can hold a rifle has been thrown into the gap. Yours holds a stretch of sandbagged trench with orders that leave no room for doubt: hold until the relieving French division comes up. It will not reach you before the dawn of the fourth day.',
     objectives: ['Hold until the relief arrives at dawn on day 4.', 'Do not let the enemy take your headquarters.', 'Do not lose more than half of your front line.'],
     rules: ['Your trenches are strong: sandbagged all along your line.', 'Supplies are short: the convoys bring 70% of the usual.', 'The enemy attacks in strength every few hours, day and night, and fresh battalions come up behind him.'],
     medals: ['Held until relieved', 'Not a yard given: no more than 4 front-line sections lost at the end', 'A careful commander: fewer than 350 men lost'],
     debrief: {
-      won: 'The relieving division came up through the mud at dawn on the fourth day and found your battalion still in its trenches. At Ypres in 1915 many such battalions held on in exactly this way, at terrible cost, and the town never fell.',
+      won: 'The French relieving division came up through the mud at dawn on the fourth day and found your battalion still in its trenches. At Ypres in 1915 many such battalions held on in exactly this way, at terrible cost, and the town never fell.',
       lost: 'Your line broke before the relief could reach you. At Ypres the British line was pushed back again and again in the spring of 1915, but never broken: somewhere, another battalion held.',
     },
     setup(state) {
@@ -89,9 +90,9 @@ export const LEVELS = [
       { at: 48 + 0, run: (s) => pushMessage(s, 'Day 3. The relief has left Poperinge. Hold on one more day.', 'side') },
       ...[13, 29, 38, 52, 62, 71].map((at) => ({ at, run: (s) => { reinforce(s, ENEMY, 4); pushMessage(s, 'A fresh German battalion is coming up behind their line.', 'warn'); } })),
       { at: 72 + 6, run: (s) => {
-        s.campaign.relief = relieve(s, PLAYER).map((u) => u.id);
+        s.campaign.relief = relieve(s, PLAYER, 'france').map((u) => u.id);
         s.campaign.relievedAt = s.time;
-        pushMessage(s, 'The relief has arrived! The relieving division is marching up to our line.', 'good');
+        pushMessage(s, 'The relief has arrived! A French division is marching up to our line.', 'good');
         s.events.push({ type: 'cheer' });
       } },
     ],
@@ -103,7 +104,7 @@ export const LEVELS = [
         const there = rel.filter((u) => Math.hypot(u.x - u.reliefTo.x, u.y - u.reliefTo.y) < 2.5).length;
         if (!c.manned && (there >= rel.length * 0.8 || state.time - c.relievedAt > 60)) {
           c.manned = state.time;
-          pushMessage(state, 'The relief is in our trenches. The line is held!', 'good');
+          pushMessage(state, 'The French are in our trenches. The line is held!', 'good');
           state.events.push({ type: 'cheer' });
         }
         if (c.manned && state.time - c.manned > 4) return { result: 'won', reason: 'Relieved. You held the line.' };

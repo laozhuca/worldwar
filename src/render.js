@@ -976,7 +976,7 @@ export class Renderer {
       if (a <= 0) continue;
       const p = iso(b.x, b.y);
       ctx.globalAlpha = a * 0.92;
-      const nat = this.nations && this.nations[b.team];
+      const nat = b.nation || (this.nations && this.nations[b.team]);
       if (!b.part) this.drawBloodPool(ctx, b, age, a);
       if (b.fall && age < b.fall.dur && age >= 0 && this.drawFalling(ctx, nat, b, p.x, p.y, age)) continue;
       if (this.drawCorpse(ctx, nat, b, p.x, p.y)) {
@@ -1066,7 +1066,7 @@ export class Renderer {
       ctx.save();
       ctx.translate(p.x, p.y - z * UP - 6);
       ctx.rotate(f.spin * age);
-      const nat = this.nations && this.nations[b.team];
+      const nat = b.nation || (this.nations && this.nations[b.team]);
       if (!this.drawCorpse(ctx, nat, b, 0, 6)) {
         ctx.fillStyle = UNIFORM_DARK[b.team];
         ctx.beginPath(); ctx.ellipse(0, 0, b.part ? 3 : 6, b.part ? 1.2 : 2.2, 0, 0, TAU); ctx.fill();
@@ -1473,7 +1473,7 @@ export class Renderer {
     }
     men.sort((a, b) => a.y - b.y);
     const phase = time * (charging ? 14 : 9) + u.seed * 10;
-    const nation = this.nations && this.nations[u.team];
+    const nation = u.nation || (this.nations && this.nations[u.team]);
     const useSpr = this.hasArmy(nation);
     let gunDrawn = u.type !== 'artillery';
     const drawGunNow = () => { if (!gunDrawn) { gunDrawn = true; if (!this.drawGun3D(ctx, p, u, time) && !this.drawGunArt(ctx, p, u)) this.drawGun(ctx, p, u, time); } };
