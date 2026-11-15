@@ -33,6 +33,7 @@ function jobs() {
   }
   for (const view of ['a', 'b']) list.push({ name: `mg_${view}`, kind: 'mg', args: [view] });
   for (const snow of [false, true]) list.push({ name: `hq${snow ? '_s' : ''}`, kind: 'hq', args: [snow] });
+  for (const snow of [false, true]) for (const w of [false, true]) list.push({ name: `bunker${w ? '_x' : ''}${snow ? '_s' : ''}`, kind: 'bunker', args: [snow, w] });
   for (let d = 0; d < 8; d++) for (let f = 0; f < 8; f++) list.push({ name: `gun_d${d}_f${f}`, kind: 'gun', args: [d, f] });
   for (const nation of Object.keys(NATIONS)) for (const [pose, frames] of [...SOLDIER_POSES, ...IDLE_POSES]) for (let f = 0; f < frames; f++) for (const view of ['a', 'b'])
     list.push({ name: `${pose}${f}_${view}`, dir: `soldiers/${nation}`, kind: 'soldier', args: [nation, pose, f, view], scale: 4 });
@@ -100,7 +101,7 @@ if (isMainThread) {
 } else {
   const core = await import('../tools/render3d/core.mjs');
   const scenes = await import('../tools/render3d/scenes.mjs');
-  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, gun: scenes.gunScene, soldier: (await import('../tools/render3d/soldier.mjs')).soldierScene, corpse: (await import('../tools/render3d/soldier.mjs')).corpseScene, part: (await import('../tools/render3d/soldier.mjs')).partScene, fall: (await import('../tools/render3d/soldier.mjs')).fallScene };
+  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, bunker: scenes.bunkerScene, gun: scenes.gunScene, soldier: (await import('../tools/render3d/soldier.mjs')).soldierScene, corpse: (await import('../tools/render3d/soldier.mjs')).corpseScene, part: (await import('../tools/render3d/soldier.mjs')).partScene, fall: (await import('../tools/render3d/soldier.mjs')).fallScene };
   parentPort.on('message', (job) => {
     const scale = job.scale || SCALE;
     const r = core.render(make[job.kind](...job.args), core.PX_PER_UNIT * scale);

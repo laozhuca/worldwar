@@ -579,6 +579,119 @@ export function hqScene(snow) {
   return { bounds: [-0.85, -0.75, -0.1, 0.9, 0.75, 0.78], sdf, shade, supersample: 2 };
 }
 
+// ===================================================================== MG pillbox
+/**
+ * Concrete machine-gun pillbox: an octagonal blockhouse with board-marked walls, a firing slit in every
+ * face, an overhanging roof slab with turf thrown over it, and a ring of sandbags at its foot. Footprint
+ * ~1.3 tiles. wrecked: the roof cracked and slumped, a corner blown in, blackened, rubble all round.
+ */
+export function bunkerScene(snow, wrecked) {
+  const A = 0.38, H = 0.27, RA = 0.45, RT = 0.065; // wall apothem and height, roof apothem and thickness
+  const oct = (x, y) => Math.max(Math.abs(x), Math.abs(y), (Math.abs(x) + Math.abs(y)) / Math.SQRT2);
+  const N = Array.from({ length: 8 }, (_, k) => [Math.cos((k * TAU) / 8), Math.sin((k * TAU) / 8)]);
+  const sag = (x, y) => (wrecked ? Math.max(0, x + y) * 0.12 + Math.max(0, x - y) * 0.05 : 0); // the slumped roof
+  const blast = (x, y, z) => Math.hypot(x - 0.3, y - 0.12, z - 0.3) - 0.2; // the corner blown in
+  const walls = (x, y, z) => {
+    let d = Math.max(oct(x, y) - A, z - H + sag(x, y) * 0.6, -z - 0.05);
+    // the slits: one in every face, cut right through the wall
+    for (const [c, s] of N) {
+      const nn = x * c + y * s, t = -x * s + y * c;
+      d = Math.max(d, -Math.max(Math.abs(t) - 0.1, Math.abs(z - 0.17) - 0.045, A - 0.13 - nn));
+    }
+    if (wrecked) d = Math.max(d, -blast(x, y, z));
+    return d + (vnoise(x * 40, y * 40, z * 40) - 0.5) * (wrecked ? 0.012 : 0.004);
+  };
+  const roof = (x, y, z) => {
+    const zz = z + sag(x, y);
+    let d = Math.max(oct(x, y) - RA, Math.abs(zz - H - RT / 2) - RT / 2) - 0.006;
+    if (wrecked) d = Math.max(d, -blast(x, y, z), -(Math.abs(x - y * 0.7 - 0.02) - 0.012)); // and a crack across it
+    return d;
+  };
+  const turf = (x, y, z) => {
+    const zz = z + sag(x, y), r = oct(x, y) / (RA - 0.03);
+    const top = H + RT + 0.05 * Math.max(0, 1 - r * r) + (fbm(x * 14, y * 14, 2.1, 3) - 0.5) * 0.035;
+    let d = Math.max((zz - top) * 0.7, oct(x, y) - RA + 0.04, H + RT - 0.01 - zz);
+    if (wrecked) d = Math.max(d, -blast(x, y, z));
+    return d;
+  };
+  const bags = (x, y, z) => {
+    const a = Math.atan2(y, x), r = Math.hypot(x, y), n = 22, k = Math.round((a / TAU) * n), ak = (k * TAU) / n;
+    if (r < 0.4 || r > 0.62 || z > 0.12) return Math.max(Math.abs(r - 0.51) - 0.06, z - 0.12, 0.01);
+    let d = 1;
+    for (const row of [0, 1]) {
+      const a2 = ak + (row ? TAU / n / 2 : 0), j = hash(k, row, 5);
+      if (wrecked && j < 0.35) continue; // burst and scattered
+      const cx = Math.cos(a2) * 0.51, cy = Math.sin(a2) * 0.51, lx = (x - cx) * -Math.sin(a2) + (y - cy) * Math.cos(a2), ly = (x - cx) * Math.cos(a2) + (y - cy) * Math.sin(a2);
+      d = Math.min(d, sdRoundBox(lx, ly, z - 0.026 - row * 0.046, 0.058, 0.04, 0.022, 0.02));
+    }
+    return d + (vnoise(x * 70, y * 70, z * 70) - 0.5) * 0.008;
+  };
+  const rubble = (x, y, z) => {
+    if (!wrecked) return 1;
+    let d = 1;
+    for (let k = 0; k < 14; k++) {
+      const a = hash(k, 1) * TAU, r = 0.4 + hash(k, 2) * 0.28, cx = Math.cos(a) * r + 0.1, cy = Math.sin(a) * r + 0.06;
+      const sz = 0.025 + hash(k, 3) * 0.04;
+      d = Math.min(d, sdRoundBox(x - cx, y - cy, z - sz * 0.6, sz, sz * 0.8, sz * 0.6, 0.006));
+    }
+    return d;
+  };
+  const mound = (x, y, z) => {
+    const r = Math.hypot(x / 0.66, y / 0.66);
+    return (z - (0.06 * Math.max(0, 1 - r * r) + (fbm(x * 9, y * 9, 1.7, 3) - 0.5) * 0.03 * Math.max(0, 1 - r))) * 0.7;
+  };
+  const parts = (x, y, z) => {
+    const list = [['ground', mound(x, y, z)], ['wall', walls(x, y, z)], ['roof', roof(x, y, z)], ['turf', turf(x, y, z)], ['bags', bags(x, y, z)], ['rubble', rubble(x, y, z)]];
+    let best = list[0];
+    for (const p of list) if (p[1] < best[1]) best = p;
+    return best;
+  };
+  // the dark chamber inside, seen through the slits (and through the breach)
+  const interior = (x, y, z) => Math.max(oct(x, y) - (A - 0.09), Math.abs(z - 0.13) - 0.12);
+  const sdf = (x, y, z) => Math.max(parts(x, y, z)[1], -interior(x, y, z));
+  const shade = (x, y, z, nx, ny, nz) => {
+    if (interior(x, y, z) < 0.012) return { kind: 'solid', col: wrecked ? mix3([0.05, 0.045, 0.04], [0.13, 0.12, 0.11], fbm(x * 40, y * 40, z * 40, 2)) : [0.02, 0.018, 0.016] };
+    const [m] = parts(x, y, z);
+    const n = fbm(x * 50, y * 50, z * 50, 3);
+    const snowy = snowAt(x, y, z, nz, snow, 0.55);
+    const burnt = wrecked ? clamp(1.1 - blast(x, y, z) * 3.5 + (fbm(x * 9, y * 9, z * 9, 2) - 0.5), 0, 0.85) : 0;
+    const scorch = (col) => mix3(col, [0.05, 0.045, 0.04], burnt);
+    switch (m) {
+      case 'ground': {
+        const r = Math.hypot(x / 0.66, y / 0.66);
+        if (z < -0.004) return { kind: 'none' };
+        if (r > 0.97) return { kind: 'catcher' };
+        if (snowy) return { kind: 'solid', col: mix3(C.snow, [0.66, 0.7, 0.77], 0.35), spec: 0.05, alpha: clamp((0.97 - r) * 2.6, 0.05, 1) };
+        return { kind: 'solid', col: scorch(mix3([0.07, 0.065, 0.06], [0.22, 0.2, 0.18], n)), spec: 0.08, alpha: clamp((0.97 - r) * 2.6, 0.05, 1) };
+      }
+      case 'wall': case 'roof': case 'rubble': {
+        if (snowy && m !== 'wall') return { kind: 'solid', col: C.snow, spec: 0.1 };
+        let col = mix3([0.36, 0.355, 0.335], [0.56, 0.55, 0.52], n);
+        if (m === 'wall') {
+          col = mix3(col, [0.27, 0.265, 0.25], ((z * 22) % 1) < 0.08 ? 0.5 : 0); // board marks of the formwork
+          col = mix3(col, [0.24, 0.23, 0.21], clamp(fbm(x * 30, y * 30, z * 6, 2) * 1.4 - 0.55, 0, 0.6) * clamp((0.2 - z) * 6, 0, 1)); // rain streaks
+          col = mix3(col, [0.16, 0.14, 0.12], clamp((0.04 - z) * 14, 0, 0.7)); // mud splashed up the foot
+        }
+        if (m === 'rubble') col = mix3(col, [0.1, 0.09, 0.08], 0.55 + n * 0.3);
+        return { kind: 'solid', col: scorch(col), spec: 0.06 };
+      }
+      case 'turf': {
+        if (snowy) return { kind: 'solid', col: C.snow, spec: 0.1 };
+        const g = fbm(x * 40 + 5, y * 40, z * 40, 3);
+        return { kind: 'solid', col: scorch(mix3(mix3([0.08, 0.07, 0.06], [0.22, 0.19, 0.15], n), [0.2, 0.22, 0.13], clamp(g * 1.5 - 0.6, 0, 0.6))), spec: 0.04 };
+      }
+      case 'bags': {
+        if (snowy) return { kind: 'solid', col: C.snow, spec: 0.12 };
+        let col = mix3(C.burlapDark, C.burlap, 0.25 + fbm(x * 120, y * 120, z * 120, 3) * 0.7);
+        col = mix3(col, [0.13, 0.11, 0.09], clamp(fbm(x * 20 + 3, y * 20, z * 20, 2) * 1.6 - 0.7, 0, 0.8) + clamp((0.05 - z) * 8, 0, 0.5));
+        return { kind: 'solid', col: scorch(col), spec: 0.04 };
+      }
+    }
+    return { kind: 'none' };
+  };
+  return { bounds: [-0.72, -0.72, -0.1, 0.72, 0.72, 0.5], sdf, shade, supersample: 2 };
+}
+
 // ===================================================================== field howitzer (8 directions x wheel frames)
 /**
  * WW1 light field howitzer modelled on the reference art: armoured shield with sight window, short barrel

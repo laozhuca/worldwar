@@ -1222,7 +1222,28 @@ export class Renderer {
    * and slumped, rubble about it, smoke curling out of the slits.
    */
   drawBunker(ctx, b, u, time, selected) {
-    const live = u && !u.dead, R = 0.66, H = 22, RR = R * 1.1, T = 4;
+    const live = u && !u.dead;
+    // the pre-rendered pillbox (intact or wrecked), as the trenches are
+    const c = iso(b.x, b.y), snow = (this.S ?? 1) > 0.7 ? '_s' : '';
+    const K = 1.4; // drawn larger than life so it reads as the objective (as the HQ)
+    if (this.drawFrame(ctx, this.propGroup(), 'bunker' + (live ? '' : '_x') + snow, c.x, c.y, K)) {
+      const UP = 39.2 * K; // screen px per world unit of height
+      if (live && u.visible && u.firing > 0) { // a flash at a slit when the gun fires
+        const f = iso(b.x + (-0.36 + Math.random() * 0.1) * K, b.y + 0.1 * K);
+        ctx.fillStyle = 'rgba(255,220,120,0.95)';
+        ctx.beginPath(); ctx.arc(f.x, f.y - 0.17 * UP, 2.5 + Math.random() * 2.5, 0, TAU); ctx.fill();
+      }
+      if (live && selected) { ctx.strokeStyle = 'rgba(220,230,150,0.9)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(c.x, c.y, 60, 29, 0, 0, TAU); ctx.stroke(); }
+      if (!live) { // smoke still curling out of the breach
+        for (let i = 0; i < 4; i++) {
+          const k = (time * 0.2 + i / 4) % 1, m = iso(b.x + 0.25 * K, b.y + 0.1 * K);
+          ctx.fillStyle = `rgba(60,58,54,${0.35 * (1 - k)})`;
+          ctx.beginPath(); ctx.arc(m.x + k * 12 + Math.sin(k * 5 + i) * 3, m.y - 0.3 * UP - k * 34, 3 + k * 9, 0, TAU); ctx.fill();
+        }
+      }
+      return;
+    }
+    const R = 0.66, H = 22, RR = R * 1.1, T = 4;
     const P = (dx, dy, z = 0) => { const p = iso(b.x + dx, b.y + dy); return { x: p.x, y: p.y - z }; };
     const ring = (r, n = 8, rot = Math.PI / 8) => Array.from({ length: n }, (_, k) => { const a = rot + (k * TAU) / n; return [Math.cos(a) * r, Math.sin(a) * r]; });
     const poly = (pts) => { ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath(); };

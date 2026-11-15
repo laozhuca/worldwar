@@ -51,11 +51,15 @@ let chromium;
 try { ({ chromium } = await import('playwright')); }
 catch { ({ chromium } = createRequire(import.meta.url)('playwright')); }
 
-if (existsSync(OUT)) rmSync(OUT, { recursive: true });
+// node scripts/pack-atlases.mjs props-bare props-snow  -> repack only those groups
+const only = process.argv.slice(2);
+if (only.length) { for (const g of Object.keys(groups)) if (!only.includes(g)) delete groups[g]; }
+else if (existsSync(OUT)) rmSync(OUT, { recursive: true });
 mkdirSync(OUT, { recursive: true });
+const index = existsSync(join(OUT, 'index.json')) && only.length ? JSON.parse(readFileSync(join(OUT, 'index.json'), 'utf8')) : {};
+for (const g of only) for (const f of readdirSync(OUT)) if (f.startsWith(g + '-') && f.endsWith('.webp')) rmSync(join(OUT, f));
 const browser = await chromium.launch();
 const page = await browser.newPage();
-const index = {};
 let total = 0;
 for (const [g, items] of Object.entries(groups)) {
   const sheets = pack(items);
