@@ -1597,6 +1597,12 @@ export class Renderer {
     const hsh = (k, j) => { const v = Math.sin(u.seed * 1000 + k * 12.9898 + j * 78.233) * 43758.5453; return v - Math.floor(v); };
     const men = [];
     const count = u.type === 'artillery' ? u.men : u.men;
+    // a squad opens out on the move (wider still at the charge) and closes up again when it halts, smoothly
+    const spreadTo = moving && u.type === 'rifle' ? (pose === 'charge' ? 1.9 : 1.7) : 1;
+    const sdt = Math.min(0.5, Math.max(0, time - (u._spT ?? time)));
+    u._spT = time;
+    u._sp = (u._sp ?? spreadTo) + (spreadTo - (u._sp ?? spreadTo)) * Math.min(1, sdt * 1.5);
+    const SP = u._sp;
     for (let i = 0; i < count; i++) {
       const col = i % 3, row = Math.floor(i / 3); // rifle squads: two ranks of three
       const jx = Math.sin(u.seed * 100 + i * 7.3) * 0.06, jy = Math.cos(u.seed * 77 + i * 3.1) * 0.06;
@@ -1608,7 +1614,7 @@ export class Renderer {
         ox = gx * cf - gy * cs; oy = gy * cf + gx * cs;
       }
       else if (u.type === 'mg') { ox = -dir * (0.1 + (i % 2) * 0.12); oy = (Math.floor(i / 2) - 0.5) * 0.22 + 0.15; }
-      else { ox = (row - 0.5) * 0.24 * -dir; oy = (col - 1) * 0.2; }
+      else { ox = (row - 0.5) * 0.24 * -dir * SP; oy = (col - 1) * 0.2 * SP; }
       let mx = u.x + ox + jx, my = u.y + oy + jy;
       if (moving && u.type !== 'artillery') {
         // loose order on the move: each man weaves a little and keeps his own place in the file;
@@ -1663,11 +1669,18 @@ export class Renderer {
         }
         // a quiet moment: now and then a man smokes, cleans his rifle or wipes his helmet
         const idle = (pn === 'stand' || pn === 'trench') && quiet ? idleAt(s.k, time) : null;
-        if (idle && this.drawSoldier(ctx, nation, (pn === 'trench' ? 't' : '') + idle.anim, idle.frame, u.hx, u.hy, s.x, s.y)) {
+        // at rest each man faces his own way (mostly towards the enemy, some to the sides, the odd one
+        // behind), turning now and then; anything to shoot at turns them all back to the front
+        let hx = u.hx, hy = u.hy;
+        if (quiet && (pn === 'stand' || pn === 'trench') && u.type === 'rifle') {
+          const slot = Math.floor(time / 25 + hsh(s.k, 7) * 4), r = hsh(s.k, 11 + slot);
+          if (r > 0.4 && r <= 0.68) { hx = -u.hy; hy = u.hx; } else if (r > 0.68 && r <= 0.94) { hx = u.hy; hy = -u.hx; } else if (r > 0.94) { hx = -u.hx; hy = -u.hy; }
+        }
+        if (idle && this.drawSoldier(ctx, nation, (pn === 'trench' ? 't' : '') + idle.anim, idle.frame, hx, hy, s.x, s.y)) {
           if (idle.anim === 'smoke' && idle.puff > 0) this.drawSmokeWisp(ctx, s.x, s.y - (pn === 'trench' ? 7 : 20), idle.puff, s.k);
           return;
         }
-        if (!this.drawSoldier(ctx, nation, pn, fr, u.hx, u.hy, s.x, s.y)) drawMan(ctx, s.x, s.y, u.team, pose === 'crawl' ? 'prone' : pose, u.facing, phase + i * 1.7, false);
+        if (!this.drawSoldier(ctx, nation, pn, fr, hx, hy, s.x, s.y)) drawMan(ctx, s.x, s.y, u.team, pose === 'crawl' ? 'prone' : pose, u.facing, phase + i * 1.7, false);
       });
       drawGunNow();
     }
