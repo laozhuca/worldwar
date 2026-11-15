@@ -2,13 +2,13 @@
  "props-bare": 3,
  "props-snow": 3,
  "units": 1,
- "soldiers-austria": 3,
- "soldiers-france": 3,
- "soldiers-germany": 3,
- "soldiers-italy": 3,
- "soldiers-ottoman": 3,
- "soldiers-russia": 3,
- "soldiers-uk": 3,
- "soldiers-usa": 3,
- "soldiers-marins": 3
+ "soldiers-austria": 4,
+ "soldiers-france": 4,
+ "soldiers-germany": 4,
+ "soldiers-italy": 4,
+ "soldiers-ottoman": 4,
+ "soldiers-russia": 4,
+ "soldiers-uk": 4,
+ "soldiers-usa": 4,
+ "soldiers-marins": 4
 }

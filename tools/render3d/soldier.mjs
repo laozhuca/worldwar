@@ -423,7 +423,7 @@ function figure(nat, J, seed) {
       const [hd, hm] = has('hat') ? headgear(nat, p, J.hatAt || J.head) : [1e9, 'hat']; // a knocked-off helmet lies on the ground
       if (hd < d) { d = hd; mat = hm; }
     }
-    if (J.cut != null) d = Math.max(d, J.cut - p[2]);
+    if (J.cut != null && !J.pit) d = Math.max(d, J.cut - p[2]);
     return [d, mat];
   };
   const colour = (mat, p) => {
@@ -473,27 +473,35 @@ function figure(nat, J, seed) {
 export function soldierScene(nationKey, poseName, frame, view, portrait = false) {
   const nat = NATIONS[nationKey];
   const J = pose(poseName, frame);
+  // in a trench the man is whole, standing on the fire step below ground; an invisible pit the size of
+  // the trench (half-width 0.22, floor 0.25 below ground, as the trench tiles) hides what its near wall
+  // would hide, so his legs show exactly as far down as one can see into the trench
+  const pit = J.cut != null && !portrait;
+  if (pit) J.pit = true;
   const fig = figure(nat, J, hash(nationKey.length, frame) * 10);
   const th = view === 'a' ? 0 : -Math.PI / 2, c = Math.cos(th), s = Math.sin(th);
-  const zoff = J.cut != null ? J.cut : 0; // trench pose: parapet line at z = 0
+  const zoff = J.cut != null ? J.cut : 0; // trench pose: parapet line (the ground) at z = 0
   const toLocal = (x, y, z) => [(x * c + y * s) / K, (-x * s + y * c) / K, z / K + zoff];
   const ground = J.cut == null && !portrait;
+  const PIT_R = 0.22, PIT_D = 0.25;
+  const occluder = (x, y, z) => Math.min(Math.max(z, PIT_R - Math.hypot(x, y)), z + PIT_D);
   const sdf = (x, y, z) => {
     const p = toLocal(x, y, z);
     const d = fig.eval(p)[0] * K;
-    return ground ? Math.min(d, z) : d;
+    return ground ? Math.min(d, z) : pit ? Math.min(d, occluder(x, y, z)) : d;
   };
   const shade = (x, y, z, nx, ny, nz) => {
     const p = toLocal(x, y, z);
     const [d, mat] = fig.eval(p);
     if (ground && z < d * K) return { kind: 'catcher' };
+    if (pit && occluder(x, y, z) < d * K) return { kind: 'none' }; // the trench wall or floor: the game draws those
     const col = fig.colour(mat, p);
     const spec = mat === 'hat' && (nat.head === 'brodie' || nat.head === 'adrian' || nat.head === 'pickelhaube') ? 0.35 : mat === 'metal' || mat === 'steel' || mat === 'hat2' ? 0.6 : 0.03;
     return { kind: 'solid', col, spec, shin: 30 };
   };
   if (portrait) { const P = 0.5 * K; return { bounds: [-P, -P, 0, P + 0.4 * K, P, 1.95 * K], sdf, shade, supersample: 3 }; }
   const E = 1.3 * K;
-  return { bounds: [-E, -E, J.cut != null ? -0.01 : -0.01, E + 0.25, E + 0.2, (2.0 - zoff) * K], sdf, shade, supersample: 3 };
+  return { bounds: [-E, -E, pit ? -0.27 : -0.01, E + 0.25, E + 0.2, (2.0 - zoff) * K], sdf, shade, supersample: 3 };
 }
 
 /** A fallen soldier: CORPSES[variant], turned to one of 8 directions (dir x 45 degrees). */
