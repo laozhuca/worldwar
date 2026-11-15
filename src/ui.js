@@ -72,6 +72,7 @@ export class UI {
     const n = orderBarrage(this.state, use, x, y);
     if (n) this.speak('bombard', use);
     if (n) pushMessage(this.state, `${n} batter${n > 1 ? 'ies' : 'y'} opening fire`, 'info');
+    else if (this.state.barrageLimit && this.state.barrageLimit[PLAYER] <= 0) pushMessage(this.state, 'The guns have no shells left', 'warn');
     else if (!cands.length) pushMessage(this.state, 'We have no artillery', 'warn');
     else if (cands.every((u) => Math.hypot(u.x - x, u.y - y) < UNIT_TYPES.artillery.artyMinRange)) pushMessage(this.state, `Too close for the guns (minimum ${UNIT_TYPES.artillery.artyMinRange} tiles)`, 'warn');
     else pushMessage(this.state, 'No battery ready and in range', 'warn');

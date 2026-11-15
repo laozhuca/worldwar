@@ -48,3 +48,42 @@ test('Hold Until Relieved: the relief at dawn on day 4 wins; losing half the fro
   assert.equal(l.winner, ENEMY);
   createGame();
 });
+
+test('Silence the Guns: three concrete nests, rationed barrages, win on silencing them, lose at nightfall on day 2', async () => {
+  const { orderBarrage } = await import('../src/game.js');
+  const s = createLevelGame('isonzo');
+  const c = s.campaign;
+  assert.equal(c.nests.length, 3);
+  for (const id of c.nests) {
+    const u = s.units.find((q) => q.id === id);
+    assert.equal(u.team, ENEMY); assert.equal(u.type, 'mg'); assert.equal(u.ai.role, 'nest');
+    assert.equal(s.map.tiles[Math.floor(u.y) * s.map.w + Math.floor(u.x)].trench, 3, 'concrete');
+  }
+  // rationed: each battery barrage uses one of the 9
+  const guns = s.units.filter((u) => u.team === PLAYER && u.type === 'artillery');
+  assert.equal(guns.length, 3);
+  const nest = s.units.find((q) => q.id === c.nests[0]);
+  const fired = orderBarrage(s, guns, nest.x, nest.y);
+  assert.equal(s.barrageLimit[PLAYER], 9 - fired);
+  s.barrageLimit[PLAYER] = 0;
+  for (const g of guns) { g.barrage = null; g.cooldown = 0; }
+  assert.equal(orderBarrage(s, guns, nest.x, nest.y), 0, 'no shells left');
+  // markers on the nests while they fire
+  stepCampaign(s);
+  assert.equal(s.markers.length, 3);
+  for (const id of c.nests) s.units.find((q) => q.id === id).dead = true;
+  stepCampaign(s);
+  assert.equal(c.silenced.length, 3);
+  assert.equal(s.markers.length, 0);
+  s.time += 5; stepCampaign(s);
+  assert.equal(c.result, 'won');
+  assert.equal(s.winner, PLAYER);
+  const m = levelById('isonzo').medalsEarned(s);
+  assert.ok(m[0] && m[1] && !m[2]);
+
+  const l = createLevelGame('isonzo');
+  l.time = ((43 - 5) / 24) * 420 + 1;
+  stepCampaign(l);
+  assert.equal(l.campaign.result, 'lost');
+  createGame();
+});

@@ -125,7 +125,94 @@ export const LEVELS = [
       return [won, won && c.front.length - frontHeld(state) <= 4, won && state.stats.lost[PLAYER] < 350];
     },
   },
-  { id: 'isonzo', n: 2, title: 'Silence the Guns', place: 'The Isonzo, Italy', date: '1916', nations: ['italy', 'austria'], soon: true },
+  {
+    id: 'isonzo', n: 2, title: 'Silence the Guns', place: 'The Isonzo, Italy', date: 'August 1916',
+    nations: ['italy', 'austria'], season: 'mud', start: 'west', startHour: 5,
+    history: 'The Sixth Battle of the Isonzo. Five times the Italian army has thrown itself at the Austro-Hungarian line above the river, and five times it has been cut down by machine guns firing from concrete emplacements in the rock. This time the guns must be found and silenced first. Three nests command the whole sector; until they fall, no attack can cross the open ground. Your batteries have been given shells for only a handful of barrages: make every one count.',
+    objectives: ['Silence all three machine-gun nests in the enemy front line.', 'Do it before nightfall on day 2.', 'Do not let the enemy take your headquarters.'],
+    rules: ['The nests sit in concrete: shellfire alone rarely finishes them. Bombard, then send the infantry in while the crews are pinned.', 'Shells are rationed: 9 battery barrages for the whole battle.', 'The enemy holds deep wire and counter-attacks any trench he loses.'],
+    medals: ['The guns are silenced', 'Swift work: all three silenced before nightfall on day 1', 'Shells to spare: 3 or more barrages unused'],
+    debrief: {
+      won: 'With the machine guns silent, the Italian infantry crossed the open ground at last. In August 1916 the Sixth Battle of the Isonzo took Monte Sabotino and San Michele, and Gorizia fell: the greatest Italian victory of the war until its final year.',
+      lost: 'The nests were still firing when night fell on the second day, and the attack was called off. Eleven times the Italians attacked on the Isonzo; most of those battles ended like this, with a few hundred yards gained at a terrible price.',
+    },
+    setup(state) {
+      const { map } = state, W = map.w;
+      state.resources[PLAYER] = { men: 30, ammo: 420, supplies: 140 };
+      state.barrageLimit = { [PLAYER]: 9 };
+      // three batteries, dug in just behind the front line opposite the nests, within range of them
+      const q = map.hq[PLAYER], d = teamDir(PLAYER), f = frontLine(map, PLAYER);
+      spawnUnit(state, 'artillery', PLAYER, q.x + 0.5, q.y + 0.5);
+      const guns = state.units.filter((u) => u.team === PLAYER && u.type === 'artillery');
+      const M = Math.floor(map.h / 2);
+      guns.forEach((g, i) => { const y = M + [-10, 0, 10][i]; g.x = f[y] - d * 4 + 0.5; g.y = y + 0.5; });
+      // the enemy defends: late, small offensives, but he still counter-attacks lost trenches
+      const ai = state.ais[0];
+      ai.level = { ...DIFFICULTY.hard, firstAttack: 900, attackGap: [500, 700] };
+      ai.offensive = 900;
+      // the three machine guns of his front line become the nests: concrete emplacements, and they never move
+      const nests = state.units.filter((u) => u.team === ENEMY && u.type === 'mg').slice(0, 3);
+      for (const u of nests) {
+        u.ai.role = 'nest'; u.nest = true;
+        const x0 = Math.floor(u.x), y0 = Math.floor(u.y);
+        // a rifle squad guarding each side of the nest
+        for (const dy of [-2, 2]) {
+          const g = spawnUnit(state, 'rifle', ENEMY, u.x, u.y + dy);
+          g.ai.role = 'hold';
+        }
+        for (let y = y0 - 1; y <= y0 + 1; y++) for (let x = x0 - 1; x <= x0 + 1; x++) {
+          const t = map.tiles[y * W + x];
+          if (t && t.trench && t.owner === ENEMY) t.trench = 3;
+        }
+      }
+      map.dirty = true;
+      state.campaign.nests = nests.map((u) => u.id);
+      state.campaign.silenced = [];
+    },
+    events: [
+      { at: 5.2, run: (s) => pushMessage(s, 'Three machine-gun nests are marked on the enemy line. Silence them all before nightfall tomorrow.', 'side') },
+      { at: 24 + 5, run: (s) => pushMessage(s, 'Day 2. The attack must succeed by nightfall.', 'side') },
+      { at: 24 + 16, run: (s) => pushMessage(s, 'Three hours of daylight left.', 'warn') },
+    ],
+    check(state) {
+      const c = state.campaign;
+      for (const id of c.nests) {
+        if (c.silenced.includes(id)) continue;
+        const u = state.units.find((q) => q.id === id);
+        if (!u || u.dead) {
+          c.silenced.push(id);
+          if (c.silenced.length === 1) c.firstAt = clockHours(state);
+          pushMessage(state, c.silenced.length < 3 ? `A machine-gun nest is silenced! ${3 - c.silenced.length} still firing.` : 'The last machine-gun nest is silenced!', 'good');
+          state.events.push({ type: 'cheer' });
+        }
+      }
+      if (c.silenced.length >= c.nests.length) {
+        c.doneAt = c.doneAt ?? clockHours(state);
+        c.wonAt = c.wonAt ?? state.time;
+        if (state.time - c.wonAt > 4) return { result: 'won', reason: 'The guns are silenced.' };
+        return null;
+      }
+      if (clockHours(state) >= 24 + 19) return { result: 'lost', reason: 'Night fell on the second day with the nests still firing.' };
+      return null;
+    },
+    markers(state) {
+      const c = state.campaign;
+      return c.nests.map((id) => state.units.find((u) => u.id === id)).filter((u) => u && !u.dead).map((u) => ({ x: u.x, y: u.y, label: 'MG nest' }));
+    },
+    tracker(state) {
+      const h = clockHours(state), c = state.campaign;
+      return [
+        'Silence the guns',
+        `Nests silenced: ${c.silenced.length} / ${c.nests.length}`,
+        `Barrages left: ${state.barrageLimit[PLAYER]}`,
+        `Nightfall on day 2 in ${left(Math.max(0, 43 - h))}`,
+      ];
+    },
+    medalsEarned(state) {
+      const c = state.campaign, won = c.result === 'won';
+      return [won, won && c.doneAt < 19.5, won && state.barrageLimit[PLAYER] >= 3];
+    },
+  },
   { id: 'brusilov', n: 3, title: 'The Brusilov Breakthrough', place: 'Galicia', date: 'June 1916', nations: ['russia', 'austria'], soon: true },
   { id: 'chunuk', n: 4, title: 'Counter-attack at Chunuk Bair', place: 'Gallipoli', date: 'August 1915', nations: ['ottoman', 'uk'], soon: true },
   { id: 'amiens', n: 5, title: 'The Black Day', place: 'Amiens, France', date: 'August 1918', nations: ['usa', 'germany'], soon: true },
@@ -157,6 +244,7 @@ export function stepCampaign(state) {
   }
   const h = clockHours(state);
   L.events.forEach((e, i) => { if (h >= e.at && !c.fired.includes(i)) { c.fired.push(i); e.run(state); } });
+  if (L.markers) state.markers = L.markers(state);
   const r = L.check(state);
   if (r) { c.result = r.result; c.reason = r.reason; state.winner = r.result === 'won' ? PLAYER : ENEMY; }
 }

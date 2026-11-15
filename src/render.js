@@ -893,6 +893,7 @@ export class Renderer {
 
     this.drawBarrageMarkers(ctx, state);
     if (state.marker && state.marker.x !== undefined) this.drawStoryMarker(ctx, state.marker, performance.now() / 1000);
+    if (state.markers) for (const m of state.markers) this.drawStoryMarker(ctx, m, performance.now() / 1000);
     this.drawShells(ctx, state);
     this.drawThrownBodies(ctx, state, false); // jolted bodies stay low, under the smoke
     this.drawEffects(ctx, state);

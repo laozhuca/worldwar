@@ -171,6 +171,8 @@ export function orderBarrage(state, units, tx, ty) {
     const t = UNIT_TYPES.artillery;
     const d = Math.hypot(u.x - tx, u.y - ty);
     if (d > t.artyRange || d < t.artyMinRange) continue; // out of range, or too close for the guns
+    const lim = state.barrageLimit;
+    if (lim && lim[u.team] !== undefined) { if (lim[u.team] <= 0) continue; lim[u.team]--; } // rationed shells
     u.barrage = { x: tx, y: ty, remaining: t.barrageShells, timer: n * 0.35 };
     u.order = null;
     n++;
@@ -676,6 +678,7 @@ function explode(state, s) {
     if (d < 1.6) {
       let cover = tt && tt.trench ? trenchCover(TRENCH_ARTY, tt) : (u.pinned ? 0.8 : 1);
       if (sheltered) cover *= nearMiss(tt);
+      if (u.nest) cover *= 0.2; // a concrete emplacement: the shell pins the crew but rarely kills it
       damageUnit(state, u, 90 * (1 - (d / 1.6) * 0.6) * cover, { x: s.x, y: s.y, d }); // heavy shell: twice the old blast
     }
     if (d < 3.2) {
