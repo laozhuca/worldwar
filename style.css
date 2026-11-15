@@ -774,3 +774,4 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
   #briefing-panel .brief-body { grid-column: 1 / -1; grid-row: 2; }
   #briefing-panel .brief-army .fig-img { height: clamp(140px, 28vh, 240px); }
 }
+#briefing-panel .brief-row { justify-content: space-between; }
