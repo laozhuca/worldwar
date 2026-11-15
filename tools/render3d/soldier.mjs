@@ -114,6 +114,11 @@ export function pose(name, frame = 0) {
   } else if (name === 'trench') {
     legs = [leg(hipL(P), 0.12, 0.05), leg(hipR(P), -0.1, 0.04)];
     rifleMode = 'aim'; lean = 0.15;
+  } else if (name === 'mgwork') {
+    // kneeling at the gun, setting it up or taking it down: right knee on the ground, hands busy in front
+    P = [0, 0, 0.52]; lean = 0.42;
+    legs = [leg(hipL(P), 1.35, 1.45), leg(hipR(P), 0.05, 1.5)];
+    rifleMode = 'work';
   } else if (name === 'dig') {
     lean = 0.75; P = [-0.05, 0, 0.86];
     legs = [leg(hipL(P), 0.35, 0.35), leg(hipR(P), -0.25, 0.25)];
@@ -150,11 +155,15 @@ export function pose(name, frame = 0) {
       { a: add(sh, [-0.28, -0.02, 0.05]), b: add(sh, [0.45, 0.0, -0.06]), ra: 0.02, rb: 0.016, mat: 'metal2' },
       { a: add(sh, [-0.36, -0.05, 0.02]), b: add(sh, [-0.36, 0.05, 0.02]), ra: 0.04, rb: 0.04, mat: 'metal' },
     ];
+  } else if (rifleMode === 'work') {
+    const ph = (frame / 4) * Math.PI * 2;
+    hR = add(P, [0.5 + 0.06 * Math.sin(ph), -0.1, 0.0 + 0.07 * Math.cos(ph)]);
+    hL = add(P, [0.48 + 0.06 * Math.cos(ph), 0.12, 0.04 + 0.07 * Math.sin(ph + 1)]);
   } else if (rifleMode === 'port') { hR = add(add(P, [0.22, -0.16, 0.08]), carry); hL = add(add(P, [0.38, 0.06, 0.26]), carry); }
   else if (rifleMode === 'charge') { hR = add(add(P, [0.3 + lean * 0.3, -0.14, 0.05 + lean * 0.15]), carry); hL = add(add(P, [0.66 + lean * 0.4, -0.06, 0.13 + lean * 0.2]), carry); }
   else if (rifleMode === 'aim') { hR = add(neck, [0.16, -0.14, -0.12]); hL = add(neck, [0.52, -0.06, -0.15]); head = add(head, [0.05, -0.03, -0.03]); }
   else { hR = tool.a; hL = add(tool.a, mul(norm(sub(tool.b, tool.a)), 0.35)); }
-  if (rifleMode !== 'none' && rifleMode !== 'carry') {
+  if (rifleMode !== 'none' && rifleMode !== 'carry' && rifleMode !== 'work') {
     const dir = norm(sub(hL, hR));
     rifle = { butt: add(hR, mul(dir, rifleMode === 'aim' ? -0.18 : -0.32)), muzzle: add(hR, mul(dir, 0.95)), bayonet: rifleMode === 'charge' };
   }
@@ -701,7 +710,7 @@ export function partScene(nationKey, name, dir) {
 }
 
 /** All sprite jobs: [name, args]. */
-export const SOLDIER_POSES = [['stand', 1], ['walk', 8], ['carrymg', 8], ['carrytri', 8], ['charge', 8], ['crawl', 6], ['fire', 1], ['trench', 1], ['tclimb', 8], ['prone', 1], ['dig', 2], ['dead', 1]];
+export const SOLDIER_POSES = [['stand', 1], ['walk', 8], ['carrymg', 8], ['carrytri', 8], ['mgwork', 4], ['charge', 8], ['crawl', 6], ['fire', 1], ['trench', 1], ['tclimb', 8], ['prone', 1], ['dig', 2], ['dead', 1]];
 /** Idle animations: standing and in-trench versions, 4 frames each. */
 export const IDLE_POSES = IDLE.flatMap((n) => [[n, 4], ['t' + n, 4]]);
 

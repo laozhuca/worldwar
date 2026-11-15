@@ -1,7 +1,7 @@
 // Isometric (2:1, "45 degree") canvas renderer.
 import { TILE_W as TW, TILE_H as TH, MAP_W, MAP_H, MAP_R, PLAYER, ENEMY, UNIT_TYPES, SEASONS } from './config.js';
 import { tileAt, teamDir } from './map.js';
-import { canBuild } from './game.js';
+import { canBuild, MG_PACK } from './game.js';
 import { Atmosphere } from './atmosphere.js';
 import { Relief } from './relief.js';
 
@@ -1719,6 +1719,11 @@ export class Renderer {
           fr = Math.floor((cyc - Math.floor(cyc)) * g[0]) % g[0];
           if (carried && pose === 'walk') pn = s.k === 0 ? 'carrymg' : s.k === 1 ? 'carrytri' : 'walk'; // the gun and its tripod carried
         }
+        // setting the gun up, or taking it down: the team kneels round it, hands busy at the mounting
+        if (u.type === 'mg' && !u.inTrench && (u.packing > 0 || (u.setup > 0 && !u.order))) {
+          const l = Math.hypot(s.fx, s.fy) || 1;
+          if (this.drawSoldier(ctx, nation, 'mgwork', Math.floor(time * 3 + s.k * 1.3) % 4, -s.fx / l, -s.fy / l, s.x, s.y)) return;
+        }
         else if (pose === 'stand') {
           if (u.digging && i % 2 === 0) { pn = 'dig'; fr = Math.floor(phase / 2 + i) % 2; }
           else if (u.type === 'mg') pn = 'prone';
@@ -1772,6 +1777,18 @@ export class Renderer {
       ctx.globalCompositeOperation = 'source-over';
     }
 
+    // setting up / packing up: a ring fills above the team, with what it is doing
+    if (u.type === 'mg' && u.visible !== false && (u.packing > 0 || (u.setup > 0 && !u.order))) {
+      const packing = u.packing > 0, k = packing ? 1 - u.packing / MG_PACK : 1 - u.setup / (t.setup || 1);
+      const cx = p.x, cy = p.y - 44;
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.beginPath(); ctx.arc(cx, cy, 6, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = packing ? '#c9b98f' : '#e8c35a';
+      ctx.beginPath(); ctx.arc(cx, cy, 6, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0.02, Math.min(1, k))); ctx.stroke();
+      ctx.font = '9px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText(packing ? 'Packing up' : 'Setting up', cx + 0.5, cy - 8.5);
+      ctx.fillStyle = '#f0e6cc'; ctx.fillText(packing ? 'Packing up' : 'Setting up', cx, cy - 9);
+    }
     // status bars
     const maxHp = t.men * t.hpPerMan;
     const by = p.y - 30;
@@ -1783,10 +1800,6 @@ export class Renderer {
       ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(p.x - 13, by + 4, 26, 3);
       ctx.fillStyle = u.suppression > 60 ? '#ff7a2a' : '#d9a441';
       ctx.fillRect(p.x - 12, by + 5, 24 * (u.suppression / 100), 1.5);
-    }
-    if (u.type === 'mg' && u.setup > 0 && !u.order) {
-      ctx.fillStyle = '#ddd'; ctx.font = '8px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('setting up', p.x, by - 2);
     }
     if (u.type === 'artillery' && u.team === PLAYER && u.cooldown > 0) {
       ctx.fillStyle = '#ddd'; ctx.font = '8px sans-serif'; ctx.textAlign = 'center';
