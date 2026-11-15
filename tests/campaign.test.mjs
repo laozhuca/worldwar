@@ -111,3 +111,46 @@ test('The Brusilov Breakthrough: a thin line, reserves on day 1 and 2, win by ta
   assert.equal(l.campaign.result, 'lost');
   createGame();
 });
+
+test('Counter-attack at Chunuk Bair: retake the lost centre before dusk while the enemy digs in', () => {
+  const s = createLevelGame('chunuk'), c = s.campaign;
+  assert.ok(c.lost.length >= 8);
+  assert.ok(c.lost.every((i) => s.map.tiles[i].owner === ENEMY && s.map.tiles[i].origOwner === PLAYER));
+  assert.ok(s.units.some((u) => u.team === ENEMY && u.ai.role === 'garrison' && u.type === 'mg'));
+  const t0 = c.lost.map((i) => s.map.tiles[i].trench).reduce((a, b) => a + b);
+  s.time = ((7 - 4.5) / 24) * 420; stepCampaign(s);
+  assert.ok(c.dug >= 2, 'dug in');
+  assert.ok(c.lost.map((i) => s.map.tiles[i].trench).reduce((a, b) => a + b) > t0, 'deeper works');
+  for (const i of c.lost) s.map.tiles[i].owner = PLAYER;
+  stepCampaign(s);
+  s.time += 5; stepCampaign(s);
+  assert.equal(c.result, 'won');
+  assert.ok(levelById('chunuk').medalsEarned(s)[1], 'before 10:00');
+
+  const l = createLevelGame('chunuk');
+  l.time = ((19.5 - 4.5) / 24) * 420 + 1; stepCampaign(l);
+  assert.equal(l.campaign.result, 'lost');
+  createGame();
+});
+
+test('The Black Day: three lines, Anglo-American army, counter-attacks, take the HQ by midnight', () => {
+  const s = createLevelGame('amiens'), c = s.campaign;
+  assert.equal(c.lines.length, 3);
+  assert.ok(c.lines.every((l) => l.length > 5));
+  assert.ok(s.units.some((u) => u.team === PLAYER && u.nation === 'uk'), 'British alongside');
+  assert.equal(s.units.filter((u) => u.team === PLAYER && u.type === 'artillery').length, 6);
+  assert.ok(s.units.filter((u) => u.team === ENEMY && u.type === 'mg').length >= 4, 'machine guns in depth');
+  const n = s.units.length;
+  s.time = ((8 - 4.33) / 24) * 1260 + 0.1; stepCampaign(s);
+  assert.ok(s.units.length >= n + 3, 'reserves come up');
+  const hq = s.map.hq[ENEMY];
+  s.map.tiles[hq.y * s.map.w + hq.x].owner = PLAYER;
+  update(s, 1 / 30); stepCampaign(s);
+  assert.equal(c.result, 'won');
+  assert.ok(levelById('amiens').medalsEarned(s)[1], 'by noon');
+
+  const l = createLevelGame('amiens');
+  l.time = ((24 - 4.33) / 24) * 1260 + 1; stepCampaign(l);
+  assert.equal(l.campaign.result, 'lost');
+  createGame();
+});
