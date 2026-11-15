@@ -85,7 +85,7 @@ export function spawnUnit(state, type, team, x, y) {
     hp: t.men * t.hpPerMan,
     order: null,
     fireTimer: rand() * (t.fireInterval || 1),
-    setup: type === 'mg' ? t.setup : 0, // a new MG team arrives with its gun packed: it must set up before it can fire
+    setup: type === 'mg' || type === 'artillery' ? t.setup : 0, // a new MG team or battery arrives packed / limbered: it must set up before it can fire
     suppression: 0,
     pinned: false,
     target: null,
@@ -156,6 +156,8 @@ export function orderMove(state, units, tx, ty, kind = 'move') {
     ({ x, y } = offRock(map, x, y)); // nobody can stand on the rocks
     // a machine gun that is set up must first be dismounted and packed before its team can move off
     if (u.type === 'mg' && !u.order && !(u.setup > 0) && !(u.packing > 0)) u.packing = MG_PACK;
+    // a battery in action must limber up (guns hooked up, trails lifted) before it moves
+    if (u.type === 'artillery' && !u.order && !(u.setup > 0) && !(u.packing > 0)) u.packing = GUN_LIMBER;
     u.order = { kind, x, y };
     u.digSite = null;
     if (u.barrage) u.barrage = null; // a battery limbers up to move: its barrage is over
@@ -365,6 +367,7 @@ function steer(map, u, mx, my) {
   return { mx: -mx, my: -my };
 }
 
+export const GUN_LIMBER = 3; // seconds for a battery to limber up before moving (unlimbering after takes UNIT_TYPES.artillery.setup)
 export const MG_PACK = 2.5; // seconds to dismount and pack a machine gun before its team can move (setting up again takes UNIT_TYPES.mg.setup)
 export const CLIMB_GAP = 0.8; // each group starts climbing at 80% of the previous group's climb
 /** Seconds each group takes to climb out of / into a trench, and how many groups climb in turn. */
