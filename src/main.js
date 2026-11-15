@@ -278,6 +278,7 @@ function frame(now) {
     if (n >= 12) acc = 0;
   }
   if (tutorial && !app.paused) tutorial.tick(held ? dt : dt * app.speed);
+  campaignScene(s, dt);
   ui.update(dt);
   renderer.update(dt, app.paused || held ? 0 : dt * app.speed, s);
 
@@ -562,6 +563,7 @@ async function loadBattle(state) {
     [`The ${nat(state.nations[1])} army`, renderer.loadAtlas('soldiers-' + state.nations[1])],
     ...((state.campaign && levelById(state.campaign.id).allies) || []).map((n) => [`The ${nat(n)} army`, renderer.loadAtlas('soldiers-' + n)]),
     ...(state.backdrop ? [[state.backdrop.name || 'The town', renderer.loadBackdrop(state.backdrop)]] : []),
+    ...((state.campaign && levelById(state.campaign.id).pictures) || []).map((src) => ['Pictures', new Promise((r) => { const i = new Image(); i.onload = i.onerror = r; i.src = src; })]),
     ['Shell bursts', renderer.loadImpact()],
     ['Sounds of battle', sound.sampleLoad],
     ['Voices', voices.prepare(state.nations[PLAYER])],
@@ -696,7 +698,31 @@ function showBriefing(id) {
   P.querySelector('.brief-medals').innerHTML = medalHtml(L.medals, L.medals.map((_, i) => i < best));
   showPanel('briefing-panel');
 }
+// a campaign level's picture of a moment (the relief arriving), shown with its announcement for a few seconds
+let sceneShown = null, sceneTimer = 0;
+function hideScene() {
+  sceneTimer = 0;
+  const box = document.getElementById('story');
+  if (box.classList.contains('scene')) { box.className = 'hidden'; box.onclick = null; }
+}
+function campaignScene(s, dt) {
+  const sc = s.campaign && s.campaign.scene;
+  if (sc && sceneShown !== sc && !tutorial && s.time - sc.at < 9 && s.winner < 0) {
+    sceneShown = sc;
+    const box = document.getElementById('story'), pic = box.querySelector('.pic');
+    box.className = 'center scene';
+    pic.className = 'pic scene'; pic.src = sc.img;
+    box.querySelector('.who').textContent = sc.who || '';
+    box.querySelector('.line').textContent = sc.text || '';
+    box.querySelector('.hint').textContent = '';
+    box.onclick = hideScene;
+    sceneTimer = 9;
+  }
+  if (sceneTimer > 0 && !app.paused) { sceneTimer -= dt; if (sceneTimer <= 0 || s.winner >= 0) hideScene(); }
+}
+
 async function startLevel(id) {
+  hideScene(); sceneShown = null;
   if (app.started && app.state.winner < 0 && !app.state.tutorial && !app.state.campaign) saveGame('auto');
   endTutorial();
   const state = createLevelGame(id);

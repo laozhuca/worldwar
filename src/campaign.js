@@ -104,6 +104,7 @@ export const LEVELS = [
   {
     id: 'ypres', n: 1, title: 'Hold Until Relieved', place: 'Dixmude, Belgium', date: 'October 1914',
     nations: ['marins', 'germany'], allies: ['france'], season: 'mud', start: 'west', startHour: 6.5,
+    pictures: ['assets/art/scene-dixmude-relief.webp'],
     advance: { [PLAYER]: 6 }, // our lines stand forward of the town, leaving room for it behind the HQ
     history: 'October 1914. The German army is driving for the Channel ports along the river Yser, and only a thin line stands in its way. At Dixmude, Admiral Ronarc\'h and his brigade of French naval infantry, the Fusiliers Marins, sailors who have never fought on land, are ordered to hold the town and its bridgehead for at least four days, until reinforcements can come up. Dig in, and hold.',
     objectives: ['Hold until the relief arrives at dawn on day 4.', 'Do not let the enemy take your headquarters.', 'Do not lose more than half of your front line.'],
@@ -146,6 +147,8 @@ export const LEVELS = [
         s.campaign.relief = relieve(s, PLAYER, 'france').map((u) => u.id);
         s.campaign.relievedAt = s.time;
         pushMessage(s, 'The reinforcements have arrived! A fresh French division is marching up to our line.', 'good');
+        // a picture of the moment, shown with the announcement (main.js)
+        s.campaign.scene = { at: s.time, img: 'assets/art/scene-dixmude-relief.webp', who: 'Dixmude, dawn of the fourth day', text: 'The reinforcements have arrived! A fresh French division is marching up to our line.' };
         s.events.push({ type: 'cheer' });
       } },
     ],

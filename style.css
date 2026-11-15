@@ -792,3 +792,8 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 #overlay.plain-mode #briefing-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr) minmax(0, 1fr); }
 @media (max-width: 900px) { #overlay.plain-mode #briefing-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 #briefing-panel .brief-army canvas, #briefing-panel .brief-army img { max-width: 100%; }
+/* a campaign moment: a wide picture over the announcement */
+#story.scene { width: min(640px, 70vw); top: 46%; padding: 14px 24px 16px; }
+#story.scene .pic.scene { width: auto; max-width: 100%; height: min(360px, calc(100vh - 360px), 46vw); object-fit: contain; margin-bottom: 6px; }
+#story.scene .line { font-size: 19px; }
+#story.scene .hint { display: none; }
