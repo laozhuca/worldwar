@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>WorldWar</title>
-  <link rel="stylesheet" href="style.css?v=63ee8b3a" />
+  <link rel="stylesheet" href="style.css?v=57f46d0b" />
   <!-- stamp:begin (scripts/stamp.mjs) -->
   <script type="importmap">
   {
@@ -15,7 +15,7 @@
       "./src/campaign.js": "./src/campaign.js?v=632cb2bd",
       "./src/config.js": "./src/config.js?v=4039c2f4",
       "./src/game.js": "./src/game.js?v=442b1a14",
-      "./src/main.js": "./src/main.js?v=d6be4254",
+      "./src/main.js": "./src/main.js?v=3924f9b9",
       "./src/map.js": "./src/map.js?v=aa32128b",
       "./src/model-view.js": "./src/model-view.js?v=214a5b12",
       "./src/relief.js": "./src/relief.js?v=2441f819",
@@ -93,6 +93,7 @@
     </div>
 
     <div id="overlay" class="plain-mode loading-mode">
+      <button id="m-music" title="Music on/off">♪ Music on</button>
       <div class="panel menu hidden" id="menu-panel">
         <h1>WORLDWAR</h1>
         <p class="lead">The Great War, 1914–1918. From Flanders to the Alps, from Galicia to Gallipoli, the armies have dug in face to face. Between their lines lies no man's land: mud, craters and wire, and machine guns cover every metre of it. Take the enemy headquarters behind their lines, or break their army.</p>
@@ -340,6 +341,6 @@
       document.getElementById('boot-reload').onclick = function () { location.reload(); };
     }, 20000);
   </script>
-  <script type="module" src="src/main.js?v=d6be4254"></script>
+  <script type="module" src="src/main.js?v=3924f9b9"></script>
 </body>
 </html>

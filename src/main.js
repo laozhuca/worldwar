@@ -218,9 +218,15 @@ const showVoice = () => { voiceBtn.style.opacity = voices.on ? '1' : '0.4'; };
 showVoice();
 voiceBtn.addEventListener('click', () => { voices.setOn(!voices.on); showVoice(); });
 const musicBtn = document.getElementById('btn-music');
-const showMusic = () => { musicBtn.style.opacity = sound.musicOn ? '1' : '0.4'; };
+const menuMusic = document.getElementById('m-music'); // the same switch on the main menu
+const showMusic = () => {
+  musicBtn.style.opacity = sound.musicOn ? '1' : '0.4';
+  if (menuMusic) { menuMusic.textContent = sound.musicOn ? '♪ Music on' : '♪ Music off'; menuMusic.classList.toggle('off', !sound.musicOn); }
+};
 showMusic();
-musicBtn.addEventListener('click', () => { sound.init(); sound.startMusic(); sound.setMusic(!sound.musicOn); showMusic(); });
+const toggleMusic = () => { sound.init(); sound.startMusic(); sound.setMusic(!sound.musicOn); showMusic(); };
+musicBtn.addEventListener('click', toggleMusic);
+byId('m-music').addEventListener('click', toggleMusic);
 byId('btn-sound').addEventListener('click', (e) => {
   sound.init();
   sound.setEnabled(!sound.enabled);
