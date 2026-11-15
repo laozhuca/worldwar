@@ -728,6 +728,7 @@ function showDebrief(s) {
   sound.playEnding(won ? 'victory' : 'defeat');
 }
 // first time: the Campaign entry is the tutorial; afterwards the campaign, with the tutorial as its prologue
+document.getElementById('btn-epitaph-campaign').addEventListener('click', () => showCampaign());
 document.getElementById('m-campaign').addEventListener('click', () => (loadProgress().tutorial ? showCampaign() : startTutorial()));
 function labelCampaign() { document.getElementById('m-campaign').textContent = loadProgress().tutorial ? 'Campaign' : 'Tutorial'; }
 labelCampaign();
