@@ -109,7 +109,7 @@ function showModel(key, nation) {
   const file = nation && modelList[nation];
   if (!file) { box.classList.remove('has-model'); return; }
   try {
-    if (!viewers[key]) { viewers[key] = new ModelView(document.getElementById('model-' + key)); if (key === 'foe') viewers[key].rest = viewers[key].yaw = 0.45; } // the two face each other
+    if (!viewers[key]) { viewers[key] = new ModelView(document.getElementById('model-' + key)); if (key.endsWith('foe')) viewers[key].rest = viewers[key].yaw = 0.45; } // the two face each other
   } catch { return; }
   viewers[key].show('assets/models/' + file).then((ok) => { if (ok) box.classList.add('has-model'); else if (!modelList[nation]) box.classList.remove('has-model'); });
 }
@@ -668,6 +668,15 @@ function showBriefing(id) {
   const P = document.getElementById('briefing-panel');
   P.querySelector('.brief-num').textContent = `Battle ${L.n} of ${LEVELS.length}`;
   P.querySelector('.brief-title').textContent = L.title;
+  // the two armies of the battle, in 3D (fixed: a historical battle)
+  [['mine', L.nations[0]], ['foe', L.nations[1]]].forEach(([k, n]) => {
+    const box = P.querySelector('.brief-army.' + k);
+    box.querySelector('.side-name').textContent = k === 'mine' ? 'You' : 'Enemy';
+    box.querySelector('.nation-name').textContent = NATIONS[n].name;
+    const img = document.getElementById('fig-b' + k);
+    if (img.getAttribute('src') !== portraitOf(n)) img.setAttribute('src', portraitOf(n));
+    showModel('b' + k, n);
+  });
   P.querySelector('.brief-where').textContent = `${L.place} · ${L.date} · ${NATIONS[L.nations[0]].name} against ${NATIONS[L.nations[1]].name}`;
   P.querySelector('.brief-history').textContent = L.history;
   P.querySelector('.brief-objectives').innerHTML = L.objectives.map((t) => `<li>${t}</li>`).join('');

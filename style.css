@@ -762,3 +762,15 @@ body.tutorial #topbar .res:not(:has(#clock)) { display: none; }
 #overlay.plain-mode.debrief-mode { background-size: cover; background-position: center; }
 /* no double-tap zoom anywhere (the map handles its own pinch zoom) */
 html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
+
+/* briefing: the two armies stand either side of the orders */
+#overlay.plain-mode #briefing-panel { width: min(1320px, 98vw); display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 2.4fr) minmax(150px, 1fr); align-items: center; gap: 2vw; }
+#briefing-panel .brief-army { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+#briefing-panel .brief-army .fig-img { height: clamp(200px, 46vh, 460px); }
+#briefing-panel .side-name { letter-spacing: 3px; text-transform: uppercase; font-size: 12px; color: #cdbfa3; }
+#briefing-panel .nation-name { letter-spacing: 4px; text-transform: uppercase; font-size: 16px; color: #efe4cb; }
+@media (max-width: 900px) {
+  #overlay.plain-mode #briefing-panel { grid-template-columns: 1fr 1fr; }
+  #briefing-panel .brief-body { grid-column: 1 / -1; grid-row: 2; }
+  #briefing-panel .brief-army .fig-img { height: clamp(140px, 28vh, 240px); }
+}
