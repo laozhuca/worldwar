@@ -1727,7 +1727,25 @@ export class Renderer {
         else if (pose === 'stand') {
           if (u.digging && i % 2 === 0) { pn = 'dig'; fr = Math.floor(phase / 2 + i) % 2; }
           else if (u.type === 'mg') pn = 'prone';
-          else if (u.target && (u.firing > 0 || u.type === 'rifle')) pn = 'fire';
+          else if (u.target && (u.firing > 0 || u.type === 'rifle')) {
+            pn = 'fire';
+            // the shot and the bolt: 1 the kick, 2 bolt drawn back, 3 bolt home, 0 aiming (each man a little apart)
+            const ph = (u.fireTimer || 0) / (t.fireInterval || 1) + (hsh(s.k, 9) - 0.5) * 0.12;
+            fr = u.firing > 0 ? 1 : ph > 0.72 ? 2 : ph > 0.5 ? 3 : 0;
+          }
+        }
+        // a battery in action: the loader stoops for a shell, lifts it and rams it home; an ammunition number
+        // brings up the next; as the gun fires the whole crew crouches with their hands over their ears
+        if (u.type === 'artillery' && u.barrage && !u.order && !(u.setup > 0) && pn !== 'trench') {
+          const bt = u.barrage.timer;
+          let gp = null, gf = 0;
+          if (u.firing > 0 || bt < 0.5) gp = 'ears';
+          else if (s.k === 0) { gp = 'gunload'; gf = bt > 4 ? 0 : bt > 3 ? 1 : bt > 1.8 ? 2 : 3; }
+          else if (s.k === 2) { gp = 'gunload'; gf = bt > 3.5 ? 1 : 0; }
+          if (gp) {
+            const l = Math.hypot(s.fx, s.fy) || 1, toGun = gp === 'gunload';
+            if (this.drawSoldier(ctx, nation, gp, gf, toGun ? -s.fx / l : u.hx, toGun ? -s.fy / l : u.hy, s.x, s.y)) return;
+          }
         }
         // a quiet moment: now and then a man smokes, cleans his rifle or wipes his helmet
         const idle = (pn === 'stand' || pn === 'trench') && quiet ? idleAt(s.k, time) : null;

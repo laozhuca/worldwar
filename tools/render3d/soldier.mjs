@@ -110,7 +110,18 @@ export function pose(name, frame = 0) {
     if (run) rifleMode = 'charge';
   } else if (name === 'stand' || name === 'fire') {
     legs = [leg(hipL(P), 0.12, 0.05), leg(hipR(P), -0.1, 0.04)];
-    if (name === 'fire') { rifleMode = 'aim'; lean = 0.1; }
+    if (name === 'fire') { rifleMode = 'aim'; lean = frame === 1 ? 0.04 : 0.1; } // frame 1: the kick of the shot
+  } else if (name === 'gunload') {
+    // a gunner loading: 0 stooping for a shell, 1 lifting it, 2 ramming it into the breech, 3 arms out after it
+    const L = [[0.8, 0.95, 0.72], [0.25, 0.94, 0.94], [0.35, 0.94, 0.94], [0.45, 0.94, 0.94]][frame];
+    lean = L[0]; P = [frame >= 2 ? 0.08 : 0, 0, L[1] - (frame === 0 ? 0.22 : 0)];
+    legs = frame === 0 ? [leg(hipL(P), 0.5, 0.9), leg(hipR(P), 0.1, 0.6)] : frame === 1 ? [leg(hipL(P), 0.1, 0.05), leg(hipR(P), -0.08, 0.04)] : [leg(hipL(P), 0.35, 0.12), leg(hipR(P), -0.3, 0.1)];
+    rifleMode = 'load';
+  } else if (name === 'ears') {
+    // the gun fires: crouched, hands over the ears, head turned down
+    P = [-0.03, 0, 0.62]; lean = 0.3;
+    legs = [leg(hipL(P), 0.9, 1.5), leg(hipR(P), 0.5, 1.4)];
+    rifleMode = 'ears';
   } else if (name === 'trench') {
     legs = [leg(hipL(P), 0.12, 0.05), leg(hipR(P), -0.1, 0.04)];
     rifleMode = 'aim'; lean = 0.15;
@@ -155,6 +166,12 @@ export function pose(name, frame = 0) {
       { a: add(sh, [-0.28, -0.02, 0.05]), b: add(sh, [0.45, 0.0, -0.06]), ra: 0.02, rb: 0.016, mat: 'metal2' },
       { a: add(sh, [-0.36, -0.05, 0.02]), b: add(sh, [-0.36, 0.05, 0.02]), ra: 0.04, rb: 0.04, mat: 'metal' },
     ];
+  } else if (rifleMode === 'load') {
+    const shellAt = [add(P, [0.52, 0, -0.42]), add(P, [0.3, 0, 0.38]), add(P, [0.58, 0, 0.38]), add(P, [0.7, 0, 0.4])][frame];
+    hR = add(shellAt, [-0.08, -0.07, -0.02]); hL = add(shellAt, [0.06, 0.07, 0.02]);
+    if (frame < 3) extras = [{ a: add(shellAt, [-0.13, 0, 0]), b: add(shellAt, [0.13, 0, 0]), ra: 0.04, rb: 0.03, mat: 'brass' }]; // the shell
+  } else if (rifleMode === 'ears') {
+    hR = add(head, [0.01, -0.11, -0.01]); hL = add(head, [0.01, 0.11, -0.01]);
   } else if (rifleMode === 'work') {
     const ph = (frame / 4) * Math.PI * 2;
     hR = add(P, [0.5 + 0.06 * Math.sin(ph), -0.1, 0.0 + 0.07 * Math.cos(ph)]);
@@ -163,9 +180,12 @@ export function pose(name, frame = 0) {
   else if (rifleMode === 'charge') { hR = add(add(P, [0.3 + lean * 0.3, -0.14, 0.05 + lean * 0.15]), carry); hL = add(add(P, [0.66 + lean * 0.4, -0.06, 0.13 + lean * 0.2]), carry); }
   else if (rifleMode === 'aim') { hR = add(neck, [0.16, -0.14, -0.12]); hL = add(neck, [0.52, -0.06, -0.15]); head = add(head, [0.05, -0.03, -0.03]); }
   else { hR = tool.a; hL = add(tool.a, mul(norm(sub(tool.b, tool.a)), 0.35)); }
-  if (rifleMode !== 'none' && rifleMode !== 'carry' && rifleMode !== 'work') {
+  if (rifleMode !== 'none' && rifleMode !== 'carry' && rifleMode !== 'work' && rifleMode !== 'load' && rifleMode !== 'ears') {
+    if (rifleMode === 'aim' && frame === 1) { hR = add(hR, [-0.04, 0, 0.01]); hL = add(hL, [-0.03, 0, 0.05]); head = add(head, [-0.03, 0, 0.01]); } // the kick: muzzle up, shoulder back
     const dir = norm(sub(hL, hR));
     rifle = { butt: add(hR, mul(dir, rifleMode === 'aim' ? -0.18 : -0.32)), muzzle: add(hR, mul(dir, 0.95)), bayonet: rifleMode === 'charge' };
+    // working the bolt between shots: the right hand leaves the grip for the bolt (2: drawn back, 3: pushed home)
+    if (rifleMode === 'aim' && frame >= 2) { hR = add(hR, add(mul(dir, frame === 2 ? 0.1 : 0.2), [0, -0.05, 0.05])); head = add(head, [-0.02, 0, 0.03]); }
   }
   return { P, up, chest, neck, head, shL, shR, elL: elbow(shL, hL, 1), elR: elbow(shR, hR, -1), hL, hR, legs, rifle, tool, cut: name === 'trench' ? 1.12 : name === 'twalk' ? 1.22 : null, extras }; // twalk: along the trench floor
 }
@@ -710,7 +730,7 @@ export function partScene(nationKey, name, dir) {
 }
 
 /** All sprite jobs: [name, args]. */
-export const SOLDIER_POSES = [['stand', 1], ['walk', 8], ['twalk', 8], ['carrymg', 8], ['carrytri', 8], ['mgwork', 4], ['charge', 8], ['crawl', 6], ['fire', 1], ['trench', 1], ['tclimb', 8], ['prone', 1], ['dig', 2], ['dead', 1]];
+export const SOLDIER_POSES = [['stand', 1], ['walk', 8], ['twalk', 8], ['carrymg', 8], ['carrytri', 8], ['mgwork', 4], ['gunload', 4], ['ears', 1], ['charge', 8], ['crawl', 6], ['fire', 4], ['trench', 1], ['tclimb', 8], ['prone', 1], ['dig', 2], ['dead', 1]];
 /** Idle animations: standing and in-trench versions, 4 frames each. */
 export const IDLE_POSES = IDLE.flatMap((n) => [[n, 4], ['t' + n, 4]]);
 
