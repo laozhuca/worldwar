@@ -131,12 +131,13 @@ export const LEVELS = [
       state.playerIncome = 0.7;
       // a relentless enemy: hard, attacking early and often with big forces
       const ai = state.ais[0];
-      ai.level = { ...DIFFICULTY.hard, firstAttack: 170, attackGap: [160, 220], force: 7, steps: 3 };
+      ai.level = { ...DIFFICULTY.hard, firstAttack: 170, attackGap: [160, 220], force: 6, steps: 3 };
       ai.offensive = 170;
       // the battalion reserve: squads and a machine gun around headquarters
       reinforce(state, PLAYER, 3);
       const q = state.map.hq[PLAYER], d = teamDir(PLAYER);
       spawnUnit(state, 'mg', PLAYER, q.x + 0.5 + d * 2, q.y + 0.5);
+      spawnUnit(state, 'mg', PLAYER, q.x + 0.5 + d * 2, q.y + 2.5); // and a second gun covering headquarters
       state.campaign.front = frontTiles(state);
     },
     events: [

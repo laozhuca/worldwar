@@ -191,6 +191,7 @@ export function orderBarrage(state, units, tx, ty) {
     const t = UNIT_TYPES.artillery;
     const d = Math.hypot(u.x - tx, u.y - ty);
     if (d > t.artyRange || d < t.artyMinRange) continue; // out of range, or too close for the guns
+    if (aiTeam(state, u.team) && friendsNear(state, u.team, tx, ty, FRIENDLY_CLEAR)) continue; // the AI never shells its own men
     const lim = state.barrageLimit;
     if (lim && lim[u.team] !== undefined) { if (lim[u.team] <= 0) continue; lim[u.team]--; } // rationed shells
     u.barrage = { x: tx, y: ty, remaining: t.barrageShells, timer: n * 0.35 };
@@ -412,6 +413,16 @@ function steer(map, u, mx, my) {
   return { mx: -mx, my: -my };
 }
 
+// the AI's artillery keeps clear of its own troops: it will not open fire within FRIENDLY_CLEAR tiles of
+// them, and lifts a barrage when they come within FRIENDLY_LIFT of where it falls (shells scatter ~2 tiles)
+export const FRIENDLY_CLEAR = 3, FRIENDLY_LIFT = 2.6;
+const aiTeam = (state, team) => state.ais.some((a) => a.team === team);
+/** True if any of the team's men (not its guns) are within r tiles of (x, y). */
+export function friendsNear(state, team, x, y, r) {
+  for (const u of state.units) if (!u.dead && u.team === team && u.type !== 'artillery' && Math.hypot(u.x - x, u.y - y) < r) return true;
+  return false;
+}
+
 export const BRIDGE_HP = 100; // a bridge's strength: shells hitting it take 60, bursting near it 22 (on average)
 
 /** The planks over a trench are smashed: gone from the map, and a battery on them is lost in the trench. */
@@ -591,7 +602,9 @@ function updateUnit(state, u, dt) {
     b.timer -= dt;
     if (b.timer <= 0) {
       const res = state.resources[u.team];
-      if (res.ammo < t.shellAmmo) {
+      // the AI's guns lift as soon as its own infantry reach (or take) the target
+      if (aiTeam(state, u.team) && friendsNear(state, u.team, b.x, b.y, FRIENDLY_LIFT)) { u.barrage = null; u.cooldown = 3; }
+      else if (res.ammo < t.shellAmmo) {
         u.barrage = null; u.cooldown = 3;
         if (u.team === PLAYER) pushMessage(state, 'Battery out of ammunition!', 'warn');
       } else {

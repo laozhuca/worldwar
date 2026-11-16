@@ -12,7 +12,7 @@ test('Hold Until Relieved: strong works, short supply, a hard enemy, waves of re
   assert.ok(s.campaign.front.length > 30, 'the front line is recorded');
   assert.ok(s.campaign.front.every((i) => s.map.tiles[i].trench >= 2), 'sandbagged');
   assert.equal(s.playerIncome, 0.7);
-  assert.ok(s.ais[0].level.force >= 7 && s.ais[0].level.firstAttack < 200, "a relentless enemy");
+  assert.ok(s.ais[0].level.force >= 6 && s.ais[0].level.firstAttack < 200, "a relentless enemy");
   assert.ok(Math.abs(clockHours(s) - 6.5) < 1e-6, 'dawn of day 1');
   const enemies0 = s.units.filter((u) => u.team === ENEMY).length;
   run(s, 300); // past 13:00 on day 1: the first German reinforcements
@@ -357,5 +357,29 @@ test('New infantry and machine guns muster in the trenches by headquarters; batt
   const g = made[4];
   for (let i = 0; i < 30 * 20 && g.order; i++) update(s, 1 / 30);
   assert.ok(!tile(g).trench, 'the battery waits on firm ground');
+  createGame();
+});
+
+test('The enemy never bombards its own men: no barrage on them, and a barrage lifts when they reach it', async () => {
+  const { orderBarrage } = await import('../src/game.js');
+  const s = createGame(); // the enemy is AI-controlled
+  const g = s.units.find((u) => u.team === ENEMY && u.type === 'artillery'); g.setup = 0; g.cooldown = 0;
+  const inf = s.units.find((u) => u.team === ENEMY && u.type === 'rifle');
+  const tx = g.x - 20 * Math.sign(g.x - s.map.hq[PLAYER].x), ty = g.y;
+  // his own squad on the target: he will not open fire
+  inf.x = tx; inf.y = ty;
+  assert.equal(orderBarrage(s, [g], tx, ty), 0, 'no barrage on his own men');
+  // an empty target: he fires; then his squad walks into it and the guns lift
+  inf.x = tx + 8; inf.y = ty;
+  assert.equal(orderBarrage(s, [g], tx, ty), 1);
+  inf.x = tx + 1; inf.y = ty; inf.order = null;
+  for (let i = 0; i < 30 * 2; i++) update(s, 1 / 30);
+  assert.equal(g.barrage, null, 'the barrage lifts');
+  // the player's guns obey: they may fire where their own men are, if so ordered
+  const pg = s.units.find((u) => u.team === PLAYER && u.type === 'artillery'); pg.setup = 0; pg.cooldown = 0;
+  const pi = s.units.find((u) => u.team === PLAYER && u.type === 'rifle');
+  const px = pg.x + 20 * Math.sign(s.map.hq[ENEMY].x - pg.x);
+  pi.x = px; pi.y = pg.y;
+  assert.equal(orderBarrage(s, [pg], px, pg.y), 1, 'the player decides for himself');
   createGame();
 });
