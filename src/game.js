@@ -221,9 +221,39 @@ export function buyUnit(state, team, type) {
   pay(res, t.cost);
   const hq = state.map.hq[team];
   const dir = teamDir(team);
+  if (type !== 'artillery') {
+    // infantry and machine guns muster in the trenches near headquarters (not on the open ground beside
+    // them, to climb in again at once): the least crowded spot of our own trench within a few tiles
+    const spot = musterSpot(state, team);
+    if (spot) return spawnUnit(state, type, team, spot.x + 0.5, spot.y + 0.5);
+  }
   const u = spawnUnit(state, type, team, hq.x + 0.5 + dir * 0.8, hq.y + 0.5 + (rand() - 0.5) * 3);
-  orderMove(state, [u], hq.x + 0.5 + dir * 4, hq.y + 0.5 + (rand() - 0.5) * 8);
+  // a battery waits on firm ground beside headquarters (it never goes down into a trench)
+  let tx = hq.x + 0.5 + dir * 4, ty = hq.y + 0.5 + (rand() - 0.5) * 8;
+  for (let k = 0; k < 12; k++) {
+    const t = tileAt(state.map, tx, ty);
+    if (t && !t.trench && !t.rock && !t.block) break;
+    tx = hq.x + 0.5 + dir * (3 + rand() * 3); ty = hq.y + 0.5 + (rand() - 0.5) * 10;
+  }
+  orderMove(state, [u], tx, ty);
   return u;
+}
+
+/** Where new infantry gather: a tile of the team's own trench 2-8 tiles from its HQ, the least crowded. */
+function musterSpot(state, team) {
+  const { map } = state, hq = map.hq[team];
+  let best = null, bs = Infinity;
+  for (let dy = -8; dy <= 8; dy++) for (let dx = -8; dx <= 8; dx++) {
+    const t = tileAt(map, hq.x + dx + 0.5, hq.y + dy + 0.5);
+    if (!t || !t.trench || t.owner !== team) continue;
+    const d = Math.hypot(dx, dy);
+    if (d < 2 || d > 8) continue;
+    let crowd = 0;
+    for (const u of state.units) if (!u.dead && Math.hypot(u.x - t.x - 0.5, u.y - t.y - 0.5) < 1.2) crowd++;
+    const score = crowd * 10 + d * 0.5 + rand() * 0.8; // empty first, then near headquarters
+    if (score < bs) { bs = score; best = t; }
+  }
+  return best;
 }
 
 

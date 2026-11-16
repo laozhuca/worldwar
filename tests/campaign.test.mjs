@@ -341,3 +341,21 @@ test('Planks can be shelled away, and a battery on them is lost with them', asyn
   assert.ok(BRIDGE_HP > 0);
   createGame();
 });
+
+test('New infantry and machine guns muster in the trenches by headquarters; batteries on firm ground', async () => {
+  const { buyUnit } = await import('../src/game.js');
+  const s = createGame(); s.ais.length = 0;
+  s.resources[PLAYER] = { men: 999, ammo: 999, supplies: 999 };
+  const made = [];
+  for (const type of ['rifle', 'rifle', 'rifle', 'mg', 'artillery']) made.push(buyUnit(s, PLAYER, type));
+  const tile = (u) => s.map.tiles[Math.floor(u.y) * s.map.w + Math.floor(u.x)];
+  for (const u of made.slice(0, 4)) {
+    assert.ok(tile(u).trench && tile(u).owner === PLAYER, `${u.type} starts in our trench`);
+    assert.equal(u.order, null, 'and stays there');
+  }
+  assert.ok(new Set(made.slice(0, 3).map((u) => `${Math.floor(u.x)},${Math.floor(u.y)}`)).size >= 2, 'spread along the trench, not piled up');
+  const g = made[4];
+  for (let i = 0; i < 30 * 20 && g.order; i++) update(s, 1 / 30);
+  assert.ok(!tile(g).trench, 'the battery waits on firm ground');
+  createGame();
+});
