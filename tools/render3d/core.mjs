@@ -146,7 +146,7 @@ export function render(scene, scale) {
         }
         const ao = clamp(1 - occ * 9, 0, 1);
 
-        if (m.kind === 'catcher' && nz < 0.8) continue;
+        if (m.kind === 'catcher' && (nz < 0.8 || pz < -0.002)) continue; // (a grazing ray entering the volume below the ground plane hits nothing real)
         if (m.kind === 'catcher') {
           // transparent ground that only receives shadow and contact occlusion
           const a = clamp((1 - sh) * 0.5 + (1 - ao) * 0.55, 0, 0.72);

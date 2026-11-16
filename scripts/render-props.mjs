@@ -70,6 +70,25 @@ function png(w, h, rgba) {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
 }
 
+if (isMainThread && process.argv[2] === '--footprints') {
+  // for repairing sprites rendered before the grazing-ray fix: each sprite's ground footprint outline
+  // (in its own pixels), written as JSON for scripts/fix-edges.py
+  const core = await import('../tools/render3d/core.mjs');
+  const scenes = await import('../tools/render3d/scenes.mjs');
+  const sold = await import('../tools/render3d/soldier.mjs');
+  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, bunker: scenes.bunkerScene, rock: scenes.rockScene, bridge: scenes.bridgeScene, gun: scenes.gunScene, soldier: sold.soldierScene, corpse: sold.corpseScene, part: sold.partScene, fall: sold.fallScene };
+  const out = {};
+  for (const j of jobs()) {
+    const sc = make[j.kind](...j.args), scale = core.PX_PER_UNIT * (j.scale || SCALE);
+    const [x0, y0, z0, x1, y1] = sc.bounds;
+    const pts = [];
+    for (const x of [x0, x1]) for (const y of [y0, y1]) for (const z of [z0, 0]) pts.push(core.project(x, y, z, scale));
+    out[(j.dir ? j.dir + '/' : 'props/') + j.name] = pts;
+  }
+  writeFileSync(process.argv[3], JSON.stringify(out));
+  console.log('footprints', Object.keys(out).length);
+  process.exit(0);
+}
 if (isMainThread) {
   const prefix = process.argv[2] || '';
   // a prefix, or /regex/ (e.g. "/trench_m.*_d/" for the damaged trench tiles)
