@@ -579,6 +579,50 @@ export function hqScene(snow) {
   return { bounds: [-0.85, -0.75, -0.1, 0.9, 0.75, 0.78], sdf, shade, supersample: 2 };
 }
 
+// ===================================================================== planks over a trench
+/**
+ * Planks a gun crew lays over a trench: seven boards spanning it along the crossing (axis 'x' or 'y'),
+ * each a little askew, resting on two bearers on the ground either side; weathered, muddy, snowy in winter.
+ * Only the ground beyond the trench's edges catches their shadow (the trench itself is drawn by the game).
+ */
+export function bridgeScene(axis, snow) {
+  const L = 0.5, Wd = 0.31, T = 0.022, Z = 0.03; // half-length along the crossing, half-width, board thickness, height
+  const loc = (x, y) => (axis === 'x' ? [x, y] : [y, x]); // a = along the crossing, c = across it
+  const boards = [];
+  for (let i = 0; i < 7; i++) {
+    const c = -Wd + 0.045 + (i * (2 * Wd - 0.09)) / 6;
+    boards.push({ c: c + (hash(i, 3) - 0.5) * 0.012, a0: -L + (hash(i, 1) - 0.5) * 0.06, a1: L + (hash(i, 2) - 0.5) * 0.06, w: 0.036 + hash(i, 4) * 0.008, rot: (hash(i, 5) - 0.5) * 0.05, z: Z + T + (hash(i, 6) - 0.5) * 0.006 });
+  }
+  const board = (q, a, c, z) => {
+    const ca = (q.a0 + q.a1) / 2, ha = (q.a1 - q.a0) / 2, cr = Math.cos(q.rot), sr = Math.sin(q.rot);
+    const u = (a - ca) * cr + (c - q.c) * sr, v = -(a - ca) * sr + (c - q.c) * cr;
+    return sdRoundBox(u, v, z - q.z, ha, q.w, T * 0.5, 0.004) + (vnoise(a * 60, c * 220, z * 60) - 0.5) * 0.003;
+  };
+  const planks = (a, c, z) => { let d = 1; for (const q of boards) d = Math.min(d, board(q, a, c, z)); return d; };
+  const bearers = (a, c, z) => Math.min(
+    sdRoundBox(a + L - 0.07, c, z - Z * 0.5, 0.035, Wd + 0.05, Z * 0.5, 0.006),
+    sdRoundBox(a - L + 0.07, c, z - Z * 0.5, 0.035, Wd + 0.05, Z * 0.5, 0.006));
+  const sdf = (x, y, z) => { const [a, c] = loc(x, y); return Math.min(planks(a, c, z), bearers(a, c, z), z); };
+  const shade = (x, y, z, nx, ny, nz) => {
+    const [a, c] = loc(x, y);
+    const p = planks(a, c, z), br = bearers(a, c, z);
+    if (z < Math.min(p, br)) return Math.abs(a) > 0.27 && Math.max(Math.abs(x), Math.abs(y)) < 0.58 ? { kind: 'catcher' } : { kind: 'none' }; // the trench under it (and the render's edge): no ground
+    const isBoard = p <= br;
+    if (snow && nz > 0.6 && fbm(x * 18, y * 18, z * 30, 3) > 0.56) return { kind: 'solid', col: C.snow, spec: 0.1 }; // snow in patches, trodden off the middle
+    const grain = fbm(a * (isBoard ? 6 : 30), c * (isBoard ? 90 : 12), z * 40, 3);
+    let col = mix3([0.25, 0.2, 0.15], [0.42, 0.34, 0.25], grain);
+    col = mix3(col, [0.14, 0.12, 0.1], clamp(fbm(x * 14 + 3, y * 14, 1.1, 2) * 1.6 - 0.7, 0, 0.55)); // mud
+    if (isBoard) {
+      const q = boards.reduce((m, b) => (board(b, a, c, z) < board(m, a, c, z) ? b : m), boards[0]);
+      col = mul3(col, 0.82 + hash(Math.round(q.c * 100), 9) * 0.3); // each board its own tone
+      if (Math.abs(a - q.a0) < 0.02 || Math.abs(a - q.a1) < 0.02) col = mul3(col, 0.7); // end grain
+    } else col = mul3(col, 0.75);
+    return { kind: 'solid', col, spec: 0.05 };
+  };
+  return { bounds: [-0.62, -0.62, -0.02, 0.62, 0.62, 0.12], sdf, shade, supersample: 2 };
+}
+const mul3 = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
+
 // ===================================================================== Alpine rock outcrop
 /**
  * A craggy limestone outcrop (the Karst above the Isonzo): a few fractured blocks leaning together, bedded

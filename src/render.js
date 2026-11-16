@@ -1235,8 +1235,12 @@ export class Renderer {
    */
   drawBridges(ctx, map) {
     if (!map.bridges) map.bridges = map.tiles.filter((t) => t.bridge).map((t) => ({ x: t.x, y: t.y, axis: t.bridge }));
+    const snow = (this.S ?? 1) > 0.7 ? '_s' : '';
     for (const b of map.bridges) {
       const cx = b.x + 0.5, cy = b.y + 0.5, along = b.axis === 1, Lh = 0.42, n = 7, w = 0.075, Z = 1.5;
+      // the pre-rendered planks (as the trenches); the drawing below only until the sprite sheet has loaded
+      const c0 = iso(cx, cy);
+      if (this.drawFrame(ctx, this.propGroup(), `bridge_${along ? 'x' : 'y'}${snow}`, c0.x, c0.y, 1)) continue;
       const P = (a, c) => { const p = along ? iso(cx + a, cy + c) : iso(cx + c, cy + a); return { x: p.x, y: p.y - Z }; };
       // bearers: two beams under the ends of the boards, resting on the ground either side
       ctx.fillStyle = '#3b2a1c';
