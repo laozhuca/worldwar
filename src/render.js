@@ -1,7 +1,7 @@
 // Isometric (2:1, "45 degree") canvas renderer.
 import { TILE_W as TW, TILE_H as TH, MAP_W, MAP_H, MAP_R, PLAYER, ENEMY, UNIT_TYPES, SEASONS } from './config.js';
 import { tileAt, teamDir } from './map.js';
-import { canBuild, MG_PACK, GUN_LIMBER } from './game.js';
+import { canBuild, MG_PACK, GUN_LIMBER, CLIMB_D } from './game.js';
 import { Atmosphere } from './atmosphere.js';
 import { Relief } from './relief.js';
 
@@ -1645,16 +1645,19 @@ export class Renderer {
     const spreadTo = moving && u.type === 'rifle' && pose !== 'twalk' ? (pose === 'charge' ? 1.9 : 1.7) : 1; // in a trench they keep close
     const sdt = Math.min(0.5, Math.max(0, time - (u._spT ?? time)));
     u._spT = time;
-    u._sp = (u._sp ?? spreadTo) + (spreadTo - (u._sp ?? spreadTo)) * Math.min(1, sdt * 1.5);
+    if (!u.climb) u._sp = (u._sp ?? spreadTo) + (spreadTo - (u._sp ?? spreadTo)) * Math.min(1, sdt * 1.5); // held while climbing
+    else u._sp = u._sp ?? spreadTo;
     const SP = u._sp;
     // the squad's lines stand square to where it is going (towards the enemy at rest); while it climbs in
     // or out of a trench they square up to the edge being crossed, so both lines run along the trench.
     // The formation turns smoothly, not in a jump.
-    let want = u.order ? Math.atan2(u.hy || 0, u.hx || dir) : (dir > 0 ? 0 : Math.PI);
-    if (u.climb) { const ax = Math.abs(u.hx) >= Math.abs(u.hy); want = ax ? (u.hx >= 0 ? 0 : Math.PI) : (u.hy >= 0 ? Math.PI / 2 : -Math.PI / 2); }
+    // on the move the lines square up to the map axis nearest the heading (trench edges run along the axes),
+    // so a climb needs no last-moment turn; during a climb the formation is held still
+    const axis = (hx, hy) => (Math.abs(hx) >= Math.abs(hy) ? (hx >= 0 ? 0 : Math.PI) : (hy >= 0 ? Math.PI / 2 : -Math.PI / 2));
+    const want = u.climb ? axis(u.climb.hx ?? u.hx, u.climb.hy ?? u.hy) : u.order ? axis(u.hx || dir, u.hy || 0) : (dir > 0 ? 0 : Math.PI);
     if (u._fa === undefined) u._fa = want;
     let da = want - u._fa; da = Math.atan2(Math.sin(da), Math.cos(da));
-    u._fa += da * Math.min(1, sdt * 4);
+    if (!u.climb) u._fa += da * Math.min(1, sdt * 4);
     const fx = Math.cos(u._fa), fy = Math.sin(u._fa);
     for (let i = 0; i < count; i++) {
       const col = i % 3, row = Math.floor(i / 3); // rifle squads: two ranks of three
@@ -1668,8 +1671,12 @@ export class Renderer {
       }
       else if (u.type === 'mg') { ox = -dir * (0.1 + (i % 2) * 0.12); oy = (Math.floor(i / 2) - 0.5) * 0.22 + 0.15; }
       else { const a = (0.5 - row) * 0.24 * SP, b = (col - 1) * 0.2 * SP; ox = fx * a - fy * b; oy = fy * a + fx * b; }
-      let mx = u.x + ox + jx, my = u.y + oy + jy;
-      if (moving && u.type !== 'artillery') {
+      // climbing: each man's footing stays put (where the climb began; where it ends, getting in) and his
+      // climbing animation alone carries him over the parapet, while the unit itself moves on
+      const cb = u.climb && u.climb.x0 !== undefined ? u.climb : null;
+      const bx = cb ? cb.x0 + (cb.out ? 0 : cb.hx * CLIMB_D) : u.x, by = cb ? cb.y0 + (cb.out ? 0 : cb.hy * CLIMB_D) : u.y;
+      let mx = bx + ox + jx, my = by + oy + jy;
+      if (moving && u.type !== 'artillery' && !cb) {
         // loose order on the move: each man weaves a little and keeps his own place in the file;
         // a charge turns into a ragged rush with men surging ahead and falling behind
         const run = pose === 'charge', crawl = pose === 'crawl';
@@ -1736,8 +1743,8 @@ export class Renderer {
           const f = Math.floor((u.climb.out ? k : 1 - k) * 8);
           // the trench edge he is crossing lies along a tile side: w points from him to it (ahead of him
           // climbing out; behind him climbing in, when he lowers himself down facing the wall he came over)
-          const ax = Math.abs(u.hx) >= Math.abs(u.hy);
-          let wx = ax ? Math.sign(u.hx) || 1 : 0, wy = ax ? 0 : Math.sign(u.hy) || 1;
+          let wx = u.climb.hx, wy = u.climb.hy;
+          if (wx === undefined) { const ax = Math.abs(u.hx) >= Math.abs(u.hy); wx = ax ? Math.sign(u.hx) || 1 : 0; wy = ax ? 0 : Math.sign(u.hy) || 1; }
           if (!u.climb.out) { wx = -wx; wy = -wy; }
           // down in the trench (the first frames) a wall hides his legs: the edge he is climbing if it is the one
           // nearer the camera (+x / +y), otherwise the trench's other wall, behind him; on top, nothing does

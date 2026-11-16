@@ -371,6 +371,7 @@ function steer(map, u, mx, my) {
 
 export const GUN_LIMBER = 3; // seconds for a battery to limber up before moving (unlimbering after takes UNIT_TYPES.artillery.setup)
 export const MG_PACK = 2.5; // seconds to dismount and pack a machine gun before its team can move (setting up again takes UNIT_TYPES.mg.setup)
+export const CLIMB_D = 0.55 * 0.195 * 1.35; // tiles a man's climbing animation carries him forward (0.55 m, at the 1.35 drawing scale)
 export const CLIMB_GAP = 0.8; // each group starts climbing at 80% of the previous group's climb
 /** Seconds each group takes to climb out of / into a trench, and how many groups climb in turn. */
 export const CLIMB = { rifle: { out: 2.0, in: 1.4, groups: 2 }, mg: { out: 2.2, in: 1.6, groups: 2 }, artillery: { out: 2.6, in: 2.0, groups: 3 } };
@@ -412,7 +413,13 @@ function updateUnit(state, u, dt) {
     // the unit climbs group by group (a rifle squad's two ranks, an MG team's two pairs, a battery crew's
     // three pairs, hauling the gun): each group takes `rank` seconds, the next starting as the one before is
     // most of the way over (CLIMB_GAP), so the whole climb lasts rank * (1 + CLIMB_GAP * (groups - 1))
-    const C = CLIMB[u.type], climb = (out) => { const r = out ? (charge && u.type === 'rifle' ? 1.4 : C.out) : C.in; return { t: 0, rank: r, dur: r * (1 + CLIMB_GAP * (C.groups - 1)), out, tx: tile.x, ty: tile.y }; };
+    // the climb is made straight across the trench edge (a tile side): hx, hy is that axis direction, and
+    // the unit goes CLIMB_D across it while the men's own climbing animation carries them over
+    const C = CLIMB[u.type], climb = (out) => {
+      const r = out ? (charge && u.type === 'rifle' ? 1.4 : C.out) : C.in;
+      const ax = Math.abs(u.hx) >= Math.abs(u.hy), hx = ax ? Math.sign(u.hx) || 1 : 0, hy = ax ? 0 : Math.sign(u.hy) || 1;
+      return { t: 0, rank: r, dur: r * (1 + CLIMB_GAP * (C.groups - 1)), out, tx: tile.x, ty: tile.y, x0: u.x, y0: u.y, hx, hy };
+    };
     if (u.inTrench && wasIn === false) u.climb = climb(false);
     else if (u.inTrench && !u.overTop) {
       const wq = u.path && u.path.length ? u.path[0] : [u.order.x, u.order.y];
@@ -450,6 +457,12 @@ function updateUnit(state, u, dt) {
   // --- movement
   u.moving = false;
   if (u.packing > 0) { u.packing = u.order ? Math.max(0, u.packing - dt) : 0; } // dismounting the gun first
+  else if (u.order && u.climb && u.climb.x0 !== undefined) {
+    // climbing: the unit goes straight across the edge, exactly as far as the men's climb carries them
+    const c = u.climb, k = Math.min(1, c.t / c.dur);
+    u.x = c.x0 + c.hx * CLIMB_D * k; u.y = c.y0 + c.hy * CLIMB_D * k;
+    u.moving = true; u.setup = t.setup || 0;
+  }
   else if (u.order) {
     // the next waypoint of the route (the destination itself at the end)
     const wp = u.path && u.path.length ? u.path[0] : null, gx = wp ? wp[0] : u.order.x, gy = wp ? wp[1] : u.order.y;
