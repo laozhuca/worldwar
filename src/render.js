@@ -876,6 +876,7 @@ export class Renderer {
     ctx.setTransform(d * z, 0, 0, d * z, d * (this.vw / 2 - this.cam.x * z + shx), d * (this.vh / 2 - this.cam.y * z + shy));
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.ground, -this.OX, -this.OY, this.gw, this.gh);
+    this.drawBridges(ctx, state.map);
 
     this.updateTracks(state);
     this.drawTracks(ctx, state);
@@ -1225,6 +1226,28 @@ export class Renderer {
       ctx.fillRect(c.x + 6, c.y - 4, 5, 4);
       ctx.fillStyle = S > 0.2 ? '#dde2e7' : '#6d6a64';
       ctx.fillRect(c.x - 10, c.y - 14, 6, 2); ctx.fillRect(c.x - 4, c.y - 8, 10, 1.5);
+    }
+  }
+
+  /**
+   * Planks a gun crew has laid over a trench so its battery can cross: boards spanning the trench along
+   * the way the guns cross (axis 1: along x, 2: along y), side by side, with a pair of bearers under them.
+   */
+  drawBridges(ctx, map) {
+    if (!map.bridges) map.bridges = map.tiles.filter((t) => t.bridge).map((t) => ({ x: t.x, y: t.y, axis: t.bridge }));
+    for (const b of map.bridges) {
+      const cx = b.x + 0.5, cy = b.y + 0.5, along = b.axis === 1, Lh = 0.42, n = 7, w = 0.075, Z = 1.5;
+      const P = (a, c) => { const p = along ? iso(cx + a, cy + c) : iso(cx + c, cy + a); return { x: p.x, y: p.y - Z }; };
+      // bearers: two beams under the ends of the boards, resting on the ground either side
+      ctx.fillStyle = '#3b2a1c';
+      for (const a of [-Lh + 0.04, Lh - 0.04]) { const p0 = P(a, -0.3), p1 = P(a, 0.3); ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.lineTo(p1.x, p1.y + 2); ctx.lineTo(p0.x, p0.y + 2); ctx.closePath(); ctx.fill(); }
+      for (let i = 0; i < n; i++) {
+        const c = -0.27 + (i * 0.54) / (n - 1), j = (Math.sin(b.x * 7.1 + b.y * 3.3 + i * 2.7) * 0.5 + 0.5);
+        const q = [P(-Lh - j * 0.04, c - w / 2), P(Lh + (1 - j) * 0.04, c - w / 2), P(Lh + (1 - j) * 0.04, c + w / 2), P(-Lh - j * 0.04, c + w / 2)];
+        ctx.fillStyle = ['#54473a', '#5e4f3f', '#4d4135', '#625444'][i % 4]; // weathered, muddy boards
+        ctx.beginPath(); q.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(25,18,12,0.55)'; ctx.lineWidth = 0.6; ctx.stroke();
+      }
     }
   }
 
@@ -1802,7 +1825,7 @@ export class Renderer {
           if (pn === 'walk') { const st = hsh(s.k, 23); pn = st < 0.5 ? 'walk' : st < 0.75 ? 'walks' : 'walkt'; }
         }
         // setting the gun up, or taking it down: the team kneels round it, hands busy at the mounting
-        if ((u.type === 'mg' || u.type === 'artillery') && !u.inTrench && (u.packing > 0 || (u.setup > 0 && !u.order))) {
+        if ((u.type === 'mg' || u.type === 'artillery') && !u.inTrench && (u.packing > 0 || u.bridging || (u.setup > 0 && !u.order))) {
           const l = Math.hypot(s.fx, s.fy) || 1;
           if (this.drawSoldier(ctx, nation, 'mgwork', Math.floor(time * 3 + s.k * 1.3) % 4, -s.fx / l, -s.fy / l, s.x, s.y)) return;
         }
@@ -1879,16 +1902,16 @@ export class Renderer {
     }
 
     // setting up / packing up: a ring fills above the team, with what it is doing
-    if ((u.type === 'mg' || u.type === 'artillery') && u.visible !== false && (u.packing > 0 || (u.setup > 0 && !u.order))) {
-      const packing = u.packing > 0, gun = u.type === 'artillery';
-      const k = packing ? 1 - u.packing / (gun ? GUN_LIMBER : MG_PACK) : 1 - u.setup / (t.setup || 1);
+    if ((u.type === 'mg' || u.type === 'artillery') && u.visible !== false && (u.packing > 0 || u.bridging || (u.setup > 0 && !u.order))) {
+      const packing = u.packing > 0, gun = u.type === 'artillery', bridging = !packing && !!u.bridging;
+      const k = bridging ? u.bridging.t / u.bridging.dur : packing ? 1 - u.packing / (gun ? GUN_LIMBER : MG_PACK) : 1 - u.setup / (t.setup || 1);
       const cx = p.x, cy = p.y - 44;
       ctx.lineWidth = 2.5;
       ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.beginPath(); ctx.arc(cx, cy, 6, 0, TAU); ctx.stroke();
       ctx.strokeStyle = packing ? '#c9b98f' : '#e8c35a';
       ctx.beginPath(); ctx.arc(cx, cy, 6, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0.02, Math.min(1, k))); ctx.stroke();
       ctx.font = '9px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      const label = gun ? (packing ? 'Limbering up' : 'Unlimbering') : (packing ? 'Packing up' : 'Setting up');
+      const label = bridging ? 'Laying planks' : gun ? (packing ? 'Limbering up' : 'Unlimbering') : (packing ? 'Packing up' : 'Setting up');
       ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText(label, cx + 0.5, cy - 8.5);
       ctx.fillStyle = '#f0e6cc'; ctx.fillText(label, cx, cy - 9);
     }

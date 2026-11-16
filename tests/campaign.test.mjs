@@ -221,9 +221,9 @@ test('Climbing out of and into trenches takes time and slows the men', async () 
   createGame();
 });
 
-test('MG teams and batteries climb out of trenches too, group by group', async () => {
+test('MG teams climb out of trenches too, group by group', async () => {
   const { orderMove, spawnUnit, CLIMB, CLIMB_GAP } = await import('../src/game.js');
-  for (const type of ['mg', 'artillery']) {
+  for (const type of ['mg']) {
     const s = createGame(); s.ais.length = 0;
     const t = s.map.tiles.find((q) => q.trench && q.owner === PLAYER && !tileOk(s, q.x + 1, q.y));
     function tileOk(st, x, y) { const n = st.map.tiles[y * st.map.w + x]; return n && n.trench; }
@@ -294,5 +294,31 @@ test('Path finding: along a trench it stays in the trench; through wire it goes 
   const t0 = performance.now();
   for (let i = 0; i < 20; i++) planRoute(w, { type: 'rifle', x: 8.5, y: 34.5 }, 60.5, 34.5 + (i % 5) - 2);
   assert.ok((performance.now() - t0) / 20 < 25, 'under 25 ms a route');
+  createGame();
+});
+
+test('A battery never goes into a trench: it lays planks over it and crosses at ground level; trenches never form squares', async () => {
+  const { orderMove, BRIDGE_TIME, canBuild } = await import('../src/game.js');
+  const { frontLine, makesSquare } = await import('../src/map.js');
+  const s = createGame(); s.ais.length = 0;
+  const g = s.units.find((q) => q.team === PLAYER && q.type === 'artillery');
+  s.units = s.units.filter((q) => q.team === ENEMY || q === g);
+  for (const q of s.units) if (q !== g) { q.x = s.map.hq[ENEMY].x + 0.5; q.y = s.map.hq[ENEMY].y + 0.5; q.order = null; q.holdFire = true; }
+  // from behind our front line to the far side of it, straight across
+  const f = frontLine(s.map, PLAYER), row = 30, dir = Math.sign(s.map.hq[ENEMY].x - g.x);
+  g.x = f[row] - dir * 2 + 0.5; g.y = row + 0.5; g.order = null; g.setup = 0; g.packing = 0;
+  orderMove(s, [g], f[row] + dir * 2 + 0.5, row + 0.5);
+  let bridged = 0, inTrench = false;
+  for (let i = 0; i < 30 * 60 && g.order; i++) { update(s, 1 / 30); if (g.bridging) bridged += 1 / 30; if (g.inTrench) inTrench = true; }
+  assert.ok(!g.order, 'crossed');
+  assert.ok(!inTrench, 'never down in the trench');
+  assert.ok(bridged >= BRIDGE_TIME * 0.9, `laid planks first (${bridged.toFixed(1)} s)`);
+  assert.ok(s.map.tiles.some((t) => t.bridge), 'the planks stay');
+  // no 2x2 blocks of trench on any map, and none can be dug
+  const sq = (st) => { const m = st.map, T = (x, y) => { const t = m.tiles[y * m.w + x]; return t && !t.off && t.trench; }; let n = 0; for (let y = 0; y < m.h - 1; y++) for (let x = 0; x < m.w - 1; x++) if (T(x, y) && T(x + 1, y) && T(x, y + 1) && T(x + 1, y + 1)) n++; return n; };
+  assert.equal(sq(s), 0);
+  for (const id of ['ypres', 'isonzo', 'brusilov', 'chunuk', 'amiens']) assert.equal(sq(createLevelGame(id)), 0, id);
+  const t = s.map.tiles.find((q) => !q.trench && !q.off && makesSquare(s.map, q.x, q.y));
+  if (t) assert.equal(canBuild(s, PLAYER, 'trench', t.x + 0.5, t.y + 0.5).reason, 'Trenches cannot form a square');
   createGame();
 });

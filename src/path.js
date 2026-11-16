@@ -13,7 +13,7 @@ const SQ2 = Math.SQRT2;
  *  speedAt(tile): relative speed on a tile (1 = open ground; 0 or less = impassable)
  *  climb(out): extra cost, in tile-lengths of open ground, of climbing out of (out) or into a trench
  */
-export function findPath(map, sx, sy, tx, ty, speedAt, climb) {
+export function findPath(map, sx, sy, tx, ty, speedAt, climb, enter = null) {
   const W = map.w, H = map.h, tiles = map.tiles;
   const fx = Math.floor(sx), fy = Math.floor(sy), gx = Math.floor(tx), gy = Math.floor(ty);
   if (fx === gx && fy === gy) return null;
@@ -21,7 +21,8 @@ export function findPath(map, sx, sy, tx, ty, speedAt, climb) {
   const start = at(fx, fy), goal = at(gx, gy);
   if (!start || !goal || goal.off) return null;
   // the straight line, when it crosses nothing that slows or stops the unit and changes no level, is best
-  if (clearLine(map, sx, sy, tx, ty, speedAt)) return null;
+  if (!enter && clearLine(map, sx, sy, tx, ty, speedAt)) return null;
+  if (enter && clearLine(map, sx, sy, tx, ty, speedAt) && !crosses(map, sx, sy, tx, ty, enter)) return null;
 
   const N = W * H, g = new Float64Array(N).fill(Infinity), from = new Int32Array(N).fill(-1), closed = new Uint8Array(N);
   const heap = new Heap();
@@ -52,6 +53,7 @@ export function findPath(map, sx, sy, tx, ty, speedAt, climb) {
       }
       let c = len * 0.5 * (cost[i] + cost[j]);
       if (!!ti.trench !== !!tj.trench) c += climb(!!ti.trench);
+      if (enter) c += enter(tj);
       const ng = g[i] + c;
       if (ng < g[j]) { g[j] = ng; from[j] = i; heap.push(j, ng + Math.hypot(gx - nx, gy - ny)); }
     }
@@ -74,6 +76,13 @@ export function findPath(map, sx, sy, tx, ty, speedAt, climb) {
     k = j;
   }
   return out;
+}
+
+/** True if a straight line enters any tile with an extra entry cost (an unbridged trench, for a battery). */
+function crosses(map, ax, ay, bx, by, enter) {
+  const n = Math.max(2, Math.ceil(Math.hypot(bx - ax, by - ay) * 4));
+  for (let i = 1; i <= n; i++) { const t = map.tiles[Math.floor(ay + ((by - ay) * i) / n) * map.w + Math.floor(ax + ((bx - ax) * i) / n)]; if (t && enter(t) > 0) return true; }
+  return false;
 }
 
 /** True if the straight line crosses only open going (nothing slower than the start, no change of level, nothing impassable). */

@@ -40,6 +40,51 @@ export function rowsOf(x, inset = 0) {
   return half < 0 ? null : [MID - half, MID + half];
 }
 
+/** True if a trench at (x, y) would complete a 2x2 block of trench (trenches may not form squares or wider areas). */
+export function makesSquare(map, x, y) {
+  const T = (a, b) => { const t = tileAt(map, a, b); return !!(t && t.trench); };
+  for (const [dx, dy] of [[0, 0], [-1, 0], [0, -1], [-1, -1]]) {
+    let n = 0;
+    for (const [ex, ey] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const a = x + dx + ex, b = y + dy + ey; if ((a === x && b === y) || T(a, b)) n++; }
+    if (n === 4) return true;
+  }
+  return false;
+}
+
+/**
+ * Break up every 2x2 block of trench (where communication trenches meet the firing lines): fill in one
+ * tile of the block, one whose trench neighbours stay connected without it, never the HQ.
+ */
+function noSquares(map) {
+  const W = map.w, T = (x, y) => { const t = tileAt(map, x, y); return t && t.trench ? t : null; };
+  const isHq = (t) => map.hq.some((q) => q.x === t.x && q.y === t.y);
+  const connectedWithout = (t) => {
+    const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => T(t.x + a, t.y + b)).filter(Boolean);
+    if (nb.length < 2) return true;
+    const seen = new Set([t.y * W + t.x, nb[0].y * W + nb[0].x]), queue = [nb[0]];
+    let steps = 0;
+    while (queue.length && steps++ < 400) {
+      const q = queue.shift();
+      for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const n = T(q.x + a, q.y + b);
+        if (n && !seen.has(n.y * W + n.x)) { seen.add(n.y * W + n.x); queue.push(n); }
+      }
+    }
+    return nb.every((n) => seen.has(n.y * W + n.x));
+  };
+  for (let pass = 0; pass < 3; pass++) {
+    let changed = false;
+    for (let y = 0; y < map.h - 1; y++) for (let x = 0; x < W - 1; x++) {
+      const block = [T(x, y), T(x + 1, y), T(x, y + 1), T(x + 1, y + 1)];
+      if (!block.every(Boolean)) continue;
+      const pick = block.filter((t) => !isHq(t) && t.trench < 3).sort((a, b) => a.trench - b.trench).find(connectedWithout);
+      if (!pick) continue;
+      pick.trench = 0; pick.owner = -1; pick.origOwner = -1; changed = true;
+    }
+    if (!changed) break;
+  }
+}
+
 /** True where nobody can walk: a rock outcrop, or the buildings of a town. */
 export function rockAt(map, x, y) {
   const t = tileAt(map, x, y);
@@ -214,5 +259,6 @@ export function createMap(seed = 1916, westTeam = PLAYER, advance = {}) {
     }
   }
 
+  noSquares(map);
   return map;
 }

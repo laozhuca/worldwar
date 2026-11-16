@@ -4,7 +4,7 @@ import {
   BASE_INCOME, CAPTURE_BONUS, START_RES, SUPPRESSION_DECAY, CHARGE_SPEED, MELEE_RANGE,
   WIRE_SLOW, BUILD_RADIUS_FRIENDLY, BUILD_RADIUS_ENEMY, DIG_RADIUS, DIG_RATE,
 } from './config.js';
-import { createMap, tileAt, frontLine, teamDir, clampToMap, rockAt, offRock } from './map.js';
+import { createMap, tileAt, frontLine, teamDir, clampToMap, rockAt, offRock, makesSquare } from './map.js';
 import { findPath } from './path.js';
 import { createAI, updateAI } from './ai.js';
 
@@ -114,6 +114,17 @@ export function spawnUnit(state, type, team, x, y) {
   };
   const tile = tileAt(state.map, x, y);
   u.inTrench = !!tile && tile.trench > 0;
+  if (type === 'artillery') { // a battery is never placed down in a trench: onto the nearest firm ground
+    const at = tileAt(state.map, u.x, u.y);
+    if (at && at.trench) {
+      let best = null, bd = Infinity;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const q = tileAt(state.map, at.x + dx + 0.5, at.y + dy + 0.5);
+        if (q && !q.trench && !q.rock && !q.block && Math.hypot(dx, dy) < bd) { bd = Math.hypot(dx, dy); best = q; }
+      }
+      if (best) { u.x = best.x + 0.5; u.y = best.y + 0.5; }
+    }
+  }
   state.units.push(u);
   return u;
 }
@@ -161,6 +172,7 @@ export function orderMove(state, units, tx, ty, kind = 'move') {
     if (u.type === 'artillery' && !u.order && !(u.setup > 0) && !(u.packing > 0)) u.packing = GUN_LIMBER;
     u.order = { kind, x, y };
     u.path = planRoute(state, u, x, y); // the quickest way there, not the straight line
+    u.bridging = null;
     u.digSite = null;
     if (u.barrage) u.barrage = null; // a battery limbers up to move: its barrage is over
   });
@@ -230,6 +242,7 @@ export function canBuild(state, team, type, x, y) {
     if (!((t.dmg || 0) >= 5)) return { ok: false, reason: 'This trench is not damaged' };
     if (t.owner >= 0 && t.owner !== team) return { ok: false, reason: 'Not our trench' };
   } else if (type === 'trench' && t.wire) return { ok: false, reason: 'Tile not clear' };
+  else if (type === 'trench' && makesSquare(map, t.x, t.y)) return { ok: false, reason: 'Trenches cannot form a square' };
   if (type === 'wire' && (t.trench || t.wire)) return { ok: false, reason: 'Tile not clear' };
   if (type === 'upgrade') {
     if (!t.trench) return { ok: false, reason: 'No trench here' };
@@ -369,6 +382,7 @@ function steer(map, u, mx, my) {
   return { mx: -mx, my: -my };
 }
 
+export const BRIDGE_TIME = 5; // seconds for a gun crew to lay planks over a trench before the gun can cross
 export const GUN_LIMBER = 3; // seconds for a battery to limber up before moving (unlimbering after takes UNIT_TYPES.artillery.setup)
 export const MG_PACK = 2.5; // seconds to dismount and pack a machine gun before its team can move (setting up again takes UNIT_TYPES.mg.setup)
 export const CLIMB_D = 0.55 * 0.195 * 1.35; // tiles a man's climbing animation carries him forward (0.55 m, at the 1.35 drawing scale)
@@ -386,6 +400,10 @@ const speedAt = (tile) => (tile.rock || tile.block ? 0 : terrainFactor(tile));
 export function planRoute(state, u, x, y) {
   if (globalThis.NO_PATH) return null; // (simulation experiments)
   const C = CLIMB[u.type] || CLIMB.rifle, sp = UNIT_TYPES[u.type].speed || 0.8;
+  if (u.type === 'artillery') { // a battery crosses a trench on planks it lays over it, never down in it
+    const enter = (t) => (t.trench && !t.bridge ? BRIDGE_TIME * sp + 1 : 0);
+    return findPath(state.map, u.x, u.y, x, y, (t) => (t.trench ? (t.bridge ? 1 : 0.9) : speedAt(t)), () => 0, enter);
+  }
   const climb = (out) => (out ? C.out : C.in) * (1 + CLIMB_GAP * (C.groups - 1)) * 0.75 * sp;
   return findPath(state.map, u.x, u.y, x, y, speedAt, climb);
 }
@@ -404,11 +422,11 @@ function updateUnit(state, u, dt) {
   const t = UNIT_TYPES[u.type];
   const tile = tileAt(state.map, u.x, u.y);
   const wasIn = u.inTrench;
-  u.inTrench = !!tile && tile.trench > 0;
+  u.inTrench = !!tile && tile.trench > 0 && u.type !== 'artillery'; // a battery never goes down into a trench (it bridges it)
   // climbing out of a trench, or down into one, takes time: the men haul themselves over the parapet.
   // Out: as soon as the ground just ahead is no longer trench (the men are at the trench wall).
   // In: on stepping onto a trench tile.
-  if (u.order && !u.climb) {
+  if (u.order && !u.climb && u.type !== 'artillery') {
     const charge = u.order.kind === 'charge';
     // the unit climbs group by group (a rifle squad's two ranks, an MG team's two pairs, a battery crew's
     // three pairs, hauling the gun): each group takes `rank` seconds, the next starting as the one before is
@@ -457,6 +475,16 @@ function updateUnit(state, u, dt) {
   // --- movement
   u.moving = false;
   if (u.packing > 0) { u.packing = u.order ? Math.max(0, u.packing - dt) : 0; } // dismounting the gun first
+  else if (u.bridging) { // laying planks over the trench ahead
+    const b = u.bridging;
+    b.t += dt;
+    if (!u.order) u.bridging = null;
+    else if (b.t >= b.dur) {
+      const bt = tileAt(state.map, b.x + 0.5, b.y + 0.5);
+      if (bt) { bt.bridge = b.axis; (state.map.bridges ||= []).push({ x: bt.x, y: bt.y, axis: b.axis }); }
+      u.bridging = null;
+    }
+  }
   else if (u.order && u.climb && u.climb.x0 !== undefined) {
     // climbing: the unit goes straight across the edge, exactly as far as the men's climb carries them
     const c = u.climb, k = Math.min(1, c.t / c.dur);
@@ -468,7 +496,17 @@ function updateUnit(state, u, dt) {
     const wp = u.path && u.path.length ? u.path[0] : null, gx = wp ? wp[0] : u.order.x, gy = wp ? wp[1] : u.order.y;
     const dx = gx - u.x, dy = gy - u.y;
     const d = Math.hypot(dx, dy);
-    let speed = t.speed * terrainFactor(tile) * (u.order.kind === 'charge' ? CHARGE_SPEED : 1);
+    // a battery stops at a trench it has no planks over, and its crew bridges it
+    if (u.type === 'artillery' && d > 0.05) {
+      const ah = tileAt(state.map, u.x + (dx / d) * 0.55, u.y + (dy / d) * 0.55);
+      if (ah && ah.trench && !ah.bridge && ah !== tile) {
+        const ax = Math.abs(dx) >= Math.abs(dy);
+        u.bridging = { t: 0, dur: BRIDGE_TIME, x: ah.x, y: ah.y, axis: ax ? 1 : 2 };
+        u.hx = dx / d; u.hy = dy / d;
+        return;
+      }
+    }
+    let speed = t.speed * (u.type === 'artillery' && tile && tile.trench ? 1 : terrainFactor(tile)) * (u.order.kind === 'charge' ? CHARGE_SPEED : 1);
     if (u.climb) speed *= 0.25; // over the parapet, or down into the trench
     if (u.pinned) speed *= 0.3;
     else if (u.order.kind !== 'charge' && u.suppression > 40) speed *= 0.6;

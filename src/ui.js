@@ -547,6 +547,7 @@ export class UI {
         if (u.type === 'artillery' && u.cooldown > 0 && !u.barrage) status = `reloading ${Math.ceil(u.cooldown)}s`;
         if (u.type === 'mg' && u.packing > 0) status = 'packing up';
         else if (u.type === 'mg' && u.setup > 0 && !u.order) status = 'setting up';
+        else if (u.type === 'artillery' && u.bridging) status = 'laying planks';
         else if (u.type === 'artillery' && u.packing > 0) status = 'limbering up';
         else if (u.type === 'artillery' && u.setup > 0 && !u.order) status = 'unlimbering';
         // MG teams and batteries show their weapon, rifle squads a soldier of the army
