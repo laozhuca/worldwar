@@ -669,6 +669,7 @@ function fire(state, u, target, t) {
   target.suppression = Math.min(100, target.suppression + sup);
 
   u.firing = t.burst ? 0.4 : 0.15;
+  u.lastShot = state.time; // (a man firing from under planks shows himself)
   const sx = (target.x - u.x) - (target.y - u.y);
   if (Math.abs(sx) > 0.05) u.facing = Math.sign(sx);
   if (d > 0.01) { u.hx = (target.x - u.x) / d; u.hy = (target.y - u.y) / d; }

@@ -1789,6 +1789,17 @@ export class Renderer {
       const quiet = (u.type === 'rifle' || u.type === 'artillery') && !u.target && !u.digging && !u.order && !(u.firing > 0)
         && (u.suppression || 0) < 15 && !(u.type === 'artillery' && (u.barrage || u.cooldown > 0));
       men.forEach((s, i) => {
+        // under planks laid over the trench a man is hidden by the boards; firing he shows himself, and
+        // goes out of sight again over a second or so after the last shot
+        ctx.globalAlpha = 1;
+        if (u.inTrench && this.map) {
+          const bt = tileAt(this.map, s.mx, s.my);
+          if (bt && bt.bridge) {
+            const since = time - (u.lastShot ?? -1e9), seen = u.firing > 0 ? 1 : Math.max(0, Math.min(1, 1 - (since - 0.25) / 1.3));
+            if (seen <= 0.02) return;
+            ctx.globalAlpha = seen;
+          }
+        }
         if (s.y >= p.y) drawGunNow(); // crew behind the gun first, the rest in front
         let pn = pose, fr = 0;
         // every man his own: a worn or faded uniform (helmet and all), and his own way of carrying his rifle on the march
@@ -1880,6 +1891,7 @@ export class Renderer {
         if (!this.drawSoldier(ctx, nation, pn, fr, hx, hy, s.x, s.y, { x: s.mx, y: s.my }, vr)
           && !((pn === 'walks' || pn === 'walkt') && this.drawSoldier(ctx, nation, 'walk', fr, hx, hy, s.x, s.y, null, vr))) drawMan(ctx, s.x, s.y, u.team, pose === 'crawl' ? 'prone' : pose, u.facing, phase + i * 1.7, false);
       });
+      ctx.globalAlpha = 1;
       drawGunNow();
     }
     if (useSpr) { /* figures drawn above */ } else {
