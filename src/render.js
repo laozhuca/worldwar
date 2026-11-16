@@ -1519,6 +1519,28 @@ export class Renderer {
     return ok;
   }
 
+  /** The nearest point to (mx, my) inside the trench channel (the trench tile nearest it, or the unit's own). */
+  inChannel(mx, my, ux, uy) {
+    const map = this.map, tr = (x, y) => { const q = tileAt(map, x, y); return q && q.trench ? q : null; };
+    let t = tr(mx, my);
+    if (!t) {
+      let bd = Infinity;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const q = tr(mx + dx, my + dy);
+        if (q) { const d = Math.hypot(q.x + 0.5 - mx, q.y + 0.5 - my); if (d < bd) { bd = d; t = q; } }
+      }
+      t = t || tr(ux, uy);
+      if (!t) return { x: mx, y: my };
+    }
+    // the channel: the middle of the tile, running on to whichever sides the trench continues
+    const H = 0.14, cx = t.x + 0.5, cy = t.y + 0.5, o = (dx, dy) => !!tr(t.x + dx + 0.5, t.y + dy + 0.5);
+    let x = Math.min(cx + (o(1, 0) ? 0.5 : H), Math.max(cx - (o(-1, 0) ? 0.5 : H), mx));
+    let y = Math.min(cy + (o(0, 1) ? 0.5 : H), Math.max(cy - (o(0, -1) ? 0.5 : H), my));
+    // and not out in the corners of the tile beside a bend: in an arm, keep to that arm's middle
+    if (Math.abs(x - cx) > H && Math.abs(y - cy) > H) { if (Math.abs(x - cx) > Math.abs(y - cy)) y = cy + Math.sign(y - cy) * H; else x = cx + Math.sign(x - cx) * H; }
+    return { x, y };
+  }
+
   /**
    * Clip away what lies below a trench edge (as the camera sees it): the edge runs along a tile side at
    * `dist` tiles from the man at map (mx, my) in the axis direction (dx, dy), which must face the camera
@@ -1547,11 +1569,19 @@ export class Renderer {
     const rims = [];
     if (!open(0, 1)) rims.push([iso(t.x - 5, t.y + 0.5 + W), iso(t.x + 6, t.y + 0.5 + W)]); // the +y side
     if (!open(1, 0)) rims.push([iso(t.x + 0.5 + W, t.y + 6), iso(t.x + 0.5 + W, t.y - 5)]); // the +x side
-    if (!rims.length) return false;
+    // the trench turns or branches towards the camera on both sides (+x and +y) but not between them: the
+    // block of ground inside the bend stands between the man and the camera, hiding him below its corner
+    const corner = open(1, 0) && open(0, 1) && !open(1, 1);
+    if (!rims.length && !corner) return false;
     ctx.save();
     for (const [a, b] of rims) { // keep the half-plane above each rim line (raised to the parapet's top)
       a.y -= LIFT; b.y -= LIFT;
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(b.x, b.y - 2000); ctx.lineTo(a.x, a.y - 2000); ctx.closePath(); ctx.clip();
+    }
+    if (corner) { // keep everything but the wedge below the block's near corner: its two edges run down-left and down-right
+      const c = iso(t.x + 0.5 + W, t.y + 0.5 + W), L = 400;
+      c.y -= LIFT;
+      ctx.beginPath(); ctx.moveTo(c.x - L, c.y - 4000); ctx.lineTo(c.x + L, c.y - 4000); ctx.lineTo(c.x + L, c.y + L / 2); ctx.lineTo(c.x, c.y); ctx.lineTo(c.x - L, c.y + L / 2); ctx.closePath(); ctx.clip();
     }
     return true;
   }
@@ -1676,6 +1706,9 @@ export class Renderer {
       const cb = u.climb && u.climb.x0 !== undefined ? u.climb : null;
       const bx = cb ? cb.x0 + (cb.out ? 0 : cb.hx * CLIMB_D) : u.x, by = cb ? cb.y0 + (cb.out ? 0 : cb.hy * CLIMB_D) : u.y;
       let mx = bx + ox + jx, my = by + oy + jy;
+      // in a trench every man stands in the trench itself: a place in the formation that falls outside the
+      // channel (beside a bend, or beyond its walls) is brought to the nearest point inside it
+      if ((pose === 'trench' || pose === 'twalk') && this.map) ({ x: mx, y: my } = this.inChannel(mx, my, u.x, u.y));
       if (moving && u.type !== 'artillery' && !cb) {
         // loose order on the move: each man weaves a little and keeps his own place in the file;
         // a charge turns into a ragged rush with men surging ahead and falling behind
