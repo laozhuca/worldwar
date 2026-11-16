@@ -1520,6 +1520,19 @@ export class Renderer {
   }
 
   /**
+   * Clip away what lies below a trench edge (as the camera sees it): the edge runs along a tile side at
+   * `dist` tiles from the man at map (mx, my) in the axis direction (dx, dy), which must face the camera
+   * (+x or +y). Raised by the parapet. Returns true having saved the context (the caller restores it).
+   */
+  edgeMask(ctx, mx, my, dx, dy, dist) {
+    const px = mx + dx * dist, py = my + dy * dist, ex = -dy * 6, ey = dx * 6, LIFT = 1.8;
+    const a = iso(px - ex, py - ey), b = iso(px + ex, py + ey);
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(a.x, a.y - LIFT); ctx.lineTo(b.x, b.y - LIFT); ctx.lineTo(b.x, b.y - 2000); ctx.lineTo(a.x, a.y - 2000); ctx.closePath(); ctx.clip();
+    return true;
+  }
+
+  /**
    * Clip to what can be seen of a man standing in the trench at map (mx, my): everything below the
    * trench's near rims (its sides facing the camera, at +x and +y, where the trench does not run on)
    * is hidden behind the parapet. Returns true if it saved the context (the caller restores it).
@@ -1712,9 +1725,25 @@ export class Renderer {
           const R = u.climb.rank || u.climb.dur, start = R * 0.8 * climbOrder(u, men, group);
           const k = Math.max(0, Math.min(0.999, (u.climb.t - start) / R + (hsh(s.k, 5) - 0.5) * 0.15));
           const f = Math.floor((u.climb.out ? k : 1 - k) * 8);
-          // down in the trench (the first frames) the trench's near parapet hides his legs; on top, nothing does
-          const tc = f <= 4 ? { x: u.climb.tx + 0.5, y: u.climb.ty + 0.5 } : null;
-          if (this.drawSoldier(ctx, nation, 'tclimb', f, u.hx, u.hy, s.x, s.y, tc)) return;
+          // the trench edge he is crossing lies along a tile side: w points from him to it (ahead of him
+          // climbing out; behind him climbing in, when he lowers himself down facing the wall he came over)
+          const ax = Math.abs(u.hx) >= Math.abs(u.hy);
+          let wx = ax ? Math.sign(u.hx) || 1 : 0, wy = ax ? 0 : Math.sign(u.hy) || 1;
+          if (!u.climb.out) { wx = -wx; wy = -wy; }
+          // down in the trench (the first frames) a wall hides his legs: the edge he is climbing if it is the one
+          // nearer the camera (+x / +y), otherwise the trench's other wall, behind him; on top, nothing does
+          let clipped = false;
+          if (f <= 4) {
+            const ct = { x: u.climb.tx + 0.5, y: u.climb.ty + 0.5 }, tt = this.map && tileAt(this.map, ct.x, ct.y);
+            if (wx + wy > 0) { // climbing the camera-side edge: the trench's real rim there, or just ahead of a man already at it
+              const W = 0.22 + ((tt && [0, 0.08, 0.015, 0][tt.trench]) || 0);
+              const rim = wx ? ct.x + W : ct.y + W, me = wx ? s.mx : s.my;
+              clipped = this.edgeMask(ctx, s.mx, s.my, wx, wy, Math.max(0.1, rim - me));
+            } else clipped = this.trenchMask(ctx, ct.x, ct.y); // climbing the far edge: the near wall behind him, as when standing in it
+          }
+          const ok = this.drawSoldier(ctx, nation, 'tclimb', f, wx, wy, s.x, s.y, null, vr);
+          if (clipped) ctx.restore();
+          if (ok) return;
         }
         const g = GAIT[pose];
         if (g) {
