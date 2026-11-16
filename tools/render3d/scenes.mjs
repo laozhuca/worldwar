@@ -816,11 +816,16 @@ export function gunScene(dir, frame, travel = false) {
   };
   const steel = (f, s, z) => {
     const axle = sdCapsule(f, s, z, 0, -TRACK, WR, 0, TRACK, WR, 0.055);
-    // trail: box beam sloping from the axle down to the spade
-    const tl = -3.0, t = clamp(f / tl, 0, 1);
-    const trail = Math.max(sdRoundBox(f - tl / 2, s, z - mix(0.62, 0.12, t), 1.55, mix(0.2, 0.1, t), mix(0.13, 0.08, t), 0.02), -f - 3.05);
-    const spade = sdRoundBox(f + 3.0, s, z - 0.08, 0.05, 0.16, 0.12, 0.01);
-    const lunette = Math.max(Math.abs(Math.hypot(f + 3.22, s) - 0.1) - 0.035, Math.abs(z - 0.13) - 0.03);
+    // split trail: two box legs from the axle back to the ground. Laid for firing they are spread wide in a V,
+    // each with its spade dug in; on the march they are closed together, with the towing ring at the end
+    const tl = -2.95, t = clamp(f / tl, 0, 1), spread = travel ? 0.07 : 0.92;
+    const leg = (side) => {
+      const cs = side * mix(0.16, spread, t); // the leg's centre line, opening out towards its end
+      return Math.max(sdRoundBox(f - tl / 2, s - cs, z - mix(0.62, 0.12, t), 1.5, mix(0.075, 0.06, t), mix(0.12, 0.075, t), 0.015), -f - 3.0);
+    };
+    const trail = Math.min(leg(1), leg(-1), sdRoundBox(f + 0.35, s, z - 0.6, 0.06, 0.2, 0.08, 0.01)); // and a transom joining them near the axle
+    const spade = travel ? 1 : Math.min(sdRoundBox(f + 2.95, s - spread, z - 0.06, 0.05, 0.13, 0.11, 0.01), sdRoundBox(f + 2.95, s + spread, z - 0.06, 0.05, 0.13, 0.11, 0.01));
+    const lunette = travel ? Math.max(Math.abs(Math.hypot(f + 3.15, s) - 0.1) - 0.035, Math.abs(z - 0.13) - 0.03) : 1;
     // cradle cheeks either side of the barrel, and the shield
     const cradle = sdRoundBox(f - 0.05, Math.abs(s) - 0.2, z - 0.82, 0.38, 0.03, 0.26, 0.01);
     const sx = f - 0.42 + (z - 1.0) * 0.08; // shield leans back slightly
