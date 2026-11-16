@@ -2039,6 +2039,16 @@ export class Renderer {
         for (let i = 0; i < 4; i++) {
           ctx.beginPath(); ctx.arc(b.x + Math.sin(i * 9 + e.x) * 11, b.y - 2 - k * 6 + Math.cos(i * 5 + e.y) * 4, 1.5 + k * 4, 0, TAU); ctx.fill();
         }
+      } else if (e.type === 'debris') { // smashed planks thrown up and tumbling down
+        const c = iso(e.x, e.y);
+        for (let i = 0; i < 9; i++) {
+          const a = i * 0.7 + seed * 6, r = (8 + (i % 4) * 7) * k, up = 46 * k * (1 - k) * (0.6 + (i % 3) * 0.3);
+          const x = c.x + Math.cos(a) * r, y = c.y + Math.sin(a) * r * 0.5 - up, rot = a + e.age * (6 + i);
+          ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.globalAlpha = Math.min(1, (1 - k) * 2.5);
+          ctx.fillStyle = i % 2 ? '#5e4f3f' : '#4d4135'; ctx.fillRect(-5, -1.2, 10, 2.4);
+          ctx.restore();
+        }
+        ctx.globalAlpha = 1;
       } else if (e.type === 'boom') {
         if (anim) continue; // the impact animation has its own flash and earth column
         const p = iso(e.x, e.y);

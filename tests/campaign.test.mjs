@@ -322,3 +322,22 @@ test('A battery never goes into a trench: it lays planks over it and crosses at 
   if (t) assert.equal(canBuild(s, PLAYER, 'trench', t.x + 0.5, t.y + 0.5).reason, 'Trenches cannot form a square');
   createGame();
 });
+
+test('Planks can be shelled away, and a battery on them is lost with them', async () => {
+  const { BRIDGE_HP } = await import('../src/game.js');
+  const s = createGame(); s.ais.length = 0;
+  const t = s.map.tiles.find((q) => q.trench && q.owner === PLAYER && q.x > 8);
+  t.bridge = 1; s.map.bridges = null;
+  const g = s.units.find((q) => q.team === PLAYER && q.type === 'artillery');
+  g.x = t.x + 0.5; g.y = t.y + 0.5; g.order = null;
+  const bystander = s.units.find((q) => q.team === PLAYER && q.type === 'artillery' && q !== g);
+  // shells on the planks until they go
+  let hits = 0;
+  while (t.bridge && hits < 10) { s.shells.push({ x: t.x + 0.5, y: t.y + 0.5, t: 0.05, flight: 0.05, team: ENEMY, fromX: t.x + 6, fromY: t.y, incoming: false }); for (let i = 0; i < 30 && s.shells.length; i++) update(s, 1 / 30); hits++; }
+  assert.ok(!t.bridge, `planks smashed after ${hits} shells`);
+  assert.ok(hits >= 2, 'it takes more than one shell');
+  assert.ok(g.dead, 'the battery on them is lost');
+  assert.ok(!bystander || !bystander.dead || Math.floor(bystander.x) === t.x, 'batteries elsewhere are not');
+  assert.ok(BRIDGE_HP > 0);
+  createGame();
+});

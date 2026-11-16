@@ -382,6 +382,22 @@ function steer(map, u, mx, my) {
   return { mx: -mx, my: -my };
 }
 
+export const BRIDGE_HP = 100; // a bridge's strength: shells hitting it take 60, bursting near it 22 (on average)
+
+/** The planks over a trench are smashed: gone from the map, and a battery on them is lost in the trench. */
+export function breakBridge(state, t) {
+  const { map } = state;
+  t.bridge = 0; t.bridgeHp = undefined; t.splinters = 1;
+  if (map.bridges) map.bridges = map.bridges.filter((b) => b.x !== t.x || b.y !== t.y);
+  markChanged(map, t.x, t.y);
+  for (const u of state.units) {
+    if (u.dead || u.type !== 'artillery' || Math.floor(u.x) !== t.x || Math.floor(u.y) !== t.y) continue;
+    damageUnit(state, u, u.hp + 1, null); // the gun and its crew crash down into the trench
+    if (u.team === PLAYER) pushMessage(state, 'The planks gave way under one of our batteries: the gun and its crew are lost in the trench.', 'loss');
+  }
+  state.effects.push({ type: 'debris', x: t.x + 0.5, y: t.y + 0.5, age: 0, life: 1.2 });
+}
+
 export const BRIDGE_TIME = 5; // seconds for a gun crew to lay planks over a trench before the gun can cross
 export const GUN_LIMBER = 3; // seconds for a battery to limber up before moving (unlimbering after takes UNIT_TYPES.artillery.setup)
 export const MG_PACK = 2.5; // seconds to dismount and pack a machine gun before its team can move (setting up again takes UNIT_TYPES.mg.setup)
@@ -843,6 +859,12 @@ function explode(state, s) {
       else { t.decor = null; t.decorHp = undefined; t.splinters = 1; }
       markChanged(map, t.x, t.y);
     } else if (t.decor === 'ruin' && d < 0.8 && rand() < 0.3) t.decor = null;
+    // planks over a trench: a direct hit or two and a near miss or three smash them; whatever battery is on
+    // them goes down into the trench with them
+    if (t.bridge) {
+      t.bridgeHp = (t.bridgeHp ?? BRIDGE_HP) - (hit ? 60 : 22) * (0.75 + rand() * 0.5);
+      if (t.bridgeHp <= 0) breakBridge(state, t);
+    }
     // trench works: hard to damage, harder still when sandbagged or concreted
     if (t.trench) {
       t.dmg = Math.min(100, (t.dmg || 0) + (hit ? TRENCH_HIT : TRENCH_NEAR) * (0.75 + rand() * 0.5) / TRENCH_TOUGH[t.trench]);
