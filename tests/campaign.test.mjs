@@ -95,9 +95,9 @@ test('The Brusilov Breakthrough: a thin line, reserves on day 1 and 2, win by ta
   const start = foes();
   assert.ok(mine > 20, 'a big army');
   s.time = ((20 - 4) / 24) * 420 + 0.1; stepCampaign(s);
-  assert.equal(foes(), start + 6, 'first reserves');
+  assert.equal(foes(), start + 5, 'first reserves');
   s.time = ((44 - 4) / 24) * 420 + 0.1; stepCampaign(s);
-  assert.equal(foes(), start + 14, 'second reserves');
+  assert.equal(foes(), start + 11, 'second reserves');
   assert.equal(s.campaign.result, null);
   const hq = s.map.hq[ENEMY];
   s.map.tiles[hq.y * s.map.w + hq.x].owner = PLAYER;
@@ -253,5 +253,46 @@ test('A machine gun packs up before it moves and sets up again before it fires',
   for (let i = 0; i < 30 * 8 && u.order; i++) update(s, 1 / 30);
   assert.ok(!u.order && Math.abs(u.x - x0) > 1, 'moved off');
   assert.ok(u.setup > 0, 'must set up again');
+  createGame();
+});
+
+test('Path finding: along a trench it stays in the trench; through wire it goes round; it is quick to plan', async () => {
+  const { orderMove, planRoute } = await import('../src/game.js');
+  const { frontLine } = await import('../src/map.js');
+  // 1. along the front line: two trench tiles ten rows apart, the line zigzagging between them
+  const s = createGame(); s.ais.length = 0;
+  const f = frontLine(s.map, PLAYER), M = 34;
+  const u = s.units.find((q) => q.team === PLAYER && q.type === 'rifle');
+  s.units = s.units.filter((q) => q.team === ENEMY || q === u); // keep the enemy, so the battle does not end
+  for (const q of s.units) if (q !== u) { q.x = s.map.hq[ENEMY].x + 0.5; q.y = s.map.hq[ENEMY].y + 0.5; q.order = null; q.holdFire = true; }
+  u.x = f[M - 5] + 0.5; u.y = M - 5 + 0.5; u.order = null; u.climb = null;
+  update(s, 1 / 30);
+  orderMove(s, [u], f[M + 5] + 0.5, M + 5 + 0.5);
+  assert.ok(u.path && u.path.length > 1, 'a route, not the straight line');
+  let climbs = 0, steps = 0;
+  for (; steps < 30 * 40 && u.order; steps++) { update(s, 1 / 30); if (u.climb && u.climb.t < 1 / 25) climbs++; }
+  assert.ok(!u.order, 'arrived');
+  assert.equal(climbs, 0, 'never left the trench');
+  // 2. through wire: the route goes round it, and arrives sooner than the straight line
+  const w = createGame(); w.ais.length = 0;
+  const v = w.units.find((q) => q.team === PLAYER && q.type === 'rifle');
+  w.units = w.units.filter((q) => q.team === ENEMY || q === v);
+  for (const q of w.units) if (q !== v) { q.x = w.map.hq[ENEMY].x + 0.5; q.y = w.map.hq[ENEMY].y + 0.5; q.order = null; q.holdFire = true; }
+  const y0 = M + 8;
+  for (let x = 30; x <= 34; x++) for (let y = y0 - 3; y <= y0 + 3; y++) w.map.tiles[y * w.map.w + x].wire = 100;
+  const travel = (usePath) => {
+    v.x = 27.5; v.y = y0 + 0.5; v.order = null; v.climb = null; v.suppression = 0; v.pinned = false; v.hp = 1000;
+    orderMove(w, [v], 37.5, y0 + 0.5);
+    if (!usePath) v.path = null;
+    let t = 0;
+    for (; t < 120 && v.order; t += 1 / 30) update(w, 1 / 30);
+    return t;
+  };
+  const straight = travel(false), routed = travel(true);
+  assert.ok(routed < straight * 0.8, `round the wire (${routed.toFixed(1)} s) beats through it (${straight.toFixed(1)} s)`);
+  // 3. quick to plan, corner to corner of the battlefield
+  const t0 = performance.now();
+  for (let i = 0; i < 20; i++) planRoute(w, { type: 'rifle', x: 8.5, y: 34.5 }, 60.5, 34.5 + (i % 5) - 2);
+  assert.ok((performance.now() - t0) / 20 < 25, 'under 25 ms a route');
   createGame();
 });

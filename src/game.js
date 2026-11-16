@@ -5,6 +5,7 @@ import {
   WIRE_SLOW, BUILD_RADIUS_FRIENDLY, BUILD_RADIUS_ENEMY, DIG_RADIUS, DIG_RATE,
 } from './config.js';
 import { createMap, tileAt, frontLine, teamDir, clampToMap, rockAt, offRock } from './map.js';
+import { findPath } from './path.js';
 import { createAI, updateAI } from './ai.js';
 
 let nextId = 1;
@@ -159,6 +160,7 @@ export function orderMove(state, units, tx, ty, kind = 'move') {
     // a battery in action must limber up (guns hooked up, trails lifted) before it moves
     if (u.type === 'artillery' && !u.order && !(u.setup > 0) && !(u.packing > 0)) u.packing = GUN_LIMBER;
     u.order = { kind, x, y };
+    u.path = planRoute(state, u, x, y); // the quickest way there, not the straight line
     u.digSite = null;
     if (u.barrage) u.barrage = null; // a battery limbers up to move: its barrage is over
   });
@@ -166,7 +168,7 @@ export function orderMove(state, units, tx, ty, kind = 'move') {
 }
 
 export function orderHalt(state, units) {
-  for (const u of units) { u.order = null; if (u.barrage) { u.barrage = null; u.cooldown = 4; } }
+  for (const u of units) { u.order = null; u.path = null; if (u.barrage) { u.barrage = null; u.cooldown = 4; } }
 }
 
 /** Order the given batteries to bombard (tx,ty). Returns number of batteries that fired. */
@@ -180,7 +182,7 @@ export function orderBarrage(state, units, tx, ty) {
     const lim = state.barrageLimit;
     if (lim && lim[u.team] !== undefined) { if (lim[u.team] <= 0) continue; lim[u.team]--; } // rationed shells
     u.barrage = { x: tx, y: ty, remaining: t.barrageShells, timer: n * 0.35 };
-    u.order = null;
+    u.order = null; u.path = null;
     n++;
   }
   return n;
@@ -373,6 +375,20 @@ export const CLIMB_GAP = 0.8; // each group starts climbing at 80% of the previo
 /** Seconds each group takes to climb out of / into a trench, and how many groups climb in turn. */
 export const CLIMB = { rifle: { out: 2.0, in: 1.4, groups: 2 }, mg: { out: 2.2, in: 1.6, groups: 2 }, artillery: { out: 2.6, in: 2.0, groups: 3 } };
 
+/** How fast a unit goes on a tile, relative to open ground (0: it cannot go there). */
+const speedAt = (tile) => (tile.rock || tile.block ? 0 : terrainFactor(tile));
+
+/**
+ * The quickest route for a unit to (x, y), as waypoints, or null for the straight line. A climb into or
+ * out of a trench costs what it costs the unit in time: the climb is made at a quarter of its speed.
+ */
+export function planRoute(state, u, x, y) {
+  if (globalThis.NO_PATH) return null; // (simulation experiments)
+  const C = CLIMB[u.type] || CLIMB.rifle, sp = UNIT_TYPES[u.type].speed || 0.8;
+  const climb = (out) => (out ? C.out : C.in) * (1 + CLIMB_GAP * (C.groups - 1)) * 0.75 * sp;
+  return findPath(state.map, u.x, u.y, x, y, speedAt, climb);
+}
+
 function terrainFactor(tile) {
   if (!tile) return 1;
   let f = 1;
@@ -399,8 +415,9 @@ function updateUnit(state, u, dt) {
     const C = CLIMB[u.type], climb = (out) => { const r = out ? (charge && u.type === 'rifle' ? 1.4 : C.out) : C.in; return { t: 0, rank: r, dur: r * (1 + CLIMB_GAP * (C.groups - 1)), out, tx: tile.x, ty: tile.y }; };
     if (u.inTrench && wasIn === false) u.climb = climb(false);
     else if (u.inTrench && !u.overTop) {
-      const dx = u.order.x - u.x, dy = u.order.y - u.y, d = Math.hypot(dx, dy) || 1;
-      const ahead = d > 0.45 && tileAt(state.map, u.x + (dx / d) * 0.4, u.y + (dy / d) * 0.4);
+      const wq = u.path && u.path.length ? u.path[0] : [u.order.x, u.order.y];
+      const dx = wq[0] - u.x, dy = wq[1] - u.y, d = Math.hypot(dx, dy) || 1;
+      const ahead = (d > 0.45 || (u.path && u.path.length > 1)) && tileAt(state.map, u.x + (dx / d) * 0.4, u.y + (dy / d) * 0.4);
       if (ahead && !ahead.trench) u.climb = climb(true);
     }
   }
@@ -428,23 +445,29 @@ function updateUnit(state, u, dt) {
   const closeD = u.closest ? dist(u, u.closest) : Infinity;
 
   // Charging troops stop to fight when they hit the enemy.
-  if (charging && closeD < MELEE_RANGE) { u.order = null; u.chargeBonus = 3; }
+  if (charging && closeD < MELEE_RANGE) { u.order = null; u.path = null; u.chargeBonus = 3; }
 
   // --- movement
   u.moving = false;
   if (u.packing > 0) { u.packing = u.order ? Math.max(0, u.packing - dt) : 0; } // dismounting the gun first
   else if (u.order) {
-    const dx = u.order.x - u.x, dy = u.order.y - u.y;
+    // the next waypoint of the route (the destination itself at the end)
+    const wp = u.path && u.path.length ? u.path[0] : null, gx = wp ? wp[0] : u.order.x, gy = wp ? wp[1] : u.order.y;
+    const dx = gx - u.x, dy = gy - u.y;
     const d = Math.hypot(dx, dy);
     let speed = t.speed * terrainFactor(tile) * (u.order.kind === 'charge' ? CHARGE_SPEED : 1);
     if (u.climb) speed *= 0.25; // over the parapet, or down into the trench
     if (u.pinned) speed *= 0.3;
     else if (u.order.kind !== 'charge' && u.suppression > 40) speed *= 0.6;
     const step = speed * dt;
-    if (d <= step || d < 0.02) {
+    if (wp && (d <= step || d < 0.02)) {
+      u.x = gx; u.y = gy; u.path.shift(); // on to the next leg
+      if (!u.path.length) u.path = null;
+      u.moving = true;
+    } else if (d <= step || d < 0.02) {
       u.x = u.order.x; u.y = u.order.y;
       if (u.order.kind === 'charge') u.chargeBonus = 3;
-      u.order = null;
+      u.order = null; u.path = null;
     } else {
       let mx = dx / d, my = dy / d;
       const rocky = state.map.rocks ?? (state.map.rocks = state.map.tiles.some((q) => q.rock || q.block));
