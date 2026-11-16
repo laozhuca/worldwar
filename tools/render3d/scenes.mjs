@@ -791,12 +791,13 @@ export function bunkerScene(snow, wrecked) {
  * over recoil cylinders, spoked wooden wheels with steel tyres, box trail with spade and lunette.
  * dir: heading index 0..7 (angle dir*45deg in map space, 0 = +x). frame: wheel rotation step 0..7.
  */
-export function gunScene(dir, frame) {
+export function gunScene(dir, frame, travel = false) {
   const M = 0.195; // metres -> tiles (same scale as the soldiers)
   const th = (dir * Math.PI) / 4, ct = Math.cos(th), st = Math.sin(th);
   const SPOKES = 14, WR = 0.74, TRACK = 0.84;
   const rot = (frame / 8) * ((Math.PI * 2) / SPOKES);
-  const EL = 0.42; // barrel elevation (rad)
+  const EL = travel ? 0.2 : 0.42; // barrel elevation (rad): laid for firing, or lowered for the march
+  const TILT = travel ? 0.25 : 0; // on the move the trail is lifted off the ground (hauled by the crew), the carriage tipped about its axle
   const piv = [0.15, 0, 1.0], bdir = [Math.cos(EL), 0, Math.sin(EL)];
   const along = (k) => [piv[0] + bdir[0] * k, 0, piv[2] + bdir[2] * k];
   const B0 = along(-0.7), B1 = along(1.15), B2 = along(1.3);
@@ -832,7 +833,12 @@ export function gunScene(dir, frame) {
     const hw = Math.max(Math.abs(Math.hypot(f + 0.25, z - 0.78) - 0.11) - 0.012, Math.abs(s - 0.32) - 0.012); // elevating handwheel
     return Math.min(axle, trail, spade, lunette, cradle, shield, barrel, breech, recoil, hw);
   };
-  const local = (x, y, z) => [(x * ct + y * st) / M, (-x * st + y * ct) / M, z / M];
+  const local = (x, y, z) => {
+    const f = (x * ct + y * st) / M, s = (-x * st + y * ct) / M, zz = z / M;
+    if (!TILT) return [f, s, zz];
+    const c = Math.cos(TILT), sn = Math.sin(TILT); // the model tipped about the axle (f = 0, z = WR)
+    return [f * c - (zz - WR) * sn, s, WR + f * sn + (zz - WR) * c];
+  };
   const parts = (x, y, z) => {
     const [f, s, zz] = local(x, y, z);
     const [dw, wm] = wheel(f, s, zz);

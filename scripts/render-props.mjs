@@ -37,6 +37,7 @@ function jobs() {
   for (const snow of [false, true]) list.push({ name: `hq${snow ? '_s' : ''}`, kind: 'hq', args: [snow] });
   for (const snow of [false, true]) for (const w of [false, true]) list.push({ name: `bunker${w ? '_x' : ''}${snow ? '_s' : ''}`, kind: 'bunker', args: [snow, w] });
   for (let d = 0; d < 8; d++) for (let f = 0; f < 8; f++) list.push({ name: `gun_d${d}_f${f}`, kind: 'gun', args: [d, f] });
+  for (let d = 0; d < 8; d++) for (let f = 0; f < 8; f++) list.push({ name: `gun_t_d${d}_f${f}`, kind: 'gun', args: [d, f, true] }); // on the move: trail lifted, barrel down
   for (const nation of Object.keys(NATIONS)) for (const [pose, frames] of [...SOLDIER_POSES, ...IDLE_POSES]) for (let f = 0; f < frames; f++) for (const view of ['a', 'b'])
     list.push({ name: `${pose}${f}_${view}`, dir: `soldiers/${nation}`, kind: 'soldier', args: [nation, pose, f, view], scale: 4 });
   // colour variants (worn, faded) of the poses seen most

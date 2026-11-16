@@ -876,7 +876,7 @@ export class Renderer {
     ctx.setTransform(d * z, 0, 0, d * z, d * (this.vw / 2 - this.cam.x * z + shx), d * (this.vh / 2 - this.cam.y * z + shy));
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.ground, -this.OX, -this.OY, this.gw, this.gh);
-    this.drawBridges(ctx, state.map);
+    this.drawBridges(ctx, state.map, state.units);
 
     this.updateTracks(state);
     this.drawTracks(ctx, state);
@@ -1233,9 +1233,17 @@ export class Renderer {
    * Planks a gun crew has laid over a trench so its battery can cross: boards spanning the trench along
    * the way the guns cross (axis 1: along x, 2: along y), side by side, with a pair of bearers under them.
    */
-  drawBridges(ctx, map) {
+  drawBridges(ctx, map, units = []) {
     if (!map.bridges) map.bridges = map.tiles.filter((t) => t.bridge).map((t) => ({ x: t.x, y: t.y, axis: t.bridge }));
     const snow = (this.S ?? 1) > 0.7 ? '_s' : '';
+    // planks a crew is laying now: they appear board by board as the work goes on
+    for (const u of units) {
+      if (u.dead || !u.bridging || u.bridging.t < 0.5) continue;
+      const b = u.bridging, c = iso(b.x + 0.5, b.y + 0.5);
+      ctx.globalAlpha = Math.min(1, (b.t - 0.5) / (b.dur - 0.5));
+      this.drawFrame(ctx, this.propGroup(), `bridge_${b.axis === 1 ? 'x' : 'y'}${snow}`, c.x, c.y, 1);
+      ctx.globalAlpha = 1;
+    }
     for (const b of map.bridges) {
       const cx = b.x + 0.5, cy = b.y + 0.5, along = b.axis === 1, Lh = 0.42, n = 7, w = 0.075, Z = 1.5;
       // the pre-rendered planks (as the trenches); the drawing below only until the sprite sheet has loaded
@@ -1615,7 +1623,9 @@ export class Renderer {
 
   /** Howitzer from the supplied art: a faces -x, b faces +y; mirrored for -y / +x. */
   /** Heading a gun is drawn with: trail-first while being moved, otherwise laid on its target. */
-  static gunHeading(u) { return u.moving ? [-u.hx, -u.hy] : [u.aimX ?? u.hx, u.aimY ?? u.hy]; }
+  static gunHeading(u) { return Renderer.travelling(u) ? [-u.hx, -u.hy] : [u.aimX ?? u.hx, u.aimY ?? u.hy]; }
+  /** A battery on the move (limbered: trail lifted, barrel down), from limbering up until it stops. */
+  static travelling(u) { return !!u.order && !(u.packing > 0); }
 
   /** Pre-rendered 3D howitzer: 8 directions, wheels turning while it moves. */
   drawGun3D(ctx, p, u, time) {
@@ -1625,7 +1635,8 @@ export class Renderer {
     const frame = u.moving ? Math.floor(time * 16 + u.seed * 8) % 8 : 0;
     const recoil = u.firing > 0 && !u.moving ? u.firing * 0.08 : 0;
     const q = iso(u.x - hx * recoil, u.y - hy * recoil);
-    return this.drawFrame(ctx, 'units', `gun_d${dir}_f${frame}`, q.x, q.y, 1.5);
+    const travel = Renderer.travelling(u);
+    return (travel && this.drawFrame(ctx, 'units', `gun_t_d${dir}_f${frame}`, q.x, q.y, 1.5)) || this.drawFrame(ctx, 'units', `gun_d${dir}_f${frame}`, q.x, q.y, 1.5);
   }
 
   drawGunArt(ctx, p, u) {
@@ -1725,6 +1736,13 @@ export class Renderer {
         const CREW = [[-0.25, 0.42], [-0.25, -0.42], [-0.6, 0.34], [-0.6, -0.34], [-0.95, 0.24], [-0.95, -0.24]];
         const [cf, cs] = CREW[i % CREW.length];
         ox = gx * cf - gy * cs; oy = gy * cf + gx * cs;
+        if (u.bridging) { // laying planks: the crew lines the trench edge on the gun's side, facing the trench
+          const b = u.bridging, cx = b.x + 0.5, cy = b.y + 0.5, along = b.axis === 1;
+          const side = along ? Math.sign(u.x - cx) || 1 : Math.sign(u.y - cy) || 1;
+          const back = 0.42 + Math.floor(i / 3) * 0.18, lat = ((i % 3) - 1) * 0.24;
+          const tx = along ? cx + side * back : cx + lat, ty = along ? cy + lat : cy + side * back;
+          ox = tx - u.x; oy = ty - u.y;
+        }
       }
       else if (u.type === 'mg') { ox = -dir * (0.1 + (i % 2) * 0.12); oy = (Math.floor(i / 2) - 0.5) * 0.22 + 0.15; }
       else { const a = (0.5 - row) * 0.24 * SP, b = (col - 1) * 0.2 * SP; ox = fx * a - fy * b; oy = fy * a + fx * b; }
@@ -1744,8 +1762,20 @@ export class Renderer {
         const lag = (hsh(i, 1) - 0.5) * (run ? 0.42 : crawl ? 0.2 : 0.12) + Math.sin(time * (run ? 1.1 : 0.6) + i * 2.3) * (run ? 0.06 : 0.025);
         mx += -u.hy * lat + u.hx * lag; my += u.hx * lat + u.hy * lag;
       }
+      // gun and MG crews walk to where their work puts them (round the gun, at a trench edge, on the march),
+      // rather than jumping there
+      let walkTo = null;
+      if (u.type === 'artillery' || u.type === 'mg') {
+        const crew = u._crew || (u._crew = []);
+        let c = crew[i];
+        if (!c || Math.hypot(c.x - mx, c.y - my) > 3) c = crew[i] = { x: mx, y: my, roll: 0 };
+        const dx = mx - c.x, dy = my - c.y, dd = Math.hypot(dx, dy), stepLen = Math.min(dd, 1.1 * sdt);
+        if (dd > 1e-4) { c.x += (dx / dd) * stepLen; c.y += (dy / dd) * stepLen; c.roll += stepLen; }
+        if (dd > 0.05) walkTo = { hx: dx / dd, hy: dy / dd, roll: c.roll };
+        mx = c.x; my = c.y;
+      }
       const s = iso(mx, my);
-      s.k = i; s.fx = ox; s.fy = oy; s.mx = mx; s.my = my;
+      s.k = i; s.fx = ox; s.fy = oy; s.mx = mx; s.my = my; s.walkTo = walkTo;
       men.push(s);
     }
     men.sort((a, b) => a.y - b.y);
@@ -1838,6 +1868,15 @@ export class Renderer {
           fr = Math.floor((cyc - Math.floor(cyc)) * g[0]) % g[0];
           if (carried && pose === 'walk') pn = s.k === 0 ? 'carrymg' : s.k === 1 ? 'carrytri' : 'walk'; // the gun and its tripod carried
           if (pn === 'walk') { const st = hsh(s.k, 23); pn = st < 0.5 ? 'walk' : st < 0.75 ? 'walks' : 'walkt'; }
+        }
+        // a crewman still on his way to his place walks there (unless the whole unit is on the move anyway)
+        if (s.walkTo && !u.moving && !u.inTrench) {
+          const cyc = s.walkTo.roll / 0.55 + hsh(s.k, 3);
+          if (this.drawSoldier(ctx, nation, 'walk', Math.floor((cyc - Math.floor(cyc)) * 8) % 8, s.walkTo.hx, s.walkTo.hy, s.x, s.y, null, vr)) return;
+        }
+        if (u.type === 'artillery' && u.bridging) { // at the trench edge, laying the planks
+          const b = u.bridging, along = b.axis === 1, fx2 = along ? Math.sign(b.x + 0.5 - s.mx) : 0, fy2 = along ? 0 : Math.sign(b.y + 0.5 - s.my);
+          if (this.drawSoldier(ctx, nation, 'mgwork', Math.floor(time * 3 + s.k * 1.3) % 4, fx2 || 1, fy2, s.x, s.y, null, vr)) return;
         }
         // setting the gun up, or taking it down: the team kneels round it, hands busy at the mounting
         if ((u.type === 'mg' || u.type === 'artillery') && !u.inTrench && (u.packing > 0 || u.bridging || (u.setup > 0 && !u.order))) {
