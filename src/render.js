@@ -1647,6 +1647,15 @@ export class Renderer {
     u._spT = time;
     u._sp = (u._sp ?? spreadTo) + (spreadTo - (u._sp ?? spreadTo)) * Math.min(1, sdt * 1.5);
     const SP = u._sp;
+    // the squad's lines stand square to where it is going (towards the enemy at rest); while it climbs in
+    // or out of a trench they square up to the edge being crossed, so both lines run along the trench.
+    // The formation turns smoothly, not in a jump.
+    let want = u.order ? Math.atan2(u.hy || 0, u.hx || dir) : (dir > 0 ? 0 : Math.PI);
+    if (u.climb) { const ax = Math.abs(u.hx) >= Math.abs(u.hy); want = ax ? (u.hx >= 0 ? 0 : Math.PI) : (u.hy >= 0 ? Math.PI / 2 : -Math.PI / 2); }
+    if (u._fa === undefined) u._fa = want;
+    let da = want - u._fa; da = Math.atan2(Math.sin(da), Math.cos(da));
+    u._fa += da * Math.min(1, sdt * 4);
+    const fx = Math.cos(u._fa), fy = Math.sin(u._fa);
     for (let i = 0; i < count; i++) {
       const col = i % 3, row = Math.floor(i / 3); // rifle squads: two ranks of three
       const jx = Math.sin(u.seed * 100 + i * 7.3) * 0.06, jy = Math.cos(u.seed * 77 + i * 3.1) * 0.06;
@@ -1658,7 +1667,7 @@ export class Renderer {
         ox = gx * cf - gy * cs; oy = gy * cf + gx * cs;
       }
       else if (u.type === 'mg') { ox = -dir * (0.1 + (i % 2) * 0.12); oy = (Math.floor(i / 2) - 0.5) * 0.22 + 0.15; }
-      else { ox = (row - 0.5) * 0.24 * -dir * SP; oy = (col - 1) * 0.2 * SP; }
+      else { const a = (0.5 - row) * 0.24 * SP, b = (col - 1) * 0.2 * SP; ox = fx * a - fy * b; oy = fy * a + fx * b; }
       let mx = u.x + ox + jx, my = u.y + oy + jy;
       if (moving && u.type !== 'artillery') {
         // loose order on the move: each man weaves a little and keeps his own place in the file;
