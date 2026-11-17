@@ -179,7 +179,18 @@ export function runTutorial(state, ctx) {
     for (const u of company) orderMove(state, [u], u.x + 7, u.y);
     follow = pair;
     await say(HALE, 'Stay close, Will.');
+    // halting: once they are out in the open, stop them while the rest of the line comes up, then go on
+    await waitFor(() => !pair.order || (!pair.inTrench && !pair.climb && !pair.overTop));
+    if (!ui.selected.has(pair.id)) { ui.selected.clear(); ui.selected.add(pair.id); }
+    await say(LT, 'Halt! Wait for the line!');
+    glow('[data-cmd="halt"]');
+    await step(touch ? 'Press the glowing Halt button to stop them where they are.' : 'Press H (or the glowing Halt button) to stop them where they are.', () => !pair.order);
     await say(ARCHER, 'Quiet as a church out here...');
+    await say(LT, 'Line\'s dressed. Forward!');
+    if (!ui.selected.has(pair.id)) { ui.selected.clear(); ui.selected.add(pair.id); }
+    state.marker = { ...out, label: 'Shell hole' };
+    await step(`${rclick} the shell hole again to go on.`, () => pair.order && pair.order.kind === 'move');
+    orderMove(state, [pair], out.x, out.y);
     await waitFor(() => !pair.order || near(pair, out, 1.2));
 
     // 3. the charge: select the section, press Charge, mark the target
