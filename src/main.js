@@ -112,7 +112,7 @@ function showModel(key, nation) {
   const file = nation && modelList[nation];
   if (!file) { box.classList.remove('has-model'); return; }
   try {
-    if (!viewers[key]) { viewers[key] = new ModelView(document.getElementById('model-' + key)); if (key.endsWith('foe')) viewers[key].rest = viewers[key].yaw = 0.45; if (key.startsWith('b')) viewers[key].auto = true; } // briefing soldiers turn slowly on their own // the two face each other
+    if (!viewers[key]) { viewers[key] = new ModelView(document.getElementById('model-' + key)); if (key.endsWith('foe')) viewers[key].rest = viewers[key].yaw = 0.45; viewers[key].auto = true; } // the two face each other; every soldier turns slowly on its own (faster under the mouse)
   } catch { return; }
   viewers[key].show('assets/models/' + file).then((ok) => { if (ok) box.classList.add('has-model'); else if (!modelList[nation]) box.classList.remove('has-model'); });
 }
