@@ -201,6 +201,13 @@ function buildValley(state) {
     if (POINTS.some(([pu, pv]) => Math.abs(u - pu) < 6 && Math.abs(v - pv) < 7)) continue;
     spur(u, v, u + (rnd() - 0.5) * 2, v + (rnd() - 0.5) * 2, 0.4 + rnd() * 0.5);
   }
+  // great boulders, three times the size of any in the valley, piled along its back wall like the foot of
+  // the mountain (scenery only: the wall below them is already impassable)
+  map.giants = [];
+  for (let u = -33; u <= 36; u += 10 + Math.floor(rnd() * 4)) {
+    const uu = u + Math.round((rnd() - 0.5) * 3), vv = -17 - Math.floor(rnd() * 2); // beyond the valley's edge
+    map.giants.push({ x: Math.round((uu + vv + V0) / 2) + 0.5, y: Math.round((vv - uu + V0) / 2) + 0.5, v: Math.floor(rnd() * 3), m: rnd() < 0.5 });
+  }
   // a few trees and stumps in the open
   for (const t of map.tiles) if (!t.off && !t.trench && !t.wire && !t.rock && rnd() < 0.03) t.decor = rnd() < 0.5 ? 'stump' : 'tree';
   map.rocks = true;

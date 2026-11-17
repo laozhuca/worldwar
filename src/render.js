@@ -878,7 +878,7 @@ export class Renderer {
     } else this.view = this.baseView;
     // a level cut down to a band across the screen (a valley): the camera keeps to it
     const band = state.map.band;
-    if (band) this.view = { ...this.view, y0: (state.map.w - band) * TH / 2 - 30, y1: (state.map.w + band) * TH / 2 + 40 };
+    if (band) this.view = { ...this.view, y0: (state.map.w - band) * TH / 2 - (state.map.giants && state.map.giants.length ? 220 : 30), y1: (state.map.w + band) * TH / 2 + 40 };
     const z = this.cam.zoom, d = this.dpr;
     const sh = this.atmo.shake;
     const shx = (Math.random() - 0.5) * sh, shy = (Math.random() - 0.5) * sh;
@@ -900,6 +900,7 @@ export class Renderer {
     const objs = [];
     for (const t of state.map.tiles) if (t.decor) objs.push({ k: t.x + t.y + 1, kind: 'decor', t });
     for (const r of this.rockBlocks(state.map)) objs.push({ k: r.x + r.y + 2 * r.size - 1, kind: 'rock', r });
+    if (state.map.giants) for (const gi of state.map.giants) objs.push({ k: gi.x + gi.y - 1, kind: 'giant', gi });
     // a town on the battlefield: sorted by its front corner, so men behind it are hidden and men in front are not
     if (bd) objs.push({ k: bd.x + bd.y + (bd.hx || 0) + (bd.hy || 0) - 1, kind: 'town', bd });
     for (const team of [PLAYER, ENEMY]) {
@@ -914,6 +915,7 @@ export class Renderer {
       if (o.kind === 'decor') this.drawDecor(ctx, o.t);
       else if (o.kind === 'hq') this.drawHQ(ctx, state, o.q, o.team);
       else if (o.kind === 'rock') this.drawRock(ctx, o.r);
+      else if (o.kind === 'giant') { const c = iso(o.gi.x, o.gi.y); this.drawFrame(ctx, this.propGroup(), `giant${o.gi.v}${(this.S ?? 1) > 0.7 ? '_s' : ''}`, c.x, c.y, 1, o.gi.m); }
       else if (o.kind === 'town') this.drawBackdrop(ctx, o.bd);
       else if (o.kind === 'bunker') this.drawBunker(ctx, o.b, o.u, state.time, ui.selected.has(o.b.id));
       else this.drawUnit(ctx, o.u, ui.selected.has(o.u.id), state.time);

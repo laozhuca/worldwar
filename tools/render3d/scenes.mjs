@@ -692,7 +692,7 @@ export function boulderScene(variant, size, heavy) {
     const rz = (big ? 0.55 + H(6) * 0.2 : 0.28 + H(6, k) * 0.14) * size * (size === 1 ? 1 : 0.85);
     parts.push({ x: Math.cos(a) * off, y: Math.sin(a) * off, rx, ry, rz, rot: H(7, k) * TAU, z0: -rz * 0.25,
       cuts: Array.from({ length: 4 }, (_, c) => { const th = H(8 + c, k) * TAU, ph = 0.25 + H(12 + c, k) * 0.9; return [Math.cos(th) * Math.sin(ph), Math.sin(th) * Math.sin(ph), Math.cos(ph), 0.72 + H(16 + c, k) * 0.18]; }),
-      crack: [H(20, k) - 0.5, H(21, k) - 0.5, (H(22, k) - 0.5) * 0.4], cracked: H(23, k) < 0.45 });
+      crack: [H(20, k) - 0.5, H(21, k) - 0.5, (H(22, k) - 0.5) * 0.4], cracked: size <= 3 && H(23, k) < 0.45 });
   }
   const one = (b, x, y, z) => {
     const c = Math.cos(b.rot), s = Math.sin(b.rot);
@@ -703,7 +703,8 @@ export function boulderScene(variant, size, heavy) {
     // a deep crack or two, and the weathered surface
     const cn = Math.hypot(...b.crack) || 1, cd = Math.abs((lx * b.crack[0] + ly * b.crack[1] + lz * b.crack[2]) / cn);
     if (b.cracked && lz > -b.rz * 0.1) d = Math.max(d, 0.007 * size - cd);
-    return d + (fbm(x * 5 / size + variant, y * 5 / size, z * 5 / size, 3) - 0.5) * 0.09 * size + (vnoise(x * 30, y * 30, z * 30) - 0.5) * 0.012;
+    const big = size > 3 ? (fbm(x * 1.7 + variant, y * 1.7, z * 1.7, 4) - 0.5) * 0.32 + (fbm(x * 5, y * 5, z * 5, 3) - 0.5) * 0.08 : 0; // the craggy faces of a great one
+    return d + (fbm(x * 5 / size + variant, y * 5 / size, z * 5 / size, 3) - 0.5) * 0.09 * size + big + (vnoise(x * 30, y * 30, z * 30) - 0.5) * 0.012;
   };
   const rock = (x, y, z) => { let d = 1; for (const b of parts) d = smin(d, one(b, x, y, z), 0.02 * size); return d; };
   const RS = R * 1.05; // the scree skirt
@@ -743,7 +744,7 @@ export function boulderScene(variant, size, heavy) {
     return { kind: 'solid', col, spec: 0.07 };
   };
   const top = Math.max(...parts.map((b) => b.z0 + b.rz)) + 0.05 * size;
-  const E = RS * 1.18;
+  const E = Math.max(RS * 1.18, ...parts.map((b) => Math.hypot(b.x, b.y) + Math.max(b.rx, b.ry) * 1.25 + 0.05));
   return { bounds: [-E, -E, -0.1, E, E, top], sdf, shade, supersample: 2 };
 }
 
