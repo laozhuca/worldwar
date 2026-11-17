@@ -112,7 +112,7 @@ test('Brusilov\'s Storm: a thin line, reserves on day 1 and 2, win by taking the
   createGame();
 });
 
-test('Counter-attack at Chunuk Bair: retake the lost centre before dusk while the enemy digs in', () => {
+test('The Heights of Gallipoli: retake the lost centre before dusk while the enemy digs in', () => {
   const s = createLevelGame('chunuk'), c = s.campaign;
   assert.ok(c.lost.length >= 8);
   assert.ok(c.lost.every((i) => s.map.tiles[i].owner === ENEMY && s.map.tiles[i].origOwner === PLAYER));
