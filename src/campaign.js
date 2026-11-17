@@ -341,7 +341,7 @@ export const LEVELS = [
     },
   },
   {
-    id: 'chunuk', n: 4, title: 'The Heights of Gallipoli', place: 'Gallipoli', date: 'August 1915',
+    id: 'chunuk', n: 4, title: 'The Heights of Chunuk Bair', place: 'Gallipoli', date: 'August 1915',
     nations: ['ottoman', 'uk'], season: 'mud', start: 'west', startHour: 4.5,
     history: 'August 1915. In a night attack the British and New Zealanders have climbed the ridge of Chunuk Bair and seized the heights at the centre of your line. From there they can look down on the Dardanelles: if they hold it, the whole peninsula is lost. Lieutenant-Colonel Mustafa Kemal has ordered a counter-attack at first light. Every hour you wait, the enemy digs deeper and strings more wire. Take back every yard before dusk.',
     objectives: ['Retake every section of your front line the enemy has seized.', 'Do it before dusk on day 1 (19:30).', 'Do not let the enemy take your headquarters.'],
