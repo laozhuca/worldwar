@@ -88,7 +88,7 @@ test('The Nests of San Michele: three concrete nests, rationed barrages, win on 
   createGame();
 });
 
-test('The Brusilov Breakthrough: a thin line, reserves on day 1 and 2, win by taking the HQ, lose after 3 days', () => {
+test('Brusilov\'s Storm: a thin line, reserves on day 1 and 2, win by taking the HQ, lose after 3 days', () => {
   const s = createLevelGame('brusilov');
   const foes = () => s.units.filter((u) => !u.dead && u.team === ENEMY && u.type !== 'artillery').length;
   const mine = s.units.filter((u) => u.team === PLAYER).length;

@@ -278,7 +278,7 @@ export const LEVELS = [
     },
   },
   {
-    id: 'brusilov', n: 3, title: 'The Brusilov Breakthrough', place: 'Galicia', date: 'June 1916',
+    id: 'brusilov', n: 3, title: 'Brusilov\'s Storm', place: 'Galicia', date: 'June 1916',
     nations: ['russia', 'austria'], season: 'mud', start: 'west', startHour: 4,
     history: 'June 1916. General Brusilov has broken every rule of the Western Front. There is no single great blow aimed at one point: his armies attack together along hundreds of miles, after a short, sharp bombardment, from saps dug right up to the enemy wire. Opposite you the Austro-Hungarian line is thinly held, its best divisions sent away to Italy. It will not stay that way: reserves are already on the railway. Strike fast and wide, and take their headquarters before the line can be shored up.',
     objectives: ['Take the enemy headquarters.', 'Do it within three days: by midnight on day 3.', 'Do not let the enemy take your headquarters.'],
