@@ -791,7 +791,6 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 }
 #overlay.plain-mode #briefing-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr) minmax(0, 1fr); }
 @media (max-width: 900px) { #overlay.plain-mode #briefing-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
-#briefing-panel .brief-army canvas, #briefing-panel .brief-army img { max-width: 100%; }
 /* a campaign moment: a wide picture over the announcement */
 #story.scene { width: min(640px, 70vw); top: 46%; padding: 14px 24px 16px; }
 #story.scene .pic.scene { width: auto; max-width: 100%; height: min(360px, calc(100vh - 360px), 46vw); object-fit: contain; margin-bottom: 6px; }
@@ -831,3 +830,14 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 #selection-info .ucard { height: 144px; margin-top: 18px; }
 #minimap { width: 233px; height: 144px; align-self: flex-start; margin-top: 18px; }
 #selection-info > .muted { margin-top: 18px; } /* the hint with nothing selected, on the same line */
+/* briefing: the soldiers as large as on the New Game screen; Back and To the front in the screen's bottom
+   corners, in the same style */
+#overlay.plain-mode #briefing-panel .brief-army .fig-img { height: clamp(180px, 40vh, 430px); }
+#overlay.plain-mode #briefing-panel { overflow: visible; padding-bottom: 8vh; }
+#overlay.plain-mode #briefing-panel .camp-back, #overlay.plain-mode #briefing-panel .camp-start { position: fixed; bottom: 2.5vh; margin: 0; background: none; border: 0; clip-path: none; box-shadow: none; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); text-transform: uppercase; }
+#overlay.plain-mode #briefing-panel .camp-back { left: 3vw; color: #d9ccb2; font-size: 15px; letter-spacing: 2px; padding: 4px 2px; }
+#overlay.plain-mode #briefing-panel .camp-start { right: 3vw; color: #fff3d6; font-size: clamp(20px, 3vh, 30px); letter-spacing: 4px; padding: 4px 2px; }
+#overlay.plain-mode #briefing-panel .camp-start b { color: inherit; transition: margin 0.15s; }
+#overlay.plain-mode #briefing-panel .camp-start:hover b { margin-left: 14px; }
+#overlay.plain-mode #briefing-panel .camp-back:hover, #overlay.plain-mode #briefing-panel .camp-start:hover { background: none; color: #fff8e8; text-decoration: none; }
+@media (max-width: 860px), (max-height: 600px) { #overlay.plain-mode #briefing-panel .brief-army .fig-img { height: clamp(110px, 34vh, 200px); } }
