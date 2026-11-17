@@ -823,7 +823,7 @@ export function cragScene(variant, size, heavy) {
     return (z - (0.09 * size * Math.max(0, 1 - r * r) + (fbm(x * 9, y * 9, variant, 3) - 0.5) * 0.04 * Math.max(0, 1.1 - r))) * 0.7;
   };
   const sdf = (x, y, z) => Math.min(rock(x, y, z), scree(x, y, z), stones(x, y, z));
-  const GRASS = [0.27, 0.29, 0.16], TURF = [0.3, 0.26, 0.17], LIME = [0.6, 0.57, 0.5], GREY = [0.38, 0.37, 0.35];
+  const GRASS = [0.23, 0.29, 0.18], TURF = [0.26, 0.27, 0.19], LIME = [0.6, 0.57, 0.5], GREY = [0.38, 0.37, 0.35];
   const shade = (x, y, z, nx, ny, nz) => {
     const dr = rock(x, y, z), ds = scree(x, y, z), dt = stones(x, y, z);
     const isRock = dr <= ds && dr <= dt + 0.004, isStone = !isRock && dt < ds;
