@@ -355,8 +355,7 @@ test('New infantry and machine guns muster in the trenches by headquarters; batt
   }
   assert.ok(new Set(made.slice(0, 3).map((u) => `${Math.floor(u.x)},${Math.floor(u.y)}`)).size >= 2, 'spread along the trench, not piled up');
   const g = made[4];
-  for (let i = 0; i < 30 * 20 && g.order; i++) update(s, 1 / 30);
-  assert.ok(!tile(g).trench, 'the battery waits on firm ground');
+  assert.ok(!tile(g).trench && !g.order, 'the battery waits on firm ground');
   createGame();
 });
 
