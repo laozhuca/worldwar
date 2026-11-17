@@ -896,7 +896,7 @@ export class Renderer {
     // depth-sorted objects
     const objs = [];
     for (const t of state.map.tiles) if (t.decor) objs.push({ k: t.x + t.y + 1, kind: 'decor', t });
-    for (const t of state.map.tiles) if (t.rock) objs.push({ k: t.x + t.y + 1, kind: 'rock', t });
+    for (const r of this.rockBlocks(state.map)) objs.push({ k: r.x + r.y + 2 * r.size - 1, kind: 'rock', r });
     // a town on the battlefield: sorted by its front corner, so men behind it are hidden and men in front are not
     if (bd) objs.push({ k: bd.x + bd.y + (bd.hx || 0) + (bd.hy || 0) - 1, kind: 'town', bd });
     for (const team of [PLAYER, ENEMY]) {
@@ -910,7 +910,7 @@ export class Renderer {
     for (const o of objs) {
       if (o.kind === 'decor') this.drawDecor(ctx, o.t);
       else if (o.kind === 'hq') this.drawHQ(ctx, state, o.q, o.team);
-      else if (o.kind === 'rock') this.drawRock(ctx, o.t);
+      else if (o.kind === 'rock') this.drawRock(ctx, o.r);
       else if (o.kind === 'town') this.drawBackdrop(ctx, o.bd);
       else if (o.kind === 'bunker') this.drawBunker(ctx, o.b, o.u, state.time, ui.selected.has(o.b.id));
       else this.drawUnit(ctx, o.u, ui.selected.has(o.u.id), state.time);
@@ -1288,14 +1288,33 @@ export class Renderer {
     ctx.drawImage(im, c.x - bd.ax * bd.k, c.y - bd.ay * bd.k, im.width * bd.k, im.height * bd.k);
   }
 
-  /** An impassable snow-capped rock outcrop (pre-rendered), a little larger than its tile. */
-  drawRock(ctx, t) {
-    const h = hash(t.x * 3.7, t.y * 1.9), c = iso(t.x + 0.5 + (h - 0.5) * 0.15, t.y + 0.5 + (hash(t.y, t.x) - 0.5) * 0.15);
+  /**
+   * The rock tiles gathered into boulders: wherever a 3x3 or 2x2 block of tiles is all rock it becomes one
+   * great boulder, the rest single ones. Worked out once per map (rock is never destroyed).
+   */
+  rockBlocks(map) {
+    const n = map.tiles.reduce((c, t) => c + (t.rock ? 1 : 0), 0);
+    if (this._rocks && this._rocks.map === map && this._rocks.n === n) return this._rocks.list;
+    const W = map.w, used = new Uint8Array(W * map.h), list = [];
+    const free = (x, y) => x < W && y < map.h && map.tiles[y * W + x].rock && !used[y * W + x];
+    const block = (x, y, z) => { for (let j = 0; j < z; j++) for (let i = 0; i < z; i++) if (!free(x + i, y + j)) return false; return true; };
+    const take = (x, y, z) => { for (let j = 0; j < z; j++) for (let i = 0; i < z; i++) used[(y + j) * W + x + i] = 1; list.push({ x, y, size: z, v: Math.floor(hash(x * 1.3, y * 2.1) * 3) }); };
+    // the big ones first, at scattered places, then the middling ones, then whatever is left
+    for (const [z, p] of [[3, 0.9], [2, 0.95]]) for (let y = 0; y < map.h; y++) for (let x = 0; x < W; x++) if (hash(x * 0.7 + z, y * 1.9) < p && block(x, y, z)) take(x, y, z);
+    for (let y = 0; y < map.h; y++) for (let x = 0; x < W; x++) if (free(x, y)) take(x, y, 1);
+    this._rocks = { map, n, list };
+    return list;
+  }
+
+  /** A snow-capped Alpine boulder (pre-rendered) over its block of rock tiles. */
+  drawRock(ctx, r) {
+    const h = hash(r.x * 3.7, r.y * 1.9), c = iso(r.x + r.size / 2 + (h - 0.5) * 0.15, r.y + r.size / 2 + (hash(r.y, r.x) - 0.5) * 0.15);
     const snow = (this.S ?? 1) > 0.7 ? '_s' : '';
-    if (this.drawFrame(ctx, this.propGroup(), `rock${(t.rock - 1) % 4}${snow}`, c.x, c.y, 1.4 + h * 0.35, h > 0.5)) return;
+    if (this.drawFrame(ctx, this.propGroup(), `boulder${r.size}_${r.v}${snow}`, c.x, c.y, 1.22 + h * 0.2, h > 0.5)) return;
+    if (this.drawFrame(ctx, this.propGroup(), `rock${r.v}${snow}`, c.x, c.y, (1.4 + h * 0.35) * r.size, h > 0.5)) return;
     ctx.fillStyle = '#77736b'; // fallback: a plain grey boulder
-    ctx.beginPath(); ctx.ellipse(c.x, c.y - 10, 22, 16, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#e6eaf0'; ctx.beginPath(); ctx.ellipse(c.x - 3, c.y - 20, 12, 6, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(c.x, c.y - 10 * r.size, 22 * r.size, 16 * r.size, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#e6eaf0'; ctx.beginPath(); ctx.ellipse(c.x - 3, c.y - 20 * r.size, 12 * r.size, 6 * r.size, 0, 0, TAU); ctx.fill();
   }
 
   /**

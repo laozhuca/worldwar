@@ -672,6 +672,81 @@ export function rockScene(variant, heavy) {
   return { bounds: [-0.72, -0.72, -0.1, 0.72, 0.72, 0.95], sdf, shade, supersample: 2 };
 }
 
+// ===================================================================== Alpine boulder
+/**
+ * A massive Alpine boulder (or two or three leaning together) on a skirt of scree: rounded, cracked
+ * blocks of pale limestone fallen from the cliffs above, snow on their tops and in the cracks.
+ * size: the footprint in tiles (1, 2 or 3; the sprite is drawn centred on an size x size block of
+ * rock tiles). heavy: deep winter snow.
+ */
+export function boulderScene(variant, size, heavy) {
+  const R = size * 0.5; // half the footprint
+  const H = (key, k = 0) => hash(variant * 7 + size * 31, k, key);
+  // the boulders: one big one, and smaller ones fallen against it
+  const parts = [];
+  const nb = size === 1 ? 1 + Math.floor(H(1) * 2) : 2 + Math.floor(H(1) * 2);
+  for (let k = 0; k < nb; k++) {
+    const big = k === 0, a = H(2, k) * TAU;
+    const off = big ? 0.08 * size : (0.3 + H(3, k) * 0.12) * size;
+    const rx = (big ? 0.36 : 0.18 + H(4, k) * 0.1) * size, ry = rx * (0.75 + H(5, k) * 0.3);
+    const rz = (big ? 0.55 + H(6) * 0.2 : 0.28 + H(6, k) * 0.14) * size * (size === 1 ? 1 : 0.85);
+    parts.push({ x: Math.cos(a) * off, y: Math.sin(a) * off, rx, ry, rz, rot: H(7, k) * TAU, z0: -rz * 0.25,
+      cuts: Array.from({ length: 4 }, (_, c) => { const th = H(8 + c, k) * TAU, ph = 0.25 + H(12 + c, k) * 0.9; return [Math.cos(th) * Math.sin(ph), Math.sin(th) * Math.sin(ph), Math.cos(ph), 0.72 + H(16 + c, k) * 0.18]; }),
+      crack: [H(20, k) - 0.5, H(21, k) - 0.5, (H(22, k) - 0.5) * 0.4], cracked: H(23, k) < 0.45 });
+  }
+  const one = (b, x, y, z) => {
+    const c = Math.cos(b.rot), s = Math.sin(b.rot);
+    const lx = (x - b.x) * c + (y - b.y) * s, ly = -(x - b.x) * s + (y - b.y) * c, lz = z - b.z0;
+    const m = Math.min(b.rx, b.ry, b.rz);
+    let d = (Math.hypot(lx / b.rx, ly / b.ry, lz / b.rz) - 1) * m; // a rounded mass
+    for (const [nx, ny, nz, k] of b.cuts) d = Math.max(d, (lx / b.rx * nx + ly / b.ry * ny + lz / b.rz * nz - k) * m); // broken faces
+    // a deep crack or two, and the weathered surface
+    const cn = Math.hypot(...b.crack) || 1, cd = Math.abs((lx * b.crack[0] + ly * b.crack[1] + lz * b.crack[2]) / cn);
+    if (b.cracked && lz > -b.rz * 0.1) d = Math.max(d, 0.007 * size - cd);
+    return d + (fbm(x * 5 / size + variant, y * 5 / size, z * 5 / size, 3) - 0.5) * 0.09 * size + (vnoise(x * 30, y * 30, z * 30) - 0.5) * 0.012;
+  };
+  const rock = (x, y, z) => { let d = 1; for (const b of parts) d = smin(d, one(b, x, y, z), 0.02 * size); return d; };
+  const RS = R * 1.05; // the scree skirt
+  const stones = (x, y, z) => { // loose stones round the foot
+    const q = 0.11, gx = Math.floor(x / q), gy = Math.floor(y / q);
+    let d = 1;
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      const cx = gx + i, cy = gy + j, h = hash(cx, cy, variant + size);
+      if (h > 0.22) continue;
+      const px = (cx + 0.5) * q, py = (cy + 0.5) * q, rr = 0.025 + hash(cy, cx, 3) * 0.03;
+      if (Math.hypot(px / RS, py / RS) > 0.95) continue;
+      d = Math.min(d, Math.hypot(x - px, y - py, (z - rr * 0.3) * 1.4) - rr);
+    }
+    return d;
+  };
+  const scree = (x, y, z) => {
+    const r = Math.hypot(x / RS, y / RS);
+    return (z - (0.05 * size * Math.max(0, 1 - r * r) + (fbm(x * 12, y * 12, variant, 3) - 0.5) * 0.03 * Math.max(0, 1.1 - r))) * 0.7;
+  };
+  const sdf = (x, y, z) => Math.min(rock(x, y, z), scree(x, y, z), stones(x, y, z));
+  const shade = (x, y, z, nx, ny, nz) => {
+    const dr = rock(x, y, z), ds = scree(x, y, z), dt = stones(x, y, z);
+    const isRock = dr <= ds && dr <= dt + 0.004, isStone = !isRock && dt < ds;
+    const r = Math.hypot(x / RS, y / RS);
+    if (!isRock && !isStone && (z < -0.004 || Math.max(Math.abs(x), Math.abs(y)) > RS * 1.15)) return { kind: 'none' };
+    if (!isRock && !isStone && r > 0.98) return { kind: 'catcher' };
+    const edge = isRock ? 1 : clamp((0.9 - r) * 4, 0, 1);
+    // snow on the tops and every upward face, deeper in heavy snow
+    const lie = nz - (heavy ? 0.42 : 0.55) - (isRock || isStone ? 0 : heavy ? 0.35 : 0.6) + (z / size) * 0.15 + (fbm(x * 14, y * 14, z * 14, 3) - 0.5) * 0.35;
+    if (lie > 0.3) return { kind: 'solid', col: mix3(C.snow, [0.7, 0.74, 0.8], clamp(0.6 - lie, 0, 0.5)), spec: 0.12, alpha: edge };
+    const n = fbm(x * 9, y * 9, z * 9, 4), n2 = fbm(x * 40, y * 40, z * 40, 2);
+    if (!isRock && !isStone) return { kind: 'solid', col: mix3([0.12, 0.115, 0.11], [0.28, 0.27, 0.25], n2), spec: 0.04, alpha: edge * 0.85 };
+    let col = mix3([0.4, 0.39, 0.37], [0.66, 0.65, 0.62], n * 0.7 + n2 * 0.3); // pale weathered limestone
+    col = mix3(col, [0.22, 0.21, 0.2], clamp(fbm(x * 4, y * 4, z * 18, 2) * 1.6 - 0.75, 0, 0.45)); // dark rain streaks down the faces
+    col = mix3(col, [0.33, 0.36, 0.26], clamp(fbm(x * 22 + 7, y * 22, z * 22, 2) * 2 - 1.15, 0, 0.45)); // lichen
+    col = mix3(col, [0.13, 0.12, 0.12], clamp(0.45 - z / (0.12 * size), 0, 0.35) * (isRock ? 1 : 0)); // damp and shadowed at the foot
+    return { kind: 'solid', col, spec: 0.07 };
+  };
+  const top = Math.max(...parts.map((b) => b.z0 + b.rz)) + 0.05 * size;
+  const E = RS * 1.18;
+  return { bounds: [-E, -E, -0.1, E, E, top], sdf, shade, supersample: 2 };
+}
+
 // ===================================================================== MG pillbox
 /**
  * Concrete machine-gun pillbox: an octagonal blockhouse with board-marked walls, a firing slit in every
