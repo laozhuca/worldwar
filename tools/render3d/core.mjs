@@ -160,7 +160,8 @@ export function render(scene, scale) {
         const ndh = Math.max(0, nx * HX + ny * HY + nz * HZ);
         const spec = (m.spec || 0) * Math.pow(ndh, m.shin || 24) * sh;
         let c = [0, 0, 0];
-        for (let k = 0; k < 3; k++) c[k] = alb[k] * (SUN[k] * dif * 1.35 + amb[k] * 0.62 * ao) + spec * SUN[k];
+        const aoM = Math.max(ao, m.aoMin || 0); // a material may keep some sky light in its deepest hollows
+        for (let k = 0; k < 3; k++) c[k] = alb[k] * (SUN[k] * dif * 1.35 + amb[k] * 0.62 * aoM * (m.fill || 1)) + spec * SUN[k];
         if (m.kind === 'water') {
           const ndv = Math.max(0, -(nx * FX + ny * FY + nz * FZ));
           const fres = 0.04 + 0.96 * Math.pow(1 - ndv, 5);

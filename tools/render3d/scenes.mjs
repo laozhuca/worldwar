@@ -772,20 +772,25 @@ export function cragScene(variant, size, heavy) {
     const x = giant ? Math.cos(ra) * along - Math.sin(ra) * off : Math.cos(a) * off, y = giant ? Math.sin(ra) * along + Math.cos(ra) * off : Math.sin(a) * off;
     const hx = (giant ? 0.14 + H(6, k) * 0.09 : main ? (size === 1 ? 0.3 : 0.25) : 0.12 + H(6, k) * 0.12) * size;
     const hy = hx * (0.65 + H(7, k) * 0.45);
-    const peak = giant ? 1 - Math.abs(along) / (0.75 * size) : 1;
-    const h = (giant ? (0.22 + H(8, k) * 0.2) * peak + 0.08 : main ? (size === 1 ? 0.36 : 0.4) + H(8) * 0.18 : 0.16 + H(8, k) * 0.2) * size;
-    blocks.push({ x, y, hx, hy, h, rot: H(9, k) * TAU, tilt: (H(10, k) - 0.5) * 0.6, taper: (giant ? 0.45 : 0.15) + H(11, k) * (giant ? 0.4 : 0.35),
+    const crest = (H(31) - 0.5) * 0.6 * size; // the ridge's high point, off-centre
+    const peak = giant ? Math.max(0.25, 1 - Math.abs(along - crest) / (0.8 * size) + (H(32, k) - 0.5) * 0.5) : 1;
+    const h = (giant ? ((0.13 + H(8, k) * 0.16) * peak + 0.06) * (0.7 + H(30) * 0.5) : main ? (size === 1 ? 0.36 : 0.4) + H(8) * 0.18 : 0.16 + H(8, k) * 0.2) * size;
+    blocks.push({ x, y, hx, hy, h, rot: H(9, k) * TAU, tilt: (H(10, k) - 0.5) * 0.6, lean: (H(33, k) - 0.5) * 0.5, sx: 0.4 + H(34, k) * 0.9, slope: [(H(35, k) - 0.5) * 0.9, (H(36, k) - 0.5) * 0.9], taper: (giant ? 0.45 : 0.15) + H(11, k) * (giant ? 0.4 : 0.35),
       cuts: Array.from({ length: 5 }, (_, c) => { const th = H(12 + c, k) * TAU, ph = 0.35 + H(18 + c, k) * 1.0; return [Math.cos(th) * Math.sin(ph), Math.sin(th) * Math.sin(ph), Math.cos(ph), 0.55 + H(24 + c, k) * 0.3]; }) });
   }
   const top = Math.max(...blocks.map((b) => b.h));
   const block = (b, x, y, z) => {
     const c = Math.cos(b.rot), s = Math.sin(b.rot);
     let lx = (x - b.x) * c + (y - b.y) * s, ly = -(x - b.x) * s + (y - b.y) * c;
-    lx -= z * b.tilt; // leaning
-    const t = 1 - clamp(z / b.h, 0, 1) * b.taper; // narrowing to a ridge or point
-    let d = Math.max(Math.abs(lx) - b.hx * t, Math.abs(ly) - b.hy * t, z - b.h, -z - 0.2) * 0.75;
+    lx -= z * b.tilt; ly -= z * b.lean; // leaning, both ways
+    const t = clamp(z / b.h, 0, 1) * b.taper; // narrowing unevenly to a ridge or point
+    const top = b.h + lx * b.slope[0] + ly * b.slope[1]; // a slanting, broken top
+    let d = Math.max(Math.abs(lx) - b.hx * Math.max(0.05, 1 - t * b.sx), Math.abs(ly) - b.hy * Math.max(0.05, 1 - t * (1.3 - b.sx * 0.6)), z - top, -z - 0.2);
+    // keep the ray-marcher's steps short where the faces are steep (else it steps through a thin edge)
+    if (b.k === undefined) { const g = Math.max(b.hx * b.sx, b.hy * (1.3 - b.sx * 0.6)) * b.taper / b.h + Math.abs(b.tilt) + Math.abs(b.lean); b.k = 0.85 / Math.sqrt(1 + g * g + b.slope[0] ** 2 + b.slope[1] ** 2); }
+    d *= b.k;
     const nx = lx / b.hx, ny = ly / b.hy, nzz = z / b.h - 0.5;
-    for (const [cx, cy, cz, k] of b.cuts) d = Math.max(d, (nx * cx + ny * cy + nzz * cz * 2 - k) * Math.min(b.hx, b.hy) * 0.8); // broken faces
+    for (const [cx, cy, cz, k] of b.cuts) d = Math.max(d, (nx * cx + ny * cy + nzz * cz * 2 - k) * Math.min(b.hx, b.hy) * 0.6); // broken faces
     return d;
   };
   const strataU = (x, y, z) => z * Math.cos(dip) + (x * Math.cos(dipDir) + y * Math.sin(dipDir)) * Math.sin(dip);
@@ -830,7 +835,7 @@ export function cragScene(variant, size, heavy) {
     // snow in patches on the gentler upward faces and ledges, more of it higher up and in deep winter
     const patch = fbm(x * 2.6 / Math.sqrt(size) + 3, y * 2.6 / Math.sqrt(size), z * 2.6, 3) - 0.5; // snow lies in broad patches, not specks
     const snowy = isRock ? nz - (heavy ? 0.55 : 0.72) + hz * 0.2 + patch * 1.1 : patch * 1.4 - (heavy ? 0.05 : 0.3) + (isStone ? -0.2 : 0);
-    if (snowy > 0.18) return { kind: 'solid', col: mix3(C.snow, [0.7, 0.75, 0.84], clamp(0.5 - snowy, 0, 0.45)), spec: 0.12, alpha: edge };
+    if (snowy > 0.18) return { kind: 'solid', col: mix3(C.snow, [0.7, 0.75, 0.84], clamp(0.5 - snowy, 0, 0.45)), spec: 0.12, alpha: edge, aoMin: 0.5, fill: 1.2 };
     // grass and turf on the ledges low down and over the scree
     const grassy = (isRock ? nz - 0.6 - hz * 0.55 : 0.45 - (isStone ? 0.7 : 0)) + (n1 - 0.5) * 0.8;
     if (grassy > 0.05) return { kind: 'solid', col: mix3(mix3(GRASS, TURF, clamp(n2 * 1.4 - 0.2, 0, 1)), [0.2, 0.2, 0.13], clamp(0.3 - grassy, 0, 0.3)), spec: 0.03, alpha: edge };
@@ -842,7 +847,7 @@ export function cragScene(variant, size, heavy) {
     col = mix3(col, [0.24, 0.24, 0.23], clamp(0.08 - Math.abs(fw - Math.round(fw)), 0, 0.08) * 5 * (fbm(x * 3, y * 3, z * 3, 2) > 0.45 ? 1 : 0.3));
     col = mix3(col, [0.27, 0.27, 0.26], clamp(fbm(x * 3, y * 3, z * 16, 2) * 1.8 - 0.95, 0, 0.5) * (1 - Math.max(0, nz))); // streaks down the faces
     col = mix3(col, [0.5, 0.5, 0.36], clamp(fbm(x * 18 + 7, y * 18, z * 18, 2) * 2 - 1.15, 0, 0.4)); // lichen
-    return { kind: 'solid', col, spec: 0.06 };
+    return { kind: 'solid', col, spec: 0.06, aoMin: 0.5, fill: 1.35 };
   };
   const E = Math.max(RS * 1.18, ...blocks.map((b) => Math.hypot(b.x, b.y) + Math.hypot(b.hx, b.hy) + b.h * Math.abs(b.tilt) + 0.05));
   return { bounds: [-E, -E, -0.1, E, E, top + 0.05], sdf, shade, supersample: 2 };

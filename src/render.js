@@ -502,7 +502,7 @@ export class Renderer {
     PAT = this.tex ? (name) => this.pattern(g, name) : null;
     if (this.tex) {
       g.save();
-      if (map.band) { g.setTransform(1, 0, 0, 1, this.OX, this.OY); g.beginPath(); g.rect(-1e4, (map.w - map.band) * TH / 2, 2e4, map.band * TH); g.clip(); } // the valley only
+      if (map.band) { g.setTransform(1, 0, 0, 1, this.OX, this.OY); this.bandPath(g, map); g.clip(); } // the valley only
       this.drawTexturedBase(g, map, S, cover);
       g.restore();
     }
@@ -534,7 +534,7 @@ export class Renderer {
     const c0 = iso(C - RR, C), c1 = iso(C, C - RR), c2 = iso(C + RR, C), c3 = iso(C, C + RR);
     g.beginPath(); g.moveTo(c0.x, c0.y); g.lineTo(c1.x, c1.y); g.lineTo(c2.x, c2.y); g.lineTo(c3.x, c3.y); g.closePath();
     g.clip();
-    if (map.band) { g.beginPath(); g.rect(-1e4, (map.w - map.band) * TH / 2, 2e4, map.band * TH); g.clip(); } // the valley only
+    if (map.band) { this.bandPath(g, map); g.clip(); } // the valley only
 
     if (!this.tex) {
     // 2. fine texture
@@ -1289,6 +1289,19 @@ export class Renderer {
     this.backdrops = this.backdrops || {};
     if (!this.backdrops[bd.img]) this.backdrops[bd.img] = retry(() => loadImage(bd.img)).then((im) => { this.backdrops[bd.img].img = im; return im; }).catch(() => null);
     return this.backdrops[bd.img];
+  }
+
+  /**
+   * The outline of a valley level's ground: the band, and behind a wall of great rocks a ragged strip of
+   * ground for them to stand on (so the sky never shows between them).
+   */
+  bandPath(g, map) {
+    const y0 = (map.w - map.band) * TH / 2, y1 = (map.w + map.band) * TH / 2, B = this.baseView;
+    g.beginPath();
+    if (!map.giants) { g.rect(-1e4, y0, 2e4, y1 - y0); return; }
+    g.moveTo(B.x0 - 200, y1); g.lineTo(B.x0 - 200, y0 - 2 * TH);
+    for (let x = B.x0 - 200; x <= B.x1 + 200; x += 24) g.lineTo(x, y0 - (1.6 + 1.1 * Math.sin(x * 0.011) + 0.8 * hash(x * 0.37, 3.1)) * TH);
+    g.lineTo(B.x1 + 200, y1); g.closePath();
   }
 
   /**
