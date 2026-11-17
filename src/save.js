@@ -20,7 +20,7 @@ export function serialize(state) {
   const data = {
     version: SAVE_VERSION,
     savedAt: Date.now(),
-    map: { w: map.w, h: map.h, west: map.west, hq: map.hq, band: map.band, rocks: map.rocks, startView: map.startView, giants: map.giants, sky: map.sky, tiles: map.tiles.map((t) => TILE_KEYS.map((k) => t[k])) },
+    map: { w: map.w, h: map.h, west: map.west, hq: map.hq, band: map.band, rocks: map.rocks, startView: map.startView, giants: map.giants, sky: map.sky, skyNight: map.skyNight, tiles: map.tiles.map((t) => TILE_KEYS.map((k) => t[k])) },
     units,
     rest: { ...state, map: undefined, units: undefined, effects: [], events: [] },
   };
@@ -50,7 +50,7 @@ export function deserialize(json) {
     return t;
   });
   const map = { w: d.map.w, h: d.map.h, tiles, dirty: true, hq: d.map.hq, changes: [], west: d.map.west };
-  for (const k of ['band', 'rocks', 'startView', 'giants', 'sky']) if (d.map[k] != null) map[k] = d.map[k];
+  for (const k of ['band', 'rocks', 'startView', 'giants', 'sky', 'skyNight']) if (d.map[k] != null) map[k] = d.map[k];
   setWestTeam(map.west);
   const byId = new Map(d.units.map((u) => [u.id, u]));
   for (const u of d.units) {

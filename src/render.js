@@ -890,7 +890,7 @@ export class Renderer {
     ctx.fillRect(0, 0, this.vw, this.vh);
     ctx.setTransform(d * z, 0, 0, d * z, d * (this.vw / 2 - this.cam.x * z + shx), d * (this.vh / 2 - this.cam.y * z + shy));
     ctx.imageSmoothingEnabled = true;
-    if (state.map.sky) this.drawSky(ctx, state.map);
+    if (state.map.sky) this.drawSky(ctx, state.map, this.atmo.darkness(state));
     ctx.drawImage(this.ground, -this.OX, -this.OY, this.gw, this.gh);
     this.drawBridges(ctx, state.map, state.units);
 
@@ -1300,12 +1300,16 @@ export class Renderer {
     const B = this.baseView, w = (B.x1 - B.x0) * 1.02, h = w * (667 / 2000), foot = (map.w - 1) * TH / 2;
     return { x: (B.x0 + B.x1) / 2 - w / 2, y: foot - h, w, h };
   }
-  drawSky(ctx, map) {
-    const bd = { img: map.sky }, e = this.backdrops && this.backdrops[bd.img], im = e && e.img;
-    if (!im) { this.loadBackdrop(bd); return; }
+  drawSky(ctx, map, dark = 0) {
     const r = this.skyRect(map);
-    ctx.drawImage(im, r.x, r.y, r.w, r.h);
-    ctx.fillStyle = 'rgba(14,16,20,0.3)'; // into the cold grey light of the battle
+    const pic = (src) => { const e = this.backdrops && this.backdrops[src]; if (!e || !e.img) { this.loadBackdrop({ img: src }); return null; } return e.img; };
+    // by day the sunlit picture, by night the moonlit one, cross-fading through dusk and dawn
+    const day = pic(map.sky), night = map.skyNight ? pic(map.skyNight) : null;
+    const k = night ? Math.min(1, Math.max(0, (dark - 0.1) / 0.45)) : 0;
+    if (day && k < 1) ctx.drawImage(day, r.x, r.y, r.w, r.h);
+    if (night && k > 0) { ctx.globalAlpha = k; ctx.drawImage(night, r.x, r.y, r.w, r.h); ctx.globalAlpha = 1; }
+    if (!day && !(night && k > 0)) return;
+    ctx.fillStyle = `rgba(14,16,20,${0.3 * (1 - k)})`; // the sunlit picture into the cold grey light of the battle
     ctx.fillRect(r.x, r.y, r.w, r.h);
   }
 
