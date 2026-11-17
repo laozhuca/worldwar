@@ -878,16 +878,19 @@ export class Renderer {
     } else this.view = this.baseView;
     // a level cut down to a band across the screen (a valley): the camera keeps to it
     const band = state.map.band;
-    if (band) this.view = { ...this.view, y0: (state.map.w - band) * TH / 2 - (state.map.giants && state.map.giants.length ? 220 : 30), y1: (state.map.w + band) * TH / 2 + 40 };
+    if (band) {
+      const sky = state.map.sky ? this.skyRect(state.map) : null;
+      this.view = { ...this.view, y0: sky ? sky.y + sky.h * 0.06 : (state.map.w - band) * TH / 2 - 30, y1: (state.map.w + band) * TH / 2 + 10 };
+    }
     const z = this.cam.zoom, d = this.dpr;
     const sh = this.atmo.shake;
     const shx = (Math.random() - 0.5) * sh, shy = (Math.random() - 0.5) * sh;
     ctx.setTransform(d, 0, 0, d, 0, 0);
     ctx.fillStyle = '#101215';
     ctx.fillRect(0, 0, this.vw, this.vh);
-    if (state.map.sky) this.drawSky(ctx, state.map);
     ctx.setTransform(d * z, 0, 0, d * z, d * (this.vw / 2 - this.cam.x * z + shx), d * (this.vh / 2 - this.cam.y * z + shy));
     ctx.imageSmoothingEnabled = true;
+    if (state.map.sky) this.drawSky(ctx, state.map);
     ctx.drawImage(this.ground, -this.OX, -this.OY, this.gw, this.gh);
     this.drawBridges(ctx, state.map, state.units);
 
@@ -1287,20 +1290,21 @@ export class Renderer {
   }
 
   /**
-   * A painted panorama behind a level cut down to a band (the Alps around the Isonzo valley): it fills the
-   * screen round the battlefield, larger than the screen and drifting a little with the camera for depth.
+   * A panorama behind a level cut down to a band (the Alps round the Isonzo valley), fixed to the world:
+   * as wide as the battlefield, its foot behind the middle of the valley, rising high above it. The camera
+   * may scroll up into it but not past its top (skyRect).
    */
+  skyRect(map) {
+    const B = this.baseView, w = (B.x1 - B.x0) * 1.02, h = w * (667 / 2000), foot = (map.w - 1) * TH / 2;
+    return { x: (B.x0 + B.x1) / 2 - w / 2, y: foot - h, w, h };
+  }
   drawSky(ctx, map) {
     const bd = { img: map.sky }, e = this.backdrops && this.backdrops[bd.img], im = e && e.img;
     if (!im) { this.loadBackdrop(bd); return; }
-    const W = this.vw, H = this.vh, k = Math.max((W * 1.25) / im.width, (H * 1.6) / im.height);
-    const iw = im.width * k, ih = im.height * k, c = iso(map.w / 2, map.h / 2), z = this.cam.zoom;
-    const sx = (W - iw) / 2, sy = (H - ih) / 2; // the slack either way
-    const px = Math.max(sx * 2, Math.min(0, sx - (this.cam.x - c.x) * z * 0.12));
-    const py = Math.max(sy * 2, Math.min(0, sy * 2 - sy * 0.25 - (this.cam.y - c.y) * z * 0.12)); // raised: the near peaks show round the valley
-    ctx.drawImage(im, px, py, iw, ih);
-    ctx.fillStyle = 'rgba(14,16,20,0.38)'; // into the cold grey light of the battle
-    ctx.fillRect(0, 0, W, H);
+    const r = this.skyRect(map);
+    ctx.drawImage(im, r.x, r.y, r.w, r.h);
+    ctx.fillStyle = 'rgba(14,16,20,0.3)'; // into the cold grey light of the battle
+    ctx.fillRect(r.x, r.y, r.w, r.h);
   }
 
   /** A town standing on the battlefield (pre-rendered through the game's camera and light). */
