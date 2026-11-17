@@ -553,10 +553,11 @@ export class UI {
         // MG teams and batteries show their weapon, rifle squads a soldier of the army
         const por = u.type === 'mg' || u.type === 'artillery' ? `<img class="portrait equip" src="assets/art/card-${u.type}.webp" alt="">`
           : this.r.portraitOf && s.nations ? `<img class="portrait" src="${this.r.portraitOf(s.nations[PLAYER])}" alt="">` : '';
-        // a portrait card: the unit's picture large, its men in a corner badge, then status, bars and its name at the bottom
-        parts.push(`<div class="ucard">${por}<div class="umen" title="Men">${u.men}/${t.men}</div><div class="ubody"><div class="st">${status}</div>
+        // a portrait card: its name at the top, the unit's picture large with its men in a corner badge, the status,
+        // and the strength and suppression bars at the bottom
+        parts.push(`<div class="ucard"><div class="n" title="${t.name}">${t.short || t.name}</div>${por}<div class="umen" title="Men">${u.men}/${t.men}</div><div class="ubody"><div class="st">${status}</div>
           <div class="bar" title="Strength"><i style="width:${(100 * u.hp) / (t.men * t.hpPerMan)}%"></i></div>
-          <div class="bar sup" title="Suppression"><i style="width:${u.suppression}%"></i></div><div class="n" title="${t.name}">${t.short || t.name}</div></div></div>`);
+          <div class="bar sup" title="Suppression"><i style="width:${u.suppression}%"></i></div></div></div>`);
       }
       if (sel.length > 12) parts.push(`<div class="muted">+${sel.length - 12} more</div>`);
       info.innerHTML = parts.join('');

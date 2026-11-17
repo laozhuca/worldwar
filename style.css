@@ -808,11 +808,11 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 @media (max-height: 640px) { #story .pic.wide, #story.center .pic.wide { width: auto; height: 40vh; } }
 /* unit cards: portrait tiles, the unit's picture large at the top, its name at the bottom */
 #selection-info .ucard { position: relative; width: 76px; height: 132px; display: flex; flex-direction: column; gap: 0; padding: 3px; }
-#selection-info .ucard .portrait { float: none; width: 100%; height: 78px; flex: none; margin: 0; object-fit: cover; object-position: center top; border-radius: 2px; background: rgba(255, 255, 255, 0.04); }
+#selection-info .ucard .portrait { float: none; width: 100%; height: 76px; flex: none; margin: 0; object-fit: cover; object-position: center top; border-radius: 2px; background: rgba(255, 255, 255, 0.04); }
 #selection-info .ucard .portrait.equip { object-fit: contain; object-position: center; padding: 4px; }
-#selection-info .ucard .umen { position: absolute; top: 5px; right: 5px; font-size: 10px; padding: 0 4px; border-radius: 2px; background: rgba(0, 0, 0, 0.65); color: #e8dcc4; }
+#selection-info .ucard .umen { position: absolute; top: 19px; right: 5px; font-size: 10px; padding: 0 4px; border-radius: 2px; background: rgba(0, 0, 0, 0.65); color: #e8dcc4; }
 #selection-info .ucard .ubody { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; min-height: 0; margin-top: 3px; }
 #selection-info .ucard .st { font-size: 10px; text-align: center; }
 #selection-info .ucard .bar { margin-top: 2px; }
 #selection-info .ucard .ubody .bar:first-of-type { margin-top: 3px; }
-#selection-info .ucard .n { margin-top: 2px; text-align: center; font-size: 9.5px; letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#selection-info .ucard .n { margin: 0 0 2px; text-align: center; font-size: 9.5px; letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
