@@ -825,3 +825,9 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 #selection-info .ucard .ubody { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; margin: 0; padding: 10px 4px 3px; background: linear-gradient(rgba(10, 10, 12, 0), rgba(10, 10, 12, 0.88) 45%); }
 #selection-info .ucard .st { color: #d6cbb3; text-shadow: 0 1px 2px #000; }
 #selection-info .ucard .portrait:not(.equip) { top: 13px; height: calc(100% - 13px); object-position: center top; } /* the soldier's head below the name */
+/* the unit cards stand level with the minimap: the same top and height */
+/* the minimap and the unit cards span the same band as the command buttons (below their headings) */
+#selection-info { padding-top: 0; align-items: flex-start; }
+#selection-info .ucard { height: 144px; margin-top: 18px; }
+#minimap { width: 233px; height: 144px; align-self: flex-start; margin-top: 18px; }
+#selection-info > .muted { margin-top: 18px; } /* the hint with nothing selected, on the same line */

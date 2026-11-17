@@ -540,7 +540,7 @@ export class UI {
         : '<div class="muted">No units selected. Left-drag to select, right-click to move. Press <kbd>?</kbd> for help.</div>';
     } else {
       const men = sel.reduce((a, u) => a + u.men, 0);
-      const parts = [`<div class="sel-summary">${sel.length} unit${sel.length > 1 ? 's' : ''}, ${men} men</div>`];
+      const parts = []; // the cards alone (no 'n units, m men' line), level with the minimap
       for (const u of sel.slice(0, 12)) {
         const t = UNIT_TYPES[u.type];
         let status = u.pinned ? 'PINNED' : u.order ? (u.order.kind === 'charge' ? 'charging' : 'moving') : u.barrage ? 'firing barrage' : u.digging ? 'digging' : u.inTrench ? 'in trench' : 'in the open';
