@@ -91,8 +91,8 @@ function scatterRocks(state, count, seed) {
 /**
  * The Isonzo valley (battle 2): the battlefield cut down to a long, narrow band across the screen, walled
  * with rock, fought from left to right. Our lines and guns at the left; three enemy strongpoints along it,
- * far apart, each a small trench system round a concrete MG nest behind its wire; rock barriers across the
- * valley between them with a few narrow gaps. The enemy has no headquarters here (a hidden rally point
+ * far apart, each a short trench round a concrete MG nest behind a single belt of wire; rocky spurs and
+ * boulders scattered between them, leaving narrow winding lanes. The enemy has no headquarters here (a hidden rally point
  * only) and holds his ground: no recruiting, no offensives, only his guns.
  */
 function buildValley(state) {
@@ -139,11 +139,11 @@ function buildValley(state) {
   dig(hq, at(-21, 0), PLAYER, 2);
   hq.trench = 3;
   // ---- the three strongpoints, far apart along the valley, alternately high and low
-  const POINTS = [[-3, -6, 4], [14, 6, -4], [29, -3, 5]]; // u, v of the nest; where the gap in its wire is
+  const POINTS = [[-3, -6, 3], [14, 6, -3], [29, -3, 3]]; // u, v of the nest; where the gap in its wire is
   for (const [u0, vc] of POINTS) {
-    dig(at(u0, vc - 6), at(u0, vc + 6), ENEMY, 2);
-    dig(at(u0 + 4, vc - 3), at(u0 + 4, vc + 3), ENEMY, 2);
-    dig(at(u0, vc), at(u0 + 4, vc), ENEMY, 2);
+    dig(at(u0, vc - 4), at(u0, vc + 4), ENEMY, 2);
+    dig(at(u0 + 3, vc - 1), at(u0 + 3, vc + 1), ENEMY, 2);
+    dig(at(u0, vc), at(u0 + 3, vc), ENEMY, 2);
   }
   // ---- the enemy's hidden rally point (no HQ to take in this battle)
   const ehq = at(34, 0);
@@ -151,22 +151,42 @@ function buildValley(state) {
   noSquares(map);
   // wire in front of each strongpoint, with one gap
   POINTS.forEach(([u0, vc, gap]) => {
-    for (let v = vc - 8; v <= vc + 8; v++) {
+    for (let v = vc - 5; v <= vc + 5; v++) {
       if (Math.abs(v - (vc + gap)) <= 1) continue;
-      for (const du of [-3, -4]) { const t = at(u0 + du, v); if (t && !t.trench && !t.off) { t.wire = 100; t.origWire = ENEMY; t.mud = 0; } }
+      const t = at(u0 - 3, v); if (t && !t.trench && !t.off) { t.wire = 100; t.origWire = ENEMY; t.mud = 0; }
     }
   });
-  // ---- rock: the valley's walls, and barriers across it with a couple of narrow gaps
+  // ---- rock: ragged valley walls, and long spurs and boulder fields scattered along it, leaving narrow
+  // winding lanes between them for the attacker
   const rock = (t) => { if (t && !t.off && !t.trench && !t.wire && !(t.x === hq.x && t.y === hq.y)) { t.rock = 1 + Math.floor(rnd() * 4); t.mud = 0; } };
+  const wall = []; // how far the wall reaches into the valley, varying smoothly along it
+  for (let u = -40; u <= 40; u++) wall[u + 40] = [12.6 + 1.6 * Math.sin(u * 0.37) + rnd() * 0.9, 12.6 + 1.6 * Math.sin(u * 0.29 + 2) + rnd() * 0.9];
   for (const t of map.tiles) {
     if (t.off) continue;
-    const a = Math.abs(t.x + t.y - V0);
-    if (a >= 15 || (a === 14 && rnd() < 0.75) || (a === 13 && rnd() < 0.3)) rock(t);
+    const [u, v] = uv(t), w = wall[Math.max(0, Math.min(80, u + 40))];
+    if (v <= -w[0] || v >= w[1] || Math.abs(v) >= 15) rock(t);
   }
-  const BARRIERS = [[-13, [[-8, -6], [5, 7]]], [6, [[-2, 0], [10, 12]]], [22, [[-11, -9], [2, 4]]]];
-  for (const [ub, gaps] of BARRIERS) for (let v = -B; v <= B; v++) {
-    if (gaps.some(([a, b]) => v >= a && v <= b)) continue;
-    rock(at(ub, v)); rock(at(ub + 1, v));
+  const hashRnd = (x, y) => { const h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return h - Math.floor(h); };
+  // a spur: a ridge of rock from (u0, v0) to (u1, v1), ragged, thickness r
+  const spur = (u0, v0, u1, v1, r) => {
+    for (const t of map.tiles) {
+      if (t.off) continue;
+      const [u, v] = uv(t), du = u1 - u0, dv = v1 - v0, L = du * du + dv * dv;
+      const k = Math.max(0, Math.min(1, ((u - u0) * du + (v - v0) * dv) / L));
+      const d = Math.hypot(u - (u0 + du * k), v - (v0 + dv * k));
+      if (d <= r + (hashRnd(t.x, t.y) - 0.5) * 1.2) rock(t);
+    }
+  };
+  const SPURS = [
+    [-18, 6, -6, 9, 1.1], [-17, -1, -7, 1, 1.1], [-15, -8, -5, -6, 1], // before the first nest
+    [1, -1, 10, 1, 1.1], [2, 5, 9, 8, 1], [4, -7, 11, -9, 1], // between the first and the second
+    [17, -2, 24, 0, 1.1], [18, 4, 25, 7, 1], [17, -9, 23, -11, 1], [16, 10, 22, 12, 0.9], // between the second and the third
+  ];
+  for (const sp of SPURS) spur(...sp);
+  for (let n = 0; n < 8; n++) { // lone boulders and small clusters in the open
+    const u = -18 + rnd() * 48, v = -11 + rnd() * 22;
+    if (POINTS.some(([pu, pv]) => Math.abs(u - pu) < 6 && Math.abs(v - pv) < 7)) continue;
+    spur(u, v, u + (rnd() - 0.5) * 2, v + (rnd() - 0.5) * 2, 0.4 + rnd() * 0.5);
   }
   // a few trees and stumps in the open
   for (const t of map.tiles) if (!t.off && !t.trench && !t.wire && !t.rock && rnd() < 0.03) t.decor = rnd() < 0.5 ? 'stump' : 'tree';
@@ -311,7 +331,7 @@ export const LEVELS = [
       buildValley(state);
     },
     events: [
-      { at: 5.2, run: (s) => pushMessage(s, 'Three machine-gun nests hold the valley, one behind the other. Push through the gaps in the rocks and silence them all before nightfall tomorrow — the guns can only pin a nest down; the infantry must take it.', 'side') },
+      { at: 5.2, run: (s) => pushMessage(s, 'Three machine-gun nests hold the valley, one behind the other. Work up the narrow lanes between the rocks and silence them all before nightfall tomorrow — the guns can only pin a nest down; the infantry must take it.', 'side') },
       { at: 24 + 5, run: (s) => pushMessage(s, 'Day 2. The attack must succeed by nightfall.', 'side') },
       { at: 24 + 16, run: (s) => pushMessage(s, 'Three hours of daylight left.', 'warn') },
     ],

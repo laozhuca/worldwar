@@ -155,25 +155,25 @@ test('The Black Day: three lines, Anglo-American army, counter-attacks, take the
   createGame();
 });
 
-test('Rocks: the valley of battle 2 is walled; a squad sent across a barrier finds a gap and never stands on rock', async () => {
+test('Rocks: the valley of battle 2 is walled and broken by ridges; a squad sent to the next lane goes round and never stands on rock', async () => {
   const { orderMove } = await import('../src/game.js');
   const { rockAt } = await import('../src/map.js');
   const s = createLevelGame('isonzo');
   const rocks = s.map.tiles.filter((t) => t.rock);
-  assert.ok(rocks.length > 60, 'rock walls and barriers');
+  assert.ok(rocks.length > 60, 'rock walls and ridges');
   assert.ok(rocks.every((t) => !t.trench && !t.wire));
   s.ais.length = 0;
   const u = s.units.find((q) => q.team === PLAYER && q.type === 'rifle');
   s.units = s.units.filter((q) => q.team === ENEMY || q === u);
   for (const q of s.units) if (q !== u) q.holdFire = true;
-  // from just in front of our line to beyond the first barrier (u = -13), in the middle of the valley
+  // from one side of the middle ridge in front of our line (u = -17 .. -7, v ~ 0) to the other side of it
   const at = (uu, v) => ({ x: Math.round((uu + v + 68) / 2) + 0.5, y: Math.round((v - uu + 68) / 2) + 0.5 });
-  const a = at(-18, 0), b = at(-9, 0);
+  const a = at(-15, 3), b = at(-10, -3);
   u.x = a.x; u.y = a.y; u.order = null; u.climb = null; u.hp = 1000;
   orderMove(s, [u], b.x, b.y);
-  assert.ok(u.path && u.path.length > 1, 'a route round the barrier');
+  assert.ok(u.path && u.path.length > 1, 'a route round the ridge');
   for (let i = 0; i < 30 * 90 && u.order; i++) { update(s, 1 / 30); assert.ok(!rockAt(s.map, u.x, u.y), 'never on rock, never out of the valley'); }
-  assert.ok(!u.order && Math.hypot(u.x - b.x, u.y - b.y) < 1, 'through a gap and arrived');
+  assert.ok(!u.order && Math.hypot(u.x - b.x, u.y - b.y) < 1, 'round the ridge and arrived');
   createGame();
 });
 
