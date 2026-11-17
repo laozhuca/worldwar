@@ -183,7 +183,7 @@ export const LEVELS = [
     },
   },
   {
-    id: 'isonzo', n: 2, title: 'Silence the Guns', place: 'The Isonzo, Italy', date: 'August 1916',
+    id: 'isonzo', n: 2, title: 'The Nests of San Michele', place: 'The Isonzo, Italy', date: 'August 1916',
     nations: ['italy', 'austria'], season: 'thaw', start: 'west', startHour: 5,
     history: 'The Sixth Battle of the Isonzo. Five times the Italian army has thrown itself at the Austro-Hungarian line above the river, and five times it has been cut down by machine guns firing from concrete emplacements in the rock. This time the guns must be found and silenced first. Three nests command the whole sector; until they fall, no attack can cross the open ground. Your batteries have been given shells for only a handful of barrages: make every one count.',
     objectives: ['Silence all three machine-gun nests in the enemy lines.', 'Do it before nightfall on day 2.', 'Do not let the enemy take your headquarters.'],

@@ -49,7 +49,7 @@ test('The Sailors of Dixmude: the relief at dawn on day 4 wins; losing half the 
   createGame();
 });
 
-test('Silence the Guns: three concrete nests, rationed barrages, win on silencing them, lose at nightfall on day 2', async () => {
+test('The Nests of San Michele: three concrete nests, rationed barrages, win on silencing them, lose at nightfall on day 2', async () => {
   const { orderBarrage } = await import('../src/game.js');
   const s = createLevelGame('isonzo');
   const c = s.campaign;
