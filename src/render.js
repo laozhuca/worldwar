@@ -1293,11 +1293,11 @@ export class Renderer {
   drawSky(ctx, map) {
     const bd = { img: map.sky }, e = this.backdrops && this.backdrops[bd.img], im = e && e.img;
     if (!im) { this.loadBackdrop(bd); return; }
-    const W = this.vw, H = this.vh, k = Math.max((W * 1.25) / im.width, (H * 1.25) / im.height);
+    const W = this.vw, H = this.vh, k = Math.max((W * 1.25) / im.width, (H * 1.6) / im.height);
     const iw = im.width * k, ih = im.height * k, c = iso(map.w / 2, map.h / 2), z = this.cam.zoom;
     const sx = (W - iw) / 2, sy = (H - ih) / 2; // the slack either way
     const px = Math.max(sx * 2, Math.min(0, sx - (this.cam.x - c.x) * z * 0.12));
-    const py = Math.max(sy * 2, Math.min(0, sy - (this.cam.y - c.y) * z * 0.12));
+    const py = Math.max(sy * 2, Math.min(0, sy * 2 - sy * 0.25 - (this.cam.y - c.y) * z * 0.12)); // raised: the near peaks show round the valley
     ctx.drawImage(im, px, py, iw, ih);
     ctx.fillStyle = 'rgba(14,16,20,0.38)'; // into the cold grey light of the battle
     ctx.fillRect(0, 0, W, H);
