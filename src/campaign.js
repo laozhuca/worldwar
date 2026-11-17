@@ -95,6 +95,7 @@ function scatterRocks(state, count, seed) {
  * boulders scattered between them, leaving narrow winding lanes. The enemy has no headquarters here (a hidden rally point
  * only) and holds his ground: no recruiting, no offensives, only his guns.
  */
+const TAU = Math.PI * 2;
 function buildValley(state) {
   const { map } = state, W = map.w, V0 = W - 1, B = 15;
   map.band = B;
@@ -111,7 +112,19 @@ function buildValley(state) {
     const v = t.x + t.y - V0;
     Object.assign(t, { trench: 0, owner: -1, origOwner: -1, wire: 0, origWire: -1, crater: 0, dmg: 0, build: null, rock: 0, block: 0, decor: null });
     if (Math.abs(v) > B) t.off = true;
-    t.mud = !t.off && rnd() < 0.35 ? 1 : 0;
+    t.mud = 0; t.ground = 0;
+  }
+  // the ground: broad patches of churned mud, frost-bitten alpine grass and lying snow, with ragged edges
+  const ph = Array.from({ length: 8 }, () => rnd() * TAU);
+  const field = (u, v, a, b) => Math.sin(u * 0.21 + ph[a]) * Math.cos(v * 0.33 + ph[b]) + 0.6 * Math.sin((u + v) * 0.13 + ph[a + 1]) + 0.35 * Math.sin((u - 2 * v) * 0.29 + ph[b + 1]);
+  for (const t of map.tiles) {
+    if (t.off) continue;
+    const u = t.x - t.y, v = t.x + t.y - V0, j = (rnd() - 0.5) * 0.5;
+    const wet = field(u, v, 0, 2) + j, cold = field(v * 1.3, u * 0.8, 4, 6) + j;
+    if (cold > 0.75) t.ground = 2; // a snowfield
+    else if (wet < -0.35) t.mud = 1; // a mud patch
+    else if (wet > 0.15) t.ground = 1; // a stretch of alpine grass
+    else t.mud = rnd() < 0.3 ? 1 : 0;
   }
   state.units = [];
   // digging: a 4-connected trench from tile a to tile b

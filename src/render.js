@@ -60,6 +60,8 @@ function snowCover(t, S) {
   const n = (Math.sin(t.x * 0.37 + 1.1) * Math.cos(t.y * 0.29 - 0.4) + Math.sin((t.x + t.y) * 0.17)) * 0.25 + (t.shade - 0.5) * 0.3;
   let c = S * 1.35 - 0.35 + n;
   if (t.mud) c -= 0.78 - 0.12 * S;
+  if (t.ground === 1) c -= 0.75; // open grass: the snow has gone
+  else if (t.ground === 2) c += 0.8; // a snowfield
   c -= t.crater * 0.35;
   if (t.trench) c -= 0.5;
   return clamp01(c);
@@ -404,6 +406,7 @@ export class Renderer {
       const i = (t.y * map.w + t.x) * 4;
       const v = 255 * (0.84 + 0.16 * hash(t.x * 0.37, t.y * 0.53));
       img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
+      if (t.ground === 1) { const gr = 1 - cover[t.y * map.w + t.x]; img.data[i] = v * (1 - 0.14 * gr); img.data[i + 2] = v * (1 - 0.24 * gr); } // grass: olive-green
     }
     fc.putImageData(img, 0, 0);
     g.save();
