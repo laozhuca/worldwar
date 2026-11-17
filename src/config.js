@@ -37,6 +37,7 @@ export const UNIT_TYPES = {
   mg: {
     key: 'mg',
     name: 'Machine Gun Team',
+    short: 'MG Team', // on the narrow unit cards
     men: 4,
     hpPerMan: 12,
     range: 9,

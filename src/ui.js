@@ -556,7 +556,7 @@ export class UI {
         // a portrait card: the unit's picture large, its men in a corner badge, then status, bars and its name at the bottom
         parts.push(`<div class="ucard">${por}<div class="umen" title="Men">${u.men}/${t.men}</div><div class="ubody"><div class="st">${status}</div>
           <div class="bar" title="Strength"><i style="width:${(100 * u.hp) / (t.men * t.hpPerMan)}%"></i></div>
-          <div class="bar sup" title="Suppression"><i style="width:${u.suppression}%"></i></div><div class="n">${t.name}</div></div></div>`);
+          <div class="bar sup" title="Suppression"><i style="width:${u.suppression}%"></i></div><div class="n" title="${t.name}">${t.short || t.name}</div></div></div>`);
       }
       if (sel.length > 12) parts.push(`<div class="muted">+${sel.length - 12} more</div>`);
       info.innerHTML = parts.join('');
