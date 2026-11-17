@@ -497,7 +497,12 @@ export class Renderer {
     for (const t of map.tiles) cover[t.y * map.w + t.x] = snowCover(t, S);
 
     PAT = this.tex ? (name) => this.pattern(g, name) : null;
-    if (this.tex) this.drawTexturedBase(g, map, S, cover);
+    if (this.tex) {
+      g.save();
+      if (map.band) { g.setTransform(1, 0, 0, 1, this.OX, this.OY); g.beginPath(); g.rect(-1e4, (map.w - map.band) * TH / 2, 2e4, map.band * TH); g.clip(); } // the valley only
+      this.drawTexturedBase(g, map, S, cover);
+      g.restore();
+    }
     // 1. (vector fallback) smooth colour field, bilinearly stretched into the isometric diamond
     else {
     const field = this.field || (this.field = document.createElement('canvas'));
@@ -526,6 +531,7 @@ export class Renderer {
     const c0 = iso(C - RR, C), c1 = iso(C, C - RR), c2 = iso(C + RR, C), c3 = iso(C, C + RR);
     g.beginPath(); g.moveTo(c0.x, c0.y); g.lineTo(c1.x, c1.y); g.lineTo(c2.x, c2.y); g.lineTo(c3.x, c3.y); g.closePath();
     g.clip();
+    if (map.band) { g.beginPath(); g.rect(-1e4, (map.w - map.band) * TH / 2, 2e4, map.band * TH); g.clip(); } // the valley only
 
     if (!this.tex) {
     // 2. fine texture
@@ -867,6 +873,9 @@ export class Renderer {
       const c = iso(bd.x, bd.y), B = this.baseView;
       this.view = { ...B, y0: Math.min(B.y0, c.y - bd.ay * bd.k - 30) };
     } else this.view = this.baseView;
+    // a level cut down to a band across the screen (a valley): the camera keeps to it
+    const band = state.map.band;
+    if (band) this.view = { ...this.view, y0: (state.map.w - band) * TH / 2 - 30, y1: (state.map.w + band) * TH / 2 + 40 };
     const z = this.cam.zoom, d = this.dpr;
     const sh = this.atmo.shake;
     const shx = (Math.random() - 0.5) * sh, shy = (Math.random() - 0.5) * sh;
@@ -892,7 +901,7 @@ export class Renderer {
     if (bd) objs.push({ k: bd.x + bd.y + (bd.hx || 0) + (bd.hy || 0) - 1, kind: 'town', bd });
     for (const team of [PLAYER, ENEMY]) {
       const q = state.map.hq[team];
-      objs.push({ k: q.x + q.y + 1, kind: 'hq', q, team });
+      if (!q.hidden) objs.push({ k: q.x + q.y + 1, kind: 'hq', q, team });
     }
     // concrete MG bunkers: always drawn (their places are known); the gun and crew inside are not
     if (state.bunkers) for (const b of state.bunkers) objs.push({ k: b.x + b.y + 0.3, kind: 'bunker', b, u: state.units.find((u) => u.id === b.id) });

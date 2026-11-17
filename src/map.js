@@ -55,7 +55,7 @@ export function makesSquare(map, x, y) {
  * Break up every 2x2 block of trench (where communication trenches meet the firing lines): fill in one
  * tile of the block, one whose trench neighbours stay connected without it, never the HQ.
  */
-function noSquares(map) {
+export function noSquares(map) {
   const W = map.w, T = (x, y) => { const t = tileAt(map, x, y); return t && t.trench ? t : null; };
   const isHq = (t) => map.hq.some((q) => q.x === t.x && q.y === t.y);
   const connectedWithout = (t) => {
@@ -87,6 +87,8 @@ function noSquares(map) {
 
 /** True where nobody can walk: a rock outcrop, or the buildings of a town. */
 export function rockAt(map, x, y) {
+  const ix = Math.floor(x), iy = Math.floor(y);
+  if (ix >= 0 && iy >= 0 && ix < map.w && iy < map.h && map.tiles[iy * map.w + ix].off && map.band) return true; // a level's own shape: no way out of it
   const t = tileAt(map, x, y);
   return !!(t && (t.rock || t.block));
 }

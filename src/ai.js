@@ -37,6 +37,21 @@ function densest(units) {
 const readyBatteries = (mine) =>
   mine.filter((u) => u.type === 'artillery' && u.ai.role === 'battery' && u.cooldown <= 0 && !u.barrage);
 
+/**
+ * The guns of an enemy that only holds its positions: they shell the attackers' infantry when it is out in
+ * the open near the defenders, a battery at a time, every defensiveGap seconds.
+ */
+function staticGuns(state, ai, mine, foes, res, L) {
+  if (ai.defensive > 0 || res.ammo < UNIT_TYPES.artillery.shellAmmo * UNIT_TYPES.artillery.barrageShells) return;
+  const guns = mine.filter((u) => u.type === 'artillery' && u.cooldown <= 0 && !u.barrage && !u.order);
+  if (!guns.length) return;
+  const posts = mine.filter((u) => u.type !== 'artillery');
+  const threats = foes.filter((f) => f.type !== 'artillery' && !f.inTrench && posts.some((p) => Math.hypot(p.x - f.x, p.y - f.y) < 11));
+  if (!threats.length) return;
+  const tgt = densest(threats);
+  if (orderBarrage(state, [guns[0]], tgt.x, tgt.y)) ai.defensive = L.defensiveGap;
+}
+
 export function updateAI(state, ai, dt) {
   if (ai.op) updateOp(state, ai, dt);
   ai.think -= dt; ai.harass -= dt; ai.defensive -= dt; ai.offensive -= dt; ai.wireTimer -= dt;
@@ -49,6 +64,10 @@ export function updateAI(state, ai, dt) {
   const L = ai.level || DIFFICULTY.medium;
   const mine = state.units.filter((u) => !u.dead && u.team === me);
   const foes = state.units.filter((u) => !u.dead && u.team === foe);
+  if (L.static) { // holding fixed positions (a campaign level): no recruiting, no moves, only the guns
+    staticGuns(state, ai, mine, foes, res, L);
+    return;
+  }
   const front = frontLine(map, me);
   const frontX = median(front);
   if (frontX < 0) return;

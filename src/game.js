@@ -873,7 +873,7 @@ function explode(state, s) {
     if (d < 1.6) {
       let cover = tt && tt.trench ? trenchCover(TRENCH_ARTY, tt) : (u.pinned ? 0.8 : 1);
       if (sheltered) cover *= nearMiss(tt);
-      if (u.nest) cover *= 0.2; // a concrete emplacement: the shell pins the crew but rarely kills it
+      if (u.nest) cover = 0; // a concrete emplacement: a shell pins the crew down, it cannot kill them
       damageUnit(state, u, 90 * (1 - (d / 1.6) * 0.6) * cover, { x: s.x, y: s.y, d }); // heavy shell: twice the old blast
     }
     if (d < 3.2) {
@@ -980,6 +980,7 @@ function checkVictory(state) {
   const { map } = state;
   for (const team of [PLAYER, ENEMY]) {
     const hq = map.hq[1 - team];
+    if (hq.hidden) continue; // (a level without one: nothing to take)
     if (tileAt(map, hq.x, hq.y).owner === team) {
       state.winner = team;
       pushMessage(state, team === PLAYER ? 'The enemy headquarters has fallen. Victory!' : 'Our headquarters has been overrun.', team === PLAYER ? 'good' : 'loss');

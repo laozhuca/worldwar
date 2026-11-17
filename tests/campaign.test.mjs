@@ -59,12 +59,12 @@ test('The Nests of San Michele: three concrete nests, rationed barrages, win on 
     assert.equal(u.team, ENEMY); assert.equal(u.type, 'mg'); assert.equal(u.ai.role, 'nest');
     assert.equal(s.map.tiles[Math.floor(u.y) * s.map.w + Math.floor(u.x)].trench, 3, 'concrete');
   }
-  // rationed: each battery barrage uses one of the 9
+  // rationed: each battery barrage uses one of the 8
   const guns = s.units.filter((u) => u.team === PLAYER && u.type === 'artillery');
   assert.equal(guns.length, 3);
   const nest = s.units.find((q) => q.id === c.nests[0]);
   const fired = orderBarrage(s, guns, nest.x, nest.y);
-  assert.equal(s.barrageLimit[PLAYER], 12 - fired);
+  assert.equal(s.barrageLimit[PLAYER], 8 - fired);
   s.barrageLimit[PLAYER] = 0;
   for (const g of guns) { g.barrage = null; g.cooldown = 0; }
   assert.equal(orderBarrage(s, guns, nest.x, nest.y), 0, 'no shells left');
@@ -155,27 +155,25 @@ test('The Black Day: three lines, Anglo-American army, counter-attacks, take the
   createGame();
 });
 
-test('Rocks: impassable, units walk round them and never stand on them', async () => {
+test('Rocks: the valley of battle 2 is walled; a squad sent across a barrier finds a gap and never stands on rock', async () => {
   const { orderMove } = await import('../src/game.js');
   const { rockAt } = await import('../src/map.js');
   const s = createLevelGame('isonzo');
   const rocks = s.map.tiles.filter((t) => t.rock);
-  assert.ok(rocks.length > 15, 'outcrops placed');
+  assert.ok(rocks.length > 60, 'rock walls and barriers');
   assert.ok(rocks.every((t) => !t.trench && !t.wire));
-  // a quiet field: one squad, no enemy
   s.ais.length = 0;
-  s.units = s.units.filter((u) => u.team === PLAYER && u.type === 'rifle').slice(0, 1);
-  const u = s.units[0];
-  let tried = 0, arrived = 0;
-  for (const r of rocks.slice(0, 8)) for (const [ox, oy] of [[-3.5, 0.5], [0.5, -3.5]]) {
-    u.x = r.x + ox; u.y = r.y + oy; u.order = null; u.hp = 1000; u.suppression = 0; u.detour = 0;
-    if (rockAt(s.map, u.x, u.y) || !s.map.tiles[Math.floor(u.y) * s.map.w + Math.floor(u.x)] || s.map.tiles[Math.floor(u.y) * s.map.w + Math.floor(u.x)].off) continue;
-    if (!orderMove(s, [u], r.x + 0.5 - ox + 0.5 * Math.sign(-ox), r.y + 0.5 - oy + 0.5 * Math.sign(-oy))) continue;
-    tried++;
-    for (let i = 0; i < 30 * 40 && u.order; i++) { update(s, 1 / 30); assert.ok(!rockAt(s.map, u.x, u.y), 'never on a rock'); }
-    if (!u.order) arrived++;
-  }
-  assert.ok(tried >= 8 && arrived === tried, `walked round ${arrived} of ${tried}`);
+  const u = s.units.find((q) => q.team === PLAYER && q.type === 'rifle');
+  s.units = s.units.filter((q) => q.team === ENEMY || q === u);
+  for (const q of s.units) if (q !== u) q.holdFire = true;
+  // from just in front of our line to beyond the first barrier (u = -13), in the middle of the valley
+  const at = (uu, v) => ({ x: Math.round((uu + v + 68) / 2) + 0.5, y: Math.round((v - uu + 68) / 2) + 0.5 });
+  const a = at(-18, 0), b = at(-9, 0);
+  u.x = a.x; u.y = a.y; u.order = null; u.climb = null; u.hp = 1000;
+  orderMove(s, [u], b.x, b.y);
+  assert.ok(u.path && u.path.length > 1, 'a route round the barrier');
+  for (let i = 0; i < 30 * 90 && u.order; i++) { update(s, 1 / 30); assert.ok(!rockAt(s.map, u.x, u.y), 'never on rock, never out of the valley'); }
+  assert.ok(!u.order && Math.hypot(u.x - b.x, u.y - b.y) < 1, 'through a gap and arrived');
   createGame();
 });
 

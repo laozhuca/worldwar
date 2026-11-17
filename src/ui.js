@@ -146,6 +146,8 @@ export class UI {
   }
 
   centerOnFront() {
+    const sv = this.state.map.startView;
+    if (sv) { this.r.centerOn(sv.x, sv.y); return; }
     const f = frontLine(this.state.map, PLAYER);
     const xs = f.filter((x) => x >= 0);
     const x = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : (teamDir(PLAYER) > 0 ? 18 : 45);

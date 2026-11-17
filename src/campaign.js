@@ -3,7 +3,7 @@
 // state.campaign as plain data, so a campaign battle saves and loads like any other.
 import { PLAYER, ENEMY, DIFFICULTY } from './config.js';
 import { createGame, spawnUnit, pushMessage, orderMove } from './game.js';
-import { frontLine, teamDir, tileAt } from './map.js';
+import { frontLine, teamDir, tileAt, noSquares } from './map.js';
 
 const DAY_LENGTH = 420; // seconds of game time per 24 hours (as atmosphere.js)
 
@@ -86,6 +86,120 @@ function scatterRocks(state, count, seed) {
   }
   map.rocks = true;
   map.dirty = true;
+}
+
+/**
+ * The Isonzo valley (battle 2): the battlefield cut down to a long, narrow band across the screen, walled
+ * with rock, fought from left to right. Our lines and guns at the left; three enemy strongpoints along it,
+ * far apart, each a small trench system round a concrete MG nest behind its wire; rock barriers across the
+ * valley between them with a few narrow gaps. The enemy has no headquarters here (a hidden rally point
+ * only) and holds his ground: no recruiting, no offensives, only his guns.
+ */
+function buildValley(state) {
+  const { map } = state, W = map.w, V0 = W - 1, B = 15;
+  map.band = B;
+  let seed = 916;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  // u: along the valley (screen right), v: across it (screen down); a tile for (u, v)
+  const at = (u, v) => {
+    let x = Math.round((u + v + V0) / 2), y = Math.round((v - u + V0) / 2);
+    return tileAt(map, x + 0.5, y + 0.5);
+  };
+  const uv = (t) => [t.x - t.y, t.x + t.y - V0];
+  // a clean slate: the band, nothing dug, no units
+  for (const t of map.tiles) {
+    const v = t.x + t.y - V0;
+    Object.assign(t, { trench: 0, owner: -1, origOwner: -1, wire: 0, origWire: -1, crater: 0, dmg: 0, build: null, rock: 0, block: 0, decor: null });
+    if (Math.abs(v) > B) t.off = true;
+    t.mud = !t.off && rnd() < 0.35 ? 1 : 0;
+  }
+  state.units = [];
+  // digging: a 4-connected trench from tile a to tile b
+  const dig = (a, b, team, level) => {
+    if (!a || !b) return;
+    let x = a.x, y = a.y;
+    for (let n = 0; n < 200; n++) {
+      const t = tileAt(map, x + 0.5, y + 0.5);
+      if (t) { t.trench = Math.max(t.trench, level); t.owner = t.origOwner = team; t.mud = 0; }
+      if (x === b.x && y === b.y) break;
+      const dx = b.x - x, dy = b.y - y;
+      if (Math.abs(dx) >= Math.abs(dy)) x += Math.sign(dx); else y += Math.sign(dy);
+    }
+  };
+  const nearestTrench = (u, v, team) => {
+    let best = null, bd = Infinity;
+    for (const t of map.tiles) if (t.trench && t.owner === team) { const [tu, tv] = uv(t), d = Math.hypot(tu - u, tv - v); if (d < bd) { bd = d; best = t; } }
+    return best;
+  };
+  // ---- our side, at the left: HQ, a front and a support line, a communication trench
+  const hq = at(-31, 0);
+  map.hq[PLAYER] = { x: hq.x, y: hq.y };
+  dig(at(-21, -12), at(-21, 12), PLAYER, 1);
+  dig(at(-25, -8), at(-25, 8), PLAYER, 1);
+  dig(hq, at(-21, 0), PLAYER, 2);
+  hq.trench = 3;
+  // ---- the three strongpoints, far apart along the valley, alternately high and low
+  const POINTS = [[-3, -6, 4], [14, 6, -4], [29, -3, 5]]; // u, v of the nest; where the gap in its wire is
+  for (const [u0, vc] of POINTS) {
+    dig(at(u0, vc - 6), at(u0, vc + 6), ENEMY, 2);
+    dig(at(u0 + 4, vc - 3), at(u0 + 4, vc + 3), ENEMY, 2);
+    dig(at(u0, vc), at(u0 + 4, vc), ENEMY, 2);
+  }
+  // ---- the enemy's hidden rally point (no HQ to take in this battle)
+  const ehq = at(34, 0);
+  map.hq[ENEMY] = { x: ehq.x, y: ehq.y, hidden: true };
+  noSquares(map);
+  // wire in front of each strongpoint, with one gap
+  POINTS.forEach(([u0, vc, gap]) => {
+    for (let v = vc - 8; v <= vc + 8; v++) {
+      if (Math.abs(v - (vc + gap)) <= 1) continue;
+      for (const du of [-3, -4]) { const t = at(u0 + du, v); if (t && !t.trench && !t.off) { t.wire = 100; t.origWire = ENEMY; t.mud = 0; } }
+    }
+  });
+  // ---- rock: the valley's walls, and barriers across it with a couple of narrow gaps
+  const rock = (t) => { if (t && !t.off && !t.trench && !t.wire && !(t.x === hq.x && t.y === hq.y)) { t.rock = 1 + Math.floor(rnd() * 4); t.mud = 0; } };
+  for (const t of map.tiles) {
+    if (t.off) continue;
+    const a = Math.abs(t.x + t.y - V0);
+    if (a >= 15 || (a === 14 && rnd() < 0.75) || (a === 13 && rnd() < 0.3)) rock(t);
+  }
+  const BARRIERS = [[-13, [[-8, -6], [5, 7]]], [6, [[-2, 0], [10, 12]]], [22, [[-11, -9], [2, 4]]]];
+  for (const [ub, gaps] of BARRIERS) for (let v = -B; v <= B; v++) {
+    if (gaps.some(([a, b]) => v >= a && v <= b)) continue;
+    rock(at(ub, v)); rock(at(ub + 1, v));
+  }
+  // a few trees and stumps in the open
+  for (const t of map.tiles) if (!t.off && !t.trench && !t.wire && !t.rock && rnd() < 0.03) t.decor = rnd() < 0.5 ? 'stump' : 'tree';
+  map.rocks = true;
+  map.dirty = true;
+  map.startView = (() => { const t = at(-16, 0); return { x: t.x + 0.5, y: t.y + 0.5 }; })();
+  // ---- our troops: rifle squads and machine guns in the line, batteries behind it
+  const put = (type, team, t) => (t ? spawnUnit(state, type, team, t.x + 0.5, t.y + 0.5) : null);
+  for (const v of [-10, -6, -2, 2, 6, 10]) put('rifle', PLAYER, nearestTrench(-21, v, PLAYER));
+  for (const v of [-4, 4]) put('mg', PLAYER, nearestTrench(-21, v, PLAYER));
+  for (const v of [-5, 5]) put('rifle', PLAYER, nearestTrench(-25, v, PLAYER));
+  for (const v of [-9, 0, 9]) put('artillery', PLAYER, at(-28, v));
+  // ---- the enemy: in each strongpoint the nest (concrete all round it), two squads guarding it, and a
+  // machine gun in the rear line of the two farther ones; his batteries at the far end
+  const nests = POINTS.map(([u0, vc], i) => {
+    const t = nearestTrench(u0, vc, ENEMY);
+    const u = put('mg', ENEMY, t);
+    u.ai.role = 'nest'; u.nest = true; u.inTrench = true; u.setup = 0;
+    for (let y = t.y - 1; y <= t.y + 1; y++) for (let x = t.x - 1; x <= t.x + 1; x++) { const n = tileAt(map, x + 0.5, y + 0.5); if (n && n.trench && n.owner === ENEMY) n.trench = 3; }
+    for (const dv of [-3, 3]) { const g = put('rifle', ENEMY, nearestTrench(u0, vc + dv, ENEMY)); if (g) g.ai.role = 'hold'; }
+    if (i > 0) { const m = put('mg', ENEMY, nearestTrench(u0 + 4, vc, ENEMY)); if (m) { m.ai.role = 'hold'; m.setup = 0; } }
+    return u;
+  });
+  for (const v of [-8, 7]) put('artillery', ENEMY, at(33, v));
+  state.bunkers = nests.map((u) => ({ id: u.id, x: u.x, y: u.y }));
+  state.campaign.nests = nests.map((u) => u.id);
+  state.campaign.silenced = [];
+  // short of everything: ammunition above all
+  state.resources[PLAYER] = { men: 24, ammo: 240, supplies: 120 };
+  state.resources[ENEMY] = { men: 0, ammo: 400, supplies: 0 };
+  state.barrageLimit = { [PLAYER]: 8 };
+  const ai = state.ais[0];
+  ai.level = { ...DIFFICULTY.hard, static: true, defensiveGap: 30 };
 }
 
 /** The trench tile of a team's line `off` tiles behind its front line in row y (front = 0, support = 7, reserve = 11). */
@@ -186,55 +300,18 @@ export const LEVELS = [
     id: 'isonzo', n: 2, title: 'The Nests of San Michele', place: 'The Isonzo, Italy', date: 'August 1916',
     nations: ['italy', 'austria'], season: 'thaw', start: 'west', startHour: 5,
     history: 'The Sixth Battle of the Isonzo. Five times the Italian army has thrown itself at the Austro-Hungarian line above the river, and five times it has been cut down by machine guns firing from concrete emplacements in the rock. This time the guns must be found and silenced first. Three nests command the whole sector; until they fall, no attack can cross the open ground. Your batteries have been given shells for only a handful of barrages: make every one count.',
-    objectives: ['Silence all three machine-gun nests in the enemy lines.', 'Do it before nightfall on day 2.', 'Do not let the enemy take your headquarters.'],
-    rules: ['The nests are concrete pillboxes, one in each of his three lines: front, support and reserve. Shellfire alone rarely finishes them: bombard, then send the infantry in while the crews are pinned.', 'The deeper nests lie beyond the reach of your guns from where they stand: take ground and bring the batteries forward.', 'Shells are rationed: 12 battery barrages for the whole battle.', 'The enemy holds deep wire and counter-attacks any trench he loses.'],
+    objectives: ['Silence all three machine-gun nests, one after another along the valley.', 'Do it before nightfall on day 2.', 'Do not let the enemy take your headquarters.'],
+    rules: ['The valley is narrow and walled with rock: your men can only get through the gaps in the rock barriers.', 'Each nest is a concrete pillbox at the heart of its own strongpoint, behind wire. Shells only keep its crew\'s heads down: the infantry must take it.', 'Ammunition is short: 8 battery barrages for the whole battle. Bring the guns forward to reach the farther nests.'],
     medals: ['The guns are silenced', 'Swift work: all three silenced before nightfall on day 1', 'Shells to spare: 3 or more barrages unused'],
     debrief: {
       won: 'With the machine guns silent, the Italian infantry crossed the open ground at last. In August 1916 the Sixth Battle of the Isonzo took Monte Sabotino and San Michele, and Gorizia fell: the greatest Italian victory of the war until its final year.',
       lost: 'The nests were still firing when night fell on the second day, and the attack was called off. Eleven times the Italians attacked on the Isonzo; most of those battles ended like this, with a few hundred yards gained at a terrible price.',
     },
     setup(state) {
-      const { map } = state, W = map.w;
-      state.resources[PLAYER] = { men: 30, ammo: 420, supplies: 140 };
-      state.barrageLimit = { [PLAYER]: 12 };
-      // three batteries, dug in just behind the front line opposite the nests, within range of them
-      const q = map.hq[PLAYER], d = teamDir(PLAYER), f = frontLine(map, PLAYER);
-      spawnUnit(state, 'artillery', PLAYER, q.x + 0.5, q.y + 0.5);
-      const guns = state.units.filter((u) => u.team === PLAYER && u.type === 'artillery');
-      const M = Math.floor(map.h / 2);
-      guns.forEach((g, i) => { const y = M + [-10, 0, 10][i]; g.x = f[y] - d * 4 + 0.5; g.y = y + 0.5; });
-      // the enemy defends: late, small offensives, but he still counter-attacks lost trenches
-      const ai = state.ais[0];
-      ai.level = { ...DIFFICULTY.hard, firstAttack: 900, attackGap: [500, 700] };
-      ai.offensive = 900;
-      // the nests: concrete pillboxes in depth, one in each of his three lines (front on one flank,
-      // support in the centre, reserve on the other flank); they never move
-      const nests = [[0, M - 10], [7, M + 1], [11, M + 10]].map(([off, y]) => {
-        const t = trenchBehind(map, ENEMY, y, off);
-        const u = spawnUnit(state, 'mg', ENEMY, t.x + 0.5, t.y + 0.5);
-        u.ai.role = 'nest'; u.nest = true; u.inTrench = true; u.setup = 0;
-        // a rifle squad guarding each side of it
-        for (const dy of [-2, 2]) {
-          const gt = trenchBehind(map, ENEMY, t.y + dy, off);
-          spawnUnit(state, 'rifle', ENEMY, gt.x + 0.5, gt.y + 0.5).ai.role = 'hold';
-        }
-        for (let yy = t.y - 1; yy <= t.y + 1; yy++) for (let xx = t.x - 1; xx <= t.x + 1; xx++) {
-          const n = map.tiles[yy * W + xx];
-          if (n && n.trench && n.owner === ENEMY) n.trench = 3;
-        }
-        return u;
-      });
-      // the ordinary machine gun on the front line nearest the first nest makes way for it
-      const near = state.units.find((u) => u.team === ENEMY && u.type === 'mg' && !u.nest && Math.abs(u.y - nests[0].y) < 3);
-      if (near) state.units = state.units.filter((u) => u !== near);
-      state.bunkers = nests.map((u) => ({ id: u.id, x: u.x, y: u.y }));
-      scatterRocks(state, 18, 1916);
-      map.dirty = true;
-      state.campaign.nests = nests.map((u) => u.id);
-      state.campaign.silenced = [];
+      buildValley(state);
     },
     events: [
-      { at: 5.2, run: (s) => pushMessage(s, 'Three machine-gun nests are marked in the enemy lines, one in each line. Silence them all before nightfall tomorrow.', 'side') },
+      { at: 5.2, run: (s) => pushMessage(s, 'Three machine-gun nests hold the valley, one behind the other. Push through the gaps in the rocks and silence them all before nightfall tomorrow — the guns can only pin a nest down; the infantry must take it.', 'side') },
       { at: 24 + 5, run: (s) => pushMessage(s, 'Day 2. The attack must succeed by nightfall.', 'side') },
       { at: 24 + 16, run: (s) => pushMessage(s, 'Three hours of daylight left.', 'warn') },
     ],
