@@ -803,3 +803,6 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 #m-music:hover { color: #fff8e8; text-decoration: underline; text-underline-offset: 5px; }
 #m-music.off { color: #9d927c; }
 #overlay.menu-mode #m-music { display: block; }
+/* the tutorial's opening scene: a wide picture above the first line */
+#story .pic.wide, #story.center .pic.wide { width: auto; max-width: min(500px, 70vw); height: min(370px, calc(100vh - 360px)); object-fit: contain; }
+@media (max-height: 640px) { #story .pic.wide, #story.center .pic.wide { width: auto; height: 40vh; } }

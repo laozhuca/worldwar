@@ -11,6 +11,7 @@ const HALE = 'Pte. Tom Hale', ARCHER = 'Pte. Will Archer', LT = 'Lieutenant';
 // pictures shown above a speaker's lines (the letter replaces Hale's face when he speaks of it)
 const FACES = { [HALE]: 'assets/art/story-hale.webp', [ARCHER]: 'assets/art/story-archer.webp' };
 const LETTER = 'assets/art/story-letter.webp';
+const TRENCH = 'assets/art/story-trench.webp'; // the opening scene: the front line before zero hour
 for (const src of [...Object.values(FACES), LETTER]) { const i = new Image(); i.src = src; } // ready before they are needed
 
 /** The battlefield for the scene: our section in the front trench, a battery behind, the enemy waiting. */
@@ -57,6 +58,7 @@ export function createTutorialGame() {
  */
 export function runTutorial(state, ctx) {
   const { ui, renderer, sound } = ctx;
+  for (const src of [TRENCH, LETTER, ...Object.values(FACES)]) new Image().src = src; // the scene's pictures, ready when needed
   const box = document.getElementById('story');
   const who = box.querySelector('.who'), line = box.querySelector('.line'), hint = box.querySelector('.hint'), pic = box.querySelector('.pic');
   const find = (tag) => state.units.find((u) => u.story === tag);
@@ -74,6 +76,7 @@ export function runTutorial(state, ctx) {
     const src = image || (text ? FACES[speaker] : null);
     pic.classList.toggle('hidden', !src);
     pic.classList.toggle('letter', src === LETTER);
+    pic.classList.toggle('wide', src === TRENCH);
     if (src && pic.getAttribute('src') !== src) pic.setAttribute('src', src);
     who.textContent = speaker || '';
     line.textContent = text || '';
@@ -123,7 +126,7 @@ export function runTutorial(state, ctx) {
     ui.selected.clear();
     look(pair.x + 2, pair.y, 2.4);
     await after(1.2);
-    await say('', 'The Somme. 1 July 1916, 07:20. Ten minutes to zero hour.');
+    await say('', 'The Somme. 1 July 1916, 07:20. Ten minutes to zero hour.', TRENCH);
     await say(ARCHER, 'Seven days the guns have been going. Can\'t be a German left alive over there.');
     await say(HALE, 'That\'s what the officers say. Wire\'s all cut. We just walk across.');
     await say(ARCHER, 'Walk. With sixty pounds on our backs.');
