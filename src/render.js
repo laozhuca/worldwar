@@ -809,7 +809,7 @@ export class Renderer {
     g.setTransform(1, 0, 0, 1, this.OX, this.OY);
     // debris lying on the ground
     for (const t of map.tiles) {
-      if (t.trench || t.wire || t.decor || !this.inClip(t.x, t.y, 1)) continue;
+      if (t.off || t.rock || t.trench || t.wire || t.decor || !this.inClip(t.x, t.y, 1)) continue; // nothing off the battlefield
       const h = hash(t.x * 9.7, t.y * 4.3);
       if (!t.splinters && !((t.mud && h > 0.86) || h > 0.975)) continue; // splinters: a tree blown apart
       const p = iso(t.x + 0.3 + h * 0.4, t.y + 0.3 + t.shade * 0.4);
@@ -1145,6 +1145,8 @@ export class Renderer {
     if (!ui.hover) return;
     const { x, y } = ui.hover;
     if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return;
+    const ht = state.map.tiles[Math.floor(y) * state.map.w + Math.floor(x)];
+    if (ht && ht.off) return; // no cursor off the battlefield (the sky round a valley)
     if (ui.mode && ui.mode.startsWith('build:')) {
       const type = ui.mode.slice(6);
       const c = canBuild(state, PLAYER, type, x, y);
