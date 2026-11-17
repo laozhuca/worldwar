@@ -1343,6 +1343,9 @@ export class Renderer {
   drawRock(ctx, r) {
     const h = hash(r.x * 3.7, r.y * 1.9), c = iso(r.x + r.size / 2 + (h - 0.5) * 0.15, r.y + r.size / 2 + (hash(r.y, r.x) - 0.5) * 0.15);
     const snow = (this.S ?? 1) > 0.7 ? '_s' : '';
+    // jagged crags and rounded boulders mixed, as they fall in the mountains
+    const kind = hash(r.x * 2.9 + 1.7, r.y * 5.3) < 0.42 ? 'round' : 'boulder';
+    if (this.drawFrame(ctx, this.propGroup(), `${kind}${r.size}_${r.v}${snow}`, c.x, c.y, 1.22 + h * 0.2, h > 0.5)) return;
     if (this.drawFrame(ctx, this.propGroup(), `boulder${r.size}_${r.v}${snow}`, c.x, c.y, 1.22 + h * 0.2, h > 0.5)) return;
     if (this.drawFrame(ctx, this.propGroup(), `rock${r.v}${snow}`, c.x, c.y, (1.4 + h * 0.35) * r.size, h > 0.5)) return;
     ctx.fillStyle = '#77736b'; // fallback: a plain grey boulder

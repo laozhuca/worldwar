@@ -32,6 +32,7 @@ function jobs() {
     for (let v = 0; v < 3; v++) list.push({ name: `debris${v}${s}`, kind: 'debris', args: [v, snow] });
     for (let v = 0; v < 4; v++) list.push({ name: `rock${v}${s}`, kind: 'rock', args: [v, snow] });
     for (const size of [1, 2, 3]) for (let v = 0; v < 3; v++) list.push({ name: `boulder${size}_${v}${s}`, kind: 'crag', args: [v, size, snow] });
+    for (const size of [1, 2, 3]) for (let v = 0; v < 3; v++) list.push({ name: `round${size}_${v}${s}`, kind: 'boulder', args: [v, size, snow] }); // rounded boulders, mixed in among the crags
     for (let v = 0; v < 3; v++) list.push({ name: `giant${v}${s}`, kind: 'crag', args: [v + 5, 9, snow], scale: 1.5 }); // the great boulders at the back of a valley
     for (const ax of ['x', 'y']) list.push({ name: `bridge_${ax}${s}`, kind: 'bridge', args: [ax, snow] });
   }
