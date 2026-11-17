@@ -131,6 +131,14 @@ export function runTutorial(state, ctx) {
     await say(ARCHER, 'Give it her yourself. We\'ll be in their trench by breakfast.');
     await say(LT, 'The guns open the attack, lads. Stand to.');
 
+    // 0. moving the map: look around the line, then back
+    const cam0 = { x: renderer.cam.x, y: renderer.cam.y };
+    await step(touch ? 'Move the map: drag it with one finger to look along the line.' : 'Move the map: hold W A S D (or the arrow keys) to look along the line.',
+      () => Math.hypot(renderer.cam.x - cam0.x, renderer.cam.y - cam0.y) > 220);
+    await say('', touch ? 'Good. Drag the map whenever you need to see more of the battlefield.' : 'Good. W A S D (or the arrow keys, or dragging with the middle mouse button) move the map at any time.');
+    look(pair.x + 2, pair.y, 2.4);
+    await after(0.6);
+
     // 1. the guns first: select the battery, press Bombard, mark the target
     state.marker = { unit: gun.id, label: 'Field battery' };
     look(gun.x + 3, gun.y, 1.8);
