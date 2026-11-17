@@ -204,7 +204,7 @@ function buildValley(state) {
   // great boulders, three times the size of any in the valley, piled along its back wall like the foot of
   // the mountain (scenery only: the wall below them is already impassable)
   map.giants = [];
-  for (let u = -33; u <= 36; u += 10 + Math.floor(rnd() * 4)) {
+  for (let u = -34; u <= 38; u += 7 + Math.floor(rnd() * 3)) {
     const uu = u + Math.round((rnd() - 0.5) * 3), vv = -17 - Math.floor(rnd() * 2); // beyond the valley's edge
     map.giants.push({ x: Math.round((uu + vv + V0) / 2) + 0.5, y: Math.round((vv - uu + V0) / 2) + 0.5, v: Math.floor(rnd() * 3), m: rnd() < 0.5 });
   }

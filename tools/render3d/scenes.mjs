@@ -748,6 +748,106 @@ export function boulderScene(variant, size, heavy) {
   return { bounds: [-E, -E, -0.1, E, E, top], sdf, shade, supersample: 2 };
 }
 
+// ===================================================================== Alpine crag
+/**
+ * A crag of fractured Alpine limestone, in the manner of the panorama behind the Isonzo valley: angular
+ * blocks and leaning slabs broken along sharp faces, tilted bedding and dark joints, pale grey-buff rock,
+ * olive grass and brown turf on the ledges and in the scree at the foot, snow lying in patches in the
+ * hollows. size: the footprint in tiles (1, 2, 3, or 9 for the great ridges at the back of a valley).
+ * heavy: deep snow.
+ */
+export function cragScene(variant, size, heavy) {
+  const R = size * 0.5;
+  const H = (key, k = 0) => hash(variant * 13 + size * 37, k, key);
+  const giant = size > 3;
+  const dip = (H(90) - 0.5) * 0.9, dipDir = H(91) * TAU; // the tilt of the bedding, the same through the whole crag
+  const blocks = [];
+  const nb = giant ? 7 + Math.floor(H(1) * 3) : size === 1 ? 2 + Math.floor(H(1) * 2) : 3 + size + Math.floor(H(1) * 2);
+  for (let k = 0; k < nb; k++) {
+    const main = k === 0;
+    // a giant is a jagged ridge: its blocks strung along a line, tallest in the middle
+    const along = giant ? (k / (nb - 1) - 0.5) * 2 * 0.62 * size + (H(2, k) - 0.5) * 0.5 : 0;
+    const a = H(3, k) * TAU, off = giant ? (H(4, k) - 0.5) * 0.35 * size : main ? 0.05 * size : (0.18 + H(4, k) * 0.2) * size;
+    const ra = H(5) * TAU;
+    const x = giant ? Math.cos(ra) * along - Math.sin(ra) * off : Math.cos(a) * off, y = giant ? Math.sin(ra) * along + Math.cos(ra) * off : Math.sin(a) * off;
+    const hx = (giant ? 0.14 + H(6, k) * 0.09 : main ? (size === 1 ? 0.3 : 0.25) : 0.12 + H(6, k) * 0.12) * size;
+    const hy = hx * (0.65 + H(7, k) * 0.45);
+    const peak = giant ? 1 - Math.abs(along) / (0.75 * size) : 1;
+    const h = (giant ? (0.22 + H(8, k) * 0.2) * peak + 0.08 : main ? (size === 1 ? 0.36 : 0.4) + H(8) * 0.18 : 0.16 + H(8, k) * 0.2) * size;
+    blocks.push({ x, y, hx, hy, h, rot: H(9, k) * TAU, tilt: (H(10, k) - 0.5) * 0.6, taper: (giant ? 0.45 : 0.15) + H(11, k) * (giant ? 0.4 : 0.35),
+      cuts: Array.from({ length: 5 }, (_, c) => { const th = H(12 + c, k) * TAU, ph = 0.35 + H(18 + c, k) * 1.0; return [Math.cos(th) * Math.sin(ph), Math.sin(th) * Math.sin(ph), Math.cos(ph), 0.55 + H(24 + c, k) * 0.3]; }) });
+  }
+  const top = Math.max(...blocks.map((b) => b.h));
+  const block = (b, x, y, z) => {
+    const c = Math.cos(b.rot), s = Math.sin(b.rot);
+    let lx = (x - b.x) * c + (y - b.y) * s, ly = -(x - b.x) * s + (y - b.y) * c;
+    lx -= z * b.tilt; // leaning
+    const t = 1 - clamp(z / b.h, 0, 1) * b.taper; // narrowing to a ridge or point
+    let d = Math.max(Math.abs(lx) - b.hx * t, Math.abs(ly) - b.hy * t, z - b.h, -z - 0.2) * 0.75;
+    const nx = lx / b.hx, ny = ly / b.hy, nzz = z / b.h - 0.5;
+    for (const [cx, cy, cz, k] of b.cuts) d = Math.max(d, (nx * cx + ny * cy + nzz * cz * 2 - k) * Math.min(b.hx, b.hy) * 0.8); // broken faces
+    return d;
+  };
+  const strataU = (x, y, z) => z * Math.cos(dip) + (x * Math.cos(dipDir) + y * Math.sin(dipDir)) * Math.sin(dip);
+  const rockRaw = (x, y, z) => { let d = 1; for (const b of blocks) d = Math.min(d, block(b, x, y, z)); return d; };
+  const rock = (x, y, z) => {
+    let d = rockRaw(x, y, z);
+    if (d > 0.3 * size) return d;
+    // joints and bedding cut into the faces, and a rough, chipped surface
+    const sp = giant ? 0.32 : 0.09 * size + 0.05, f = strataU(x, y, z) / sp;
+    const fw = f + (fbm(x * 2.1, y * 2.1, z * 2.1, 2) - 0.5) * 1.6; // the bedding wavers
+    const groove = Math.max(0, 0.06 - Math.abs(fw - Math.round(fw))) * sp * 0.3 * (fbm(x * 3, y * 3, z * 3, 2) > 0.45 ? 1 : 0);
+    const joint = Math.max(0, 0.05 - Math.abs(((x * 0.8 - y * 0.6) / (sp * 2.3)) % 1)) * sp * 0.4;
+    return d + groove + joint + (fbm(x * 7 / Math.sqrt(size), y * 7 / Math.sqrt(size), z * 7 / Math.sqrt(size), 3) - 0.5) * 0.05 * Math.sqrt(size) + (vnoise(x * 26, y * 26, z * 26) - 0.5) * 0.014;
+  };
+  const RS = R * 1.08;
+  const stones = (x, y, z) => {
+    const q = giant ? 0.3 : 0.12, gx = Math.floor(x / q), gy = Math.floor(y / q);
+    let d = 1;
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      const cx = gx + i, cy = gy + j, hh = hash(cx, cy, variant + size * 3);
+      if (hh > 0.3) continue;
+      const px = (cx + 0.5) * q, py = (cy + 0.5) * q, rr = q * (0.18 + hash(cy, cx, 5) * 0.25);
+      if (Math.hypot(px / RS, py / RS) > 0.95) continue;
+      d = Math.min(d, Math.max(Math.abs(x - px) - rr, Math.abs(y - py) - rr * 0.8, Math.abs(z - rr * 0.4) - rr * 0.6, (Math.abs(x - px) + Math.abs(y - py)) * 0.75 - rr) * 0.9);
+    }
+    return d;
+  };
+  const scree = (x, y, z) => {
+    const r = Math.hypot(x / RS, y / RS);
+    return (z - (0.09 * size * Math.max(0, 1 - r * r) + (fbm(x * 9, y * 9, variant, 3) - 0.5) * 0.04 * Math.max(0, 1.1 - r))) * 0.7;
+  };
+  const sdf = (x, y, z) => Math.min(rock(x, y, z), scree(x, y, z), stones(x, y, z));
+  const GRASS = [0.27, 0.29, 0.16], TURF = [0.3, 0.26, 0.17], LIME = [0.6, 0.57, 0.5], GREY = [0.38, 0.37, 0.35];
+  const shade = (x, y, z, nx, ny, nz) => {
+    const dr = rock(x, y, z), ds = scree(x, y, z), dt = stones(x, y, z);
+    const isRock = dr <= ds && dr <= dt + 0.004, isStone = !isRock && dt < ds;
+    const r = Math.hypot(x / RS, y / RS);
+    if (!isRock && !isStone && (z < -0.004 || Math.max(Math.abs(x), Math.abs(y)) > RS * 1.15)) return { kind: 'none' };
+    if (!isRock && !isStone && r > 0.98) return { kind: 'catcher' };
+    const edge = isRock || isStone ? 1 : clamp((0.8 - r) * 2.5, 0, 0.9);
+    const n1 = fbm(x * 6, y * 6, z * 6, 4), n2 = fbm(x * 31, y * 31, z * 31, 2), hz = z / top;
+    // snow in patches on the gentler upward faces and ledges, more of it higher up and in deep winter
+    const patch = fbm(x * 2.6 / Math.sqrt(size) + 3, y * 2.6 / Math.sqrt(size), z * 2.6, 3) - 0.5; // snow lies in broad patches, not specks
+    const snowy = isRock ? nz - (heavy ? 0.55 : 0.72) + hz * 0.2 + patch * 1.1 : patch * 1.4 - (heavy ? 0.05 : 0.3) + (isStone ? -0.2 : 0);
+    if (snowy > 0.18) return { kind: 'solid', col: mix3(C.snow, [0.7, 0.75, 0.84], clamp(0.5 - snowy, 0, 0.45)), spec: 0.12, alpha: edge };
+    // grass and turf on the ledges low down and over the scree
+    const grassy = (isRock ? nz - 0.6 - hz * 0.55 : 0.45 - (isStone ? 0.7 : 0)) + (n1 - 0.5) * 0.8;
+    if (grassy > 0.05) return { kind: 'solid', col: mix3(mix3(GRASS, TURF, clamp(n2 * 1.4 - 0.2, 0, 1)), [0.2, 0.2, 0.13], clamp(0.3 - grassy, 0, 0.3)), spec: 0.03, alpha: edge };
+    if (!isRock && !isStone) return { kind: 'solid', col: mix3([0.24, 0.22, 0.18], [0.4, 0.38, 0.33], n2), spec: 0.04, alpha: edge };
+    // pale limestone, greyer on the vertical faces, dark in the joints and bedding, rain streaks and lichen
+    let col = mix3(GREY, LIME, clamp(n1 * 1.2 - 0.1 + nz * 0.25, 0, 1));
+    const sp = giant ? 0.32 : 0.09 * size + 0.05, f = strataU(x, y, z) / sp;
+    const fw = f + (fbm(x * 2.1, y * 2.1, z * 2.1, 2) - 0.5) * 1.6;
+    col = mix3(col, [0.24, 0.24, 0.23], clamp(0.08 - Math.abs(fw - Math.round(fw)), 0, 0.08) * 5 * (fbm(x * 3, y * 3, z * 3, 2) > 0.45 ? 1 : 0.3));
+    col = mix3(col, [0.27, 0.27, 0.26], clamp(fbm(x * 3, y * 3, z * 16, 2) * 1.8 - 0.95, 0, 0.5) * (1 - Math.max(0, nz))); // streaks down the faces
+    col = mix3(col, [0.5, 0.5, 0.36], clamp(fbm(x * 18 + 7, y * 18, z * 18, 2) * 2 - 1.15, 0, 0.4)); // lichen
+    return { kind: 'solid', col, spec: 0.06 };
+  };
+  const E = Math.max(RS * 1.18, ...blocks.map((b) => Math.hypot(b.x, b.y) + Math.hypot(b.hx, b.hy) + b.h * Math.abs(b.tilt) + 0.05));
+  return { bounds: [-E, -E, -0.1, E, E, top + 0.05], sdf, shade, supersample: 2 };
+}
+
 // ===================================================================== MG pillbox
 /**
  * Concrete machine-gun pillbox: an octagonal blockhouse with board-marked walls, a firing slit in every

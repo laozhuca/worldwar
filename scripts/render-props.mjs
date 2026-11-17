@@ -31,8 +31,8 @@ function jobs() {
     for (let v = 0; v < 3; v++) list.push({ name: `log${v}${s}`, kind: 'log', args: [v, snow] });
     for (let v = 0; v < 3; v++) list.push({ name: `debris${v}${s}`, kind: 'debris', args: [v, snow] });
     for (let v = 0; v < 4; v++) list.push({ name: `rock${v}${s}`, kind: 'rock', args: [v, snow] });
-    for (const size of [1, 2, 3]) for (let v = 0; v < 3; v++) list.push({ name: `boulder${size}_${v}${s}`, kind: 'boulder', args: [v, size, snow] });
-    for (let v = 0; v < 3; v++) list.push({ name: `giant${v}${s}`, kind: 'boulder', args: [v + 5, 9, snow], scale: 1.5 }); // the great boulders at the back of a valley
+    for (const size of [1, 2, 3]) for (let v = 0; v < 3; v++) list.push({ name: `boulder${size}_${v}${s}`, kind: 'crag', args: [v, size, snow] });
+    for (let v = 0; v < 3; v++) list.push({ name: `giant${v}${s}`, kind: 'crag', args: [v + 5, 9, snow], scale: 1.5 }); // the great boulders at the back of a valley
     for (const ax of ['x', 'y']) list.push({ name: `bridge_${ax}${s}`, kind: 'bridge', args: [ax, snow] });
   }
   for (const view of ['a', 'b']) list.push({ name: `mg_${view}`, kind: 'mg', args: [view] });
@@ -78,7 +78,7 @@ if (isMainThread && process.argv[2] === '--footprints') {
   const core = await import('../tools/render3d/core.mjs');
   const scenes = await import('../tools/render3d/scenes.mjs');
   const sold = await import('../tools/render3d/soldier.mjs');
-  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, bunker: scenes.bunkerScene, rock: scenes.rockScene, boulder: scenes.boulderScene, bridge: scenes.bridgeScene, gun: scenes.gunScene, soldier: sold.soldierScene, corpse: sold.corpseScene, part: sold.partScene, fall: sold.fallScene };
+  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, bunker: scenes.bunkerScene, rock: scenes.rockScene, boulder: scenes.boulderScene, crag: scenes.cragScene, bridge: scenes.bridgeScene, gun: scenes.gunScene, soldier: sold.soldierScene, corpse: sold.corpseScene, part: sold.partScene, fall: sold.fallScene };
   const out = {};
   for (const j of jobs()) {
     const sc = make[j.kind](...j.args), scale = core.PX_PER_UNIT * (j.scale || SCALE);
@@ -128,7 +128,7 @@ if (isMainThread) {
 } else {
   const core = await import('../tools/render3d/core.mjs');
   const scenes = await import('../tools/render3d/scenes.mjs');
-  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, bunker: scenes.bunkerScene, rock: scenes.rockScene, boulder: scenes.boulderScene, bridge: scenes.bridgeScene, gun: scenes.gunScene, soldier: (await import('../tools/render3d/soldier.mjs')).soldierScene, corpse: (await import('../tools/render3d/soldier.mjs')).corpseScene, part: (await import('../tools/render3d/soldier.mjs')).partScene, fall: (await import('../tools/render3d/soldier.mjs')).fallScene };
+  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, bunker: scenes.bunkerScene, rock: scenes.rockScene, boulder: scenes.boulderScene, crag: scenes.cragScene, bridge: scenes.bridgeScene, gun: scenes.gunScene, soldier: (await import('../tools/render3d/soldier.mjs')).soldierScene, corpse: (await import('../tools/render3d/soldier.mjs')).corpseScene, part: (await import('../tools/render3d/soldier.mjs')).partScene, fall: (await import('../tools/render3d/soldier.mjs')).fallScene };
   parentPort.on('message', (job) => {
     const scale = job.scale || SCALE;
     const r = core.render(make[job.kind](...job.args), core.PX_PER_UNIT * scale);
