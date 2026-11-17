@@ -885,6 +885,7 @@ export class Renderer {
     ctx.setTransform(d, 0, 0, d, 0, 0);
     ctx.fillStyle = '#101215';
     ctx.fillRect(0, 0, this.vw, this.vh);
+    if (state.map.sky) this.drawSky(ctx, state.map);
     ctx.setTransform(d * z, 0, 0, d * z, d * (this.vw / 2 - this.cam.x * z + shx), d * (this.vh / 2 - this.cam.y * z + shy));
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.ground, -this.OX, -this.OY, this.gw, this.gh);
@@ -1283,6 +1284,23 @@ export class Renderer {
     this.backdrops = this.backdrops || {};
     if (!this.backdrops[bd.img]) this.backdrops[bd.img] = retry(() => loadImage(bd.img)).then((im) => { this.backdrops[bd.img].img = im; return im; }).catch(() => null);
     return this.backdrops[bd.img];
+  }
+
+  /**
+   * A painted panorama behind a level cut down to a band (the Alps around the Isonzo valley): it fills the
+   * screen round the battlefield, larger than the screen and drifting a little with the camera for depth.
+   */
+  drawSky(ctx, map) {
+    const bd = { img: map.sky }, e = this.backdrops && this.backdrops[bd.img], im = e && e.img;
+    if (!im) { this.loadBackdrop(bd); return; }
+    const W = this.vw, H = this.vh, k = Math.max((W * 1.25) / im.width, (H * 1.25) / im.height);
+    const iw = im.width * k, ih = im.height * k, c = iso(map.w / 2, map.h / 2), z = this.cam.zoom;
+    const sx = (W - iw) / 2, sy = (H - ih) / 2; // the slack either way
+    const px = Math.max(sx * 2, Math.min(0, sx - (this.cam.x - c.x) * z * 0.12));
+    const py = Math.max(sy * 2, Math.min(0, sy - (this.cam.y - c.y) * z * 0.12));
+    ctx.drawImage(im, px, py, iw, ih);
+    ctx.fillStyle = 'rgba(14,16,20,0.38)'; // into the cold grey light of the battle
+    ctx.fillRect(0, 0, W, H);
   }
 
   /** A town standing on the battlefield (pre-rendered through the game's camera and light). */
