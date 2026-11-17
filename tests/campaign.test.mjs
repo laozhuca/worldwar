@@ -6,7 +6,7 @@ import { createLevelGame, stepCampaign, clockHours, levelById } from '../src/cam
 
 const run = (s, seconds) => { for (let t = 0; t < seconds && s.winner < 0; t += 0.1) { update(s, 0.1); stepCampaign(s); } };
 
-test('Hold Until Relieved: strong works, short supply, a hard enemy, waves of reinforcements', () => {
+test('The Sailors of Dixmude: strong works, short supply, a hard enemy, waves of reinforcements', () => {
   const s = createLevelGame('ypres');
   assert.equal(s.campaign.id, 'ypres');
   assert.ok(s.campaign.front.length > 30, 'the front line is recorded');
@@ -21,7 +21,7 @@ test('Hold Until Relieved: strong works, short supply, a hard enemy, waves of re
   createGame();
 });
 
-test('Hold Until Relieved: the relief at dawn on day 4 wins; losing half the front loses', () => {
+test('The Sailors of Dixmude: the relief at dawn on day 4 wins; losing half the front loses', () => {
   const s = createLevelGame('ypres');
   s.time = ((78 - 6.5) / 24) * 420 - 1; // just before 06:00 on day 4
   stepCampaign(s);

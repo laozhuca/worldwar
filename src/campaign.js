@@ -102,7 +102,7 @@ function trenchBehind(map, team, y, off) {
 // ------------------------------------------------------------------ the levels
 export const LEVELS = [
   {
-    id: 'ypres', n: 1, title: 'Hold Until Relieved', place: 'Dixmude, Belgium', date: 'October 1914',
+    id: 'ypres', n: 1, title: 'The Sailors of Dixmude', place: 'Dixmude, Belgium', date: 'October 1914',
     nations: ['marins', 'germany'], allies: ['france'], season: 'mud', start: 'west', startHour: 6.5,
     pictures: ['assets/art/scene-dixmude-relief.webp'],
     advance: { [PLAYER]: 6 }, // our lines stand forward of the town, leaving room for it behind the HQ
