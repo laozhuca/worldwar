@@ -879,9 +879,7 @@ export class Renderer {
     // a level cut down to a band across the screen (a valley): the camera keeps to it
     const band = state.map.band;
     if (band) {
-      // exactly the map's own rectangle, so nothing beyond it ever shows
-      const hw = (MAP_R + 0.5) * TW / 2 - 2;
-      this.view = { x0: -hw, x1: hw, y0: (state.map.w - (state.map.bandBack || band)) * TH / 2 + 2, y1: (state.map.w + band) * TH / 2 - 2 };
+      this.view = this.bandRect(state.map); // exactly the map's own rectangle, so nothing beyond it ever shows
     }
     const z = this.cam.zoom, d = this.dpr;
     const sh = this.atmo.shake;
@@ -2342,30 +2340,56 @@ export class Renderer {
     ctx.globalAlpha = 1;
   }
 
+  /** A valley level's own rectangle in world coordinates (its ends, the back of its rock wall, its front edge). */
+  bandRect(map) {
+    const hw = (MAP_R + 0.5) * TW / 2 - 2;
+    return { x0: -hw, x1: hw, y0: (map.w - (map.bandBack || map.band)) * TH / 2 + 2, y1: (map.w + map.band) * TH / 2 - 2 };
+  }
+
   // ------------------------------------------------------------ minimap
 
   drawMinimap(mctx, state, w, h) {
+    this.mmCanvas = mctx.canvas;
+    if (!state.map.band && this.mmBase && mctx.canvas.height !== this.mmBase) { mctx.canvas.height = this.mmBase; mctx.canvas.style.height = ''; return; }
+    if (!this.mmBase) this.mmBase = mctx.canvas.height;
     mctx.setTransform(1, 0, 0, 1, 0, 0);
     mctx.fillStyle = '#121309'; mctx.fillRect(0, 0, w, h);
-    const s = Math.min(w / this.gw, h / this.gh);
-    const ox = (w - this.gw * s) / 2, oy = (h - this.gh * s) / 2;
-    mctx.drawImage(this.ground, ox, oy, this.gw * s, this.gh * s);
-    this.mini = { s, ox, oy };
+    // the part of the world shown: a valley level's own rectangle, stretched to fill the box; otherwise the
+    // whole battlefield, at its own proportions
+    let m;
+    if (state.map.band) {
+      const r = this.bandRect(state.map), sc = Math.min(w / (r.x1 - r.x0), h / (r.y1 - r.y0));
+      m = { x0: r.x0, y0: r.y0, sx: sc, sy: sc, ox: 0, oy: 0 };
+      // the minimap box takes the valley's own proportions (long and low), so there is no empty margin
+      const want = Math.round((r.y1 - r.y0) * (w / (r.x1 - r.x0)));
+      if (this.mmCanvas && Math.abs(this.mmCanvas.height - want) > 1) { this.mmCanvas.height = want; this.mmCanvas.style.height = (this.mmCanvas.clientWidth * want / w) + 'px'; return; }
+      m.sx = m.sy = w / (r.x1 - r.x0);
+    } else {
+      const s = Math.min(w / this.gw, h / this.gh);
+      m = { x0: -this.OX, y0: -this.OY, sx: s, sy: s, ox: (w - this.gw * s) / 2, oy: (h - this.gh * s) / 2 };
+    }
+    this.mini = m;
+    const k = this.ground.width / this.gw; // the ground image's pixels per world unit
+    const vw = w / m.sx, vh = h / m.sy; // the world area that fits the box
+    if (state.map.band) mctx.drawImage(this.ground, (m.x0 + this.OX) * k, (m.y0 + this.OY) * k, vw * k, vh * k, 0, 0, w, h);
+    else mctx.drawImage(this.ground, m.ox, m.oy, this.gw * m.sx, this.gh * m.sy);
+    const P = (x, y) => [m.ox + (x - m.x0) * m.sx, m.oy + (y - m.y0) * m.sy];
     for (const u of state.units) {
       if (!u.visible) continue;
-      const p = iso(u.x, u.y);
+      const p = iso(u.x, u.y), [x, y] = P(p.x, p.y);
       mctx.fillStyle = u.team === PLAYER ? '#e8d27a' : '#ff6a5a';
-      mctx.fillRect(ox + (p.x + this.OX) * s - 1.5, oy + (p.y + this.OY) * s - 1.5, 3, 3);
+      mctx.fillRect(x - 1.5, y - 1.5, 3, 3);
     }
     // viewport
     const tl = this.screenToWorld(0, this.insets.top), br = this.screenToWorld(this.vw, this.vh - this.insets.bottom);
+    const [ax, ay] = P(tl.x, tl.y), [bx, by] = P(br.x, br.y);
     mctx.strokeStyle = 'rgba(255,255,255,0.8)'; mctx.lineWidth = 1;
-    mctx.strokeRect(ox + (tl.x + this.OX) * s, oy + (tl.y + this.OY) * s, (br.x - tl.x) * s, (br.y - tl.y) * s);
+    mctx.strokeRect(ax, ay, bx - ax, by - ay);
   }
   minimapToWorld(mx, my) {
     const m = this.mini;
     if (!m) return null;
-    return { x: (mx - m.ox) / m.s - this.OX, y: (my - m.oy) / m.s - this.OY };
+    return { x: (mx - m.ox) / m.sx + m.x0, y: (my - m.oy) / m.sy + m.y0 };
   }
 }
 
