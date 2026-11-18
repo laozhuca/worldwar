@@ -181,25 +181,39 @@ function buildValley(state) {
   }
   const hashRnd = (x, y) => { const h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return h - Math.floor(h); };
   // a spur: a ridge of rock from (u0, v0) to (u1, v1), ragged, thickness r
-  const spur = (u0, v0, u1, v1, r) => {
+  const spur = (u0, v0, u1, v1, r, knoll = false) => {
     for (const t of map.tiles) {
       if (t.off) continue;
       const [u, v] = uv(t), du = u1 - u0, dv = v1 - v0, L = du * du + dv * dv;
       const k = Math.max(0, Math.min(1, ((u - u0) * du + (v - v0) * dv) / L));
       const d = Math.hypot(u - (u0 + du * k), v - (v0 + dv * k));
-      if (d <= r + (hashRnd(t.x, t.y) - 0.5) * 1.2) rock(t);
+      if (d <= r + (hashRnd(t.x, t.y) - 0.5) * 1.2) { rock(t); if (t.rock && knoll) t.knoll = 1; }
     }
   };
   const SPURS = [
-    [-18, 6, -6, 9, 1.1], [-17, -1, -7, 1, 1.1], [-15, -8, -5, -6, 1], // before the first nest
-    [1, -1, 10, 1, 1.1], [2, 5, 9, 8, 1], [4, -7, 11, -9, 1], // between the first and the second
-    [17, -2, 24, 0, 1.1], [18, 4, 25, 7, 1], [17, -9, 23, -11, 1], [16, 10, 22, 12, 0.9], // between the second and the third
+    // (a sixth value marks a grassy knoll of dwarf pine rather than rock: as impassable)
+    [-18, 6, -6, 9, 1.1, true], [-17, -1, -7, 1, 1.1], [-15, -8, -5, -6, 1], // before the first nest
+    [1, -1, 10, 1, 1.1], [2, 5, 9, 8, 1, true], [4, -7, 11, -9, 1], // between the first and the second
+    [17, -2, 24, 0, 1.1, true], [18, 4, 25, 7, 1], [17, -9, 23, -11, 1], [16, 10, 22, 12, 0.9, true], // between the second and the third
   ];
   for (const sp of SPURS) spur(...sp);
   for (let n = 0; n < 8; n++) { // lone boulders and small clusters in the open
     const u = -18 + rnd() * 48, v = -11 + rnd() * 22;
     if (POINTS.some(([pu, pv]) => Math.abs(u - pu) < 6 && Math.abs(v - pv) < 7)) continue;
-    spur(u, v, u + (rnd() - 0.5) * 2, v + (rnd() - 0.5) * 2, 0.4 + rnd() * 0.5);
+    spur(u, v, u + (rnd() - 0.5) * 2, v + (rnd() - 0.5) * 2, 0.4 + rnd() * 0.5, rnd() < 0.5);
+  }
+  // the valley wall's foot grown over with dwarf pine in places
+  for (const t of map.tiles) {
+    if (!t.rock || t.knoll) continue;
+    const [u, v] = uv(t);
+    if (v > -15 && v < 15 && Math.abs(v) >= 11 && Math.sin(u * 0.23 + (v > 0 ? 2.1 : 0.4)) > 0.45) t.knoll = 1;
+  }
+  // scree: loose stones lying on the open ground (passable, but slow), in patches and at the rocks' feet
+  for (const t of map.tiles) {
+    if (t.off || t.rock || t.trench || t.wire || t.ground === 2) continue;
+    const [u, v] = uv(t), near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const n = tileAt(map, t.x + dx + 0.5, t.y + dy + 0.5); return n && n.rock && !n.knoll; });
+    const f = Math.sin(u * 0.41 + 1.7) * Math.cos(v * 0.53 - 0.6) + 0.5 * Math.sin((u - v) * 0.31);
+    if ((near && rnd() < 0.35) || f > 1.05 || rnd() < 0.025) { t.ground = 3; t.mud = 0; }
   }
   // great crags, three times the size of any in the valley, along the back of its rock wall like the foot of
   // the mountain: on the map's own (impassable) rock, each standing over the rock tiles beneath it

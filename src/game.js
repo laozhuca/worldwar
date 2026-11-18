@@ -472,6 +472,7 @@ function terrainFactor(tile) {
   if (tile.wire > 0) f *= tile.wire > 50 ? WIRE_SLOW : WIRE_SLOW * 2;
   if (tile.crater) f *= 0.85;
   if (tile.mud) f *= 0.88;
+  if (tile.ground === 3) f *= 0.82; // scree: loose stones underfoot
   if (tile.trench) f *= 0.8;
   return f;
 }

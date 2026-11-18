@@ -853,6 +853,101 @@ export function cragScene(variant, size, heavy) {
   return { bounds: [-E, -E, -0.1, E, E, top + 0.05], sdf, shade, supersample: 2 };
 }
 
+// ===================================================================== Alpine knoll
+/**
+ * A steep grassy knoll grown over with dwarf mountain pine (krummholz): a hummock of turf, thick dark-green
+ * pine cushions on it, a grey rock showing through here and there, snow in patches. Impassable in the game,
+ * like rock. size: footprint in tiles (1, 2 or 3).
+ */
+export function knollScene(variant, size, heavy) {
+  const H = (key, k = 0) => hash(variant * 17 + size * 41, k, key);
+  const R = size * 0.5, RS = R * 1.05;
+  const hm = (0.28 + H(1) * 0.12) * size; // the mound's height
+  const cx = (H(2) - 0.5) * 0.2 * size, cy = (H(3) - 0.5) * 0.2 * size;
+  const mound = (x, y, z) => {
+    const r = Math.hypot((x - cx) / (R * (0.82 + H(4) * 0.1)), (y - cy) / (R * (0.74 + H(5) * 0.12)));
+    const top = hm * Math.max(0, 1 - r * r) ** 0.8 + (fbm(x * 3 / size + variant, y * 3 / size, 1, 3) - 0.5) * 0.12 * size * Math.max(0, 1 - r);
+    return (z - top) * 0.6;
+  };
+  // the pine cushions: squat lumpy domes scattered over the mound
+  const pines = [];
+  const np = 8 + size * 9;
+  for (let k = 0; k < np; k++) {
+    const a = H(10, k) * TAU, d = Math.sqrt(H(11, k)) * R * 0.9;
+    const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d * 0.9;
+    const rr = (0.12 + H(12, k) * 0.13) * Math.sqrt(size) * (1 - d / R * 0.35);
+    pines.push({ x, y, r: rr, h: rr * (0.7 + H(13, k) * 0.5) });
+  }
+  const groundAt = (x, y) => -mound(x, y, 0) / 0.6;
+  for (const p of pines) p.z = groundAt(p.x, p.y);
+  const pine = (x, y, z) => {
+    let d = 1;
+    for (const p of pines) {
+      const dz = z - p.z;
+      const e = Math.hypot((x - p.x) / p.r, (y - p.y) / p.r, (dz - p.h * 0.25) / p.h) - 1;
+      d = smin(d, e * Math.min(p.r, p.h) * 0.8, 0.04 * Math.sqrt(size));
+    }
+    return d + (fbm(x * 18, y * 18, z * 18, 3) - 0.5) * 0.05 + (vnoise(x * 60, y * 60, z * 60) - 0.5) * 0.02;
+  };
+  const outcrop = H(20) < 0.7; // a rock breaking through on one flank
+  const oa = H(21) * TAU, ox = cx + Math.cos(oa) * R * 0.45, oy = cy + Math.sin(oa) * R * 0.45, orr = 0.12 * size;
+  const rock = (x, y, z) => outcrop ? sdRoundBox(x - ox, y - oy, z - groundAt(ox, oy) * 0.8, orr, orr * 0.7, orr * 0.9, 0.02) + (fbm(x * 9, y * 9, z * 9, 3) - 0.5) * 0.05 : 1;
+  const sdf = (x, y, z) => Math.min(mound(x, y, z), pine(x, y, z), rock(x, y, z));
+  const GRASS = [0.23, 0.29, 0.18], TURF = [0.26, 0.27, 0.19];
+  const shade = (x, y, z, nx, ny, nz) => {
+    const dm = mound(x, y, z), dp = pine(x, y, z), dr = rock(x, y, z);
+    const isPine = dp <= dm && dp <= dr, isRock = !isPine && dr <= dm;
+    const r = Math.hypot((x - cx) / RS, (y - cy) / RS);
+    if (!isPine && !isRock && (z < -0.004 || Math.max(Math.abs(x), Math.abs(y)) > RS * 1.2)) return { kind: 'none' };
+    if (!isPine && !isRock && r > 1.0) return { kind: 'none' }; // nothing round the foot (no shadow box)
+    const edge = isPine || isRock ? 1 : clamp((1.0 - r) * 6, 0, 1);
+    const n = fbm(x * 9, y * 9, z * 9, 3), n2 = fbm(x * 40, y * 40, z * 40, 2);
+    const patch = fbm(x * 2.4 / Math.sqrt(size) + 5, y * 2.4 / Math.sqrt(size), z * 2.4, 3) - 0.5;
+    const snowy = nz - (heavy ? 0.4 : 0.6) + patch * 1.2 - (isPine ? 0.15 : 0) - (!isPine && !isRock && r > 0.75 ? 1 : 0); // no snow on the skirt
+    if (snowy > 0.2) return { kind: 'solid', col: mix3(C.snow, [0.7, 0.75, 0.84], clamp(0.5 - snowy, 0, 0.45)), spec: 0.12, alpha: edge, aoMin: 0.45 };
+    if (isPine) return { kind: 'solid', col: mix3([0.07, 0.12, 0.08], [0.16, 0.24, 0.13], n * 0.7 + n2 * 0.5), spec: 0.04, aoMin: 0.35, fill: 1.2 };
+    if (isRock) return { kind: 'solid', col: mix3([0.38, 0.37, 0.35], [0.6, 0.57, 0.5], n), spec: 0.06, aoMin: 0.5 };
+    return { kind: 'solid', col: mix3(mix3(GRASS, TURF, clamp(n2 * 1.4 - 0.2, 0, 1)), [0.2, 0.2, 0.13], clamp(0.5 - n, 0, 0.3)), spec: 0.03, alpha: edge, aoMin: 0.5 };
+  };
+  const E = RS * 1.25;
+  return { bounds: [-E, -E, -0.1, E, E, hm + 0.5 * Math.sqrt(size)], sdf, shade, supersample: 2 };
+}
+
+// ===================================================================== scree
+/**
+ * Loose stones and flat slabs lying on the ground: scree fallen from the crags. Passable (it slows men
+ * down). Footprint one tile; low.
+ */
+export function screeScene(variant, heavy) {
+  const stones = [];
+  const n = 12 + Math.floor(hash(variant, 1) * 8);
+  for (let k = 0; k < n; k++) {
+    const a = hash(variant, k, 2) * TAU, d = Math.sqrt(hash(variant, k, 3)) * 0.42;
+    const r = 0.06 + hash(variant, k, 4) ** 2 * 0.14;
+    stones.push({ x: Math.cos(a) * d, y: Math.sin(a) * d, r, h: r * (0.35 + hash(variant, k, 5) * 0.5), rot: hash(variant, k, 6) * TAU, e: 0.6 + hash(variant, k, 7) * 0.6 });
+  }
+  const stone = (x, y, z) => {
+    let d = 1;
+    for (const s of stones) {
+      const c = Math.cos(s.rot), si = Math.sin(s.rot), lx = (x - s.x) * c + (y - s.y) * si, ly = -(x - s.x) * si + (y - s.y) * c;
+      const b = Math.max(Math.abs(lx) - s.r, Math.abs(ly) - s.r * s.e, Math.abs(z - s.h * 0.35) - s.h * 0.65, (Math.abs(lx) + Math.abs(ly)) * 0.72 - s.r);
+      d = Math.min(d, b * 0.8 + (vnoise(x * 50, y * 50, z * 50) - 0.5) * 0.008);
+    }
+    return d;
+  };
+  const sdf = (x, y, z) => Math.min(stone(x, y, z), z * 0.7);
+  const shade = (x, y, z, nx, ny, nz) => {
+    const isStone = stone(x, y, z) < z * 0.7 + 0.002;
+    if (!isStone) return z < -0.004 || Math.hypot(x, y) > 0.5 ? { kind: 'none' } : { kind: 'catcher' };
+    const n = fbm(x * 25, y * 25, z * 25, 3);
+    if (nz > (heavy ? 0.7 : 0.85) && fbm(x * 12 + 3, y * 12, 1, 2) > (heavy ? 0.55 : 0.68)) return { kind: 'solid', col: C.snow, spec: 0.12, aoMin: 0.5 };
+    let col = mix3([0.36, 0.35, 0.33], [0.62, 0.6, 0.55], n);
+    col = mix3(col, [0.33, 0.36, 0.26], clamp(fbm(x * 30 + 7, y * 30, z * 30, 2) * 2 - 1.2, 0, 0.4));
+    return { kind: 'solid', col, spec: 0.06, aoMin: 0.5 };
+  };
+  return { bounds: [-0.62, -0.62, -0.05, 0.62, 0.62, 0.2], sdf, shade, supersample: 2 };
+}
+
 // ===================================================================== MG pillbox
 /**
  * Concrete machine-gun pillbox: an octagonal blockhouse with board-marked walls, a firing slit in every

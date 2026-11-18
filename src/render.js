@@ -815,6 +815,12 @@ export class Renderer {
       const p = iso(t.x + 0.3 + h * 0.4, t.y + 0.3 + t.shade * 0.4);
       this.drawProp(g, `debris${Math.floor(h * 97) % 3}${snow}`, p.x, p.y);
     }
+    // scree: loose stones lying on the open ground
+    for (const t of map.tiles) {
+      if (t.ground !== 3 || t.off || t.trench || !this.inClip(t.x, t.y, 1)) continue;
+      const h = hash(t.x * 4.1, t.y * 2.7), p = iso(t.x + 0.5 + (h - 0.5) * 0.3, t.y + 0.5 + (t.shade - 0.5) * 0.3);
+      this.drawProp(g, `scree${Math.floor(h * 4) % 4}${snow}`, p.x, p.y, h > 0.5);
+    }
     // trench tiles by connectivity, back to front
     const trenches = map.tiles.filter((t) => t.trench && this.inClip(t.x, t.y, 2)).sort((a, b) => a.x + a.y - (b.x + b.y) || a.x - b.x);
     for (const t of trenches) {
@@ -1311,9 +1317,9 @@ export class Renderer {
     const n = map.tiles.reduce((c, t) => c + (t.rock ? 1 : 0), 0);
     if (this._rocks && this._rocks.map === map && this._rocks.n === n) return this._rocks.list;
     const W = map.w, used = new Uint8Array(W * map.h), list = [];
-    const free = (x, y) => x < W && y < map.h && map.tiles[y * W + x].rock && !map.tiles[y * W + x].hidden && !used[y * W + x];
-    const block = (x, y, z) => { for (let j = 0; j < z; j++) for (let i = 0; i < z; i++) if (!free(x + i, y + j)) return false; return true; };
-    const take = (x, y, z) => { for (let j = 0; j < z; j++) for (let i = 0; i < z; i++) used[(y + j) * W + x + i] = 1; list.push({ x, y, size: z, v: Math.floor(hash(x * 1.3, y * 2.1) * 3) }); };
+    const free = (x, y, k) => x < W && y < map.h && map.tiles[y * W + x].rock && !map.tiles[y * W + x].hidden && !used[y * W + x] && (k === undefined || !!map.tiles[y * W + x].knoll === k);
+    const block = (x, y, z) => { const k = !!map.tiles[y * W + x].knoll; for (let j = 0; j < z; j++) for (let i = 0; i < z; i++) if (!free(x + i, y + j, k)) return false; return true; };
+    const take = (x, y, z) => { for (let j = 0; j < z; j++) for (let i = 0; i < z; i++) used[(y + j) * W + x + i] = 1; list.push({ x, y, size: z, v: Math.floor(hash(x * 1.3, y * 2.1) * 3), knoll: !!map.tiles[y * W + x].knoll }); };
     // the big ones first, at scattered places, then the middling ones, then whatever is left
     for (const [z, p] of [[3, 0.9], [2, 0.95]]) for (let y = 0; y < map.h; y++) for (let x = 0; x < W; x++) if (hash(x * 0.7 + z, y * 1.9) < p && block(x, y, z)) take(x, y, z);
     for (let y = 0; y < map.h; y++) for (let x = 0; x < W; x++) if (free(x, y)) take(x, y, 1);
@@ -1325,8 +1331,8 @@ export class Renderer {
   drawRock(ctx, r) {
     const h = hash(r.x * 3.7, r.y * 1.9), c = iso(r.x + r.size / 2 + (h - 0.5) * 0.15, r.y + r.size / 2 + (hash(r.y, r.x) - 0.5) * 0.15);
     const snow = (this.S ?? 1) > 0.7 ? '_s' : '';
-    // jagged crags and rounded boulders mixed, as they fall in the mountains
-    const kind = hash(r.x * 2.9 + 1.7, r.y * 5.3) < 0.42 ? 'round' : 'boulder';
+    // jagged crags and rounded boulders mixed, as they fall in the mountains; or a knoll of dwarf pine
+    const kind = r.knoll ? 'knoll' : hash(r.x * 2.9 + 1.7, r.y * 5.3) < 0.42 ? 'round' : 'boulder';
     if (this.drawFrame(ctx, this.propGroup(), `${kind}${r.size}_${r.v}${snow}`, c.x, c.y, 1.22 + h * 0.2, h > 0.5)) return;
     if (this.drawFrame(ctx, this.propGroup(), `boulder${r.size}_${r.v}${snow}`, c.x, c.y, 1.22 + h * 0.2, h > 0.5)) return;
     if (this.drawFrame(ctx, this.propGroup(), `rock${r.v}${snow}`, c.x, c.y, (1.4 + h * 0.35) * r.size, h > 0.5)) return;
