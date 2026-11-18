@@ -1299,8 +1299,8 @@ export class Renderer {
     const y0 = (map.w - map.band) * TH / 2, y1 = (map.w + map.band) * TH / 2, B = this.baseView;
     g.beginPath();
     if (!map.giants) { g.rect(-1e4, y0, 2e4, y1 - y0); return; }
-    g.moveTo(B.x0 - 200, y1); g.lineTo(B.x0 - 200, y0 - 2 * TH);
-    for (let x = B.x0 - 200; x <= B.x1 + 200; x += 24) g.lineTo(x, y0 - (1.6 + 1.1 * Math.sin(x * 0.011) + 0.8 * hash(x * 0.37, 3.1)) * TH);
+    g.moveTo(B.x0 - 200, y1); g.lineTo(B.x0 - 200, y0 - 5 * TH);
+    for (let x = B.x0 - 200; x <= B.x1 + 200; x += 24) g.lineTo(x, y0 - (4.8 + 1.0 * Math.sin(x * 0.011) + 0.7 * Math.sin(x * 0.027 + 1.3) + 0.6 * hash(x * 0.37, 3.1)) * TH);
     g.lineTo(B.x1 + 200, y1); g.closePath();
   }
 
