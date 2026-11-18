@@ -879,8 +879,9 @@ export class Renderer {
     // a level cut down to a band across the screen (a valley): the camera keeps to it
     const band = state.map.band;
     if (band) {
-      const tall = state.map.giants && state.map.giants.length ? 200 : 30; // room to see the great crags' tops
-      this.view = { ...this.view, y0: (state.map.w - (state.map.bandBack || band)) * TH / 2 - tall, y1: (state.map.w + band) * TH / 2 + 10 };
+      // exactly the map's own rectangle, so nothing beyond it ever shows
+      const hw = (MAP_R + 0.5) * TW / 2 - 2;
+      this.view = { x0: -hw, x1: hw, y0: (state.map.w - (state.map.bandBack || band)) * TH / 2 + 2, y1: (state.map.w + band) * TH / 2 - 2 };
     }
     const z = this.cam.zoom, d = this.dpr;
     const sh = this.atmo.shake;
