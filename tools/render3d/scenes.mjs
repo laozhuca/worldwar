@@ -756,7 +756,7 @@ export function boulderScene(variant, size, heavy) {
  * hollows. size: the footprint in tiles (1, 2, 3, or 9 for the great ridges at the back of a valley).
  * heavy: deep snow.
  */
-export function cragScene(variant, size, heavy) {
+export function cragScene(variant, size, heavy, wooded = false) {
   const R = size * 0.5;
   const H = (key, k = 0) => hash(variant * 13 + size * 37, k, key);
   const giant = size > 3;
@@ -778,7 +778,8 @@ export function cragScene(variant, size, heavy) {
     blocks.push({ x, y, hx, hy, h, rot: H(9, k) * TAU, tilt: (H(10, k) - 0.5) * 0.6, lean: (H(33, k) - 0.5) * 0.5, sx: 0.4 + H(34, k) * 0.9, slope: [(H(35, k) - 0.5) * 0.9, (H(36, k) - 0.5) * 0.9], taper: (giant ? 0.45 : 0.15) + H(11, k) * (giant ? 0.4 : 0.35),
       cuts: Array.from({ length: 5 }, (_, c) => { const th = H(12 + c, k) * TAU, ph = 0.35 + H(18 + c, k) * 1.0; return [Math.cos(th) * Math.sin(ph), Math.sin(th) * Math.sin(ph), Math.cos(ph), 0.55 + H(24 + c, k) * 0.3]; }) });
   }
-  const top = Math.max(...blocks.map((b) => b.h));
+  if (wooded) for (const b of blocks) b.h *= 0.75; // a lower, broken outcrop under the trees
+  let top = Math.max(...blocks.map((b) => b.h));
   const block = (b, x, y, z) => {
     const c = Math.cos(b.rot), s = Math.sin(b.rot);
     let lx = (x - b.x) * c + (y - b.y) * s, ly = -(x - b.x) * s + (y - b.y) * c;
@@ -822,23 +823,69 @@ export function cragScene(variant, size, heavy) {
     const r = Math.hypot(x / RS, y / RS);
     return (z - (0.09 * size * Math.max(0, 1 - r * r) + (fbm(x * 9, y * 9, variant, 3) - 0.5) * 0.04 * Math.max(0, 1.1 - r))) * 0.7;
   };
-  const sdf = (x, y, z) => Math.min(rock(x, y, z), scree(x, y, z), stones(x, y, z));
+  // wooded: spruces and larches growing out of the rock and the turf on its ledges
+  const trees = [];
+  if (wooded) {
+    const surf = (x, y) => { // the height of the rock (or ground) at (x, y)
+      let lo = 0, hi = top + 0.1;
+      if (rockRaw(x, y, 0.001) > 0) return 0;
+      for (let k = 0; k < 18; k++) { const m = (lo + hi) / 2; if (rockRaw(x, y, m) > 0) hi = m; else lo = m; }
+      return lo;
+    };
+    const nt = 3 + size * 4;
+    for (let k = 0; k < nt * 3 && trees.length < nt; k++) {
+      const a = H(40, k) * TAU, d = Math.sqrt(H(41, k)) * R * 0.95, x = Math.cos(a) * d, y = Math.sin(a) * d;
+      if (trees.some((t) => Math.hypot(t.x - x, t.y - y) < 0.16 * Math.sqrt(size))) continue;
+      const larch = H(42, k) < 0.3, ht = (0.32 + H(43, k) * 0.38) * (0.8 + 0.2 * Math.sqrt(size));
+      trees.push({ x, y, z: surf(x, y) - 0.02, ht, rb: ht * (larch ? 0.26 : 0.3), larch, tiers: 4 + Math.floor(H(44, k) * 3), lean: (H(45, k) - 0.5) * 0.12 });
+    }
+    top = Math.max(top, ...trees.map((t) => t.z + t.ht));
+  }
+  const tree = (x, y, z) => {
+    let d = 1;
+    for (const t of trees) {
+      const lz = z - t.z;
+      if (lz < -0.05 || lz > t.ht + 0.05) { d = Math.min(d, Math.abs(lz - t.ht / 2) - t.ht / 2 + 0.01); continue; }
+      const lx = x - t.x - lz * t.lean, ly = y - t.y, r = Math.hypot(lx, ly);
+      let e = Math.hypot(lx, ly) - 0.012 * Math.sqrt(size); // the trunk
+      e = Math.max(e, -lz, lz - t.ht);
+      for (let k = 0; k < t.tiers; k++) { // the tiers of branches, each a drooping cone
+        const z0 = t.ht * (0.12 + 0.8 * k / t.tiers), z1 = Math.min(t.ht, z0 + t.ht * 0.42), rb = t.rb * (1 - k / (t.tiers + 0.6));
+        const c = Math.max((r - rb * (1 - (lz - z0) / (z1 - z0))) * 0.8, z0 - lz, lz - z1);
+        e = Math.min(e, c);
+      }
+      d = Math.min(d, e + (fbm(x * 40, y * 40, z * 40, 2) - 0.5) * 0.025);
+    }
+    return d;
+  };
+  const sdf = (x, y, z) => Math.min(rock(x, y, z), scree(x, y, z), stones(x, y, z), wooded ? tree(x, y, z) : 1);
   const GRASS = [0.23, 0.29, 0.18], TURF = [0.26, 0.27, 0.19], LIME = [0.6, 0.57, 0.5], GREY = [0.38, 0.37, 0.35];
   const shade = (x, y, z, nx, ny, nz) => {
+    if (wooded) {
+      const dw = tree(x, y, z);
+      if (dw < Math.min(rock(x, y, z), scree(x, y, z), stones(x, y, z)) && dw < 0.01) {
+        const t = trees.reduce((a, q) => (Math.hypot(q.x - x, q.y - y) < Math.hypot(a.x - x, a.y - y) ? q : a));
+        const lz = z - t.z, n = fbm(x * 30, y * 30, z * 30, 3);
+        if (Math.hypot(x - t.x, y - t.y) < 0.02 * Math.sqrt(size) && lz < t.ht * 0.2) return { kind: 'solid', col: [0.22, 0.16, 0.11], spec: 0.02 };
+        if (nz > (heavy ? 0.35 : 0.55) && fbm(x * 20 + 3, y * 20, z * 20, 2) > (heavy ? 0.42 : 0.55)) return { kind: 'solid', col: C.snow, spec: 0.1, aoMin: 0.45 };
+        const base = t.larch ? mix3([0.2, 0.24, 0.12], [0.36, 0.38, 0.18], n) : mix3([0.06, 0.11, 0.08], [0.14, 0.2, 0.12], n);
+        return { kind: 'solid', col: base, spec: 0.03, aoMin: 0.4, fill: 1.25 };
+      }
+    }
     const dr = rock(x, y, z), ds = scree(x, y, z), dt = stones(x, y, z);
     const isRock = dr <= ds && dr <= dt + 0.004, isStone = !isRock && dt < ds;
     const r = Math.hypot(x / RS, y / RS);
     if (!isRock && !isStone && (z < -0.004 || Math.max(Math.abs(x), Math.abs(y)) > RS * 1.15)) return { kind: 'none' };
-    if (!isRock && !isStone && r > 0.98) return { kind: 'catcher' };
+    if (!isRock && !isStone && r > 0.98) return wooded ? { kind: 'none' } : { kind: 'catcher' }; // (no square shadow box round the wider wooded sprite)
     const edge = isRock || isStone ? 1 : clamp((0.8 - r) * 2.5, 0, 0.9);
     const n1 = fbm(x * 6, y * 6, z * 6, 4), n2 = fbm(x * 31, y * 31, z * 31, 2), hz = z / top;
     // snow in patches on the gentler upward faces and ledges, more of it higher up and in deep winter
     const patch = fbm(x * 2.6 / Math.sqrt(size) + 3, y * 2.6 / Math.sqrt(size), z * 2.6, 3) - 0.5; // snow lies in broad patches, not specks
-    const snowy = isRock ? nz - (heavy ? 0.55 : 0.72) + hz * 0.2 + patch * 1.1 : patch * 1.4 - (heavy ? 0.05 : 0.3) + (isStone ? -0.2 : 0);
+    const snowy = isRock ? nz - (heavy ? 0.55 : 0.72) - (wooded ? 0.12 : 0) + hz * 0.2 + patch * 1.1 : patch * 1.4 - (heavy ? 0.05 : 0.3) + (isStone ? -0.2 : 0);
     if (snowy > 0.18) return { kind: 'solid', col: mix3(C.snow, [0.7, 0.75, 0.84], clamp(0.5 - snowy, 0, 0.45)), spec: 0.12, alpha: edge, aoMin: 0.5, fill: 1.2 };
     // grass and turf on the ledges low down and over the scree
-    const grassy = (isRock ? nz - 0.6 - hz * 0.55 : 0.45 - (isStone ? 0.7 : 0)) + (n1 - 0.5) * 0.8;
-    if (grassy > 0.05) return { kind: 'solid', col: mix3(mix3(GRASS, TURF, clamp(n2 * 1.4 - 0.2, 0, 1)), [0.2, 0.2, 0.13], clamp(0.3 - grassy, 0, 0.3)), spec: 0.03, alpha: edge };
+    const grassy = (isRock ? nz - (wooded ? 0.28 : 0.6) - hz * (wooded ? 0.15 : 0.55) : 0.45 - (isStone ? 0.7 : 0)) + (n1 - 0.5) * 0.8;
+    if (grassy > 0.05) return { kind: 'solid', col: mix3(mix3(GRASS, TURF, clamp(n2 * 1.4 - 0.2, 0, 1)), [0.2, 0.2, 0.13], clamp(0.3 - grassy, 0, 0.3)), spec: 0.03, alpha: edge, aoMin: wooded ? 0.6 : 0, fill: wooded ? 1.3 : 1 };
     if (!isRock && !isStone) return { kind: 'solid', col: mix3([0.24, 0.22, 0.18], [0.4, 0.38, 0.33], n2), spec: 0.04, alpha: edge };
     // pale limestone, greyer on the vertical faces, dark in the joints and bedding, rain streaks and lichen
     let col = mix3(GREY, LIME, clamp(n1 * 1.2 - 0.1 + nz * 0.25, 0, 1));
@@ -850,7 +897,7 @@ export function cragScene(variant, size, heavy) {
     return { kind: 'solid', col, spec: 0.06, aoMin: 0.5, fill: 1.35 };
   };
   const E = Math.max(RS * 1.18, ...blocks.map((b) => Math.hypot(b.x, b.y) + Math.hypot(b.hx, b.hy) + b.h * Math.abs(b.tilt) + 0.05));
-  return { bounds: [-E, -E, -0.1, E, E, top + 0.05], sdf, shade, supersample: 2 };
+  return { bounds: [-E - (wooded ? 0.15 : 0), -E - (wooded ? 0.15 : 0), -0.1, E + (wooded ? 0.15 : 0), E + (wooded ? 0.15 : 0), top + 0.05], sdf, shade, supersample: 2 };
 }
 
 // ===================================================================== Alpine knoll
