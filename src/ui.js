@@ -147,7 +147,12 @@ export class UI {
 
   centerOnFront() {
     const sv = this.state.map.startView;
-    if (sv) { this.r.centerOn(sv.x, sv.y); return; }
+    if (sv) {
+      // a valley level: its own rectangle as the camera's limits from the very first frame, and a closer
+      // opening view, so the black beyond the map never shows while it loads
+      if (this.state.map.band) { this.r.view = this.r.bandRect(this.state.map); this.r.cam.zoom = Math.max(this.r.cam.zoom, 1); }
+      this.r.centerOn(sv.x, sv.y); return;
+    }
     const f = frontLine(this.state.map, PLAYER);
     const xs = f.filter((x) => x >= 0);
     const x = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : (teamDir(PLAYER) > 0 ? 18 : 45);
