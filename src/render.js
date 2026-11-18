@@ -879,8 +879,8 @@ export class Renderer {
     // a level cut down to a band across the screen (a valley): the camera keeps to it
     const band = state.map.band;
     if (band) {
-      const sky = state.map.sky ? this.skyRect(state.map) : null;
-      this.view = { ...this.view, y0: sky ? sky.y + sky.h * 0.06 : (state.map.w - (state.map.bandBack || band)) * TH / 2 - 30, y1: (state.map.w + band) * TH / 2 + 10 };
+      const tall = state.map.giants && state.map.giants.length ? 200 : 30; // room to see the great crags' tops
+      this.view = { ...this.view, y0: (state.map.w - (state.map.bandBack || band)) * TH / 2 - tall, y1: (state.map.w + band) * TH / 2 + 10 };
     }
     const z = this.cam.zoom, d = this.dpr;
     const sh = this.atmo.shake;
@@ -890,7 +890,6 @@ export class Renderer {
     ctx.fillRect(0, 0, this.vw, this.vh);
     ctx.setTransform(d * z, 0, 0, d * z, d * (this.vw / 2 - this.cam.x * z + shx), d * (this.vh / 2 - this.cam.y * z + shy));
     ctx.imageSmoothingEnabled = true;
-    if (state.map.sky) this.drawSky(ctx, state.map, this.atmo.darkness(state));
     ctx.drawImage(this.ground, -this.OX, -this.OY, this.gw, this.gh);
     this.drawBridges(ctx, state.map, state.units);
 
@@ -1146,7 +1145,7 @@ export class Renderer {
     const { x, y } = ui.hover;
     if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return;
     const ht = state.map.tiles[Math.floor(y) * state.map.w + Math.floor(x)];
-    if (ht && ht.off) return; // no cursor off the battlefield (the sky round a valley)
+    if (ht && ht.off) return; // no cursor off the battlefield
     if (ui.mode && ui.mode.startsWith('build:')) {
       const type = ui.mode.slice(6);
       const c = canBuild(state, PLAYER, type, x, y);
@@ -1295,28 +1294,6 @@ export class Renderer {
   bandPath(g, map) {
     const y0 = (map.w - (map.bandBack || map.band)) * TH / 2, y1 = (map.w + map.band) * TH / 2;
     g.beginPath(); g.rect(-1e4, y0, 2e4, y1 - y0);
-  }
-
-  /**
-   * A panorama behind a level cut down to a band (the Alps round the Isonzo valley), fixed to the world:
-   * as wide as the battlefield, its foot behind the middle of the valley, rising high above it. The camera
-   * may scroll up into it but not past its top (skyRect).
-   */
-  skyRect(map) {
-    const B = this.baseView, w = (B.x1 - B.x0) * 1.02, h = w * (667 / 2000), foot = (map.w - 1) * TH / 2;
-    return { x: (B.x0 + B.x1) / 2 - w / 2, y: foot - h, w, h };
-  }
-  drawSky(ctx, map, dark = 0) {
-    const r = this.skyRect(map);
-    const pic = (src) => { const e = this.backdrops && this.backdrops[src]; if (!e || !e.img) { this.loadBackdrop({ img: src }); return null; } return e.img; };
-    // by day the sunlit picture, by night the moonlit one, cross-fading through dusk and dawn
-    const day = pic(map.sky), night = map.skyNight ? pic(map.skyNight) : null;
-    const k = night ? Math.min(1, Math.max(0, (dark - 0.1) / 0.45)) : 0;
-    if (day && k < 1) ctx.drawImage(day, r.x, r.y, r.w, r.h);
-    if (night && k > 0) { ctx.globalAlpha = k; ctx.drawImage(night, r.x, r.y, r.w, r.h); ctx.globalAlpha = 1; }
-    if (!day && !(night && k > 0)) return;
-    ctx.fillStyle = `rgba(14,16,20,${0.3 * (1 - k)})`; // the sunlit picture into the cold grey light of the battle
-    ctx.fillRect(r.x, r.y, r.w, r.h);
   }
 
   /** A town standing on the battlefield (pre-rendered through the game's camera and light). */

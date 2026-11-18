@@ -213,8 +213,6 @@ function buildValley(state) {
   // a few trees and stumps in the open
   for (const t of map.tiles) if (!t.off && !t.trench && !t.wire && !t.rock && rnd() < 0.03) t.decor = rnd() < 0.5 ? 'stump' : 'tree';
   map.rocks = true;
-  map.sky = 'assets/art/sky-alps.webp'; // the mountains all round, painted behind the valley
-  map.skyNight = 'assets/art/sky-alps-night.webp';
   map.dirty = true;
   map.startView = (() => { const t = at(-16, 0); return { x: t.x + 0.5, y: t.y + 0.5 }; })();
   // ---- our troops: rifle squads and machine guns in the line, batteries behind it
