@@ -6,7 +6,7 @@ import { setWestTeam } from './map.js';
 import { setNextId } from './game.js';
 
 export const SAVE_VERSION = 1;
-const TILE_KEYS = ['mud', 'shade', 'crater', 'trench', 'owner', 'origOwner', 'wire', 'origWire', 'build', 'decor', 'dmg', 'decorHp', 'splinters', 'rock', 'block', 'bridge', 'bridgeHp', 'ground'];
+const TILE_KEYS = ['mud', 'shade', 'crater', 'trench', 'owner', 'origOwner', 'wire', 'origWire', 'build', 'decor', 'dmg', 'decorHp', 'splinters', 'rock', 'block', 'bridge', 'bridgeHp', 'ground', 'hidden'];
 
 /** The battle as a JSON string. */
 export function serialize(state) {
@@ -20,7 +20,7 @@ export function serialize(state) {
   const data = {
     version: SAVE_VERSION,
     savedAt: Date.now(),
-    map: { w: map.w, h: map.h, west: map.west, hq: map.hq, band: map.band, rocks: map.rocks, startView: map.startView, giants: map.giants, sky: map.sky, skyNight: map.skyNight, tiles: map.tiles.map((t) => TILE_KEYS.map((k) => t[k])) },
+    map: { w: map.w, h: map.h, west: map.west, hq: map.hq, band: map.band, bandBack: map.bandBack, rocks: map.rocks, startView: map.startView, giants: map.giants, sky: map.sky, skyNight: map.skyNight, tiles: map.tiles.map((t) => TILE_KEYS.map((k) => t[k])) },
     units,
     rest: { ...state, map: undefined, units: undefined, effects: [], events: [] },
   };
@@ -46,11 +46,11 @@ export function deserialize(json) {
     const t = { x: i % d.map.w, y: Math.floor(i / d.map.w) };
     TILE_KEYS.forEach((k, j) => { t[k] = a[j]; });
     t.off = Math.abs(t.x + 0.5 - MAP_W / 2) + Math.abs(t.y + 0.5 - MAP_H / 2) > R + 0.5;
-    if (d.map.band && Math.abs(t.x + t.y - (d.map.w - 1)) > d.map.band) t.off = true; // a valley level
+    if (d.map.band && (t.x + t.y - (d.map.w - 1) > d.map.band || t.x + t.y - (d.map.w - 1) < -(d.map.bandBack || d.map.band))) t.off = true; // a valley level
     return t;
   });
   const map = { w: d.map.w, h: d.map.h, tiles, dirty: true, hq: d.map.hq, changes: [], west: d.map.west };
-  for (const k of ['band', 'rocks', 'startView', 'giants', 'sky', 'skyNight']) if (d.map[k] != null) map[k] = d.map[k];
+  for (const k of ['band', 'bandBack', 'rocks', 'startView', 'giants', 'sky', 'skyNight']) if (d.map[k] != null) map[k] = d.map[k];
   setWestTeam(map.west);
   const byId = new Map(d.units.map((u) => [u.id, u]));
   for (const u of d.units) {

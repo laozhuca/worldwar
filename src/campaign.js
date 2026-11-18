@@ -97,8 +97,8 @@ function scatterRocks(state, count, seed) {
  */
 const TAU = Math.PI * 2;
 function buildValley(state) {
-  const { map } = state, W = map.w, V0 = W - 1, B = 15;
-  map.band = B;
+  const { map } = state, W = map.w, V0 = W - 1, B = 15, BK = 25; // the valley's half-width; how far its rock wall reaches back
+  map.band = B; map.bandBack = BK;
   let seed = 916;
   const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
   // u: along the valley (screen right), v: across it (screen down); a tile for (u, v)
@@ -111,7 +111,7 @@ function buildValley(state) {
   for (const t of map.tiles) {
     const v = t.x + t.y - V0;
     Object.assign(t, { trench: 0, owner: -1, origOwner: -1, wire: 0, origWire: -1, crater: 0, dmg: 0, build: null, rock: 0, block: 0, decor: null });
-    if (Math.abs(v) > B) t.off = true;
+    if (v > B || v < -BK) t.off = true;
     t.mud = 0; t.ground = 0;
   }
   // the ground: broad patches of churned mud, frost-bitten alpine grass and lying snow, with ragged edges
@@ -201,12 +201,14 @@ function buildValley(state) {
     if (POINTS.some(([pu, pv]) => Math.abs(u - pu) < 6 && Math.abs(v - pv) < 7)) continue;
     spur(u, v, u + (rnd() - 0.5) * 2, v + (rnd() - 0.5) * 2, 0.4 + rnd() * 0.5);
   }
-  // great boulders, three times the size of any in the valley, piled along its back wall like the foot of
-  // the mountain (scenery only: the wall below them is already impassable)
+  // great crags, three times the size of any in the valley, along the back of its rock wall like the foot of
+  // the mountain: on the map's own (impassable) rock, each standing over the rock tiles beneath it
   map.giants = [];
-  for (let u = -34; u <= 38; u += 7 + Math.floor(rnd() * 3)) {
-    const uu = u + Math.round((rnd() - 0.5) * 3), vv = -17 - Math.floor(rnd() * 2); // beyond the valley's edge
-    map.giants.push({ x: Math.round((uu + vv + V0) / 2) + 0.5, y: Math.round((vv - uu + V0) / 2) + 0.5, v: Math.floor(rnd() * 3), m: rnd() < 0.5 });
+  for (let u = -28; u <= 28; u += 7 + Math.floor(rnd() * 3)) {
+    const uu = u + Math.round((rnd() - 0.5) * 3), vv = -20 - Math.floor(rnd() * 2);
+    const g = { x: Math.round((uu + vv + V0) / 2) + 0.5, y: Math.round((vv - uu + V0) / 2) + 0.5, v: Math.floor(rnd() * 3), m: rnd() < 0.5 };
+    map.giants.push(g);
+    for (const t of map.tiles) if (t.rock && Math.abs(t.x + 0.5 - g.x) <= 3 && Math.abs(t.y + 0.5 - g.y) <= 3) t.hidden = 1; // drawn by the great crag
   }
   // a few trees and stumps in the open
   for (const t of map.tiles) if (!t.off && !t.trench && !t.wire && !t.rock && rnd() < 0.03) t.decor = rnd() < 0.5 ? 'stump' : 'tree';

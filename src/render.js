@@ -880,7 +880,7 @@ export class Renderer {
     const band = state.map.band;
     if (band) {
       const sky = state.map.sky ? this.skyRect(state.map) : null;
-      this.view = { ...this.view, y0: sky ? sky.y + sky.h * 0.06 : (state.map.w - band) * TH / 2 - 30, y1: (state.map.w + band) * TH / 2 + 10 };
+      this.view = { ...this.view, y0: sky ? sky.y + sky.h * 0.06 : (state.map.w - (state.map.bandBack || band)) * TH / 2 - 30, y1: (state.map.w + band) * TH / 2 + 10 };
     }
     const z = this.cam.zoom, d = this.dpr;
     const sh = this.atmo.shake;
@@ -1291,17 +1291,10 @@ export class Renderer {
     return this.backdrops[bd.img];
   }
 
-  /**
-   * The outline of a valley level's ground: the band, and behind a wall of great rocks a ragged strip of
-   * ground for them to stand on (so the sky never shows between them).
-   */
+  /** The outline of a valley level's ground: the band, out to the back of its rock wall. */
   bandPath(g, map) {
-    const y0 = (map.w - map.band) * TH / 2, y1 = (map.w + map.band) * TH / 2, B = this.baseView;
-    g.beginPath();
-    if (!map.giants) { g.rect(-1e4, y0, 2e4, y1 - y0); return; }
-    g.moveTo(B.x0 - 200, y1); g.lineTo(B.x0 - 200, y0 - 5 * TH);
-    for (let x = B.x0 - 200; x <= B.x1 + 200; x += 24) g.lineTo(x, y0 - (4.8 + 1.0 * Math.sin(x * 0.011) + 0.7 * Math.sin(x * 0.027 + 1.3) + 0.6 * hash(x * 0.37, 3.1)) * TH);
-    g.lineTo(B.x1 + 200, y1); g.closePath();
+    const y0 = (map.w - (map.bandBack || map.band)) * TH / 2, y1 = (map.w + map.band) * TH / 2;
+    g.beginPath(); g.rect(-1e4, y0, 2e4, y1 - y0);
   }
 
   /**
@@ -1342,7 +1335,7 @@ export class Renderer {
     const n = map.tiles.reduce((c, t) => c + (t.rock ? 1 : 0), 0);
     if (this._rocks && this._rocks.map === map && this._rocks.n === n) return this._rocks.list;
     const W = map.w, used = new Uint8Array(W * map.h), list = [];
-    const free = (x, y) => x < W && y < map.h && map.tiles[y * W + x].rock && !used[y * W + x];
+    const free = (x, y) => x < W && y < map.h && map.tiles[y * W + x].rock && !map.tiles[y * W + x].hidden && !used[y * W + x];
     const block = (x, y, z) => { for (let j = 0; j < z; j++) for (let i = 0; i < z; i++) if (!free(x + i, y + j)) return false; return true; };
     const take = (x, y, z) => { for (let j = 0; j < z; j++) for (let i = 0; i < z; i++) used[(y + j) * W + x + i] = 1; list.push({ x, y, size: z, v: Math.floor(hash(x * 1.3, y * 2.1) * 3) }); };
     // the big ones first, at scattered places, then the middling ones, then whatever is left
