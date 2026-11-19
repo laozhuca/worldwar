@@ -391,6 +391,7 @@ export const LEVELS = [
       for (const b of state.buildingsAll) blockBuilding(state, b);
       delete state.buildingsAll;
       state.map.rocks = true;
+      state.map.extraTop = 120; // a strip of ground beyond the map's top edge, for the bell tower to rise against
       // strong works: our trenches sandbagged
       for (const t of state.map.tiles) if (t.trench && t.owner === PLAYER) t.trench = Math.max(t.trench, 2);
       state.map.dirty = true;

@@ -126,9 +126,9 @@ export class Renderer {
     const E = RR - 0.05;
     this.view = this.baseView = { x0: -E * TW / 2, x1: E * TW / 2, y0: (2 * C - E) * TH / 2, y1: (2 * C + E) * TH / 2 };
     this.OX = (RR * TW) / 2;
-    this.OY = TH * 2 - ((2 * C - RR) * TH) / 2;
+    this.OY = TH * 6 - ((2 * C - RR) * TH) / 2; // (room above the map for a strip of ground beyond its top edge: map.extraTop)
     this.gw = RR * TW;
-    this.gh = RR * TH + TH * 4;
+    this.gh = RR * TH + TH * 8;
     this.ground.width = Math.round(this.gw * GS);
     this.ground.height = Math.round(this.gh * GS);
     this.lastGround = -1e9;
@@ -323,7 +323,7 @@ export class Renderer {
   /** Ground from PNG textures, sculpted and lit by the battlefield relief. */
   drawTexturedBase(g, map, S, cover) {
     const tb = this.clipTiles(map);
-    const fillMap = (ctx) => (tb ? ctx.fillRect(tb.x0 / K, tb.y0 / K, (tb.x1 - tb.x0 + 1) / K, (tb.y1 - tb.y0 + 1) / K) : ctx.fillRect(0, 0, map.w / K, map.h / K));
+    const fillMap = (ctx, wide = false) => (tb ? ctx.fillRect(tb.x0 / K, tb.y0 / K, (tb.x1 - tb.x0 + 1) / K, (tb.y1 - tb.y0 + 1) / K) : wide ? ctx.fillRect(-12 / K, -12 / K, (map.w + 24) / K, (map.h + 24) / K) : ctx.fillRect(0, 0, map.w / K, map.h / K));
     const K = 1 / 96; // texture pixels per tile = 96
     const isoT = (ctx, s) => ctx.setTransform((TW / 2) * s, (TH / 2) * s, (-TW / 2) * s, (TH / 2) * s, this.OX, this.OY);
 
@@ -352,7 +352,7 @@ export class Renderer {
 
     isoT(g, K);
     g.fillStyle = this.pattern(g, 'mud');
-    fillMap(g);
+    fillMap(g, true); // (on beyond the grid too: the strip of ground above the map's top edge)
 
     const L = this.layer || (this.layer = document.createElement('canvas'));
     if (L.width !== this.ground.width || L.height !== this.ground.height) { L.width = this.ground.width; L.height = this.ground.height; }
@@ -532,7 +532,8 @@ export class Renderer {
     g.save();
     const C = map.w / 2, RR = MAP_R + 0.5;
     const c0 = iso(C - RR, C), c1 = iso(C, C - RR), c2 = iso(C + RR, C), c3 = iso(C, C + RR);
-    g.beginPath(); g.moveTo(c0.x, c0.y); g.lineTo(c1.x, c1.y); g.lineTo(c2.x, c2.y); g.lineTo(c3.x, c3.y); g.closePath();
+    const xt = map.extraTop || 0; // a strip of ground beyond the map's top edge (scenery: a town's towers rise against it)
+    g.beginPath(); g.moveTo(c0.x, c0.y - xt); g.lineTo(c1.x, c1.y - xt); g.lineTo(c2.x, c2.y); g.lineTo(c3.x, c3.y); g.closePath();
     g.clip();
     if (map.band) { this.bandPath(g, map); g.clip(); } // the valley only
 
@@ -878,7 +879,8 @@ export class Renderer {
     }
     const bds = [state.backdrop, ...(state.buildings || [])].filter(Boolean); // the town, and buildings standing alone
     const bd = bds[0];
-    this.view = this.baseView; // (a town's towers may rise above the map's edge: the view still keeps to the map)
+    this.view = this.baseView;
+    if (state.map.extraTop) this.view = { ...this.view, y0: this.view.y0 - state.map.extraTop + 2 }; // up over the strip of ground beyond the top edge
     // a level cut down to a band across the screen (a valley): the camera keeps to it
     const band = state.map.band;
     if (band) {
