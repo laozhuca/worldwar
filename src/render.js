@@ -258,7 +258,7 @@ export class Renderer {
    * props). Called again when a battle on a field of another size is drawn.
    */
   setGeometry(R) {
-    this.R = R;
+    this.R = R; this._gustExt = null;
     const RR = R + 0.5, C = (2 * R + 1) / 2;
     // the camera may go right to the battlefield's edge and no further: nothing beyond it ever shows
     const E = RR - 0.05;
@@ -1257,10 +1257,11 @@ export class Renderer {
         // swaying in the wind: each tree bends from its foot in its own rhythm, gusts rolling across the
         // field (a shear of the sprite about its ground anchor, larger for the slender young ones)
         const now = performance.now() / 1000, ph = hash(t.x * 0.7, t.y * 1.3) * TAU;
-        const w = this.atmo ? this.atmo.wind.x : 0.8;
-        const gust = 0.5 + 0.5 * Math.sin(now * 0.45 - t.x * 0.18 - t.y * 0.11);
-        const sway = (0.025 + 0.05 * gust) * (0.6 + 0.4 * Math.abs(w)) * (1.25 - k * 0.35);
-        const shear = Math.sign(w || 1) * sway * 0.5 + sway * Math.sin(now * (1.3 + hash(t.y, t.x) * 0.6) + ph) + 0.012 * Math.sin(now * 5.1 + ph * 2);
+        const E = this.R + 0.5, C2 = 2 * this.R + 1, ext = this._gustExt || (this._gustExt = { q0: -E * TW / 2 - (C2 + E) * TH / 2, q1: E * TW / 2 - (C2 - E) * TH / 2 }); // (screen x - y over the battlefield: lower left .. upper right)
+        const gust = this.atmo ? this.atmo.gustAt(c.x, c.y, ext) : 0; // a gust rolling across, or calm
+        const young = 1.25 - k * 0.35; // slender young trees move more
+        const sway = (0.006 + 0.075 * gust) * young;
+        const shear = gust * 0.05 * young + sway * Math.sin(now * (1.3 + hash(t.y, t.x) * 0.6 + gust * 0.8) + ph) + (0.002 + 0.016 * gust) * Math.sin(now * 5.1 + ph * 2);
         ctx.save(); ctx.translate(c.x, c.y); ctx.transform(1, 0, -shear, 1, 0, 0);
         const ok = this.drawFrame(ctx, this.propGroup(), name + snow, 0, 0, k, hash(t.x, t.y * 2.3) > 0.5);
         ctx.restore();

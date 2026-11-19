@@ -111,6 +111,18 @@ export class Atmosphere {
   }
 
   update(dt, simDt, state, r) {
+    // gusts through the woods (a level with a forest): calm for a while, then a gust of 5-10 s that rolls
+    // across the field as a wave from the lower left to the upper right (the renderer sways the trees by it)
+    if (state.map.forest) {
+      const now = performance.now() / 1000;
+      if (this.nextGust === undefined) this.nextGust = now + 4 + Math.random() * 6;
+      if (now >= this.nextGust) {
+        const dur = 5 + Math.random() * 5;
+        this.gust = { start: now, dur, travel: 3.5 };
+        this.gustStarted = this.gust; // (main.js plays the sound)
+        this.nextGust = now + dur + 3.5 + 10 + Math.random() * 18;
+      }
+    }
     this.shake *= Math.pow(0.0015, dt);
     if (this.shake < 0.05) this.shake = 0;
 
@@ -162,6 +174,22 @@ export class Atmosphere {
       d.x += d.v * simDt * 60 * 0.25;
       if (d.y > r.vh + 20 || d.x > r.vw + 20) Object.assign(d, this.newDrop(r, false));
     }
+  }
+
+  /**
+   * How strongly the gust is blowing at screen-space point (sx, sy) of the world (0 calm .. 1 full): the gust
+   * front sweeps from the lower left to the upper right over its travel time, each tree then swaying for
+   * the gust's length, building up and dying away.
+   */
+  gustAt(sx, sy, ext) {
+    const g = this.gust;
+    if (!g) return 0;
+    const q = ((sx - sy) - ext.q0) / (ext.q1 - ext.q0); // 0 at the lower left .. 1 at the upper right
+    const t = performance.now() / 1000 - g.start - q * g.travel;
+    if (t <= 0 || t >= g.dur) return 0;
+    const up = Math.min(1, t / 1.4), down = Math.min(1, (g.dur - t) / 2.2);
+    const s = Math.min(up, down);
+    return s * s * (3 - 2 * s);
   }
 
   newFlake(r, anywhere) {

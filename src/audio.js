@@ -17,7 +17,7 @@ export class Sound {
   /** Recorded sound effects (assets/sfx), decoded once audio is unlocked. */
   loadSamples() {
     if (this.sampleLoad || !this.ctx) return;
-    const SETS = { artyfire: ['fire'], boom: ['shell-2', 'shell-3', 'shell-4'], rifle: ['rifle-1', 'rifle-2', 'rifle-3', 'rifle-4', 'rifle-5'], mg: ['mg-1', 'mg-2', 'mg-3', 'mg-4'], whistle: ['whistle'], cry: ['battle-cry'], death: ['death-1', 'death-2', 'death-3', 'death-4'], boots: ['boots'], bootsSnow: ['boots-snow'], trumpet: ['trumpet'], incoming: ['whistle-in-1', 'whistle-in-2'], duck: ['duck-1', 'duck-2', 'bird-1', 'bird-2'] }; // a lull: a duck or a bird
+    const SETS = { artyfire: ['fire'], boom: ['shell-2', 'shell-3', 'shell-4'], rifle: ['rifle-1', 'rifle-2', 'rifle-3', 'rifle-4', 'rifle-5'], mg: ['mg-1', 'mg-2', 'mg-3', 'mg-4'], whistle: ['whistle'], cry: ['battle-cry'], death: ['death-1', 'death-2', 'death-3', 'death-4'], boots: ['boots'], bootsSnow: ['boots-snow'], trumpet: ['trumpet'], incoming: ['whistle-in-1', 'whistle-in-2'], duck: ['duck-1', 'duck-2', 'bird-1', 'bird-2'], wind: ['wind-birch'] }; // a lull: a duck or a bird
     this.sampleLoad = Promise.all(Object.entries(SETS).map(([type, names]) => Promise.all(names.map((n) =>
       fetch(`assets/sfx/${n}.mp3`).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a)).catch(() => null)))
       .then((bufs) => { const ok = bufs.filter(Boolean); if (ok.length) this.samples[type] = ok; })));
@@ -33,6 +33,23 @@ export class Sound {
   cheer() {
     for (const [d, v] of [[0, 1], [0.35, 0.8], [0.8, 0.9], [1.4, 0.7], [2.1, 0.6]]) this.playSample('cry', v, d);
     this.playSample('trumpet', 0.7, 0.6);
+  }
+
+  /** A gust through the birch woods: the leaves' rustle swelling up, holding, and dying away (dur s). */
+  windGust(dur, vol = 1) {
+    const buf = this.samples.wind && this.samples.wind[0];
+    if (!this.ctx || !this.enabled || !buf) return;
+    const c = this.ctx, t0 = c.currentTime, src = c.createBufferSource(), g = c.createGain();
+    src.buffer = buf; src.loop = true;
+    src.playbackRate.value = 0.94 + Math.random() * 0.12;
+    const peak = 0.75 * vol, up = Math.min(2, dur * 0.3), down = Math.min(3, dur * 0.4);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(peak, t0 + up);
+    g.gain.setValueAtTime(peak, t0 + dur - down);
+    g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(g); g.connect(this.master);
+    src.start(t0, Math.random() * buf.duration * 0.8);
+    src.stop(t0 + dur + 0.1);
   }
 
   playSample(type, vol, delay = 0) {
