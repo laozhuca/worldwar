@@ -1254,7 +1254,17 @@ export class Renderer {
       const name = t.decor === 'stump' ? `stump${Math.floor(h * 4) % 4}` : t.decor === 'tree' ? `tree${Math.floor(h * 2) % 2}` : t.decor === 'birch' ? `birch${Math.floor(h * 6) % 6}` : `log${Math.floor(h * 3) % 3}`;
       if (t.decor === 'birch') { // birches of every size, from saplings to old trees
         const k = 0.5 + hash(t.y * 1.7, t.x * 0.9) ** 1.5 * 0.95;
-        if (this.drawFrame(ctx, this.propGroup(), name + snow, c.x, c.y, k, hash(t.x, t.y * 2.3) > 0.5)) return;
+        // swaying in the wind: each tree bends from its foot in its own rhythm, gusts rolling across the
+        // field (a shear of the sprite about its ground anchor, larger for the slender young ones)
+        const now = performance.now() / 1000, ph = hash(t.x * 0.7, t.y * 1.3) * TAU;
+        const w = this.atmo ? this.atmo.wind.x : 0.8;
+        const gust = 0.5 + 0.5 * Math.sin(now * 0.45 - t.x * 0.18 - t.y * 0.11);
+        const sway = (0.025 + 0.05 * gust) * (0.6 + 0.4 * Math.abs(w)) * (1.25 - k * 0.35);
+        const shear = Math.sign(w || 1) * sway * 0.5 + sway * Math.sin(now * (1.3 + hash(t.y, t.x) * 0.6) + ph) + 0.012 * Math.sin(now * 5.1 + ph * 2);
+        ctx.save(); ctx.translate(c.x, c.y); ctx.transform(1, 0, -shear, 1, 0, 0);
+        const ok = this.drawFrame(ctx, this.propGroup(), name + snow, 0, 0, k, hash(t.x, t.y * 2.3) > 0.5);
+        ctx.restore();
+        if (ok) return;
       } else if (this.drawProp(ctx, name + snow, c.x, c.y)) return;
     }
     const S = this.S ?? 1;
