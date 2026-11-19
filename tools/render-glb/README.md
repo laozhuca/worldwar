@@ -19,6 +19,8 @@ battle 1 in `src/campaign.js`), whose tiles inside the footprint are then made i
 | `town-dixmude.webp` | Dixmude church quarter | `--yaw 3.1416 --scale 5` |
 | `town-dixmude-dawn.webp` | Ashes of Dawn (burnt-out house) | `--yaw 3.1416 --scale 1.6` |
 | `town-dixmude-home.webp` | Ashes of Home (shelled gabled house) | `--yaw 3.1416 --scale 1.6` |
+| `town-dixmude-dawn-b.webp`, `-dawn-c.webp` | Ashes of Dawn, turned | `--yaw 1.5708` / `--yaw 0`, `--scale 1.6` |
+| `town-dixmude-home-b.webp`, `-home-c.webp` | Ashes of Home, turned | `--yaw -1.5708` / `--yaw 0`, `--scale 1.6` |
 | `town-dixmude-cottage.webp` | Ashes Beyond the Cottage | `--yaw 1.5708 --scale 1.6` |
 | `town-dixmude-station.webp` | Dixmude Station | `--yaw 1.5708 --scale 2.4` |
 

@@ -26,6 +26,55 @@ function frontTiles(state) {
 }
 const frontHeld = (state) => state.campaign.front.filter((i) => state.map.tiles[i].owner === PLAYER).length;
 
+/**
+ * A building standing on the battlefield: its tiles are made impassable, and any trench it stands on is dug
+ * round it instead (each stretch it cut is joined up again by the shortest way round), units standing
+ * there step out to the nearest open ground.
+ */
+function blockBuilding(state, b) {
+  const { map } = state, W = map.w;
+  const inside = (t) => Math.abs(t.x + 0.5 - b.x) <= b.hx && Math.abs(t.y + 0.5 - b.y) <= b.hy;
+  const cut = [];
+  for (const t of map.tiles) {
+    if (t.off || !inside(t)) continue;
+    if (t.trench) cut.push({ t, level: t.trench, owner: t.owner });
+    t.block = 1; t.decor = null; t.crater = 0; t.trench = 0; t.wire = 0;
+  }
+  const at = (x, y) => (x >= 0 && y >= 0 && x < W && y < map.h ? map.tiles[y * W + x] : null);
+  const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  // the trench ends left either side of the building, grouped by which stretch of trench they belong to
+  const ends = [];
+  for (const c of cut) for (const [dx, dy] of N4) { const n = at(c.t.x + dx, c.t.y + dy); if (n && n.trench && !n.block && n.owner === c.owner && !ends.some((e) => e.t === n)) ends.push({ t: n, level: c.level, owner: c.owner }); }
+  // join each stretch to the first by a trench dug round the building (breadth-first: the shortest way)
+  // (every cut end, even when the stretches still meet somewhere else: the line runs on round the building)
+  for (let gi = 1; gi < ends.length; gi++) {
+    const from = [ends[gi]], goal = new Set(ends.slice(0, gi).map((e) => e.t.y * W + e.t.x));
+    const prev = new Map(), q = from.map((e) => e.t);
+    for (const t of q) prev.set(t.y * W + t.x, -1);
+    let hit = -1;
+    for (let k = 0; k < q.length && hit < 0; k++) {
+      const t = q[k];
+      for (const [dx, dy] of N4) {
+        const n = at(t.x + dx, t.y + dy), j = n ? n.y * W + n.x : -1;
+        if (!n || n.off || n.block || n.rock || prev.has(j)) continue;
+        prev.set(j, t.y * W + t.x);
+        if (goal.has(j)) { hit = j; break; }
+        if (Math.abs(n.x + 0.5 - b.x) > b.hx + 2.5 || Math.abs(n.y + 0.5 - b.y) > b.hy + 2.5) continue; // keep close round the building
+        q.push(n);
+      }
+    }
+    for (let j = hit; j >= 0; j = prev.get(j)) { const t = map.tiles[j]; if (!t.trench) { t.trench = from[0].level; t.owner = t.origOwner = from[0].owner; t.wire = 0; t.decor = null; t.mud = 0; } }
+  }
+  // anyone standing where the building now is steps out to the nearest open tile
+  for (const u of state.units) {
+    const t = at(Math.floor(u.x), Math.floor(u.y));
+    if (!t || !t.block) continue;
+    let best = null, bd = Infinity;
+    for (const n of map.tiles) if (!n.off && !n.block && !n.rock) { const d = Math.hypot(n.x + 0.5 - u.x, n.y + 0.5 - u.y) + (n.trench ? 0 : 0.6); if (d < bd) { bd = d; best = n; } }
+    if (best) { u.x = best.x + 0.5; u.y = best.y + 0.5; u.inTrench = !!best.trench; }
+  }
+}
+
 /** A wave of squads coming up from a team's HQ. */
 function reinforce(state, team, n, kind = 'rifle') {
   const q = state.map.hq[team], dir = teamDir(team), out = [];
@@ -321,10 +370,15 @@ export const LEVELS = [
         B('home', 101, 170, -3.3, 5.9, 0.8, 1.45), // a shelled gabled house south of the church
         B('cottage', 123, 156, -0.1, 6.3, 1.4, 0.8), // a cottage, turning towards the front
       ];
-      for (const b of [town, ...state.buildings]) for (const t of state.map.tiles) {
-        if (t.off || Math.abs(t.x + 0.5 - b.x) > b.hx || Math.abs(t.y + 0.5 - b.y) > b.hy) continue;
-        t.block = 1; t.decor = null; t.crater = 0; t.trench = 0; t.wire = 0;
-      }
+      // and ruined houses out among our trench lines (copies of the two shelled houses, each turned another
+      // way): the trenches they stand on are dug round them instead
+      state.buildings.push(
+        B('dawn-b', 152, 188, 3.5, -12.5, 1.45, 1.25),
+        B('home-b', 129, 165, 6.5, -4.5, 1.45, 0.8),
+        B('dawn-c', 154, 171, 7, 7.5, 1.25, 1.45),
+        B('home-c', 136, 133, 3.5, 12.5, 0.8, 1.45),
+      );
+      for (const b of [town, ...state.buildings]) blockBuilding(state, b);
       state.map.rocks = true;
       // strong works: our trenches sandbagged
       for (const t of state.map.tiles) if (t.trench && t.owner === PLAYER) t.trench = Math.max(t.trench, 2);
@@ -340,6 +394,7 @@ export const LEVELS = [
       const q = state.map.hq[PLAYER], d = teamDir(PLAYER);
       spawnUnit(state, 'mg', PLAYER, q.x + 0.5 + d * 2, q.y + 0.5);
       spawnUnit(state, 'mg', PLAYER, q.x + 0.5 + d * 2, q.y + 2.5); // and a second gun covering headquarters
+      noSquares(state.map); // the trenches dug round the buildings keep the usual shape
       state.campaign.front = frontTiles(state);
     },
     events: [
