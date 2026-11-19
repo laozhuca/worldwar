@@ -552,45 +552,72 @@ export const LEVELS = [
     setup(state) {
       const { map } = state, W = map.w, M = Math.floor(map.h / 2), d = teamDir(PLAYER);
       const at = (x, y) => (x >= 0 && y >= 0 && x < W && y < map.h ? map.tiles[y * W + x] : null);
-      // ---- early summer: meadows and wheat fields behind both lines, mud only where the battle has churned it
+      // ---- early summer: the ground left to chance, as farmland under a battle is: patches of mud, meadow,
+      // wheat and rough grass of every shape, the mud and shell holes thickening towards the middle of no
+      // man's land along a wandering band, never with a straight edge
       map.summer = true;
       const f = frontLine(map, PLAYER), ef = frontLine(map, ENEMY);
       let seed = 1606;
       const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
-      const fields = []; // wheat fields: rectangles of the farmland, as the fields are laid out
-      for (let k = 0; k < 40; k++) fields.push({ x: Math.floor(rnd() * W), y: Math.floor(rnd() * map.h), w: 3 + Math.floor(rnd() * 7), h: 3 + Math.floor(rnd() * 8) });
-      const nmlAt = (t) => f[t.y] >= 0 && ef[t.y] >= 0 && (t.x - f[t.y] - 2) * d > 0 && (ef[t.y] - 2 * d - t.x) * d > 0;
+      const G = 16, grid = Array.from({ length: 4 }, () => Array.from({ length: G * G }, rnd)); // value noise
+      const noise = (k, x, y, sc) => {
+        const u = (x * sc) % (G - 1), v = (y * sc) % (G - 1), i0 = Math.floor(u), j0 = Math.floor(v), a = u - i0, b = v - j0, g = grid[k];
+        const sm = (q) => q * q * (3 - 2 * q), A = sm(a), B = sm(b);
+        return (g[j0 * G + i0] * (1 - A) + g[j0 * G + i0 + 1] * A) * (1 - B) + (g[(j0 + 1) * G + i0] * (1 - A) + g[(j0 + 1) * G + i0 + 1] * A) * B;
+      };
+      const mid = (y) => (f[y] >= 0 && ef[y] >= 0 ? (f[y] + ef[y]) / 2 : W / 2) + (noise(3, 0, y, 0.09) - 0.5) * 16; // the middle of the fighting, wandering
       for (const t of map.tiles) {
         if (t.off) continue;
-        const nml = nmlAt(t);
-        if (!nml) { t.mud = rnd() < 0.05 ? 1 : 0; t.crater = 0; }
-        else if (t.mud && rnd() < 0.6) t.mud = 0; // no man's land: torn grass and shell holes more than mud (the guns fired for hours, not weeks)
-        if (t.decor === 'tree') t.decor = nml ? 'stump' : rnd() < 0.6 ? 'birch' : null; // no dead woods of the Western Front here
-        if (t.mud || t.crater || t.trench || t.wire || nml) continue;
-        t.ground = fields.some((q) => t.x >= q.x && t.x < q.x + q.w && t.y >= q.y && t.y < q.y + q.h) ? 4 : rnd() < 0.8 ? 1 : 0;
+        const band = Math.exp(-(((t.x - mid(t.y)) / 11) ** 2)); // 1 in the middle of no man's land, fading out irregularly
+        const churn = band * 0.42 + (noise(0, t.x, t.y, 0.11) - 0.5) * 0.95 + (noise(1, t.x, t.y, 0.29) - 0.5) * 0.45;
+        t.mud = churn > 0.36 || rnd() < 0.03 ? 1 : 0;
+        t.crater = rnd() < Math.max(0, band * 0.12 + churn * 0.1) ? 1 + Math.floor(rnd() * 3) : 0;
+        if (t.decor === 'tree') t.decor = churn > 0.35 ? 'stump' : rnd() < 0.6 ? 'birch' : null; // no dead woods of the Western Front here
+        if (t.mud || t.crater || t.trench || t.wire) { t.ground = 0; continue; }
+        const wheat = noise(2, t.x, t.y, 0.17) + (noise(1, t.x + 40, t.y, 0.5) - 0.5) * 0.25;
+        t.ground = wheat > 0.64 && churn < 0.2 ? 4 : churn < 0.3 && rnd() < 0.9 ? 1 : 0;
       }
-      // ---- saps: narrow zigzag trenches pushed out from our front line towards the enemy wire, at uneven
-      // intervals, some reaching almost to it, some only part way
-      const sapHeads = [];
-      for (let y = M - 34 + Math.floor(rnd() * 3); y <= M + 34; y += 4 + Math.floor(rnd() * 5)) {
-        if (f[y] < 0 || ef[y] < 0) continue;
-        const gap = Math.abs(ef[y] - f[y]), reach = Math.min(gap - 6, Math.round(gap * (0.4 + rnd() * 0.5))); // how far across no man's land
-        let x = f[y], yy = y;
-        for (let n = 0; x !== f[y] + d * reach && n < 200; n++) {
+      const churnAt = (t) => Math.exp(-(((t.x - mid(t.y)) / 11) ** 2));
+      // ---- saps: both sides have pushed saps out into no man's land, long and short, branching, linked
+      // to one another, the two networks winding in among each other (never quite touching)
+      const foeNear = (x, y, team) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const n = at(x + dx, y + dy); if (n && n.trench && n.owner !== team && n.owner >= 0) return true; } return false; };
+      const digSap = (x, y, team) => {
+        const t = at(x, y);
+        if (!t || t.off || foeNear(x, y, team)) return false;
+        if (t.trench) return t.owner === team;
+        if (makesSquare(map, x, y)) return false;
+        t.trench = 1; t.owner = t.origOwner = team; t.wire = 0; t.mud = 0; t.ground = 0; t.crater = 0; t.decor = null;
+        return true;
+      };
+      // grow a sap forward from (x, y): a run of a tile or two, then a jog; it may fork sideways
+      const grow = (team, x, y, len, depth) => {
+        const dir = teamDir(team);
+        for (let n = 0; n < len; n++) {
           const run = 1 + Math.floor(rnd() * 2);
-          for (let k = 0; k < run && x !== f[y] + d * reach; k++) { x += d; const t = at(x, yy); if (t && !t.off && !t.trench && !makesSquare(map, x, yy)) { t.trench = 1; t.owner = t.origOwner = PLAYER; t.wire = 0; t.mud = 0; t.ground = 0; t.crater = 0; t.decor = null; } }
-          if (rnd() < 0.8) { const j = yy - y >= 1 ? -1 : yy - y <= -1 ? 1 : rnd() < 0.5 ? -1 : 1, t = at(x, yy + j); if (t && !t.off && !t.trench && !makesSquare(map, x, yy + j)) { yy += j; t.trench = 1; t.owner = t.origOwner = PLAYER; t.wire = 0; t.mud = 0; t.ground = 0; t.crater = 0; } }
+          for (let k = 0; k < run; k++) { if (!digSap(x + dir, y, team)) return; x += dir; }
+          if (rnd() < 0.55) { const j = rnd() < 0.5 ? -1 : 1; if (digSap(x, y + j, team)) y += j; }
+          if (depth < 2 && rnd() < 0.22) { // a branch: off to one side, then on forward (it often meets the next sap)
+            let bx = x, by = y;
+            const j = rnd() < 0.5 ? -1 : 1, side = 2 + Math.floor(rnd() * 4);
+            for (let k = 0; k < side; k++) { if (!digSap(bx, by + j, team)) break; by += j; if (rnd() < 0.3 && digSap(bx + dir, by, team)) bx += dir; }
+            grow(team, bx, by, 1 + Math.floor(rnd() * 4), depth + 1);
+          }
         }
-        sapHeads.push({ x, y: yy });
+      };
+      const starts = [];
+      for (const team of [PLAYER, ENEMY]) {
+        const fl = team === PLAYER ? f : ef;
+        for (let y = M - 40 + Math.floor(rnd() * 4); y <= M + 40; y += 3 + Math.floor(rnd() * 5)) if (fl[y] >= 0) starts.push({ team, x: fl[y], y, len: rnd() < 0.45 ? 2 + Math.floor(rnd() * 3) : 6 + Math.floor(rnd() * 8) });
       }
+      for (let k = starts.length - 1; k > 0; k--) { const q = Math.floor(rnd() * (k + 1)); [starts[k], starts[q]] = [starts[q], starts[k]]; } // the two sides dug at the same time
+      for (const st of starts) grow(st.team, st.x, st.y, st.len, 0);
       noSquares(map);
       // ---- the armies: riflemen against riflemen; few machine guns, few guns. Laid out along the whole front
       state.units = [];
-      const f2 = frontLine(map, PLAYER), ef2 = frontLine(map, ENEMY);
+      const f2 = f, ef2 = ef; // (the lines as dug, before the saps)
       const trenchNear = (team, x0, y0) => { let best = null, bd = Infinity; for (let y = y0 - 2; y <= y0 + 2; y++) for (let x = x0 - 4; x <= x0 + 4; x++) { const t = at(x, y); if (t && t.trench && t.owner === team && !state.units.some((u) => Math.floor(u.x) === x && Math.floor(u.y) === y)) { const dd = Math.abs(x - x0) + Math.abs(y - y0); if (dd < bd) { bd = dd; best = t; } } } return best; };
       const put = (type, team, t) => { if (!t) return null; const u = spawnUnit(state, type, team, t.x + 0.5, t.y + 0.5); u.inTrench = !!t.trench; return u; };
-      for (const h of sapHeads) put('rifle', PLAYER, at(h.x, h.y)); // the assault squads at the sap heads
-      for (let dy = -30; dy <= 30; dy += 5) if (f2[M + dy] >= 0) put('rifle', PLAYER, trenchNear(PLAYER, f2[M + dy], M + dy)); // the front line
+      for (let dy = -33; dy <= 33; dy += 3) if (f[M + dy] >= 0) put('rifle', PLAYER, trenchNear(PLAYER, f[M + dy], M + dy)); // the front line, ready to go over
       for (const dy of [-18, -6, 6, 18]) if (f2[M + dy] >= 0) put('rifle', PLAYER, trenchNear(PLAYER, f2[M + dy] - d * 7, M + dy)); // support
       if (f2[M] >= 0) put('mg', PLAYER, trenchNear(PLAYER, f2[M - 2], M - 2));
       for (const dy of [-10, 10]) put('artillery', PLAYER, at(f2[M + dy] - d * 9, M + dy));
@@ -602,12 +629,12 @@ export const LEVELS = [
       for (let k = 0; k < 16; k++) {
         const cx = Math.floor(rnd() * W), cy = Math.floor(rnd() * map.h), rr = 1.5 + rnd() * 3.5;
         for (const t of map.tiles) {
-          if (t.off || t.trench || t.wire || t.decor || t.ground === 4 || nmlAt(t)) continue;
+          if (t.off || t.trench || t.wire || t.decor || t.ground === 4 || t.mud || churnAt(t) > 0.3) continue;
           const dd = Math.hypot(t.x - cx, (t.y - cy) * 1.2);
           if (dd < rr && rnd() < 0.55 * (1 - dd / rr) + 0.15) t.decor = 'birch';
         }
       }
-      for (const t of map.tiles) if (!t.off && !t.trench && !t.wire && !t.decor && t.ground !== 4 && !nmlAt(t) && rnd() < 0.012) t.decor = 'birch';
+      for (const t of map.tiles) if (!t.off && !t.trench && !t.wire && !t.decor && t.ground !== 4 && !t.mud && churnAt(t) < 0.3 && rnd() < 0.012) t.decor = 'birch';
       // ---- three headquarters: the centre one and one on each flank, behind the support line
       const hq = map.hq[ENEMY];
       hq.posts = [];
