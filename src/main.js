@@ -289,6 +289,7 @@ function frame(now) {
   ui.update(dt);
   renderer.update(dt, app.paused || held ? 0 : dt * app.speed, s);
   if (renderer.atmo.gustStarted) { sound.windGust(renderer.atmo.gustStarted.dur + renderer.atmo.gustStarted.travel); renderer.atmo.gustStarted = null; } // the wind in the woods
+  if (renderer.atmo.gust) sound.setWindPan(renderer.atmo.gustPan(renderer)); // carried across the screen with the gust front
 
   // sounds, attenuated by distance from the camera centre
   const center = renderer.screenToMap(renderer.vw / 2, renderer.vh / 2);

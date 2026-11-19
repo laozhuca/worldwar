@@ -1262,7 +1262,7 @@ export class Renderer {
         // swaying in the wind: each tree bends from its foot in its own rhythm, gusts rolling across the
         // field (a shear of the sprite about its ground anchor, larger for the slender young ones)
         const now = performance.now() / 1000, ph = hash(t.x * 0.7, t.y * 1.3) * TAU;
-        const E = this.R + 0.5, C2 = 2 * this.R + 1, ext = this._gustExt || (this._gustExt = { q0: -E * TW / 2 - (C2 + E) * TH / 2, q1: E * TW / 2 - (C2 - E) * TH / 2 }); // (screen x - y over the battlefield: lower left .. upper right)
+        const E = this.R + 0.5, C2 = 2 * this.R + 1, ext = this._gustExt || (this._gustExt = { q0: -E * TW / 2 - 0.5 * (C2 + E) * TH / 2, q1: E * TW / 2 - 0.5 * (C2 - E) * TH / 2 }); // (screen x - y/2 over the battlefield: left .. right)
         const gust = this.atmo ? this.atmo.gustAt(c.x, c.y, ext) : 0; // a gust rolling across, or calm
         const young = 1.25 - k * 0.35; // slender young trees move more
         const sway = (0.005 + 0.05 * gust) * young;

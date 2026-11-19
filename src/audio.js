@@ -47,10 +47,16 @@ export class Sound {
     g.gain.linearRampToValueAtTime(peak, t0 + up);
     g.gain.setValueAtTime(peak, t0 + dur - down);
     g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
-    src.connect(g); g.connect(this.master);
+    // panned to follow the gust front across the screen (main.js moves it each frame): left to right
+    const pan = c.createStereoPanner ? c.createStereoPanner() : null;
+    if (pan) { pan.pan.value = -0.9; src.connect(g); g.connect(pan); pan.connect(this.master); } else { src.connect(g); g.connect(this.master); }
     src.start(t0, Math.random() * buf.duration * 0.8);
     src.stop(t0 + dur + 0.1);
+    this.windPan = pan;
+    src.onended = () => { if (this.windPan === pan) this.windPan = null; };
   }
+  /** Where the gust is heard: -1 left .. 1 right. */
+  setWindPan(p) { if (this.windPan) this.windPan.pan.setTargetAtTime(Math.max(-1, Math.min(1, p)), this.ctx.currentTime, 0.15); }
 
   playSample(type, vol, delay = 0) {
     const bufs = this.samples[type];

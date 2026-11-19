@@ -118,9 +118,9 @@ export class Atmosphere {
       if (this.nextGust === undefined) this.nextGust = now + 4 + Math.random() * 6;
       if (now >= this.nextGust) {
         const dur = 5 + Math.random() * 5;
-        this.gust = { start: now, dur, travel: 3.5 };
+        this.gust = { start: now, dur, travel: 12 }; // (the front crosses the whole field in 12 s: a screen's width in about four)
         this.gustStarted = this.gust; // (main.js plays the sound)
-        this.nextGust = now + dur + 3.5 + 10 + Math.random() * 18;
+        this.nextGust = now + dur + 12 + 8 + Math.random() * 16;
       }
     }
     this.shake *= Math.pow(0.0015, dt);
@@ -184,12 +184,27 @@ export class Atmosphere {
   gustAt(sx, sy, ext) {
     const g = this.gust;
     if (!g) return 0;
-    const q = ((sx - sy) - ext.q0) / (ext.q1 - ext.q0); // 0 at the lower left .. 1 at the upper right
+    const q = ((sx - 0.5 * sy) - ext.q0) / (ext.q1 - ext.q0); // 0 at the left .. 1 at the right (a little from the lower left)
     const t = performance.now() / 1000 - g.start - q * g.travel;
     if (t <= 0 || t >= g.dur) return 0;
-    const up = Math.min(1, t / 1.4), down = Math.min(1, (g.dur - t) / 2.2);
+    const up = Math.min(1, t / 0.9), down = Math.min(1, (g.dur - t) / 2.2); // (a sharp front: the trees it reaches bend over within a second)
     const s = Math.min(up, down);
     return s * s * (3 - 2 * s);
+  }
+
+  /**
+   * Where on screen the gust is heard (-1 left .. 1 right): the front, as it crosses the view, carries the
+   * sound with it; once it has passed the wind is heard from all round, a little to the right.
+   */
+  gustPan(r) {
+    const g = this.gust, ext = r._gustExt;
+    if (!g || !ext) return 0;
+    const q = (sx, sy) => ((sx - 0.5 * sy) - ext.q0) / (ext.q1 - ext.q0);
+    const a = r.screenToWorld(0, r.vh / 2), b = r.screenToWorld(r.vw, r.vh / 2);
+    const qa = q(a.x, a.y), qb = q(b.x, b.y);
+    const front = (performance.now() / 1000 - g.start) / g.travel; // the front's place (0 left edge of the field .. 1 right)
+    const p = ((front - qa) / (qb - qa)) * 2 - 1; // -1 at the view's left edge .. 1 at its right
+    return p < -1 ? -0.9 : p > 1 ? 0.9 - Math.min(1, (p - 1) / 1.5) * 0.65 : p * 0.9; // (easing back towards the middle once it has passed)
   }
 
   newFlake(r, anywhere) {
