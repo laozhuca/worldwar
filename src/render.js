@@ -345,7 +345,7 @@ export class Renderer {
     // relief: full build once per map/season, then only around changed tiles
     const ch = map.changes || [];
     if (!this.relief || this.reliefMap !== map || this.reliefS !== S || ch.length > 80) {
-      this.relief = new Relief(map, 16); this.reliefMap = map; this.reliefS = S;
+      this.relief = new Relief(map, map.w > 80 ? 11 : 16); this.reliefMap = map; this.reliefS = S; // (a coarser relief on a large battlefield: it builds in half the time)
       this.relief.update(map, { S, snowTile: cover });
     } else if (ch.length) {
       let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
@@ -397,19 +397,20 @@ export class Renderer {
     for (const t of map.tiles) grassA[t.y * map.w + t.x] = !t.mud && !t.crater ? 1 : 0;
     const gm = this.buildMask(map, grassA, 1, 0.8, tb); gm.__data = this._maskImg;
     layer('grass', gm, 8);
-    layer('earth', this.rcv.earth.cv, 16);
-    if (S > 0) layer('snow', this.rcv.snow.cv, 16);
-    layer(S > 0.3 ? 'ice' : 'water', this.rcv.water.cv, 16);
+    const RR = rf.R;
+    layer('earth', this.rcv.earth.cv, RR);
+    if (S > 0) layer('snow', this.rcv.snow.cv, RR);
+    layer(S > 0.3 ? 'ice' : 'water', this.rcv.water.cv, RR);
 
     // sculpt everything with the relief light: soft-light for form, a gentler overlay for contrast
     g.save();
-    isoT(g, 1 / 16);
+    isoT(g, 1 / RR);
     g.imageSmoothingEnabled = true;
     g.globalCompositeOperation = 'soft-light';
-    this.drawTileImage(g, this.rcv.shade.cv, 16, tb, this.rcv.shade.img);
+    this.drawTileImage(g, this.rcv.shade.cv, RR, tb, this.rcv.shade.img);
     g.globalAlpha = 0.18;
     g.globalCompositeOperation = 'overlay';
-    this.drawTileImage(g, this.rcv.shade.cv, 16, tb, this.rcv.shade.img);
+    this.drawTileImage(g, this.rcv.shade.cv, RR, tb, this.rcv.shade.img);
     g.restore();
 
     // broad light/dark variation so the textures never visibly repeat

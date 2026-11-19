@@ -276,6 +276,7 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   const s = app.state;
+  if (loading) { last = now; requestAnimationFrame(frame); return; } // nothing is drawn while the loading screen is up
   const held = (tutorial && tutorial.holding()) || !!opening; // the tutorial's battle waits for the player's order; a level's opening scene holds it too
   if (!app.paused && !held) {
     acc += dt * app.speed;
@@ -559,7 +560,17 @@ const TIPS = [
  * voices. Each item has a time limit, so one slow download never keeps the player waiting forever
  * (the game then uses its fallbacks until it arrives).
  */
+/** Raise the loading screen and let it be painted; the battlefield is not drawn until loadBattle allows it. */
+let loading = false;
+async function showLoading() {
+  loading = true;
+  showPanel('loading-panel');
+  document.getElementById('load-fill').style.width = '0%';
+  document.getElementById('load-item').textContent = 'Preparing the battlefield…';
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 0))));
+}
 async function loadBattle(state) {
+  loading = true;
   showPanel('loading-panel');
   document.getElementById('load-tip').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
   sound.init();
@@ -588,6 +599,7 @@ async function loadBattle(state) {
   // let the battlefield ground be built behind the loading screen before the curtain goes up
   item.textContent = 'Preparing the battlefield…';
   renderer.groundDrawn = false;
+  loading = false; // (now the ground is built, behind the loading screen)
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 60))));
   step('Ready');
   await new Promise((r) => setTimeout(r, 250));
@@ -737,6 +749,8 @@ async function startLevel(id) {
   hideScene(); sceneShown = null;
   if (app.started && app.state.winner < 0 && !app.state.tutorial && !app.state.campaign) saveGame('auto');
   endTutorial();
+  // the loading screen goes up at once, before anything heavy is done (a large battlefield takes a moment)
+  await showLoading();
   const state = createLevelGame(id);
   app.state = state;
   app.season = state.season;
