@@ -127,8 +127,10 @@ export function frontLine(map, team) {
 /**
  * advance: { [team]: tiles } moves a team's whole trench system (front, support, reserve, HQ) that far
  * forward towards the enemy, leaving more ground behind its headquarters (a campaign level's town).
+ * works: 'light' digs lighter trench systems (a battle early in the war): the front line, a support line
+ * behind the middle of it and two communication trenches, no reserve line.
  */
-export function createMap(seed = 1916, westTeam = PLAYER, advance = {}) {
+export function createMap(seed = 1916, westTeam = PLAYER, advance = {}, works = 'full') {
   WEST_TEAM = westTeam;
   const WT = westTeam, ET = 1 - westTeam;
   const ADV = (team) => advance[team] || 0;
@@ -210,6 +212,14 @@ export function createMap(seed = 1916, westTeam = PLAYER, advance = {}) {
     const heavy = team === ENEMY, lvl = heavy ? 2 : 1;
     const F = WEST_FRONT + ADV(team), SUPPORT = F - 7, RESERVE = F - 11, HQ = F - 14;
     line(X(F), team, lvl, -sgn);
+    if (works === 'light') {
+      line(X(SUPPORT), team, lvl, -sgn, midY - 13, midY + 13);
+      for (const dy of heavy ? [-8, 9] : [-9, 8]) comm(X(SUPPORT), X(F - 1), midY + dy, team, 1);
+      map.hq[team] = { x: X(HQ), y: midY };
+      comm(X(HQ), X(SUPPORT), midY, team, 2);
+      dig(X(HQ), midY, team, 3);
+      return { X, heavy };
+    }
     line(X(SUPPORT), team, lvl, -sgn);
     line(X(RESERVE), team, 2, 0);
     // communication trenches: from the reserve line in the middle, from the support line on the flanks

@@ -34,11 +34,15 @@ const frontHeld = (state) => state.campaign.front.filter((i) => state.map.tiles[
 function blockBuilding(state, b) {
   const { map } = state, W = map.w;
   const inside = (t) => Math.abs(t.x + 0.5 - b.x) <= b.hx && Math.abs(t.y + 0.5 - b.y) <= b.hy;
+  // a clear tile all round every building: no trench right against a wall
+  const near = (t) => (state.buildingsAll || [b]).some((q) => Math.abs(t.x + 0.5 - q.x) <= q.hx + 1 && Math.abs(t.y + 0.5 - q.y) <= q.hy + 1);
+  const nearThis = (t) => Math.abs(t.x + 0.5 - b.x) <= b.hx + 1 && Math.abs(t.y + 0.5 - b.y) <= b.hy + 1;
+  const hqs = new Set(map.hq.map((q) => q.y * W + q.x));
   const cut = [];
   for (const t of map.tiles) {
-    if (t.off || !inside(t)) continue;
-    if (t.trench) cut.push({ t, level: t.trench, owner: t.owner });
-    t.block = 1; t.decor = null; t.crater = 0; t.trench = 0; t.wire = 0;
+    if (t.off || !nearThis(t)) continue;
+    if (t.trench && !hqs.has(t.y * W + t.x)) { cut.push({ t, level: t.trench, owner: t.owner }); t.trench = 0; t.owner = t.origOwner = -1; }
+    if (inside(t)) { t.block = 1; t.decor = null; t.crater = 0; t.wire = 0; }
   }
   const at = (x, y) => (x >= 0 && y >= 0 && x < W && y < map.h ? map.tiles[y * W + x] : null);
   const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -56,7 +60,7 @@ function blockBuilding(state, b) {
       const t = q[k];
       for (const [dx, dy] of N4) {
         const n = at(t.x + dx, t.y + dy), j = n ? n.y * W + n.x : -1;
-        if (!n || n.off || n.block || n.rock || prev.has(j)) continue;
+        if (!n || n.off || n.block || n.rock || prev.has(j) || (near(n) && !goal.has(j))) continue;
         prev.set(j, t.y * W + t.x);
         if (goal.has(j)) { hit = j; break; }
         if (Math.abs(n.x + 0.5 - b.x) > b.hx + 2.5 || Math.abs(n.y + 0.5 - b.y) > b.hy + 2.5) continue; // keep close round the building
@@ -68,9 +72,9 @@ function blockBuilding(state, b) {
   // anyone standing where the building now is steps out to the nearest open tile
   for (const u of state.units) {
     const t = at(Math.floor(u.x), Math.floor(u.y));
-    if (!t || !t.block) continue;
+    if (!t || !(t.block || (u.inTrench && !t.trench))) continue; // in the building, or in a trench filled in
     let best = null, bd = Infinity;
-    for (const n of map.tiles) if (!n.off && !n.block && !n.rock) { const d = Math.hypot(n.x + 0.5 - u.x, n.y + 0.5 - u.y) + (n.trench ? 0 : 0.6); if (d < bd) { bd = d; best = n; } }
+    for (const n of map.tiles) if (!n.off && !n.block && !n.rock && (n.trench || !u.inTrench)) { const d = Math.hypot(n.x + 0.5 - u.x, n.y + 0.5 - u.y) + (n.trench ? 0 : 0.6); if (d < bd) { bd = d; best = n; } }
     if (best) { u.x = best.x + 0.5; u.y = best.y + 0.5; u.inTrench = !!best.trench; }
   }
 }
@@ -346,6 +350,7 @@ export const LEVELS = [
       if (ai) ai.offensive = Math.min(ai.offensive, 20);
       pushMessage(state, 'The first shell strikes. The German attack begins.', 'warn');
     },
+    works: 'light', // 1914: the first, hastily dug lines, a front line and a support line
     advance: { [PLAYER]: 6 }, // our lines stand forward of the town, leaving room for it behind the HQ
     history: 'October 1914. The German army is driving for the Channel ports along the river Yser, and only a thin line stands in its way. At Dixmude, Admiral Ronarc\'h and his brigade of French naval infantry, the Fusiliers Marins, sailors who have never fought on land, are ordered to hold the town and its bridgehead for at least four days, until reinforcements can come up. Dig in, and hold.',
     objectives: ['Hold until the relief arrives at dawn on day 4.', 'Do not let the enemy take your headquarters.', 'Do not lose more than half of your front line.'],
@@ -377,8 +382,14 @@ export const LEVELS = [
         B('home-b', 129, 165, 6.2, -2.7, 1.45, 0.8), // alone, a little ahead of headquarters
         B('dawn-c', 154, 171, 9.4, 4.6, 1.25, 1.45), // well forward, between the middle and the front lines
         B('home-c', 136, 133, 3.1, 10.9, 0.8, 1.45), // off the town's southern corner
+        // and behind the church, towards the rear
+        B('home', 101, 170, -10.5, 0.5, 0.8, 1.45),
+        B('dawn-b', 152, 188, -8.5, 3.0, 1.45, 1.25),
+        B('home-b', 129, 165, -8.4, -2.6, 1.45, 0.8),
       );
-      for (const b of [town, ...state.buildings]) blockBuilding(state, b);
+      state.buildingsAll = [town, ...state.buildings];
+      for (const b of state.buildingsAll) blockBuilding(state, b);
+      delete state.buildingsAll;
       state.map.rocks = true;
       // strong works: our trenches sandbagged
       for (const t of state.map.tiles) if (t.trench && t.owner === PLAYER) t.trench = Math.max(t.trench, 2);
@@ -759,7 +770,7 @@ export const PROLOGUE = {
 /** A new battle for a campaign level. */
 export function createLevelGame(id, opts = {}) {
   const L = levelById(id);
-  const state = createGame({ seed: opts.seed ?? 1915 + L.n, season: L.season, nations: L.nations, start: L.start, difficulty: 'hard', aiTeams: opts.aiTeams, advance: L.advance });
+  const state = createGame({ seed: opts.seed ?? 1915 + L.n, season: L.season, nations: L.nations, start: L.start, difficulty: 'hard', aiTeams: opts.aiTeams, advance: L.advance, works: L.works });
   state.startHour = L.startHour;
   state.campaign = { id, fired: [], result: null, reason: '' };
   L.setup(state);

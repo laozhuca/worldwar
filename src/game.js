@@ -17,8 +17,8 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export { teamDir };
 
 export function createGame(opts = {}) {
-  const { seed = 1916, aiTeams = [ENEMY], season = 'winter', nations = ['uk', 'germany'], start = 'west', difficulty = 'medium', advance = {} } = opts;
-  const map = createMap(seed, start === 'east' ? ENEMY : PLAYER, advance);
+  const { seed = 1916, aiTeams = [ENEMY], season = 'winter', nations = ['uk', 'germany'], start = 'west', difficulty = 'medium', advance = {}, works = 'full' } = opts;
+  const map = createMap(seed, start === 'east' ? ENEMY : PLAYER, advance, works);
   const state = {
     season,
     start,
