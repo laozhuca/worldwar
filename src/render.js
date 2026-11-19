@@ -1266,9 +1266,10 @@ export class Renderer {
         const gust = this.atmo ? this.atmo.gustAt(c.x, c.y, ext) : 0; // a gust rolling across, or calm
         const young = 1.25 - k * 0.35; // slender young trees move more
         const sway = (0.005 + 0.05 * gust) * young;
+        const lean = gust * (0.06 + 0.075 * (k - 0.5)); // in a gust the tree bends over with it: the big ones most (their crowns catch the wind)
         // a slow, gentle sway (about one swing every five seconds), the same pace in a gust, only wider; the
         // tree leans over with the gust and the leaves stir a little
-        const shear = gust * 0.045 * young + sway * Math.sin(now * (1.1 + hash(t.y, t.x) * 0.35) + ph) + 0.004 * gust * Math.sin(now * 2.3 + ph * 2);
+        const shear = lean + sway * Math.sin(now * (1.1 + hash(t.y, t.x) * 0.35) + ph) + 0.004 * gust * Math.sin(now * 2.3 + ph * 2);
         ctx.save(); ctx.translate(c.x, c.y); ctx.transform(1, 0, -shear, 1, 0, 0);
         const ok = this.drawFrame(ctx, this.propGroup(), name + snow, 0, 0, k, hash(t.x, t.y * 2.3) > 0.5);
         ctx.restore();
