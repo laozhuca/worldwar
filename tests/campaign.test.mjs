@@ -88,19 +88,26 @@ test('The Nests of San Michele: three concrete nests, rationed barrages, win on 
   createGame();
 });
 
-test('Brusilov\'s Storm: a thin line, reserves on day 1 and 2, win by taking the HQ, lose after 3 days', () => {
+test('Brusilov\'s Storm: riflemen against riflemen, saps, reserves on day 1 and 2, win by taking all three HQs, lose after 3 days', () => {
   const s = createLevelGame('brusilov');
   const foes = () => s.units.filter((u) => !u.dead && u.team === ENEMY && u.type !== 'artillery').length;
   const mine = s.units.filter((u) => u.team === PLAYER).length;
   const start = foes();
   assert.ok(mine > 20, 'a big army');
+  const count = (team, type) => s.units.filter((u) => u.team === team && u.type === type).length;
+  assert.ok(count(PLAYER, 'rifle') >= 20 && count(ENEMY, 'rifle') >= 12, 'riflemen on both sides');
+  assert.ok(count(PLAYER, 'mg') <= 1 && count(ENEMY, 'mg') <= 1 && count(PLAYER, 'artillery') <= 2 && count(ENEMY, 'artillery') <= 1, 'few machine guns and guns');
   s.time = ((20 - 4) / 24) * 420 + 0.1; stepCampaign(s);
   assert.equal(foes(), start + 5, 'first reserves');
   s.time = ((44 - 4) / 24) * 420 + 0.1; stepCampaign(s);
   assert.equal(foes(), start + 11, 'second reserves');
   assert.equal(s.campaign.result, null);
   const hq = s.map.hq[ENEMY];
+  assert.equal(hq.posts.length, 2, 'three headquarters');
   s.map.tiles[hq.y * s.map.w + hq.x].owner = PLAYER;
+  update(s, 1 / 30); stepCampaign(s);
+  assert.equal(s.campaign.result, null, 'one headquarters taken is not enough');
+  for (const p of hq.posts) s.map.tiles[p.y * s.map.w + p.x].owner = PLAYER;
   update(s, 1 / 30); stepCampaign(s);
   assert.equal(s.campaign.result, 'won');
   assert.equal(s.campaign.reason, 'The enemy headquarters has fallen.');

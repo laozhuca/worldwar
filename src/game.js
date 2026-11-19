@@ -982,9 +982,11 @@ function checkVictory(state) {
   for (const team of [PLAYER, ENEMY]) {
     const hq = map.hq[1 - team];
     if (hq.hidden) continue; // (a level without one: nothing to take)
-    if (tileAt(map, hq.x, hq.y).owner === team) {
+    // a side may hold several command posts (hq.posts): all of them must be taken
+    const posts = [hq, ...(hq.posts || [])];
+    if (posts.every((q) => tileAt(map, q.x, q.y).owner === team)) {
       state.winner = team;
-      pushMessage(state, team === PLAYER ? 'The enemy headquarters has fallen. Victory!' : 'Our headquarters has been overrun.', team === PLAYER ? 'good' : 'loss');
+      pushMessage(state, team === PLAYER ? (posts.length > 1 ? 'The last enemy headquarters has fallen. Victory!' : 'The enemy headquarters has fallen. Victory!') : 'Our headquarters has been overrun.', team === PLAYER ? 'good' : 'loss');
       return;
     }
   }

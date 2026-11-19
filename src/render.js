@@ -409,6 +409,7 @@ export class Renderer {
       if (t.ground === 1) { const gr = 1 - cover[t.y * map.w + t.x]; img.data[i] = v * (1 - 0.14 * gr); img.data[i + 2] = v * (1 - 0.24 * gr); } // grass: olive-green
     }
     fc.putImageData(img, 0, 0);
+    if (map.summer) this.drawSummer(g, map, tb, cover);
     g.save();
     g.globalCompositeOperation = 'multiply';
     isoT(g, 1);
@@ -416,6 +417,38 @@ export class Renderer {
     this.drawTileImage(g, field, 1, tb);
     g.restore();
     g.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  /**
+   * Early summer (a level with map.summer): the meadows green and the wheat gold behind the lines, the
+   * churned mud and shell holes of the battle zone left as they are. A per-tile colour field, smoothed,
+   * laid over the textured ground: first lightening it, then giving it its hue.
+   */
+  drawSummer(g, map, tb, cover) {
+    const W = map.w, H = map.h;
+    const cv = this._summer || (this._summer = document.createElement('canvas'));
+    cv.width = W; cv.height = H;
+    const c = cv.getContext('2d'), img = c.createImageData(W, H), d = img.data;
+    for (const t of map.tiles) {
+      const i = (t.y * W + t.x) * 4;
+      const torn = t.mud || t.crater || t.trench ? 1 : 0; // churned earth keeps its own colour
+      const v = hash(t.x * 0.61, t.y * 0.37) * 0.25;
+      let col = [0, 0, 0], a = 0;
+      if (t.ground === 4) { col = [196 + v * 60, 160 + v * 50, 70]; a = 0.85; } // ripening wheat
+      else if (t.ground === 1) { col = [104 + v * 50, 122 + v * 40, 66]; a = 0.62; } // meadow, sun-dried in places
+      else { col = [110, 112, 70]; a = 0.35; } // rough grass
+      d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = Math.round(255 * a * (1 - torn * 0.85));
+    }
+    c.putImageData(img, 0, 0);
+    const TWh = TW / 2, THh = TH / 2;
+    g.save();
+    g.setTransform(TWh, THh, -TWh, THh, this.OX, this.OY);
+    g.imageSmoothingEnabled = true;
+    if (tb) { g.beginPath(); g.rect(tb.x0, tb.y0, tb.x1 - tb.x0 + 1, tb.y1 - tb.y0 + 1); g.clip(); }
+    g.globalCompositeOperation = 'soft-light'; g.globalAlpha = 0.9; g.drawImage(cv, 0, 0); // lighten
+    g.globalCompositeOperation = 'color'; g.globalAlpha = 0.42; g.drawImage(cv, 0, 0); // and colour
+    g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.35; g.drawImage(cv, 0, 0);
+    g.restore();
   }
 
   groundNoise() {
@@ -913,6 +946,7 @@ export class Renderer {
     for (const team of [PLAYER, ENEMY]) {
       const q = state.map.hq[team];
       if (!q.hidden) objs.push({ k: q.x + q.y + 1, kind: 'hq', q, team });
+      if (q.posts) for (const p of q.posts) objs.push({ k: p.x + p.y + 1, kind: 'hq', q: p, team });
     }
     // concrete MG bunkers: always drawn (their places are known); the gun and crew inside are not
     if (state.bunkers) for (const b of state.bunkers) objs.push({ k: b.x + b.y + 0.3, kind: 'bunker', b, u: state.units.find((u) => u.id === b.id) });

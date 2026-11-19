@@ -538,56 +538,100 @@ export const LEVELS = [
   },
   {
     id: 'brusilov', n: 3, title: 'Brusilov\'s Storm', place: 'Galicia', date: 'June 1916',
-    nations: ['russia', 'austria'], season: 'mud', start: 'west', startHour: 4,
-    history: 'June 1916. General Brusilov has broken every rule of the Western Front. There is no single great blow aimed at one point: his armies attack together along hundreds of miles, after a short, sharp bombardment, from saps dug right up to the enemy wire. Opposite you the Austro-Hungarian line is thinly held, its best divisions sent away to Italy. It will not stay that way: reserves are already on the railway. Strike fast and wide, and take their headquarters before the line can be shored up.',
-    objectives: ['Take the enemy headquarters.', 'Do it within three days: by midnight on day 3.', 'Do not let the enemy take your headquarters.'],
-    rules: ['The enemy line is thinly held at first: a third of its usual garrison, and half its wire.', 'Austrian reserves arrive on the evening of day 1 and again on day 2: the longer you wait, the stronger the line.', 'You have five batteries and a large army: attack along the whole front, not at one point.'],
-    medals: ['The breakthrough', 'Before the second reserves: enemy headquarters taken by day 2, 20:00', 'A broad front: half the enemy front line in your hands at the end'],
+    nations: ['russia', 'austria'], season: 'summer', start: 'west', startHour: 4,
+    history: 'June 1916. General Brusilov has broken every rule of the Western Front. There is no single great blow aimed at one point: his armies attack together along hundreds of miles, after a short, sharp bombardment, from saps dug right up to the enemy wire. Opposite you the Austro-Hungarian line is held by plenty of infantry but few machine guns, its best divisions and guns sent away to Italy. It will not stay that way: reserves are already on the railway. Break the line, push on past it, and take all three of their headquarters before it can be shored up.',
+    objectives: ['Take all three enemy headquarters.', 'Do it within three days: by midnight on day 3.', 'Do not let the enemy take your headquarters.'],
+    rules: ['A battle of riflemen: both sides are rich in infantry and poor in machine guns and guns.', 'Your saps run right up to the enemy wire: your assault troops start in them.', 'Austrian reserves arrive on the evening of day 1 and again on day 2: break through and press on to the headquarters before they come.'],
+    medals: ['The breakthrough', 'Before the second reserves: all three headquarters taken by day 2, 20:00', 'A broad front: half the enemy front line in your hands at the end'],
     debrief: {
       won: 'The Austro-Hungarian line gave way along its whole length. The Brusilov Offensive was the greatest Russian victory of the war: in a few weeks it took some 400,000 prisoners and nearly knocked Austria-Hungary out of the war, before German reserves and Russian exhaustion brought it to a halt.',
       lost: 'The reserves came up in time and the line held. Even the Brusilov Offensive, the most successful attack of the war on any front until 1918, was in the end stopped this way, and its cost in Russian lives helped bring the revolution of 1917.',
     },
     setup(state) {
-      const { map } = state;
-      state.resources[PLAYER] = { men: 40, ammo: 520, supplies: 160 };
-      // a big army: four more squads and three more batteries behind the line
-      reinforce(state, PLAYER, 4);
-      const d = teamDir(PLAYER), f = frontLine(map, PLAYER), M = Math.floor(map.h / 2);
-      for (const dy of [-13, 0, 13]) spawnUnit(state, 'artillery', PLAYER, f[M + dy] - d * 6 + 0.5, M + dy + 0.5);
-      // a thin line: half the enemy's rifle squads gone (sent to Italy)
-      const rifles = state.units.filter((u) => u.team === ENEMY && u.type === 'rifle');
-      const gone = new Set(rifles.filter((_, i) => i % 3 !== 0).map((u) => u.id)); // two in three of his squads gone
-      const mgs = state.units.filter((u) => u.team === ENEMY && u.type === 'mg');
-      gone.add(mgs[mgs.length - 1].id); // and one of his machine guns
-      state.units = state.units.filter((u) => !gone.has(u.id));
-      // neglected wire: half of it is gone
-      let k = 0;
-      for (const t of map.tiles) if (t.wire && t.origWire === ENEMY && k++ % 2) t.wire = 0;
+      const { map } = state, W = map.w, M = Math.floor(map.h / 2), d = teamDir(PLAYER);
+      const at = (x, y) => (x >= 0 && y >= 0 && x < W && y < map.h ? map.tiles[y * W + x] : null);
+      // ---- early summer: meadows and wheat fields behind both lines, mud only where the battle has churned it
+      map.summer = true;
+      const f = frontLine(map, PLAYER), ef = frontLine(map, ENEMY);
+      let seed = 1606;
+      const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+      const fields = []; // wheat fields: rectangles of the farmland, as the fields are laid out
+      for (let k = 0; k < 22; k++) fields.push({ x: Math.floor(rnd() * W), y: Math.floor(rnd() * map.h), w: 3 + Math.floor(rnd() * 6), h: 3 + Math.floor(rnd() * 7) });
+      for (const t of map.tiles) {
+        if (t.off) continue;
+        const nml = f[t.y] >= 0 && ef[t.y] >= 0 && t.x > f[t.y] + 2 && t.x < ef[t.y] - 2; // no man's land
+        if (!nml) { t.mud = rnd() < 0.05 ? 1 : 0; t.crater = 0; }
+        if (t.mud || t.crater || t.trench || t.wire || nml) continue;
+        t.ground = fields.some((q) => t.x >= q.x && t.x < q.x + q.w && t.y >= q.y && t.y < q.y + q.h) ? 4 : rnd() < 0.85 ? 1 : 0;
+      }
+      // ---- saps: narrow trenches pushed out from our front line almost to the enemy wire
+      const sapHeads = [];
+      for (const y of [M - 15, M - 9, M - 3, M + 3, M + 9, M + 15]) {
+        if (f[y] < 0 || ef[y] < 0) continue;
+        const stop = ef[y] - 5;
+        for (let x = f[y] + 1; x !== stop + d; x += d) { const t = at(x, y); if (!t || t.off) break; t.trench = 1; t.owner = t.origOwner = PLAYER; t.wire = 0; t.mud = 0; t.ground = 0; t.crater = 0; t.decor = null; }
+        sapHeads.push({ x: stop, y });
+      }
+      noSquares(map);
+      // ---- the armies: riflemen against riflemen; few machine guns, few guns
+      const keep = (team, type, n) => { const list = state.units.filter((u) => u.team === team && u.type === type); const gone = new Set(list.slice(n).map((u) => u.id)); state.units = state.units.filter((u) => !gone.has(u.id)); };
+      keep(PLAYER, 'mg', 1); keep(PLAYER, 'artillery', 2);
+      keep(ENEMY, 'mg', 1); keep(ENEMY, 'artillery', 1);
+      // our assault squads wait at the sap heads, more behind them in the line
+      for (const h of sapHeads) { const u = spawnUnit(state, 'rifle', PLAYER, h.x + 0.5, h.y + 0.5); u.inTrench = true; }
+      reinforce(state, PLAYER, 6);
+      // the enemy line: plenty of infantry along it
+      for (const dy of [-16, -12, -8, -4, 0, 4, 8, 12, 16]) {
+        const y = M + dy;
+        if (ef[y] < 0 || state.units.some((u) => u.team === ENEMY && Math.abs(u.y - y - 0.5) < 2 && Math.abs(u.x - ef[y] - 0.5) < 2)) continue;
+        const u = spawnUnit(state, 'rifle', ENEMY, ef[y] + 0.5, y + 0.5); u.inTrench = true;
+      }
+      reinforce(state, ENEMY, 4);
+      // ---- three headquarters: the centre one and one on each flank, on the support line
+      const hq = map.hq[ENEMY];
+      hq.posts = [];
+      for (const dy of [-12, 12]) {
+        const y = M + dy;
+        let best = null;
+        for (let x = 0; x < W; x++) { const t = at(x, y); if (t && t.trench && t.owner === ENEMY && (!best || (d > 0 ? x > best.x : x < best.x))) best = t; }
+        if (!best) continue;
+        best.trench = 3;
+        hq.posts.push({ x: best.x, y: best.y });
+      }
       map.dirty = true;
-      state.resources[ENEMY] = { men: 6, ammo: 200, supplies: 60 };
+      state.resources[PLAYER] = { men: 40, ammo: 260, supplies: 160 };
+      state.resources[ENEMY] = { men: 12, ammo: 120, supplies: 60 };
       const ai = state.ais[0];
       ai.level = { ...DIFFICULTY.medium, firstAttack: 1200, attackGap: [600, 800], income: 0.6 };
       ai.offensive = 1200;
-      state.campaign.efront = (() => { const ef = frontLine(map, ENEMY), out = []; ef.forEach((x, y) => { if (x >= 0) out.push(y * map.w + x); }); return out; })();
+      state.campaign.efront = (() => { const out = []; ef.forEach((x, y) => { if (x >= 0) out.push(y * W + x); }); return out; })();
     },
     events: [
-      { at: 4.1, run: (s) => pushMessage(s, 'The enemy line is thin. Attack everywhere at once, before his reserves come up.', 'side') },
+      { at: 4.1, run: (s) => pushMessage(s, 'Break the enemy line and press on: three headquarters must fall before his reserves come up.', 'side') },
       { at: 16, run: (s) => pushMessage(s, 'Air reconnaissance: Austrian reserves are coming up by rail. They will reach the line this evening.', 'warn') },
-      { at: 20, run: (s) => { reinforce(s, ENEMY, 4); reinforce(s, ENEMY, 1, 'mg'); pushMessage(s, 'Austrian reserves have reached their line.', 'warn'); } },
+      { at: 20, run: (s) => { reinforce(s, ENEMY, 5); pushMessage(s, 'Austrian reserves have reached their line.', 'warn'); } },
       { at: 24 + 4, run: (s) => pushMessage(s, 'Day 2. More reserves are on the way, German divisions among them.', 'side') },
-      { at: 24 + 20, run: (s) => { reinforce(s, ENEMY, 5); reinforce(s, ENEMY, 1, 'mg'); pushMessage(s, 'Fresh enemy reserves have reached their line.', 'warn'); } },
+      { at: 24 + 20, run: (s) => { reinforce(s, ENEMY, 6); pushMessage(s, 'Fresh enemy reserves have reached their line.', 'warn'); } },
       { at: 48 + 4, run: (s) => pushMessage(s, 'Day 3. The breakthrough must be made today.', 'side') },
     ],
     check(state) {
       if (clockHours(state) >= 72) return { result: 'lost', reason: 'Three days have passed and the enemy line still holds.' };
       return null;
     },
+    // after the opening the camera points out the three headquarters (main.js)
+    tour(state) {
+      const hq = state.map.hq[ENEMY];
+      return [hq.posts[0], hq, hq.posts[1]].filter(Boolean).map((q, i) => ({ x: q.x + 0.5, y: q.y + 0.5, label: ['Northern HQ', 'Central HQ', 'Southern HQ'][i] }));
+    },
     tracker(state) {
       const h = clockHours(state), c = state.campaign;
       const held = c.efront.filter((i) => state.map.tiles[i].owner === PLAYER).length;
       const next = h < 20 ? `Enemy reserves arrive in ${left(20 - h)}` : h < 44 ? `More enemy reserves in ${left(44 - h)}` : 'All enemy reserves have arrived';
+      const hq = state.map.hq[ENEMY], posts = [hq, ...(hq.posts || [])];
+      const taken = posts.filter((q) => tileAt(state.map, q.x, q.y).owner === PLAYER).length;
       return [
-        'Take the enemy headquarters',
+        'Take the three enemy headquarters',
+        `Headquarters taken: ${taken} / ${posts.length}`,
         next,
         `Enemy front line taken: ${held} / ${c.efront.length}`,
         `Time left: ${left(Math.max(0, 72 - h))}`,
