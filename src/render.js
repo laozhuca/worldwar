@@ -994,6 +994,20 @@ export class Renderer {
   drawStoryMarker(ctx, m, time) {
     const p = iso(m.x, m.y), k = (time * 1.2) % 1;
     ctx.save();
+    if (m.strong) { // a place being pointed out: a warm glow and wide, bright rings, clear even at night
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(p.x, p.y - 10, 0, p.x, p.y - 10, 90);
+      g.addColorStop(0, 'rgba(255, 200, 120, 0.45)'); g.addColorStop(1, 'rgba(255, 200, 120, 0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(p.x, p.y - 10, 90, 60, 0, 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.lineWidth = 3;
+      for (const j of [0, 0.5]) { const q = (k + j) % 1; ctx.strokeStyle = `rgba(255, 214, 140, ${1 - q})`; ctx.beginPath(); ctx.ellipse(p.x, p.y, 40 + q * 50, 20 + q * 25, 0, 0, TAU); ctx.stroke(); }
+      ctx.font = 'italic 17px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillText(m.label || '', p.x + 1, p.y - 47);
+      ctx.fillStyle = '#ffe9b8'; ctx.fillText(m.label || '', p.x, p.y - 48);
+      ctx.restore();
+      return;
+    }
     ctx.strokeStyle = `rgba(255, 236, 190, ${0.9 - k * 0.7})`; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.ellipse(p.x, p.y, 14 + k * 22, 7 + k * 11, 0, 0, TAU); ctx.stroke();
     ctx.strokeStyle = 'rgba(255, 236, 190, 0.85)'; ctx.lineWidth = 1.5;

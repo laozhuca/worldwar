@@ -748,8 +748,10 @@ async function startLevel(id) {
   app.started = true;
   resumeBattle();
   const L = levelById(id);
-  if (L.opening) playOpening(state, L.opening, () => { if (L.openingEnd) L.openingEnd(state); announce(state); });
-  else announce(state);
+  const begin = () => { if (L.openingEnd) L.openingEnd(state); announce(state); };
+  const afterOpening = () => (L.tour ? playTour(state, L.tour(state), begin) : begin());
+  if (L.opening) playOpening(state, L.opening, afterOpening);
+  else afterOpening();
 }
 
 // ------------------------------------------------------------ a level's opening scene
@@ -760,6 +762,37 @@ function stopOpening() {
   if (!opening) return;
   opening.stop();
   opening = null;
+}
+/**
+ * The camera visits each place in turn (a level's objectives), gliding there and marking it for a few
+ * seconds, then comes back to where it started. The battle waits meanwhile; a click, Space or Esc skips it.
+ */
+function playTour(state, points, done) {
+  stopOpening();
+  if (!points.length) { done(); return; }
+  const r = renderer, home = { x: r.cam.x, y: r.cam.y, z: r.cam.zoom }, GLIDE = 1.1, HOLD = 2.4, ZOOM = Math.max(home.z, 1.5);
+  const stops = [...points.map((p) => { const w = iso(p.x, p.y); return { ...p, w: { x: w.x, y: w.y - 20 } }; }), { home: true, w: home }];
+  let i = 0, t = 0, from = { ...home };
+  const finish = () => { if (opening !== self) return; cleanup(); opening = null; r.cam.zoom = home.z; r.cam.x = home.x; r.cam.y = home.y; r.clampCam(); done(); };
+  const onKey = (e) => { if (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); finish(); } };
+  const onClick = () => finish();
+  const view = document.getElementById('view');
+  const cleanup = () => { state.marker = null; window.removeEventListener('keydown', onKey, true); view.removeEventListener('pointerdown', onClick, true); };
+  const self = {
+    tick(dt) {
+      t += dt;
+      const s = stops[i], k = Math.min(1, t / GLIDE), e = k * k * (3 - 2 * k);
+      const z1 = s.home ? home.z : ZOOM;
+      r.cam.zoom = from.z + (z1 - from.z) * e;
+      r.cam.x = from.x + (s.w.x - from.x) * e; r.cam.y = from.y + (s.w.y - from.y) * e; r.clampCam();
+      state.marker = k >= 1 && !s.home ? { x: s.x, y: s.y, label: s.label, strong: true } : null;
+      if (t >= GLIDE + (s.home ? 0 : HOLD)) { if (s.home) { finish(); return; } from = { x: r.cam.x, y: r.cam.y, z: r.cam.zoom }; i++; t = 0; }
+    },
+    stop: cleanup,
+  };
+  opening = self;
+  window.addEventListener('keydown', onKey, true);
+  view.addEventListener('pointerdown', onClick, true);
 }
 function playOpening(state, lines, done) {
   stopOpening();

@@ -518,9 +518,9 @@ export const LEVELS = [
       if (clockHours(state) >= 24 + 19) return { result: 'lost', reason: 'Night fell on the second day with the nests still firing.' };
       return null;
     },
-    markers(state) {
-      const c = state.campaign;
-      return c.nests.map((id) => state.units.find((u) => u.id === id)).filter((u) => u && !u.dead).map((u) => ({ x: u.x, y: u.y, label: 'MG nest' }));
+    // after the opening the camera visits each nest in turn, marking it for a moment (main.js); no rings after
+    tour(state) {
+      return state.campaign.nests.map((id) => state.units.find((u) => u.id === id)).filter((u) => u && !u.dead).map((u, i) => ({ x: u.x, y: u.y, label: `MG nest ${i + 1}` }));
     },
     tracker(state) {
       const h = clockHours(state), c = state.campaign;

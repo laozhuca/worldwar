@@ -70,11 +70,10 @@ test('The Nests of San Michele: three concrete nests, rationed barrages, win on 
   assert.equal(orderBarrage(s, guns, nest.x, nest.y), 0, 'no shells left');
   // markers on the nests while they fire
   stepCampaign(s);
-  assert.equal(s.markers.length, 3);
+  assert.ok(!s.markers || !s.markers.length, 'no rings on the nests'); assert.equal(levelById('isonzo').tour(s).length, 3, 'the opening tour visits the three nests');
   for (const id of c.nests) s.units.find((q) => q.id === id).dead = true;
   stepCampaign(s);
   assert.equal(c.silenced.length, 3);
-  assert.equal(s.markers.length, 0);
   assert.ok(c.scene && c.scene.img.includes('victory'), 'the victory picture is shown');
   s.time += 10; stepCampaign(s);
   assert.equal(c.result, 'won');
