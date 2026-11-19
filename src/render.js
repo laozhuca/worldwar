@@ -877,10 +877,11 @@ export class Renderer {
       this.lastGround = now;
     }
     // a town on the battlefield: the camera may scroll up far enough to see its towers
-    const bd = state.backdrop;
+    const bds = [state.backdrop, ...(state.buildings || [])].filter(Boolean); // the town, and buildings standing alone
+    const bd = bds[0];
     if (bd) {
-      const c = iso(bd.x, bd.y), B = this.baseView;
-      this.view = { ...B, y0: Math.min(B.y0, c.y - bd.ay * bd.k - 30) };
+      const B = this.baseView;
+      this.view = { ...B, y0: Math.min(B.y0, ...bds.map((b) => iso(b.x, b.y).y - b.ay * b.k - 30)) };
     } else this.view = this.baseView;
     // a level cut down to a band across the screen (a valley): the camera keeps to it
     const band = state.map.band;
@@ -910,7 +911,7 @@ export class Renderer {
     for (const r of this.rockBlocks(state.map)) objs.push({ k: r.x + r.y + 2 * r.size - 1, kind: 'rock', r });
     if (state.map.giants) for (const gi of state.map.giants) objs.push({ k: gi.x + gi.y - 1, kind: 'giant', gi });
     // a town on the battlefield: sorted by its front corner, so men behind it are hidden and men in front are not
-    if (bd) objs.push({ k: bd.x + bd.y + (bd.hx || 0) + (bd.hy || 0) - 1, kind: 'town', bd });
+    for (const b of bds) objs.push({ k: b.x + b.y + (b.hx || 0) + (b.hy || 0) - 1, kind: 'town', bd: b });
     for (const team of [PLAYER, ENEMY]) {
       const q = state.map.hq[team];
       if (!q.hidden) objs.push({ k: q.x + q.y + 1, kind: 'hq', q, team });

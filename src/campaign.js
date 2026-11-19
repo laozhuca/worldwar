@@ -311,8 +311,18 @@ export const LEVELS = [
       const hq = state.map.hq[PLAYER];
       const town = { img: 'assets/art/town-dixmude.webp', x: hq.x + 0.5 - teamDir(PLAYER) * 4.7, y: hq.y + 0.5, ax: 440, ay: 444, k: 0.5, hx: 2.1, hy: 4.4 };
       state.backdrop = town;
-      for (const t of state.map.tiles) {
-        if (t.off || Math.abs(t.x + 0.5 - town.x) > town.hx || Math.abs(t.y + 0.5 - town.y) > town.hy) continue;
+      // a corner of the town round headquarters: at each end of the church quarter a house carries its line
+      // on, and a building turns towards the front (each from its own 3D model, rendered like the town)
+      const dd = teamDir(PLAYER), X = (off) => hq.x + 0.5 + dd * off, Y = (off) => hq.y + 0.5 + off;
+      const B = (name, ax, ay, ox, oy, hx, hy) => ({ img: `assets/art/town-dixmude-${name}.webp`, x: X(ox), y: Y(oy), ax, ay, k: 0.5, hx, hy });
+      state.buildings = [
+        B('dawn', 175, 157, -3.3, -5.9, 1.25, 1.45), // a burnt-out house north of the church
+        B('station', 181, 157, 0.5, -6.1, 2.2, 1.1), // the railway station, turning towards the front
+        B('home', 101, 170, -3.3, 5.9, 0.8, 1.45), // a shelled gabled house south of the church
+        B('cottage', 123, 156, -0.1, 6.3, 1.4, 0.8), // a cottage, turning towards the front
+      ];
+      for (const b of [town, ...state.buildings]) for (const t of state.map.tiles) {
+        if (t.off || Math.abs(t.x + 0.5 - b.x) > b.hx || Math.abs(t.y + 0.5 - b.y) > b.hy) continue;
         t.block = 1; t.decor = null; t.crater = 0; t.trench = 0; t.wire = 0;
       }
       state.map.rocks = true;

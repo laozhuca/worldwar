@@ -1,0 +1,6 @@
+{
+  "name": "worldwar-render-glb",
+  "private": true,
+  "description": "Renders a building's 3D model (.glb) to a sprite through the game's isometric camera and sun",
+  "dependencies": { "three": "0.169.0" }
+}
