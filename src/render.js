@@ -122,8 +122,8 @@ export class Renderer {
     // The battlefield is a diamond of radius MAP_R + 0.5 tiles around the map centre, a 2:1 rectangle on screen.
     // The ground canvas covers exactly that rectangle (plus a margin above for tall props).
     const RR = MAP_R + 0.5, C = MAP_W / 2;
-    // the camera may go right to the battlefield's edge, plus a small margin so the edge tiles show whole
-    const E = RR + 0.6;
+    // the camera may go right to the battlefield's edge and no further: nothing beyond it ever shows
+    const E = RR - 0.05;
     this.view = this.baseView = { x0: -E * TW / 2, x1: E * TW / 2, y0: (2 * C - E) * TH / 2, y1: (2 * C + E) * TH / 2 };
     this.OX = (RR * TW) / 2;
     this.OY = TH * 2 - ((2 * C - RR) * TH) / 2;
@@ -876,13 +876,9 @@ export class Renderer {
       this.groundDrawn = true;
       this.lastGround = now;
     }
-    // a town on the battlefield: the camera may scroll up far enough to see its towers
     const bds = [state.backdrop, ...(state.buildings || [])].filter(Boolean); // the town, and buildings standing alone
     const bd = bds[0];
-    if (bd) {
-      const B = this.baseView;
-      this.view = { ...B, y0: Math.min(B.y0, ...bds.map((b) => iso(b.x, b.y).y - b.ay * b.k - 30)) };
-    } else this.view = this.baseView;
+    this.view = this.baseView; // (a town's towers may rise above the map's edge: the view still keeps to the map)
     // a level cut down to a band across the screen (a valley): the camera keeps to it
     const band = state.map.band;
     if (band) {
