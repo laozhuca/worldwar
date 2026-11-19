@@ -454,7 +454,7 @@ export const LEVELS = [
   {
     id: 'isonzo', n: 2, title: 'The Nests of San Michele', place: 'The Isonzo, Italy', date: 'August 1916',
     nations: ['italy', 'austria'], season: 'thaw', start: 'west', startHour: 5,
-    pictures: ['assets/art/story-san-michele.webp', 'assets/art/story-bianchi.webp', 'assets/art/story-rossi.webp'],
+    pictures: ['assets/art/scene-san-michele-victory.webp', 'assets/art/story-san-michele.webp', 'assets/art/story-bianchi.webp', 'assets/art/story-rossi.webp'],
     // the opening scene, like the prologue's: two Italian soldiers in a rocky trench before the assault
     opening: [
       { who: 'Monte San Michele, Isonzo Front — August 6, 1916', text: 'Early morning. Two Italian soldiers crouch in a rocky trench. The smell of coffee mingles with damp earth. Above them, Austrian machine-gun positions overlook the valley.', img: 'assets/art/story-san-michele.webp', wide: true, hold: 3 },
@@ -507,8 +507,12 @@ export const LEVELS = [
       }
       if (c.silenced.length >= c.nests.length) {
         c.doneAt = c.doneAt ?? clockHours(state);
-        c.wonAt = c.wonAt ?? state.time;
-        if (state.time - c.wonAt > 4) return { result: 'won', reason: 'The guns are silenced.' };
+        if (c.wonAt === undefined) {
+          c.wonAt = state.time;
+          // a picture of the moment, shown with the announcement (main.js), before the battle ends
+          c.scene = { at: state.time, img: 'assets/art/scene-san-michele-victory.webp', who: 'Monte San Michele, August 1916', text: 'The last nest is silenced! The tricolour flies over the Austrian guns.' };
+        }
+        if (state.time - c.wonAt > 9) return { result: 'won', reason: 'The guns are silenced.' };
         return null;
       }
       if (clockHours(state) >= 24 + 19) return { result: 'lost', reason: 'Night fell on the second day with the nests still firing.' };

@@ -75,7 +75,8 @@ test('The Nests of San Michele: three concrete nests, rationed barrages, win on 
   stepCampaign(s);
   assert.equal(c.silenced.length, 3);
   assert.equal(s.markers.length, 0);
-  s.time += 5; stepCampaign(s);
+  assert.ok(c.scene && c.scene.img.includes('victory'), 'the victory picture is shown');
+  s.time += 10; stepCampaign(s);
   assert.equal(c.result, 'won');
   assert.equal(s.winner, PLAYER);
   const m = levelById('isonzo').medalsEarned(s);
