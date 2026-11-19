@@ -665,6 +665,16 @@ export const LEVELS = [
         }
       }
       for (const t of map.tiles) if (!t.off && !t.trench && !t.wire && !t.decor && t.ground !== 4 && !t.mud && churnAt(t) < 0.3 && rnd() < ((t.x - W / 2) * d < 0 ? 0.04 : 0.012)) t.decor = 'birch'; // scattered birches, many more on our side
+      // ---- a birch forest behind the Russian line: thick in places, thinning into clearings and copses
+      // towards the trenches; trees of every age
+      const busy = new Set(state.units.map((u) => Math.floor(u.y) * W + Math.floor(u.x)));
+      for (const t of map.tiles) {
+        if (t.off || t.trench || t.wire || t.decor || busy.has(t.y * W + t.x) || f[t.y] < 0) continue;
+        const behind = (f[t.y] - t.x) * d; // tiles behind our front line
+        if (behind < 3) continue;
+        const dense = noise(2, t.x + 17, t.y + 5, 0.21) + Math.min(0.35, (behind - 3) * 0.04) - (t.ground === 4 ? 0.25 : 0);
+        if (rnd() < (dense > 0.62 ? 0.8 : dense > 0.48 ? 0.35 : 0.08)) { t.decor = 'birch'; t.mud = 0; }
+      }
       // ---- three headquarters: the centre one and one on each flank, behind the support line
       const hq = map.hq[ENEMY];
       hq.posts = [];

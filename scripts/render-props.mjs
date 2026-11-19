@@ -28,7 +28,7 @@ function jobs() {
     }
     for (let v = 0; v < 4; v++) list.push({ name: `stump${v}${s}`, kind: 'trunk', args: [v, false, snow] });
     for (let v = 0; v < 2; v++) list.push({ name: `tree${v}${s}`, kind: 'trunk', args: [v, true, snow] });
-    for (let v = 0; v < 4; v++) list.push({ name: `birch${v}${s}`, kind: 'birch', args: [v, snow] });
+    for (let v = 0; v < 6; v++) list.push({ name: `birch${v}${s}`, kind: 'birch', args: [v, snow] });
     for (let v = 0; v < 3; v++) list.push({ name: `log${v}${s}`, kind: 'log', args: [v, snow] });
     for (let v = 0; v < 3; v++) list.push({ name: `debris${v}${s}`, kind: 'debris', args: [v, snow] });
     for (let v = 0; v < 4; v++) list.push({ name: `rock${v}${s}`, kind: 'rock', args: [v, snow] });

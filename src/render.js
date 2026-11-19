@@ -1251,8 +1251,11 @@ export class Renderer {
       const h = hash(t.x * 2.3, t.y * 5.1);
       const c = iso(t.x + 0.3 + t.shade * 0.4, t.y + 0.3 + h * 0.4);
       if (t.decor === 'tree' || t.decor === 'stump' || t.decor === 'birch') this.longShadow(ctx, c.x, c.y, t.decor === 'stump' ? 0.8 : 2.6);
-      const name = t.decor === 'stump' ? `stump${Math.floor(h * 4) % 4}` : t.decor === 'tree' ? `tree${Math.floor(h * 2) % 2}` : t.decor === 'birch' ? `birch${Math.floor(h * 4) % 4}` : `log${Math.floor(h * 3) % 3}`;
-      if (this.drawProp(ctx, name + snow, c.x, c.y)) return;
+      const name = t.decor === 'stump' ? `stump${Math.floor(h * 4) % 4}` : t.decor === 'tree' ? `tree${Math.floor(h * 2) % 2}` : t.decor === 'birch' ? `birch${Math.floor(h * 6) % 6}` : `log${Math.floor(h * 3) % 3}`;
+      if (t.decor === 'birch') { // birches of every size, from saplings to old trees
+        const k = 0.5 + hash(t.y * 1.7, t.x * 0.9) ** 1.5 * 0.95;
+        if (this.drawFrame(ctx, this.propGroup(), name + snow, c.x, c.y, k, hash(t.x, t.y * 2.3) > 0.5)) return;
+      } else if (this.drawProp(ctx, name + snow, c.x, c.y)) return;
     }
     const S = this.S ?? 1;
     const h = hash(t.x * 2.3, t.y * 5.1);
