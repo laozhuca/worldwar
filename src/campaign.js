@@ -373,10 +373,10 @@ export const LEVELS = [
       // and ruined houses out among our trench lines (copies of the two shelled houses, each turned another
       // way): the trenches they stand on are dug round them instead
       state.buildings.push(
-        B('dawn-b', 152, 188, 3.5, -12.5, 1.45, 1.25),
-        B('home-b', 129, 165, 6.5, -4.5, 1.45, 0.8),
-        B('dawn-c', 154, 171, 7, 7.5, 1.25, 1.45),
-        B('home-c', 136, 133, 3.5, 12.5, 0.8, 1.45),
+        B('dawn-b', 152, 188, 2.6, -10.3, 1.45, 1.25), // just beyond the station
+        B('home-b', 129, 165, 6.2, -2.7, 1.45, 0.8), // alone, a little ahead of headquarters
+        B('dawn-c', 154, 171, 9.4, 4.6, 1.25, 1.45), // well forward, between the middle and the front lines
+        B('home-c', 136, 133, 3.1, 10.9, 0.8, 1.45), // off the town's southern corner
       );
       for (const b of [town, ...state.buildings]) blockBuilding(state, b);
       state.map.rocks = true;
