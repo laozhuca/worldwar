@@ -684,13 +684,13 @@ function showCampaign() {
   const p = loadProgress();
   const pro = document.createElement('button');
   pro.className = 'level prologue';
-  pro.innerHTML = `<span class="ln">·</span><span class="lt">Prologue: 1 July 1916<small>The Somme · the tutorial</small></span><span class="lm">${p.tutorial ? '✓ Done' : 'Start here'}</span>`;
+  pro.innerHTML = `<span class="ln">·</span><span class="lt">Tutorial: 1 July 1916<small>The Somme</small></span><span class="lm">${p.tutorial ? '✓ Done' : 'Start here'}</span>`;
   pro.onclick = () => showBriefing('prologue');
   document.getElementById('level-list').replaceChildren(pro, ...LEVELS.map((L) => {
     const open = L.n <= p.unlocked && !L.soon && p.tutorial, b = document.createElement('button');
     b.className = 'level' + (open ? '' : ' locked');
     const stars = p.medals[L.id] || 0;
-    b.innerHTML = `<span class="ln">${L.n}</span><span class="lt">${L.title}<small>${L.place} · ${L.date}</small></span><span class="lm">${L.soon ? 'Coming soon' : open ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : !p.tutorial ? 'After the prologue' : 'Locked'}</span>`;
+    b.innerHTML = `<span class="ln">${L.n}</span><span class="lt">${L.title}<small>${L.place} · ${L.date}</small></span><span class="lm">${L.soon ? 'Coming soon' : open ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : !p.tutorial ? 'After the tutorial' : 'Locked'}</span>`;
     b.disabled = !open;
     b.onclick = () => showBriefing(L.id);
     return b;
@@ -702,7 +702,7 @@ function showBriefing(id) {
   const L = id === 'prologue' ? PROLOGUE : levelById(id), p = loadProgress();
   briefed = id;
   const P = document.getElementById('briefing-panel');
-  P.querySelector('.brief-num').textContent = L.n ? `Battle ${L.n} of ${LEVELS.length}` : 'Prologue · the tutorial';
+  P.querySelector('.brief-num').textContent = L.n ? `Battle ${L.n} of ${LEVELS.length}` : 'Tutorial';
   P.querySelector('.brief-title').textContent = L.title;
   // the two armies of the battle, in 3D (fixed: a historical battle)
   [['mine', L.nations[0]], ['foe', L.nations[1]]].forEach(([k, n]) => {
