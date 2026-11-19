@@ -613,6 +613,23 @@ export const LEVELS = [
       }
       for (let k = starts.length - 1; k > 0; k--) { const q = Math.floor(rnd() * (k + 1)); [starts[k], starts[q]] = [starts[q], starts[k]]; } // the two sides dug at the same time
       for (const st of starts) grow(st.team, st.x, st.y, st.len, 0);
+      // wire strung out in no man's land round the saps: short ragged belts and lone coils, each side's in
+      // front of its own saps
+      for (const t of sapTiles) {
+        if (rnd() > 0.16) continue;
+        const team = t.owner, dir = teamDir(team);
+        let x = t.x + dir * (1 + Math.floor(rnd() * 2)), y = t.y + Math.floor(rnd() * 3) - 1;
+        const len = 1 + Math.floor(rnd() * 4), j = rnd() < 0.5 ? -1 : 1;
+        for (let k = 0; k < len; k++) {
+          const q = at(x, y);
+          if (q && !q.off && !q.trench && !q.wire && !q.decor) { q.wire = rnd() < 0.3 ? 50 : 100; q.origWire = team; q.ground = 0; }
+          y += j; if (rnd() < 0.35) x += rnd() < 0.5 ? -1 : 1;
+        }
+      }
+      for (let k = 0; k < 40; k++) { // and odd coils lying about further out
+        const t = map.tiles[Math.floor(rnd() * map.tiles.length)];
+        if (!t.off && !t.trench && !t.wire && churnAt(t) > 0.5) { t.wire = 50; t.origWire = rnd() < 0.5 ? PLAYER : ENEMY; t.ground = 0; }
+      }
       // weeks of shelling: stretches of the saps blown in (a shell hole where the trench was) and others
       // knocked about, half fallen in
       for (const t of sapTiles) {
@@ -639,15 +656,15 @@ export const LEVELS = [
       if (ef2[M + 3] >= 0) put('mg', ENEMY, trenchNear(ENEMY, ef2[M + 3], M + 3)); // and a single machine gun
       put('artillery', ENEMY, at(ef2[M] + d * 10, M));
       // ---- birch woods: white birches in groves and lines along the field edges, mostly behind the lines
-      for (let k = 0; k < 16; k++) {
-        const cx = Math.floor(rnd() * W), cy = Math.floor(rnd() * map.h), rr = 1.5 + rnd() * 3.5;
+      for (let k = 0; k < 34; k++) { // (two in three of the groves on our side, behind the Russian line)
+        const cx = k % 3 < 2 ? Math.floor(rnd() * (W / 2 - 4)) : Math.floor(rnd() * W), cy = Math.floor(rnd() * map.h), rr = 1.5 + rnd() * 3.5;
         for (const t of map.tiles) {
           if (t.off || t.trench || t.wire || t.decor || t.ground === 4 || t.mud || churnAt(t) > 0.3) continue;
           const dd = Math.hypot(t.x - cx, (t.y - cy) * 1.2);
           if (dd < rr && rnd() < 0.55 * (1 - dd / rr) + 0.15) t.decor = 'birch';
         }
       }
-      for (const t of map.tiles) if (!t.off && !t.trench && !t.wire && !t.decor && t.ground !== 4 && !t.mud && churnAt(t) < 0.3 && rnd() < 0.012) t.decor = 'birch';
+      for (const t of map.tiles) if (!t.off && !t.trench && !t.wire && !t.decor && t.ground !== 4 && !t.mud && churnAt(t) < 0.3 && rnd() < ((t.x - W / 2) * d < 0 ? 0.04 : 0.012)) t.decor = 'birch'; // scattered birches, many more on our side
       // ---- three headquarters: the centre one and one on each flank, behind the support line
       const hq = map.hq[ENEMY];
       hq.posts = [];
