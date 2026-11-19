@@ -841,3 +841,6 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 #overlay.plain-mode #briefing-panel .camp-start:hover b { margin-left: 14px; }
 #overlay.plain-mode #briefing-panel .camp-back:hover, #overlay.plain-mode #briefing-panel .camp-start:hover { background: none; color: #fff8e8; text-decoration: none; }
 @media (max-width: 860px), (max-height: 600px) { #overlay.plain-mode #briefing-panel .brief-army .fig-img { height: clamp(110px, 34vh, 200px); } }
+
+/* a level's opening scene: its wide pictures at their own proportions (no letterbox) */
+#story.opening .pic.wide { width: min(560px, 70vw); height: auto; max-height: calc(100vh - 360px); object-fit: cover; }

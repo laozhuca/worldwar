@@ -274,7 +274,29 @@ export const LEVELS = [
   {
     id: 'ypres', n: 1, title: 'The Sailors of Dixmude', place: 'Dixmude, Belgium', date: 'October 1914',
     nations: ['marins', 'germany'], allies: ['france'], season: 'mud', start: 'west', startHour: 6.5,
-    pictures: ['assets/art/scene-dixmude-relief.webp'],
+    pictures: ['assets/art/scene-dixmude-relief.webp', 'assets/art/story-dixmude-dawn.webp', 'assets/art/story-leguen.webp', 'assets/art/story-moreau.webp'],
+    // the opening scene, like the prologue's: two sailors behind the barricade before the attack
+    opening: [
+      { who: 'Dixmude, Belgium — October 1914', text: 'Just before dawn. Two French sailors stand behind a makeshift barricade. A cold mist hangs over the empty road.', img: 'assets/art/story-dixmude-dawn.webp', wide: true, hold: 3 },
+      { who: 'Le Guen', text: 'You think the Germans will come today?', img: 'assets/art/story-leguen.webp' },
+      { who: 'Moreau', text: 'They\'ve been shelling us for three days. I\'d say they\'re getting impatient.', img: 'assets/art/story-moreau.webp' },
+      { who: 'Le Guen', text: 'I joined the Navy to see the world. Not to die in a Belgian ditch.', img: 'assets/art/story-leguen.webp' },
+      { who: 'Moreau', text: 'Well, you\'ve seen Belgium.', img: 'assets/art/story-moreau.webp' },
+      { who: '', text: 'A distant whistle cuts through the morning silence.', img: 'assets/art/story-dixmude-dawn.webp', wide: true, sound: 'incoming' },
+      { who: 'Moreau', text: 'Down!', img: 'assets/art/story-moreau.webp', hold: 0.9 },
+    ],
+    // ...and the first shells strike: the German attack begins
+    openingEnd(state) {
+      const f = state.campaign.front, d = teamDir(PLAYER);
+      for (let k = 0; k < 4 && f.length; k++) {
+        const t = state.map.tiles[f[Math.floor((0.3 + 0.13 * k) * f.length)]], tx = t.x + 0.5 + d * (2.5 + k % 2), ty = t.y + 0.5 + (k - 1.5);
+        const flight = 0.6 + k * 0.45;
+        state.shells.push({ x: tx, y: ty, t: flight, flight, team: ENEMY, fromX: tx + d * 30, fromY: ty, incoming: true });
+      }
+      const ai = state.ais[0];
+      if (ai) ai.offensive = Math.min(ai.offensive, 20);
+      pushMessage(state, 'The first shell strikes. The German attack begins.', 'warn');
+    },
     advance: { [PLAYER]: 6 }, // our lines stand forward of the town, leaving room for it behind the HQ
     history: 'October 1914. The German army is driving for the Channel ports along the river Yser, and only a thin line stands in its way. At Dixmude, Admiral Ronarc\'h and his brigade of French naval infantry, the Fusiliers Marins, sailors who have never fought on land, are ordered to hold the town and its bridgehead for at least four days, until reinforcements can come up. Dig in, and hold.',
     objectives: ['Hold until the relief arrives at dawn on day 4.', 'Do not let the enemy take your headquarters.', 'Do not lose more than half of your front line.'],

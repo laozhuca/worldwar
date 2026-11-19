@@ -276,7 +276,7 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   const s = app.state;
-  const held = tutorial && tutorial.holding(); // the tutorial's battle waits for the player's order
+  const held = (tutorial && tutorial.holding()) || !!opening; // the tutorial's battle waits for the player's order; a level's opening scene holds it too
   if (!app.paused && !held) {
     acc += dt * app.speed;
     let n = 0;
@@ -284,6 +284,7 @@ function frame(now) {
     if (n >= 12) acc = 0;
   }
   if (tutorial && !app.paused) tutorial.tick(held ? dt : dt * app.speed);
+  if (opening && !app.paused) opening.tick(dt);
   campaignScene(s, dt);
   ui.update(dt);
   renderer.update(dt, app.paused || held ? 0 : dt * app.speed, s);
@@ -592,6 +593,7 @@ async function loadBattle(state) {
 // ------------------------------------------------------------ tutorial: 1 July 1916
 let tutorial = null;
 function endTutorial() {
+  stopOpening();
   if (tutorial) tutorial.stop();
   tutorial = null;
   document.body.classList.remove('tutorial');
@@ -742,9 +744,58 @@ async function startLevel(id) {
   endShown = false;
   lastSave = 0;
   await loadBattle(state);
-  announce(state);
   app.started = true;
   resumeBattle();
+  const L = levelById(id);
+  if (L.opening) playOpening(state, L.opening, () => { if (L.openingEnd) L.openingEnd(state); announce(state); });
+  else announce(state);
+}
+
+// ------------------------------------------------------------ a level's opening scene
+// Like the prologue's: pictures and lines of dialogue in the story box, each shown for a time that suits
+// its length (a click, Space or Enter moves on; Esc skips the scene). The battle waits until it ends.
+let opening = null;
+function stopOpening() {
+  if (!opening) return;
+  opening.stop();
+  opening = null;
+}
+function playOpening(state, lines, done) {
+  stopOpening();
+  const box = document.getElementById('story');
+  const who = box.querySelector('.who'), line = box.querySelector('.line'), hint = box.querySelector('.hint'), pic = box.querySelector('.pic');
+  let i = -1, t = 0, until = 0;
+  const show = (l) => {
+    box.className = 'center opening';
+    pic.classList.toggle('hidden', !l.img);
+    pic.classList.toggle('wide', !!l.wide);
+    pic.classList.remove('letter', 'scene');
+    if (l.img && pic.getAttribute('src') !== l.img) pic.setAttribute('src', l.img);
+    who.textContent = l.who || '';
+    line.textContent = l.text || '';
+    line.classList.remove('hidden');
+    hint.textContent = i === 0 ? (matchMedia('(pointer: coarse)').matches ? 'Tap to continue' : 'Click or press Space to continue · Esc to skip') : '';
+    hint.classList.toggle('hidden', i !== 0);
+  };
+  const next = () => {
+    i++;
+    if (i >= lines.length) { finish(); return; }
+    const l = lines[i];
+    show(l);
+    t = 0; until = (l.hold || 2.2) + l.text.split(' ').length * 0.3;
+    if (l.sound) sound.play(l.sound, 1);
+  };
+  const onKey = (e) => {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); next(); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); finish(); }
+  };
+  const cleanup = () => { window.removeEventListener('keydown', onKey, true); box.onclick = null; box.className = 'hidden'; pic.classList.remove('wide'); };
+  const finish = () => { if (opening !== self) return; cleanup(); opening = null; done(); };
+  const self = { tick(dt) { t += dt; if (t >= until) next(); }, stop: cleanup };
+  opening = self;
+  window.addEventListener('keydown', onKey, true);
+  box.onclick = next;
+  next();
 }
 function showDebrief(s) {
   const L = levelById(s.campaign.id), won = s.campaign.result === 'won' || s.winner === PLAYER;
