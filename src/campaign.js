@@ -540,6 +540,24 @@ export const LEVELS = [
     id: 'brusilov', n: 3, title: 'Brusilov\'s Storm', place: 'Galicia', date: 'June 1916',
     nations: ['russia', 'austria'], season: 'summer', start: 'west', startHour: 4,
     radius: 51, // a wider battlefield: half as long again each way
+    pictures: ['assets/art/story-ivanov.webp', 'assets/art/story-sokolov.webp'],
+    // the opening scene, like the tutorial's: two Russian soldiers in their trench before the bombardment
+    opening: [
+      { who: 'Galicia — June 4, 1916', text: 'Before dawn. Two Russian soldiers wait in a trench.', hold: 2.5 },
+      { who: 'Ivanov', text: 'Vodka? The priest blessed it.', img: 'assets/art/story-ivanov.webp' },
+      { who: 'Sokolov', text: 'He blessed the men, you fool. Not the bottle.', img: 'assets/art/story-sokolov.webp' },
+      { who: 'Ivanov', text: 'My wife says vodka will kill me.', img: 'assets/art/story-ivanov.webp' },
+      { who: 'Sokolov', text: 'My wife says the same. That\'s why I joined the army.', img: 'assets/art/story-sokolov.webp' },
+      { who: '', text: 'Ivanov rubs tar onto his leaking boots.', img: 'assets/art/story-ivanov.webp' },
+      { who: 'Ivanov', text: 'Think God will protect us?', img: 'assets/art/story-ivanov.webp' },
+      { who: 'Sokolov', text: 'He didn\'t protect the last lot. But you\'re welcome to ask.', img: 'assets/art/story-sokolov.webp' },
+      { who: '', text: 'Russian artillery opens fire.', sound: 'artyfire', hold: 1.6 },
+    ],
+    // ...the short, sharp bombardment begins
+    openingEnd(state) {
+      for (let k = 0; k < 4; k++) state.events.push({ type: 'artyfire' });
+      pushMessage(state, 'The Russian guns open fire. The offensive begins.', 'warn');
+    },
     works: 'network', // trench systems grown over months: wandering lines, winding communication trenches
     history: 'June 1916. General Brusilov has broken every rule of the Western Front. There is no single great blow aimed at one point: his armies attack together along hundreds of miles, after a short, sharp bombardment, from saps dug right up to the enemy wire. Opposite you the Austro-Hungarian line is held by plenty of infantry but few machine guns, its best divisions and guns sent away to Italy. It will not stay that way: reserves are already on the railway. Break the line, push on past it, and take all three of their headquarters before it can be shored up.',
     objectives: ['Take all three enemy headquarters.', 'Do it within three days: by midnight on day 3.', 'Do not let the enemy take your headquarters.'],
