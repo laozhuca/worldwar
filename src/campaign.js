@@ -580,6 +580,7 @@ export const LEVELS = [
       const churnAt = (t) => Math.exp(-(((t.x - mid(t.y)) / 11) ** 2));
       // ---- saps: both sides have pushed saps out into no man's land, long and short, branching, linked
       // to one another, the two networks winding in among each other (never quite touching)
+      const sapTiles = [];
       const foeNear = (x, y, team) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const n = at(x + dx, y + dy); if (n && n.trench && n.owner !== team && n.owner >= 0) return true; } return false; };
       const digSap = (x, y, team) => {
         const t = at(x, y);
@@ -587,6 +588,7 @@ export const LEVELS = [
         if (t.trench) return t.owner === team;
         if (makesSquare(map, x, y)) return false;
         t.trench = 1; t.owner = t.origOwner = team; t.wire = 0; t.mud = 0; t.ground = 0; t.crater = 0; t.decor = null;
+        sapTiles.push(t);
         return true;
       };
       // grow a sap forward from (x, y): a run of a tile or two, then a jog; it may fork sideways
@@ -611,6 +613,17 @@ export const LEVELS = [
       }
       for (let k = starts.length - 1; k > 0; k--) { const q = Math.floor(rnd() * (k + 1)); [starts[k], starts[q]] = [starts[q], starts[k]]; } // the two sides dug at the same time
       for (const st of starts) grow(st.team, st.x, st.y, st.len, 0);
+      // weeks of shelling: stretches of the saps blown in (a shell hole where the trench was) and others
+      // knocked about, half fallen in
+      for (const t of sapTiles) {
+        if (!t.trench) continue;
+        const r = rnd();
+        if (r < 0.1) { // a breach, a tile or two long
+          for (const q of [t, ...(rnd() < 0.5 ? [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => at(t.x + dx, t.y + dy)).filter((n) => n && n.trench && sapTiles.includes(n)).slice(0, 1) : [])]) {
+            q.trench = 0; q.owner = q.origOwner = -1; q.crater = 2 + Math.floor(rnd() * 2); q.mud = 1;
+          }
+        } else if (r < 0.27) t.dmg = 30 + Math.floor(rnd() * 60); // damaged or wrecked
+      }
       noSquares(map);
       // ---- the armies: riflemen against riflemen; few machine guns, few guns. Laid out along the whole front
       state.units = [];
