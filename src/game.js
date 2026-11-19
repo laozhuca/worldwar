@@ -898,7 +898,7 @@ function explode(state, s) {
     // trees and their stems: a tree takes two hits to fall (to a shattered stump or a log), a stump or
     // log one or two more before it is blown to splinters
     if (t.decor === 'tree' || t.decor === 'birch' || t.decor === 'stump' || t.decor === 'log') {
-      const hp = t.decorHp ?? (t.decor === 'tree' || t.decor === 'birch' ? 2 : t.decor === 'stump' ? 2 : 1);
+      const hp = t.decorHp ?? (t.decor === 'tree' ? 2 : t.decor === 'stump' ? 2 : 1); // (a slender birch falls to one hit)
       const left = hp - (hit ? 2 : rand() < 0.6 ? 1 : 0);
       if (left > 0) t.decorHp = left;
       else if (t.decor === 'tree' || t.decor === 'birch') { t.decor = rand() < 0.6 ? 'stump' : 'log'; t.decorHp = t.decor === 'stump' ? 2 : 1; }

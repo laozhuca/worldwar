@@ -958,6 +958,12 @@ export class Renderer {
 
     // depth-sorted objects
     const objs = [];
+    // the long shadows of trees at dawn and dusk lie on the ground: drawn under every tree, never over one
+    if (this.props && this.sunShadow && this.sunShadow.alpha >= 0.01) for (const t of state.map.tiles) {
+      if (t.decor !== 'tree' && t.decor !== 'stump' && t.decor !== 'birch') continue;
+      const h = hash(t.x * 2.3, t.y * 5.1), c = iso(t.x + 0.3 + t.shade * 0.4, t.y + 0.3 + h * 0.4);
+      this.longShadow(ctx, c.x, c.y, t.decor === 'stump' ? 0.8 : t.decor === 'birch' ? 1.4 + (0.5 + hash(t.y * 1.7, t.x * 0.9) ** 1.5 * 0.95) * 1.2 : 2.6);
+    }
     for (const t of state.map.tiles) if (t.decor) objs.push({ k: t.x + t.y + 1, kind: 'decor', t });
     for (const r of this.rockBlocks(state.map)) objs.push({ k: r.x + r.y + 2 * r.size - 1, kind: 'rock', r });
     if (state.map.giants) for (const gi of state.map.giants) objs.push({ k: gi.x + gi.y - 1, kind: 'giant', gi });
@@ -1250,7 +1256,6 @@ export class Renderer {
       const snow = (this.S ?? 1) > 0.7 ? '_s' : '';
       const h = hash(t.x * 2.3, t.y * 5.1);
       const c = iso(t.x + 0.3 + t.shade * 0.4, t.y + 0.3 + h * 0.4);
-      if (t.decor === 'tree' || t.decor === 'stump' || t.decor === 'birch') this.longShadow(ctx, c.x, c.y, t.decor === 'stump' ? 0.8 : 2.6);
       const name = t.decor === 'stump' ? `stump${Math.floor(h * 4) % 4}` : t.decor === 'tree' ? `tree${Math.floor(h * 2) % 2}` : t.decor === 'birch' ? `birch${Math.floor(h * 6) % 6}` : `log${Math.floor(h * 3) % 3}`;
       if (t.decor === 'birch') { // birches of every size, from saplings to old trees
         const k = 0.5 + hash(t.y * 1.7, t.x * 0.9) ** 1.5 * 0.95;

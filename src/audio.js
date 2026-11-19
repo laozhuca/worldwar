@@ -42,7 +42,7 @@ export class Sound {
     const c = this.ctx, t0 = c.currentTime, src = c.createBufferSource(), g = c.createGain();
     src.buffer = buf; src.loop = true;
     src.playbackRate.value = 0.94 + Math.random() * 0.12;
-    const peak = 0.75 * vol, up = Math.min(2, dur * 0.3), down = Math.min(3, dur * 0.4);
+    const peak = 0.42 * vol, up = Math.min(2, dur * 0.3), down = Math.min(3, dur * 0.4);
     g.gain.setValueAtTime(0.0001, t0);
     g.gain.linearRampToValueAtTime(peak, t0 + up);
     g.gain.setValueAtTime(peak, t0 + dur - down);
