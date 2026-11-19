@@ -272,6 +272,8 @@ const mini = document.getElementById('minimap');
 const mctx = mini.getContext('2d');
 
 const NOISY = new Set(['rifle', 'mg', 'boom', 'artyfire', 'death', 'incoming']);
+const pauseSign = document.getElementById('pause-sign');
+pauseSign.addEventListener('click', () => { if (app.paused) app.togglePause(); });
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
@@ -305,6 +307,10 @@ function frame(now) {
   s.events.length = 0;
 
   sound.tick(app.paused);
+  // the battle paused in play (not behind a menu): a big pause sign in the middle, and the music waits
+  const pausedInPlay = app.started && app.paused && s.winner < 0 && document.getElementById('overlay').classList.contains('hidden');
+  pauseSign.classList.toggle('hidden', !pausedInPlay);
+  sound.holdMusic(pausedInPlay);
   renderer.draw(s, ui);
   miniTimer -= dt;
   if (miniTimer <= 0) { miniTimer = 0.25; renderer.drawMinimap(mctx, s, mini.width, mini.height); }

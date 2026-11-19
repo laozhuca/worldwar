@@ -4,18 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>WorldWar</title>
-  <link rel="stylesheet" href="style.css?v=a9e7a414" />
+  <link rel="stylesheet" href="style.css?v=01786f68" />
   <!-- stamp:begin (scripts/stamp.mjs) -->
   <script type="importmap">
   {
     "imports": {
       "./src/ai.js": "./src/ai.js?v=3dae52f0",
       "./src/atmosphere.js": "./src/atmosphere.js?v=ce847001",
-      "./src/audio.js": "./src/audio.js?v=6d2dfa5f",
+      "./src/audio.js": "./src/audio.js?v=785b89d0",
       "./src/campaign.js": "./src/campaign.js?v=0d02511a",
       "./src/config.js": "./src/config.js?v=82ca61d3",
       "./src/game.js": "./src/game.js?v=9ccd5466",
-      "./src/main.js": "./src/main.js?v=45bc9369",
+      "./src/main.js": "./src/main.js?v=df11508a",
       "./src/map.js": "./src/map.js?v=3ed5bbdb",
       "./src/model-view.js": "./src/model-view.js?v=214a5b12",
       "./src/path.js": "./src/path.js?v=23c490f7",
@@ -59,6 +59,7 @@
     <div id="objectives" class="hidden"></div>
     <div id="story" class="hidden"><img class="pic hidden" alt=""><div class="who"></div><div class="line"></div><div class="hint"></div></div>
     <div id="modehint" class="hidden"></div>
+    <button id="pause-sign" class="hidden" title="Paused: click or press P to resume" aria-label="Resume"><span>❚❚</span><small>Paused</small></button>
 
     <div id="bottom">
       <canvas id="minimap" width="220" height="136"></canvas>
@@ -340,6 +341,6 @@
       document.getElementById('boot-reload').onclick = function () { location.reload(); };
     }, 20000);
   </script>
-  <script type="module" src="src/main.js?v=45bc9369"></script>
+  <script type="module" src="src/main.js?v=df11508a"></script>
 </body>
 </html>

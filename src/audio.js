@@ -161,7 +161,7 @@ export class Sound {
   }
   playMusic() {
     const m = this.music;
-    if (!m || this.sting) return; // the victory / defeat music has the stage
+    if (!m || this.sting || this.musicHeld) return; // the victory / defeat music has the stage; or the battle is paused
     m.el.play().catch(() => {});
     m.g.gain.cancelScheduledValues(this.ctx.currentTime);
     m.g.gain.setTargetAtTime(MUSIC_LEVEL, this.ctx.currentTime, 1.2); // gentle fade in
@@ -174,6 +174,16 @@ export class Sound {
     if (this.sting) { if (on) this.sting.el.play().catch(() => {}); else this.sting.el.pause(); return; }
     if (on) this.playMusic();
     else { m.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3); setTimeout(() => { if (!this.musicOn) m.el.pause(); }, 1500); }
+  }
+
+  /** The battle paused: the music fades out and waits (held), and fades back in when play resumes. */
+  holdMusic(held) {
+    if (this.musicHeld === held) return;
+    this.musicHeld = held;
+    const m = this.music, el = this.sting ? this.sting.el : m && m.el, g = this.sting ? this.sting.g : m && m.g;
+    if (!el || !this.ctx) return;
+    if (held) { g.gain.cancelScheduledValues(this.ctx.currentTime); g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.15); setTimeout(() => { if (this.musicHeld) el.pause(); }, 700); }
+    else if (this.musicOn) { if (this.sting) { el.play().catch(() => {}); g.gain.setTargetAtTime(0.55, this.ctx.currentTime, 0.3); } else this.playMusic(); }
   }
 
   /**
