@@ -454,6 +454,28 @@ export const LEVELS = [
   {
     id: 'isonzo', n: 2, title: 'The Nests of San Michele', place: 'The Isonzo, Italy', date: 'August 1916',
     nations: ['italy', 'austria'], season: 'thaw', start: 'west', startHour: 5,
+    // the opening scene, like the prologue's: two Italian soldiers in a rocky trench before the assault
+    opening: [
+      { who: 'Monte San Michele, Isonzo Front — August 6, 1916', text: 'Early morning. Two Italian soldiers crouch in a rocky trench. The smell of coffee mingles with damp earth. Above them, Austrian machine-gun positions overlook the valley.', hold: 3 },
+      { who: 'Private Bianchi', text: 'Mamma mia. This coffee tastes like mud.' },
+      { who: 'Sergeant Rossi', text: 'That\'s because you\'re drinking from my shaving cup.' },
+      { who: 'Bianchi', text: 'At least the Austrians can\'t ruin our coffee.' },
+      { who: 'Rossi', text: 'They\'ve already ruined the view.' },
+      { who: '', text: 'Bianchi looks up at the steep, rocky mountain.' },
+      { who: 'Bianchi', text: 'You know, back home in Naples, we have a mountain too.' },
+      { who: 'Rossi', text: 'Vesuvius?' },
+      { who: 'Bianchi', text: 'Sì. But at least that one only tries to kill us every few hundred years.' },
+      { who: '', text: 'A distant Italian artillery battery opens fire. The ground trembles.', sound: 'artyfire' },
+      { who: 'Rossi', text: 'Finish your coffee, Bianchi. We\'re climbing.' },
+      { who: 'Bianchi', text: 'Without breakfast?' },
+      { who: 'Rossi', text: 'Complain to the King.' },
+      { who: 'Bianchi', text: 'I will. If he survives my mother\'s letter.' },
+    ],
+    // ...and the Italian guns roar: the assault begins
+    openingEnd(state) {
+      for (let k = 0; k < 4; k++) state.events.push({ type: 'artyfire' });
+      pushMessage(state, 'The Italian guns roar. The assault begins.', 'warn');
+    },
     history: 'The Sixth Battle of the Isonzo. Five times the Italian army has thrown itself at the Austro-Hungarian line above the river, and five times it has been cut down by machine guns firing from concrete emplacements in the rock. This time the guns must be found and silenced first. Three nests command the whole sector; until they fall, no attack can cross the open ground. Your batteries have been given shells for only a handful of barrages: make every one count.',
     objectives: ['Silence all three machine-gun nests, one after another along the valley.', 'Do it before nightfall on day 2.', 'Do not let the enemy take your headquarters.'],
     rules: ['The valley is narrow and strewn with great boulders: your men must work along the narrow lanes between them.', 'Each nest is a concrete pillbox at the heart of its own strongpoint, behind wire. Shells only keep its crew\'s heads down: the infantry must take it.', 'Ammunition is short: 8 battery barrages for the whole battle. Bring the guns forward to reach the farther nests.'],
