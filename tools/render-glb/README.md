@@ -20,6 +20,6 @@ battle 1 in `src/campaign.js`), whose tiles inside the footprint are then made i
 | `town-dixmude-dawn.webp` | Ashes of Dawn (burnt-out house) | `--yaw 3.1416 --scale 1.6` |
 | `town-dixmude-home.webp` | Ashes of Home (shelled gabled house) | `--yaw 3.1416 --scale 1.6` |
 | `town-dixmude-cottage.webp` | Ashes Beyond the Cottage | `--yaw 1.5708 --scale 1.6` |
-| `town-dixmude-station.webp` | Dixmude Station | `--yaw -1.5708 --scale 2.4` |
+| `town-dixmude-station.webp` | Dixmude Station | `--yaw 1.5708 --scale 2.4` |
 
 (The church quarter was cropped by hand when it was first made; the tool now crops automatically.)

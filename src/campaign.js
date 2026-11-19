@@ -317,7 +317,7 @@ export const LEVELS = [
       const B = (name, ax, ay, ox, oy, hx, hy) => ({ img: `assets/art/town-dixmude-${name}.webp`, x: X(ox), y: Y(oy), ax, ay, k: 0.5, hx, hy });
       state.buildings = [
         B('dawn', 175, 157, -3.3, -5.9, 1.25, 1.45), // a burnt-out house north of the church
-        B('station', 181, 157, 0.5, -6.1, 2.2, 1.1), // the railway station, turning towards the front
+        B('station', 165, 213, 0.5, -6.1, 2.2, 1.1), // the railway station, turning towards the front
         B('home', 101, 170, -3.3, 5.9, 0.8, 1.45), // a shelled gabled house south of the church
         B('cottage', 123, 156, -0.1, 6.3, 1.4, 0.8), // a cottage, turning towards the front
       ];
