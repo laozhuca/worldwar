@@ -120,7 +120,7 @@ export class Atmosphere {
         const dur = 5 + Math.random() * 5;
         this.gust = { start: now, dur, travel: 12 }; // (the front crosses the whole field in 12 s: a screen's width in about four)
         this.gustStarted = this.gust; // (main.js plays the sound)
-        this.nextGust = now + dur + 12 + 8 + Math.random() * 16;
+        this.nextGust = now + dur + 12 + 4 + 8 + Math.random() * 16;
       }
     }
     this.shake *= Math.pow(0.0015, dt);
@@ -186,8 +186,9 @@ export class Atmosphere {
     if (!g) return 0;
     const q = ((sx - 0.5 * sy) - ext.q0) / (ext.q1 - ext.q0); // 0 at the left .. 1 at the right (a little from the lower left)
     const t = performance.now() / 1000 - g.start - q * g.travel;
-    if (t <= 0 || t >= g.dur) return 0;
-    const up = Math.min(1, t / 0.9), down = Math.min(1, (g.dur - t) / 2.2); // (a sharp front: the trees it reaches bend over within a second)
+    const tail = 4; // after the gust the trees go on swaying, dying away slowly
+    if (t <= 0 || t >= g.dur + tail) return 0;
+    const up = Math.min(1, t / 0.9), down = t < g.dur ? 1 : 1 - (t - g.dur) / tail; // (a sharp front: the trees it reaches bend over within a second)
     const s = Math.min(up, down);
     return s * s * (3 - 2 * s);
   }
