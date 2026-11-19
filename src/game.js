@@ -17,8 +17,8 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export { teamDir };
 
 export function createGame(opts = {}) {
-  const { seed = 1916, aiTeams = [ENEMY], season = 'winter', nations = ['uk', 'germany'], start = 'west', difficulty = 'medium', advance = {}, works = 'full' } = opts;
-  const map = createMap(seed, start === 'east' ? ENEMY : PLAYER, advance, works);
+  const { seed = 1916, aiTeams = [ENEMY], season = 'winter', nations = ['uk', 'germany'], start = 'west', difficulty = 'medium', advance = {}, works = 'full', radius } = opts;
+  const map = createMap(seed, start === 'east' ? ENEMY : PLAYER, advance, works, radius);
   const state = {
     season,
     start,
@@ -897,11 +897,11 @@ function explode(state, s) {
     const hit = d < 0.7; // the shell landed on this tile
     // trees and their stems: a tree takes two hits to fall (to a shattered stump or a log), a stump or
     // log one or two more before it is blown to splinters
-    if (t.decor === 'tree' || t.decor === 'stump' || t.decor === 'log') {
-      const hp = t.decorHp ?? (t.decor === 'tree' ? 2 : t.decor === 'stump' ? 2 : 1);
+    if (t.decor === 'tree' || t.decor === 'birch' || t.decor === 'stump' || t.decor === 'log') {
+      const hp = t.decorHp ?? (t.decor === 'tree' || t.decor === 'birch' ? 2 : t.decor === 'stump' ? 2 : 1);
       const left = hp - (hit ? 2 : rand() < 0.6 ? 1 : 0);
       if (left > 0) t.decorHp = left;
-      else if (t.decor === 'tree') { t.decor = rand() < 0.6 ? 'stump' : 'log'; t.decorHp = t.decor === 'stump' ? 2 : 1; }
+      else if (t.decor === 'tree' || t.decor === 'birch') { t.decor = rand() < 0.6 ? 'stump' : 'log'; t.decorHp = t.decor === 'stump' ? 2 : 1; }
       else { t.decor = null; t.decorHp = undefined; t.splinters = 1; }
       markChanged(map, t.x, t.y);
     } else if (t.decor === 'ruin' && d < 0.8 && rand() < 0.3) t.decor = null;

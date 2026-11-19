@@ -1,8 +1,7 @@
 // Saving and loading a battle. The whole simulation state goes into one JSON document: the map's tiles are
 // stored as compact arrays, and the links between objects (a unit's target, its nearest enemy, the works it
 // is digging) as ids or tile coordinates, then rebuilt on load. No DOM: the storage is the caller's business.
-import { MAP_W, MAP_H } from './config.js';
-import { setWestTeam } from './map.js';
+import { setWestTeam, setMapRadius } from './map.js';
 import { setNextId } from './game.js';
 
 export const SAVE_VERSION = 1;
@@ -31,7 +30,7 @@ export function serialize(state) {
 export function describe(json) {
   try {
     const d = JSON.parse(json);
-    if (d.version !== SAVE_VERSION || d.map.w !== MAP_W || d.map.h !== MAP_H) return null;
+    if (d.version !== SAVE_VERSION || d.map.w !== d.map.h || d.map.w % 2 !== 1) return null;
     return { savedAt: d.savedAt, time: d.rest.time, nations: d.rest.nations, season: d.rest.season, start: d.rest.start, difficulty: d.rest.difficulty || 'medium', level: d.rest.campaign ? d.rest.campaign.id : null };
   } catch { return null; }
 }
@@ -40,16 +39,17 @@ export function describe(json) {
 export function deserialize(json) {
   const d = JSON.parse(json);
   if (d.version !== SAVE_VERSION) throw new Error('Saved with an older version of the game');
-  if (d.map.w !== MAP_W || d.map.h !== MAP_H) throw new Error('Saved on a different map');
-  const R = MAP_W / 2 - 0.5;
+  if (d.map.w !== d.map.h || d.map.w % 2 !== 1) throw new Error('Saved on a different map');
+  const R = (d.map.w - 1) / 2; // the battlefield's radius (a level may have a larger one)
+  setMapRadius(R);
   const tiles = d.map.tiles.map((a, i) => {
     const t = { x: i % d.map.w, y: Math.floor(i / d.map.w) };
     TILE_KEYS.forEach((k, j) => { t[k] = a[j]; });
-    t.off = Math.abs(t.x + 0.5 - MAP_W / 2) + Math.abs(t.y + 0.5 - MAP_H / 2) > R + 0.5;
+    t.off = Math.abs(t.x + 0.5 - d.map.w / 2) + Math.abs(t.y + 0.5 - d.map.h / 2) > R + 0.5;
     if (d.map.band && (t.x + t.y - (d.map.w - 1) > d.map.band || t.x + t.y - (d.map.w - 1) < -(d.map.bandBack || d.map.band))) t.off = true; // a valley level
     return t;
   });
-  const map = { w: d.map.w, h: d.map.h, tiles, dirty: true, hq: d.map.hq, changes: [], west: d.map.west };
+  const map = { w: d.map.w, h: d.map.h, r: R, tiles, dirty: true, hq: d.map.hq, changes: [], west: d.map.west };
   for (const k of ['band', 'bandBack', 'extraTop', 'summer', 'rocks', 'startView', 'giants']) if (d.map[k] != null) map[k] = d.map[k];
   setWestTeam(map.west);
   const byId = new Map(d.units.map((u) => [u.id, u]));

@@ -3,7 +3,7 @@
 // state.campaign as plain data, so a campaign battle saves and loads like any other.
 import { PLAYER, ENEMY, DIFFICULTY } from './config.js';
 import { createGame, spawnUnit, pushMessage, orderMove } from './game.js';
-import { frontLine, teamDir, tileAt, noSquares } from './map.js';
+import { frontLine, teamDir, tileAt, noSquares, makesSquare } from './map.js';
 
 const DAY_LENGTH = 420; // seconds of game time per 24 hours (as atmosphere.js)
 
@@ -539,6 +539,8 @@ export const LEVELS = [
   {
     id: 'brusilov', n: 3, title: 'Brusilov\'s Storm', place: 'Galicia', date: 'June 1916',
     nations: ['russia', 'austria'], season: 'summer', start: 'west', startHour: 4,
+    radius: 51, // a wider battlefield: half as long again each way
+    works: 'network', // trench systems grown over months: wandering lines, winding communication trenches
     history: 'June 1916. General Brusilov has broken every rule of the Western Front. There is no single great blow aimed at one point: his armies attack together along hundreds of miles, after a short, sharp bombardment, from saps dug right up to the enemy wire. Opposite you the Austro-Hungarian line is held by plenty of infantry but few machine guns, its best divisions and guns sent away to Italy. It will not stay that way: reserves are already on the railway. Break the line, push on past it, and take all three of their headquarters before it can be shored up.',
     objectives: ['Take all three enemy headquarters.', 'Do it within three days: by midnight on day 3.', 'Do not let the enemy take your headquarters.'],
     rules: ['A battle of riflemen: both sides are rich in infantry and poor in machine guns and guns.', 'Your saps run right up to the enemy wire: your assault troops start in them.', 'Austrian reserves arrive on the evening of day 1 and again on day 2: break through and press on to the headquarters before they come.'],
@@ -556,47 +558,65 @@ export const LEVELS = [
       let seed = 1606;
       const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
       const fields = []; // wheat fields: rectangles of the farmland, as the fields are laid out
-      for (let k = 0; k < 22; k++) fields.push({ x: Math.floor(rnd() * W), y: Math.floor(rnd() * map.h), w: 3 + Math.floor(rnd() * 6), h: 3 + Math.floor(rnd() * 7) });
+      for (let k = 0; k < 40; k++) fields.push({ x: Math.floor(rnd() * W), y: Math.floor(rnd() * map.h), w: 3 + Math.floor(rnd() * 7), h: 3 + Math.floor(rnd() * 8) });
+      const nmlAt = (t) => f[t.y] >= 0 && ef[t.y] >= 0 && (t.x - f[t.y] - 2) * d > 0 && (ef[t.y] - 2 * d - t.x) * d > 0;
       for (const t of map.tiles) {
         if (t.off) continue;
-        const nml = f[t.y] >= 0 && ef[t.y] >= 0 && t.x > f[t.y] + 2 && t.x < ef[t.y] - 2; // no man's land
+        const nml = nmlAt(t);
         if (!nml) { t.mud = rnd() < 0.05 ? 1 : 0; t.crater = 0; }
+        else if (t.mud && rnd() < 0.6) t.mud = 0; // no man's land: torn grass and shell holes more than mud (the guns fired for hours, not weeks)
+        if (t.decor === 'tree') t.decor = nml ? 'stump' : rnd() < 0.6 ? 'birch' : null; // no dead woods of the Western Front here
         if (t.mud || t.crater || t.trench || t.wire || nml) continue;
-        t.ground = fields.some((q) => t.x >= q.x && t.x < q.x + q.w && t.y >= q.y && t.y < q.y + q.h) ? 4 : rnd() < 0.85 ? 1 : 0;
+        t.ground = fields.some((q) => t.x >= q.x && t.x < q.x + q.w && t.y >= q.y && t.y < q.y + q.h) ? 4 : rnd() < 0.8 ? 1 : 0;
       }
-      // ---- saps: narrow trenches pushed out from our front line almost to the enemy wire
+      // ---- saps: narrow zigzag trenches pushed out from our front line towards the enemy wire, at uneven
+      // intervals, some reaching almost to it, some only part way
       const sapHeads = [];
-      for (const y of [M - 15, M - 9, M - 3, M + 3, M + 9, M + 15]) {
+      for (let y = M - 34 + Math.floor(rnd() * 3); y <= M + 34; y += 4 + Math.floor(rnd() * 5)) {
         if (f[y] < 0 || ef[y] < 0) continue;
-        const stop = ef[y] - 5;
-        for (let x = f[y] + 1; x !== stop + d; x += d) { const t = at(x, y); if (!t || t.off) break; t.trench = 1; t.owner = t.origOwner = PLAYER; t.wire = 0; t.mud = 0; t.ground = 0; t.crater = 0; t.decor = null; }
-        sapHeads.push({ x: stop, y });
+        const gap = Math.abs(ef[y] - f[y]), reach = Math.min(gap - 6, Math.round(gap * (0.4 + rnd() * 0.5))); // how far across no man's land
+        let x = f[y], yy = y;
+        for (let n = 0; x !== f[y] + d * reach && n < 200; n++) {
+          const run = 1 + Math.floor(rnd() * 2);
+          for (let k = 0; k < run && x !== f[y] + d * reach; k++) { x += d; const t = at(x, yy); if (t && !t.off && !t.trench && !makesSquare(map, x, yy)) { t.trench = 1; t.owner = t.origOwner = PLAYER; t.wire = 0; t.mud = 0; t.ground = 0; t.crater = 0; t.decor = null; } }
+          if (rnd() < 0.8) { const j = yy - y >= 1 ? -1 : yy - y <= -1 ? 1 : rnd() < 0.5 ? -1 : 1, t = at(x, yy + j); if (t && !t.off && !t.trench && !makesSquare(map, x, yy + j)) { yy += j; t.trench = 1; t.owner = t.origOwner = PLAYER; t.wire = 0; t.mud = 0; t.ground = 0; t.crater = 0; } }
+        }
+        sapHeads.push({ x, y: yy });
       }
       noSquares(map);
-      // ---- the armies: riflemen against riflemen; few machine guns, few guns
-      const keep = (team, type, n) => { const list = state.units.filter((u) => u.team === team && u.type === type); const gone = new Set(list.slice(n).map((u) => u.id)); state.units = state.units.filter((u) => !gone.has(u.id)); };
-      keep(PLAYER, 'mg', 1); keep(PLAYER, 'artillery', 2);
-      keep(ENEMY, 'mg', 1); keep(ENEMY, 'artillery', 1);
-      // our assault squads wait at the sap heads, more behind them in the line
-      for (const h of sapHeads) { const u = spawnUnit(state, 'rifle', PLAYER, h.x + 0.5, h.y + 0.5); u.inTrench = true; }
-      reinforce(state, PLAYER, 6);
-      // the enemy line: plenty of infantry along it
-      for (const dy of [-16, -12, -8, -4, 0, 4, 8, 12, 16]) {
-        const y = M + dy;
-        if (ef[y] < 0 || state.units.some((u) => u.team === ENEMY && Math.abs(u.y - y - 0.5) < 2 && Math.abs(u.x - ef[y] - 0.5) < 2)) continue;
-        const u = spawnUnit(state, 'rifle', ENEMY, ef[y] + 0.5, y + 0.5); u.inTrench = true;
+      // ---- the armies: riflemen against riflemen; few machine guns, few guns. Laid out along the whole front
+      state.units = [];
+      const f2 = frontLine(map, PLAYER), ef2 = frontLine(map, ENEMY);
+      const trenchNear = (team, x0, y0) => { let best = null, bd = Infinity; for (let y = y0 - 2; y <= y0 + 2; y++) for (let x = x0 - 4; x <= x0 + 4; x++) { const t = at(x, y); if (t && t.trench && t.owner === team && !state.units.some((u) => Math.floor(u.x) === x && Math.floor(u.y) === y)) { const dd = Math.abs(x - x0) + Math.abs(y - y0); if (dd < bd) { bd = dd; best = t; } } } return best; };
+      const put = (type, team, t) => { if (!t) return null; const u = spawnUnit(state, type, team, t.x + 0.5, t.y + 0.5); u.inTrench = !!t.trench; return u; };
+      for (const h of sapHeads) put('rifle', PLAYER, at(h.x, h.y)); // the assault squads at the sap heads
+      for (let dy = -30; dy <= 30; dy += 5) if (f2[M + dy] >= 0) put('rifle', PLAYER, trenchNear(PLAYER, f2[M + dy], M + dy)); // the front line
+      for (const dy of [-18, -6, 6, 18]) if (f2[M + dy] >= 0) put('rifle', PLAYER, trenchNear(PLAYER, f2[M + dy] - d * 7, M + dy)); // support
+      if (f2[M] >= 0) put('mg', PLAYER, trenchNear(PLAYER, f2[M - 2], M - 2));
+      for (const dy of [-10, 10]) put('artillery', PLAYER, at(f2[M + dy] - d * 9, M + dy));
+      for (let dy = -30; dy <= 30; dy += 4) if (ef2[M + dy] >= 0) put('rifle', ENEMY, trenchNear(ENEMY, ef2[M + dy], M + dy)); // plenty of infantry
+      for (const dy of [-14, 0, 14]) if (ef2[M + dy] >= 0) put('rifle', ENEMY, trenchNear(ENEMY, ef2[M + dy] + d * 7, M + dy));
+      if (ef2[M + 3] >= 0) put('mg', ENEMY, trenchNear(ENEMY, ef2[M + 3], M + 3)); // and a single machine gun
+      put('artillery', ENEMY, at(ef2[M] + d * 10, M));
+      // ---- birch woods: white birches in groves and lines along the field edges, mostly behind the lines
+      for (let k = 0; k < 16; k++) {
+        const cx = Math.floor(rnd() * W), cy = Math.floor(rnd() * map.h), rr = 1.5 + rnd() * 3.5;
+        for (const t of map.tiles) {
+          if (t.off || t.trench || t.wire || t.decor || t.ground === 4 || nmlAt(t)) continue;
+          const dd = Math.hypot(t.x - cx, (t.y - cy) * 1.2);
+          if (dd < rr && rnd() < 0.55 * (1 - dd / rr) + 0.15) t.decor = 'birch';
+        }
       }
-      reinforce(state, ENEMY, 4);
-      // ---- three headquarters: the centre one and one on each flank, on the support line
+      for (const t of map.tiles) if (!t.off && !t.trench && !t.wire && !t.decor && t.ground !== 4 && !nmlAt(t) && rnd() < 0.012) t.decor = 'birch';
+      // ---- three headquarters: the centre one and one on each flank, behind the support line
       const hq = map.hq[ENEMY];
       hq.posts = [];
-      for (const dy of [-12, 12]) {
+      for (const dy of [-20, 20]) {
         const y = M + dy;
-        let best = null;
-        for (let x = 0; x < W; x++) { const t = at(x, y); if (t && t.trench && t.owner === ENEMY && (!best || (d > 0 ? x > best.x : x < best.x))) best = t; }
-        if (!best) continue;
-        best.trench = 3;
-        hq.posts.push({ x: best.x, y: best.y });
+        const t = trenchNear(ENEMY, ef2[y] + d * 9, y) || trenchNear(ENEMY, ef2[y] + d * 6, y);
+        if (!t) continue;
+        t.trench = 3;
+        hq.posts.push({ x: t.x, y: t.y });
       }
       map.dirty = true;
       state.resources[PLAYER] = { men: 40, ammo: 260, supplies: 160 };
@@ -842,7 +862,7 @@ export const PROLOGUE = {
 /** A new battle for a campaign level. */
 export function createLevelGame(id, opts = {}) {
   const L = levelById(id);
-  const state = createGame({ seed: opts.seed ?? 1915 + L.n, season: L.season, nations: L.nations, start: L.start, difficulty: 'hard', aiTeams: opts.aiTeams, advance: L.advance, works: L.works });
+  const state = createGame({ seed: opts.seed ?? 1915 + L.n, season: L.season, nations: L.nations, start: L.start, difficulty: 'hard', aiTeams: opts.aiTeams, advance: L.advance, works: L.works, radius: L.radius });
   state.startHour = L.startHour;
   state.campaign = { id, fired: [], result: null, reason: '' };
   L.setup(state);

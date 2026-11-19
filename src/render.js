@@ -119,18 +119,7 @@ export class Renderer {
     this.cam = { x: 0, y: 0, zoom: 1 };
     this.insets = { top: 0, bottom: 0 }; // screen strips covered by overlays (none: the panels sit beside the map)
     this.ground = document.createElement('canvas');
-    // The battlefield is a diamond of radius MAP_R + 0.5 tiles around the map centre, a 2:1 rectangle on screen.
-    // The ground canvas covers exactly that rectangle (plus a margin above for tall props).
-    const RR = MAP_R + 0.5, C = MAP_W / 2;
-    // the camera may go right to the battlefield's edge and no further: nothing beyond it ever shows
-    const E = RR - 0.05;
-    this.view = this.baseView = { x0: -E * TW / 2, x1: E * TW / 2, y0: (2 * C - E) * TH / 2, y1: (2 * C + E) * TH / 2 };
-    this.OX = (RR * TW) / 2;
-    this.OY = TH * 6 - ((2 * C - RR) * TH) / 2; // (room above the map for a strip of ground beyond its top edge: map.extraTop)
-    this.gw = RR * TW;
-    this.gh = RR * TH + TH * 8;
-    this.ground.width = Math.round(this.gw * GS);
-    this.ground.height = Math.round(this.gh * GS);
+    this.setGeometry(MAP_R);
     this.lastGround = -1e9;
     this.groundDrawn = false;
     this.atmo = new Atmosphere();
@@ -261,6 +250,32 @@ export class Renderer {
       out[y * mw + x] = vn(u * 0.7, v * 0.7) * 0.5 + vn(u * 1.9, v * 1.9) * 0.3 + vn(u * 5.3, v * 5.3) * 0.2;
     }
     return (this._mn[key] = out);
+  }
+
+  /**
+   * The geometry for a battlefield of radius R: a diamond of radius R + 0.5 tiles around the map centre, a
+   * 2:1 rectangle on screen. The ground canvas covers exactly that rectangle (plus a margin above for tall
+   * props). Called again when a battle on a field of another size is drawn.
+   */
+  setGeometry(R) {
+    this.R = R;
+    const RR = R + 0.5, C = (2 * R + 1) / 2;
+    // the camera may go right to the battlefield's edge and no further: nothing beyond it ever shows
+    const E = RR - 0.05;
+    this.view = this.baseView = { x0: -E * TW / 2, x1: E * TW / 2, y0: (2 * C - E) * TH / 2, y1: (2 * C + E) * TH / 2 };
+    this.OX = (RR * TW) / 2;
+    this.OY = TH * 6 - ((2 * C - RR) * TH) / 2; // (room above the map for a strip of ground beyond its top edge: map.extraTop)
+    this.gw = RR * TW;
+    this.gh = RR * TH + TH * 8;
+    this.ground.width = Math.round(this.gw * GS);
+    this.ground.height = Math.round(this.gh * GS);
+  }
+
+  /** Size the ground and the camera's limits for this battle's field (a level may have a larger one). */
+  fitMap(map) {
+    if ((map.r ?? MAP_R) === this.R) return;
+    this.setGeometry(map.r ?? MAP_R);
+    this.relief = null; this.rcv = null; this.groundDrawn = false; this._rocks = null;
   }
 
   /** Tile bounds (inclusive, clamped) of the area being redrawn, or null for a full redraw. */
@@ -434,8 +449,11 @@ export class Renderer {
       const torn = t.mud || t.crater || t.trench ? 1 : 0; // churned earth keeps its own colour
       const v = hash(t.x * 0.61, t.y * 0.37) * 0.25;
       let col = [0, 0, 0], a = 0;
-      if (t.ground === 4) { col = [196 + v * 60, 160 + v * 50, 70]; a = 0.85; } // ripening wheat
-      else if (t.ground === 1) { col = [104 + v * 50, 122 + v * 40, 66]; a = 0.62; } // meadow, sun-dried in places
+      if (t.ground === 4) { col = [186 + v * 50, 156 + v * 40, 84]; a = 0.72; } // ripening wheat
+      else if (t.ground === 1) { // meadow: olive green, drying to straw in patches, never the same twice
+        const dry = Math.max(0, Math.sin(t.x * 0.31 + 1.3) * Math.cos(t.y * 0.27 - 0.8) + (hash(t.y * 0.9, t.x * 1.7) - 0.5) * 0.9);
+        col = [100 + v * 30 + dry * 46, 112 + v * 24 + dry * 22, 64 + dry * 18]; a = 0.5;
+      }
       else { col = [110, 112, 70]; a = 0.35; } // rough grass
       d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = Math.round(255 * a * (1 - torn * 0.85));
     }
@@ -446,7 +464,7 @@ export class Renderer {
     g.imageSmoothingEnabled = true;
     if (tb) { g.beginPath(); g.rect(tb.x0, tb.y0, tb.x1 - tb.x0 + 1, tb.y1 - tb.y0 + 1); g.clip(); }
     g.globalCompositeOperation = 'soft-light'; g.globalAlpha = 0.9; g.drawImage(cv, 0, 0); // lighten
-    g.globalCompositeOperation = 'color'; g.globalAlpha = 0.42; g.drawImage(cv, 0, 0); // and colour
+    g.globalCompositeOperation = 'color'; g.globalAlpha = 0.34; g.drawImage(cv, 0, 0); // and colour
     g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.35; g.drawImage(cv, 0, 0);
     g.restore();
   }
@@ -474,6 +492,7 @@ export class Renderer {
   }
 
   drawGround(map, seasonKey = 'winter') {
+    this.fitMap(map);
     const season = SEASONS[seasonKey] || SEASONS.winter;
     const S = season.snow;
     this.S = S;
@@ -563,7 +582,7 @@ export class Renderer {
 
     g.setTransform(1, 0, 0, 1, this.OX, this.OY);
     g.save();
-    const C = map.w / 2, RR = MAP_R + 0.5;
+    const C = map.w / 2, RR = this.R + 0.5;
     const c0 = iso(C - RR, C), c1 = iso(C, C - RR), c2 = iso(C + RR, C), c3 = iso(C, C + RR);
     const xt = map.extraTop || 0; // a strip of ground beyond the map's top edge (scenery: a town's towers rise against it)
     g.beginPath(); g.moveTo(c0.x, c0.y - xt); g.lineTo(c1.x, c1.y - xt); g.lineTo(c2.x, c2.y); g.lineTo(c3.x, c3.y); g.closePath();
@@ -895,6 +914,7 @@ export class Renderer {
 
   draw(state, ui) {
     const ctx = this.ctx;
+    this.fitMap(state.map);
     this.map = state.map;
     // the low sun at dawn and dusk: shadows point away from it, longer the lower it is
     // rain clouds hide the sun: a shower dims the shadows, heavy rain removes them
@@ -1195,7 +1215,7 @@ export class Renderer {
   drawHover(ctx, state, ui) {
     if (!ui.hover) return;
     const { x, y } = ui.hover;
-    if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return;
+    if (x < 0 || y < 0 || x >= state.map.w || y >= state.map.h) return;
     const ht = state.map.tiles[Math.floor(y) * state.map.w + Math.floor(x)];
     if (ht && ht.off) return; // no cursor off the battlefield
     if (ui.mode && ui.mode.startsWith('build:')) {
@@ -1230,8 +1250,8 @@ export class Renderer {
       const snow = (this.S ?? 1) > 0.7 ? '_s' : '';
       const h = hash(t.x * 2.3, t.y * 5.1);
       const c = iso(t.x + 0.3 + t.shade * 0.4, t.y + 0.3 + h * 0.4);
-      if (t.decor === 'tree' || t.decor === 'stump') this.longShadow(ctx, c.x, c.y, t.decor === 'tree' ? 2.6 : 0.8);
-      const name = t.decor === 'stump' ? `stump${Math.floor(h * 4) % 4}` : t.decor === 'tree' ? `tree${Math.floor(h * 2) % 2}` : `log${Math.floor(h * 3) % 3}`;
+      if (t.decor === 'tree' || t.decor === 'stump' || t.decor === 'birch') this.longShadow(ctx, c.x, c.y, t.decor === 'stump' ? 0.8 : 2.6);
+      const name = t.decor === 'stump' ? `stump${Math.floor(h * 4) % 4}` : t.decor === 'tree' ? `tree${Math.floor(h * 2) % 2}` : t.decor === 'birch' ? `birch${Math.floor(h * 4) % 4}` : `log${Math.floor(h * 3) % 3}`;
       if (this.drawProp(ctx, name + snow, c.x, c.y)) return;
     }
     const S = this.S ?? 1;
@@ -2395,7 +2415,7 @@ export class Renderer {
 
   /** A valley level's own rectangle in world coordinates (its ends, the back of its rock wall, its front edge). */
   bandRect(map) {
-    const hw = (MAP_R + 0.5) * TW / 2 - 2;
+    const hw = (this.R + 0.5) * TW / 2 - 2;
     return { x0: -hw, x1: hw, y0: (map.w - (map.bandBack || map.band)) * TH / 2 + 2, y1: (map.w + map.band) * TH / 2 - 2 };
   }
 

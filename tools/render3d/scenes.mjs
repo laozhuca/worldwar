@@ -623,6 +623,57 @@ export function bridgeScene(axis, snow) {
 }
 const mul3 = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
 
+// ===================================================================== white birch
+/**
+ * A silver birch of the Galician woods: a slender white trunk, leaning a little, marked with black
+ * lenticels and dark scars, thin branches, and light, airy clumps of fresh green leaves. snow: bare and
+ * snow-dusted (winter).
+ */
+export function birchScene(variant, snow) {
+  const H = (k, j = 0) => hash(variant * 19 + 5, j, k);
+  const h = 1.05 + H(1) * 0.45, lean = [(H(2) - 0.5) * 0.18, (H(3) - 0.5) * 0.18], r0 = 0.035 + H(4) * 0.012;
+  const axis = (z) => [lean[0] * z * z, lean[1] * z * z];
+  const trunk = (x, y, z) => { const [ax, ay] = axis(z); return Math.max(Math.hypot(x - ax, y - ay) - r0 * (1 - 0.55 * z / h), -z, z - h); };
+  // branches: thin capsules up the upper trunk
+  const br = Array.from({ length: 6 }, (_, k) => { const z = h * (0.45 + 0.5 * k / 6), a = H(10 + k) * TAU, l = 0.18 + H(20 + k) * 0.18; const [ax, ay] = axis(z); return [ax, ay, z, ax + Math.cos(a) * l, ay + Math.sin(a) * l, z + 0.12 + H(30 + k) * 0.1]; });
+  const branches = (x, y, z) => { let d = 1; for (const b of br) d = Math.min(d, sdCapsule(x, y, z, ...b, 0.012, 0.006)); return d; };
+  // leaves: many small loose clusters hanging along the branches and round the upper trunk, light showing
+  // through between them
+  const clumps = [];
+  if (!snow) {
+    for (const [x0, y0, z0, x1, y1, z1] of br) for (let k = 0; k < 5; k++) { const t = 0.3 + k * 0.17; clumps.push({ x: x0 + (x1 - x0) * t + (H(80 + clumps.length) - 0.5) * 0.08, y: y0 + (y1 - y0) * t + (H(90 + clumps.length) - 0.5) * 0.08, z: z0 + (z1 - z0) * t - 0.03 - H(100 + clumps.length) * 0.07, r: 0.035 + H(110 + clumps.length) * 0.035 }); }
+    for (let k = 0; k < 10; k++) { const z = h * (0.62 + H(120 + k) * 0.42), a = H(130 + k) * TAU, rr = 0.03 + H(140 + k) * 0.12; const [ax, ay] = axis(z); clumps.push({ x: ax + Math.cos(a) * rr, y: ay + Math.sin(a) * rr, z, r: 0.04 + H(150 + k) * 0.035 }); }
+  }
+  const leaves = (x, y, z) => {
+    let d = 1;
+    for (const c of clumps) d = Math.min(d, Math.hypot(x - c.x, y - c.y, (z - c.z) * 0.8) - c.r);
+    return d + (fbm(x * 60, y * 60, z * 60, 3) - 0.42) * 0.05;
+  };
+  const wood = (x, y, z) => Math.min(trunk(x, y, z), branches(x, y, z));
+  const sdf = (x, y, z) => Math.min(wood(x, y, z), leaves(x, y, z), z * 0.7 + (Math.hypot(x, y) < 0.5 ? 0 : 1));
+  const shade = (x, y, z, nx, ny, nz) => {
+    const dl = leaves(x, y, z), dw = wood(x, y, z);
+    if (dl < dw && dl < 0.02) {
+      const n = fbm(x * 40, y * 40, z * 40, 3);
+      return { kind: 'solid', col: mix3([0.3, 0.38, 0.16], [0.58, 0.64, 0.3], n * 0.8 + fbm(x * 9, y * 9, z * 9, 2) * 0.4), spec: 0.03, aoMin: 0.45, fill: 1.15 };
+    }
+    if (dw < 0.02) {
+      if (branches(x, y, z) < trunk(x, y, z)) return { kind: 'solid', col: [0.3, 0.26, 0.22], spec: 0.02 };
+      if (snow && nz > 0.4) return { kind: 'solid', col: C.snow, spec: 0.1 };
+      // white bark: black lenticels (short horizontal dashes) and dark scars, darker at the foot
+      const [ax, ay] = axis(z), a = Math.atan2(y - ay, x - ax);
+      const dash = vnoise(a * 3, z * 26, variant) > 0.72 && vnoise(a * 9, z * 4, 2) > 0.4;
+      const scar = fbm(a * 2, z * 6, variant + 3, 2) > 0.68;
+      let col = mix3([0.78, 0.77, 0.72], [0.92, 0.91, 0.87], fbm(a * 4, z * 12, 1, 2));
+      if (dash || scar) col = [0.12, 0.11, 0.1];
+      col = mix3(col, [0.2, 0.18, 0.16], clamp(0.18 - z, 0, 0.18) * 4);
+      return { kind: 'solid', col, spec: 0.08 };
+    }
+    return z < -0.004 ? { kind: 'none' } : { kind: 'catcher' };
+  };
+  return { bounds: [-0.55, -0.55, -0.05, 0.55, 0.55, h + 0.3], sdf, shade, supersample: 2 };
+}
+
 // ===================================================================== Alpine rock outcrop
 /**
  * A craggy limestone outcrop (the Karst above the Isonzo): a few fractured blocks leaning together, bedded

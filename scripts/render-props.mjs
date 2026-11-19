@@ -28,6 +28,7 @@ function jobs() {
     }
     for (let v = 0; v < 4; v++) list.push({ name: `stump${v}${s}`, kind: 'trunk', args: [v, false, snow] });
     for (let v = 0; v < 2; v++) list.push({ name: `tree${v}${s}`, kind: 'trunk', args: [v, true, snow] });
+    for (let v = 0; v < 4; v++) list.push({ name: `birch${v}${s}`, kind: 'birch', args: [v, snow] });
     for (let v = 0; v < 3; v++) list.push({ name: `log${v}${s}`, kind: 'log', args: [v, snow] });
     for (let v = 0; v < 3; v++) list.push({ name: `debris${v}${s}`, kind: 'debris', args: [v, snow] });
     for (let v = 0; v < 4; v++) list.push({ name: `rock${v}${s}`, kind: 'rock', args: [v, snow] });
@@ -81,7 +82,7 @@ if (isMainThread && process.argv[2] === '--footprints') {
   const core = await import('../tools/render3d/core.mjs');
   const scenes = await import('../tools/render3d/scenes.mjs');
   const sold = await import('../tools/render3d/soldier.mjs');
-  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, bunker: scenes.bunkerScene, rock: scenes.rockScene, boulder: scenes.boulderScene, crag: scenes.cragScene, knoll: scenes.knollScene, scree: scenes.screeScene, bridge: scenes.bridgeScene, gun: scenes.gunScene, soldier: sold.soldierScene, corpse: sold.corpseScene, part: sold.partScene, fall: sold.fallScene };
+  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, bunker: scenes.bunkerScene, rock: scenes.rockScene, boulder: scenes.boulderScene, crag: scenes.cragScene, birch: scenes.birchScene, knoll: scenes.knollScene, scree: scenes.screeScene, bridge: scenes.bridgeScene, gun: scenes.gunScene, soldier: sold.soldierScene, corpse: sold.corpseScene, part: sold.partScene, fall: sold.fallScene };
   const out = {};
   for (const j of jobs()) {
     const sc = make[j.kind](...j.args), scale = core.PX_PER_UNIT * (j.scale || SCALE);
@@ -131,7 +132,7 @@ if (isMainThread) {
 } else {
   const core = await import('../tools/render3d/core.mjs');
   const scenes = await import('../tools/render3d/scenes.mjs');
-  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, bunker: scenes.bunkerScene, rock: scenes.rockScene, boulder: scenes.boulderScene, crag: scenes.cragScene, knoll: scenes.knollScene, scree: scenes.screeScene, bridge: scenes.bridgeScene, gun: scenes.gunScene, soldier: (await import('../tools/render3d/soldier.mjs')).soldierScene, corpse: (await import('../tools/render3d/soldier.mjs')).corpseScene, part: (await import('../tools/render3d/soldier.mjs')).partScene, fall: (await import('../tools/render3d/soldier.mjs')).fallScene };
+  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, bunker: scenes.bunkerScene, rock: scenes.rockScene, boulder: scenes.boulderScene, crag: scenes.cragScene, birch: scenes.birchScene, knoll: scenes.knollScene, scree: scenes.screeScene, bridge: scenes.bridgeScene, gun: scenes.gunScene, soldier: (await import('../tools/render3d/soldier.mjs')).soldierScene, corpse: (await import('../tools/render3d/soldier.mjs')).corpseScene, part: (await import('../tools/render3d/soldier.mjs')).partScene, fall: (await import('../tools/render3d/soldier.mjs')).fallScene };
   parentPort.on('message', (job) => {
     const scale = job.scale || SCALE;
     const r = core.render(make[job.kind](...job.args), core.PX_PER_UNIT * scale);

@@ -146,6 +146,7 @@ export class UI {
   }
 
   centerOnFront() {
+    this.r.fitMap(this.state.map);
     const sv = this.state.map.startView;
     if (sv) {
       // a valley level: its own rectangle as the camera's limits from the very first frame, and a closer
@@ -156,7 +157,7 @@ export class UI {
     const f = frontLine(this.state.map, PLAYER);
     const xs = f.filter((x) => x >= 0);
     const x = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : (teamDir(PLAYER) > 0 ? 18 : 45);
-    this.r.centerOn(x + 6 * teamDir(PLAYER), MAP_H / 2);
+    this.r.centerOn(x + 6 * teamDir(PLAYER), this.state.map.h / 2);
   }
 
   /** Player unit under a screen point (touch uses a larger radius), or null. */

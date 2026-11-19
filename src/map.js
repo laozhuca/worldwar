@@ -17,26 +17,33 @@ export let WEST_TEAM = PLAYER;
 export const teamDir = (team) => (team === WEST_TEAM ? 1 : -1);
 /** Restore which team holds the west (loading a saved battle). */
 export function setWestTeam(team) { WEST_TEAM = team; }
-// Initial front-line columns for the west and east lines (14 tiles either side of the middle).
-const MID = (MAP_W - 1) / 2; // middle tile column / row
-const WEST_FRONT = MID - 14, EAST_FRONT = MAP_W - 1 - WEST_FRONT;
+// The battlefield's size: a diamond of radius R tiles (MAP_R by default; a level may ask for a larger one).
+// Initial front-line columns for the west and east lines (14 tiles either side of the middle, more on a
+// larger field).
+let R = MAP_R, MID = (MAP_W - 1) / 2, WEST_FRONT = MID - 14, EAST_FRONT = MAP_W - 1 - WEST_FRONT;
 /** Map centre in continuous coordinates. */
-export const MAP_C = MAP_W / 2;
+export let MAP_C = MAP_W / 2;
+/** Set the battlefield's radius (createMap, and loading a saved battle). */
+export function setMapRadius(r = MAP_R) {
+  R = r; const w = 2 * r + 1;
+  MID = (w - 1) / 2; MAP_C = w / 2;
+  WEST_FRONT = MID - Math.round(14 * Math.sqrt(r / MAP_R)); EAST_FRONT = w - 1 - WEST_FRONT;
+}
 
 /** Is the point (continuous map coordinates) on the battlefield, at least `margin` tiles inside its edge? */
 export function inMap(x, y, margin = 0) {
-  return Math.abs(x - MAP_C) + Math.abs(y - MAP_C) <= MAP_R + 0.5 - margin;
+  return Math.abs(x - MAP_C) + Math.abs(y - MAP_C) <= R + 0.5 - margin;
 }
 /** The point pulled back onto the battlefield (towards the centre) if it lies outside. */
 export function clampToMap(x, y, margin = 0.35) {
-  const dx = x - MAP_C, dy = y - MAP_C, d = Math.abs(dx) + Math.abs(dy), lim = MAP_R + 0.5 - margin;
+  const dx = x - MAP_C, dy = y - MAP_C, d = Math.abs(dx) + Math.abs(dy), lim = R + 0.5 - margin;
   if (d <= lim) return { x, y };
   const k = lim / d;
   return { x: MAP_C + dx * k, y: MAP_C + dy * k };
 }
 /** Rows of tile column x that lie on the battlefield, inset by `inset` rows from the edge. */
 export function rowsOf(x, inset = 0) {
-  const half = MAP_R - Math.abs(x - MID) - inset;
+  const half = R - Math.abs(x - MID) - inset;
   return half < 0 ? null : [MID - half, MID + half];
 }
 
@@ -130,13 +137,14 @@ export function frontLine(map, team) {
  * works: 'light' digs lighter trench systems (a battle early in the war): the front line, a support line
  * behind the middle of it and two communication trenches, no reserve line.
  */
-export function createMap(seed = 1916, westTeam = PLAYER, advance = {}, works = 'full') {
+export function createMap(seed = 1916, westTeam = PLAYER, advance = {}, works = 'full', radius = MAP_R) {
+  setMapRadius(radius);
   WEST_TEAM = westTeam;
   const WT = westTeam, ET = 1 - westTeam;
   const ADV = (team) => advance[team] || 0;
   const FRONT_X = { [WT]: WEST_FRONT + ADV(WT), [ET]: EAST_FRONT - ADV(ET) };
   const rnd = mulberry32(seed);
-  const w = MAP_W, h = MAP_H;
+  const w = 2 * R + 1, h = 2 * R + 1;
   const tiles = new Array(w * h);
   const nmlA = FRONT_X[WT] + 1, nmlB = FRONT_X[ET] - 1;
 
@@ -163,7 +171,7 @@ export function createMap(seed = 1916, westTeam = PLAYER, advance = {}, works = 
     }
   }
 
-  const map = { w, h, tiles, dirty: true, hq: [], changes: [], west: westTeam };
+  const map = { w, h, r: R, tiles, dirty: true, hq: [], changes: [], west: westTeam };
   const T = (x, y) => (x >= 0 && y >= 0 && x < w && y < h && !tiles[y * w + x].off ? tiles[y * w + x] : null);
 
   function dig(x, y, owner, level) {
@@ -211,6 +219,7 @@ export function createMap(seed = 1916, westTeam = PLAYER, advance = {}, works = 
     const west = team === WT, X = (x) => (west ? x : w - 1 - x), sgn = west ? 1 : -1;
     const heavy = team === ENEMY, lvl = heavy ? 2 : 1;
     const F = WEST_FRONT + ADV(team), SUPPORT = F - 7, RESERVE = F - 11, HQ = F - 14;
+    if (works === 'network') return network(team, X, sgn, heavy, lvl, F, SUPPORT, RESERVE, HQ);
     line(X(F), team, lvl, -sgn);
     if (works === 'light') {
       line(X(SUPPORT), team, lvl, -sgn, midY - 13, midY + 13);
@@ -229,6 +238,55 @@ export function createMap(seed = 1916, westTeam = PLAYER, advance = {}, works = 
     dig(X(HQ), midY, team, 3);
     return { X, heavy };
   };
+  // A trench system dug the way trenches really grew: fire trenches whose traverses wander irregularly,
+  // a broken support line and pieces of a reserve line, and many communication trenches winding up to
+  // the front, some cross-linked; nothing straight for long. (works: 'network')
+  function wander(baseX, y0, y1, owner, level, spread, hold) {
+    let off = 0, left = 0, prevX = null;
+    for (let y = y0; y <= y1; y++) {
+      if (left-- <= 0) { off = Math.max(-spread, Math.min(spread, off + (rnd() < 0.5 ? -1 : 1) * (1 + Math.floor(rnd() * 2)))); left = hold[0] + Math.floor(rnd() * (hold[1] - hold[0] + 1)); }
+      const x = baseX + off;
+      if (prevX !== null && prevX !== x) for (let xx = Math.min(prevX, x); xx <= Math.max(prevX, x); xx++) dig(xx, y, owner, level);
+      dig(x, y, owner, level);
+      prevX = x;
+    }
+  }
+  // a winding communication trench from (x0, y0) towards column x1: forward a step or two, then a jog sideways
+  function winding(x0, y0, x1, owner, level) {
+    let x = x0, y = y0;
+    const sx = Math.sign(x1 - x0);
+    dig(x, y, owner, level);
+    for (let n = 0; n < 200 && x !== x1; n++) {
+      const run = 1 + Math.floor(rnd() * 3);
+      for (let k = 0; k < run && x !== x1; k++) { x += sx; dig(x, y, owner, level); }
+      if (x !== x1 && rnd() < 0.7) { const j = rnd() < 0.5 ? -1 : 1, len = 1 + Math.floor(rnd() * 2); for (let k = 0; k < len; k++) { y += j; if (!T(x, y)) { y -= j; break; } dig(x, y, owner, level); } }
+    }
+    return { x, y };
+  }
+  function network(team, X, sgn, heavy, lvl, F, SUPPORT, RESERVE, HQ) {
+    const r = rowsOf(X(F), 1);
+    if (!r) return { X, heavy };
+    wander(X(F), r[0], r[1], team, lvl, 1, [2, 4]);
+    // the support line, broken into stretches
+    const rs = rowsOf(X(SUPPORT), 2);
+    for (let y = rs[0]; y <= rs[1];) { const len = 6 + Math.floor(rnd() * 10); wander(X(SUPPORT + Math.floor(rnd() * 3) - 1), y, Math.min(rs[1], y + len), team, lvl, 1, [2, 5]); y += len + 2 + Math.floor(rnd() * 4); }
+    // pieces of a reserve line
+    const rr = rowsOf(X(RESERVE), 3);
+    for (let y = rr[0] + Math.floor(rnd() * 5); y <= rr[1];) { const len = 4 + Math.floor(rnd() * 7); wander(X(RESERVE + Math.floor(rnd() * 3) - 1), y, Math.min(rr[1], y + len), team, 2, 1, [2, 4]); y += len + 4 + Math.floor(rnd() * 7); }
+    // communication trenches at irregular intervals, winding forward from the reserve or support line
+    const fy = rowsOf(X(F), 3);
+    for (let y = fy[0] + Math.floor(rnd() * 4); y <= fy[1]; y += 4 + Math.floor(rnd() * 6)) {
+      const from = rnd() < 0.45 ? RESERVE : SUPPORT - 1;
+      const xs = X(from), ys = Math.max(rowsOf(xs, 2)?.[0] ?? y, Math.min(rowsOf(xs, 2)?.[1] ?? y, y));
+      winding(xs, ys, X(F), team, 1);
+    }
+    // a few cross-links between neighbouring communication trenches, behind the support line
+    for (let k = 0; k < 3; k++) { const y = fy[0] + Math.floor(rnd() * (fy[1] - fy[0])), x = X(SUPPORT - 3 - Math.floor(rnd() * 3)); for (let d = 0; d < 4 + Math.floor(rnd() * 4); d++) dig(x, y + d, team, 1); }
+    map.hq[team] = { x: X(HQ), y: midY };
+    winding(X(HQ), midY, X(F), team, 2); // the main communication trench, from headquarters to the front
+    dig(X(HQ), midY, team, 3);
+    return { X, heavy };
+  }
   const sys = [system(PLAYER), system(ENEMY)];
 
   // ---- Barbed wire belts ----
