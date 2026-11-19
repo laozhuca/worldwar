@@ -690,7 +690,7 @@ function showCampaign() {
     const open = L.n <= p.unlocked && !L.soon && p.tutorial, b = document.createElement('button');
     b.className = 'level' + (open ? '' : ' locked');
     const stars = p.medals[L.id] || 0;
-    b.innerHTML = `<span class="ln">${L.n}</span><span class="lt">${L.title}<small>${L.place} · ${L.date}</small></span><span class="lm">${L.soon ? 'Coming soon' : open ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : !p.tutorial ? 'After the tutorial' : 'Locked'}</span>`;
+    b.innerHTML = `<span class="ln">${L.n}</span><span class="lt">${L.title}<small>${L.place} · ${L.date}</small></span><span class="lm">${L.soon ? 'Coming soon' : open ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : 'Locked'}</span>`;
     b.disabled = !open;
     b.onclick = () => showBriefing(L.id);
     return b;
