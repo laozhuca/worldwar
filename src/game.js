@@ -867,6 +867,7 @@ function sameTrench(map, a, b, steps = 2) {
 
 function explode(state, s) {
   const { map } = state;
+  const K = s.big || 1; // a heavy naval shell: K times the blast, its reach and its burst
   // where the shell burst: inside a trench cut, or outside (parapet, open ground)
   const cut = trenchCutAt(map, s.x, s.y);
   // share of an outside burst that reaches men in this trench tile (wrecked works shelter less)
@@ -878,26 +879,27 @@ function explode(state, s) {
     // a burst in this man's own trench (his section or one joined to it) reaches him in full; one on the
     // parapet, in the open, or in a different trench spends itself on the earth walls
     const sheltered = tt && tt.trench && !(cut && sameTrench(map, cut, tt));
-    if (d < 1.6) {
+    if (d < 1.6 * K) {
       let cover = tt && tt.trench ? trenchCover(TRENCH_ARTY, tt) : (u.pinned ? 0.8 : 1);
       if (sheltered) cover *= nearMiss(tt);
       if (u.nest) cover = 0; // a concrete emplacement: a shell pins the crew down, it cannot kill them
-      damageUnit(state, u, 90 * (1 - (d / 1.6) * 0.6) * cover, { x: s.x, y: s.y, d }); // heavy shell: twice the old blast
+      damageUnit(state, u, 90 * K * (1 - (d / (1.6 * K)) * 0.6) * cover, { x: s.x, y: s.y, d }); // heavy shell: twice the old blast (a naval shell K times more)
     }
-    if (d < 3.2) {
+    if (d < 3.2 * K) {
       // shell shock: men near a heavy impact stay down for several seconds, so a slow but steady
       // bombardment keeps a trench quiet between shells
-      u.shock = Math.max(u.shock || 0, 2 + 6 * (1 - d / 3.2));
-      let sup = 120 * (1 - d / 3.2) + 30;
+      u.shock = Math.max(u.shock || 0, 2 + 6 * (1 - d / (3.2 * K)));
+      let sup = 120 * (1 - d / (3.2 * K)) + 30;
       if (u.order && u.order.kind === 'charge') sup *= 0.5;
       if (sheltered) sup *= 0.7;
       u.suppression = Math.min(100, u.suppression + sup);
     }
   }
-  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+  const RT = Math.ceil(1.3 * K);
+  for (let dy = -RT; dy <= RT; dy++) for (let dx = -RT; dx <= RT; dx++) {
     const t = tileAt(map, s.x + dx, s.y + dy);
     if (!t) continue;
-    const d = Math.hypot(t.x + 0.5 - s.x, t.y + 0.5 - s.y);
+    const d = Math.hypot(t.x + 0.5 - s.x, t.y + 0.5 - s.y) / K; // (in units of an ordinary shell's reach)
     if (d > 1.3) continue;
     if (t.wire > 0) t.wire = Math.max(0, t.wire - (d < 0.7 ? 160 : 90));
     if (t.build) { t.build.progress = Math.max(0, t.build.progress - 4); }
@@ -927,20 +929,20 @@ function explode(state, s) {
   }
   const center = tileAt(map, s.x, s.y);
   if (center && center.sea) { // a shell in the sea: a column of white water, no crater, no earth
-    state.effects.push({ type: 'impact', water: true, x: s.x, y: s.y, age: 0, life: 3.2, flip: rand() < 0.5, scale: 0.8 + rand() * 0.3 }); // (pre-rendered frames, graded as water)
-    state.effects.push({ type: 'splash', x: s.x, y: s.y, age: 0, life: 3.4, scale: 0.85 + rand() * 0.35, seed: rand() });
+    state.effects.push({ type: 'impact', water: true, x: s.x, y: s.y, age: 0, life: 3.2, flip: rand() < 0.5, scale: (0.8 + rand() * 0.3) * K }); // (pre-rendered frames, graded as water)
+    state.effects.push({ type: 'splash', x: s.x, y: s.y, age: 0, life: 3.4, scale: (0.85 + rand() * 0.35) * K, seed: rand() });
     state.events.push({ type: 'boom', x: s.x, y: s.y });
     return;
   }
   if (center && !center.trench) {
-    center.crater = Math.min(3, center.crater + 1);
+    center.crater = Math.min(3, center.crater + K);
     center.mud = 1;
   }
   map.dirty = true;
   (map.changes || (map.changes = [])).push({ x: Math.floor(s.x), y: Math.floor(s.y) });
   state.effects.push({ type: 'boom', x: s.x, y: s.y, age: 0, life: 0.7 });
-  state.effects.push({ type: 'smoke', x: s.x, y: s.y, age: 0, life: 5 + rand() * 4, shell: true });
-  state.effects.push({ type: 'impact', x: s.x, y: s.y, age: 0, life: 4.6, flip: rand() < 0.5, scale: 0.85 + rand() * 0.3 });
+  state.effects.push({ type: 'smoke', x: s.x, y: s.y, age: 0, life: (5 + rand() * 4) * Math.sqrt(K), shell: true, scale: K });
+  state.effects.push({ type: 'impact', x: s.x, y: s.y, age: 0, life: 4.6, flip: rand() < 0.5, scale: (0.85 + rand() * 0.3) * K });
   const parts = [];
   for (let i = 0; i < 10; i++) {
     const a = rand() * Math.PI * 2, sp = 20 + rand() * 50;

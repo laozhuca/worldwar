@@ -892,7 +892,7 @@ export const LEVELS = [
         const f = s.campaign.front;
         for (let k = 0; k < 8; k++) {
           const t = s.map.tiles[f[Math.floor(Math.random() * f.length)]], flight = 0.8 + k * 0.3;
-          s.shells.push({ x: t.x + 0.5 + (Math.random() - 0.5) * 4, y: t.y + 0.5 + (Math.random() - 0.5) * 3, t: flight, flight, team: ENEMY, fromX: t.x + 40, fromY: t.y, incoming: true });
+          s.shells.push({ x: t.x + 0.5 + (Math.random() - 0.5) * 4, y: t.y + 0.5 + (Math.random() - 0.5) * 3, t: flight, flight, team: ENEMY, fromX: t.x + 40, fromY: t.y, incoming: true, big: 3 }); // (a warship's heavy gun: three times a field gun's shell)
         }
         pushMessage(s, 'The warships are shelling our trenches!', 'warn');
       } })),
