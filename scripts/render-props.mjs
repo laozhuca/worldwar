@@ -42,6 +42,8 @@ function jobs() {
   }
   for (const view of ['a', 'b']) list.push({ name: `mg_${view}`, kind: 'mg', args: [view] });
   for (let v = 0; v < 3; v++) list.push({ name: `boat${v}`, kind: 'boat', args: [v, true] }); // landing boats, rowed in
+  for (let v = 0; v < 3; v++) for (let f = 0; f < 4; f++) list.push({ name: `boat${v}_r${f}`, kind: 'boat', args: [v, true, f] }); // ...the stroke of the oars
+  for (let f = 0; f < 4; f++) list.push({ name: `boat_back_r${f}`, kind: 'boat', args: [1, false, f, true, true] }); // emptied, one man rowing her back out to sea
   list.push({ name: 'boat_empty', kind: 'boat', args: [7, false] });
   list.push({ name: 'clyde', kind: 'clyde', args: [], scale: 1.6 }); // the River Clyde
   for (const snow of [false, true]) list.push({ name: `hq${snow ? '_s' : ''}`, kind: 'hq', args: [snow] });

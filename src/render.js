@@ -981,6 +981,7 @@ export class Renderer {
     if (state.bunkers) for (const b of state.bunkers) objs.push({ k: b.x + b.y + 0.3, kind: 'bunker', b, u: state.units.find((u) => u.id === b.id) });
     for (const u of state.units) if (u.visible && !u.nest) objs.push({ k: u.onShip ? 1e6 : u.x + u.y, kind: 'unit', u }); // (a gun on a ship's deck stands on top of her)
     if (state.wrecks) for (const w of state.wrecks) objs.push({ k: w.x + w.y - 0.5, kind: 'wreck', w });
+    if (state.returning) for (const b of state.returning) objs.push({ k: b.x + b.y, kind: 'back', b });
     objs.sort((a, b) => a.k - b.k);
     for (const o of objs) {
       if (o.kind === 'decor') this.drawDecor(ctx, o.t);
@@ -988,6 +989,7 @@ export class Renderer {
       else if (o.kind === 'rock') this.drawRock(ctx, o.r);
       else if (o.kind === 'giant') { const c = iso(o.gi.x, o.gi.y); this.drawFrame(ctx, this.propGroup(), `giant${o.gi.v}${(this.S ?? 1) > 0.7 ? '_s' : ''}`, c.x, c.y, 1, o.gi.m); }
       else if (o.kind === 'town') this.drawBackdrop(ctx, o.bd);
+      else if (o.kind === 'back') { const c = iso(o.b.x, o.b.y), f = Math.floor((state.time * 1.6 + o.b.t) % 4); this.drawFrame(ctx, this.propGroup(), `boat_back_r${f}`, c.x, c.y + Math.sin(state.time * 1.7 + o.b.t) * 1.2, 1); }
       else if (o.kind === 'wreck') { const c = iso(o.w.x, o.w.y); this.drawFrame(ctx, this.propGroup(), o.w.v === 'empty' ? 'boat_empty' : `boat${o.w.v}`, c.x, c.y, 1, o.w.v === 'empty'); }
       else if (o.kind === 'bunker') this.drawBunker(ctx, o.b, o.u, state.time, ui.selected.has(o.b.id));
       else if (o.u.deck) { ctx.save(); ctx.translate(0, -o.u.deck); this.drawUnit(ctx, o.u, ui.selected.has(o.u.id), state.time); ctx.restore(); } // up on a ship's deck
@@ -1848,7 +1850,8 @@ export class Renderer {
     if (u.afloat) { // rowed in to the beach: the men in their boat
       if (selected) { ctx.strokeStyle = 'rgba(160,255,110,0.95)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.ellipse(p.x, p.y, 30, 14, 0, 0, TAU); ctx.stroke(); }
       const bob = Math.sin(time * 1.7 + u.id) * 1.2;
-      if (this.drawFrame(ctx, this.propGroup(), `boat${u.id % 3}`, p.x, p.y + bob, 1)) return;
+      const stroke = Math.floor((time * 2.2 + u.id * 0.37) % 4); // all hands at the oars
+      if (this.drawFrame(ctx, this.propGroup(), `boat${u.id % 3}_r${stroke}`, p.x, p.y + bob, 1) || this.drawFrame(ctx, this.propGroup(), `boat${u.id % 3}`, p.x, p.y + bob, 1)) return;
     }
     if (selected) {
       ctx.strokeStyle = 'rgba(160,255,110,0.95)'; ctx.lineWidth = 1.6;

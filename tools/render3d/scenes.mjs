@@ -1053,7 +1053,9 @@ export function screeScene(variant, heavy) {
  * wooden hull, oars out, the men packed in on the thwarts in khaki with their packs. Drawn on the water.
  * full: crowded with men (false: drifting empty, the crew shot down, an oar trailing).
  */
-export function boatScene(variant, full = true) {
+export function boatScene(variant, full = true, frame = -1, one = false, back = false) {
+  // frame: a stroke of the oars (0-3) or -1 at rest; one: a single oarsman rowing her back out; back: bow towards +x
+  const ph = frame < 0 ? null : (frame / 4) * Math.PI * 2;
   const L = 0.82, B = 0.27, D = 0.2; // half-length, half-beam, depth
   const Z0 = 0.13; // the gunwale; the keel is below the water line
   const beam = (x) => B * Math.max(0.04, 1 - Math.max(0, -x / L) ** 2 * 0.9 - Math.max(0, x / L) ** 3 * 0.3); // a fine bow, a fuller stern
@@ -1069,7 +1071,8 @@ export function boatScene(variant, full = true) {
   };
   // the men: British infantry from the soldier models, sitting on the thwarts facing the bow, rifles upright
   const men = [];
-  if (full) for (let k = -2; k <= 2; k++) for (const sy of [-1, 0, 1]) if (hash(variant, k, sy) > 0.15) men.push({ x: k * 0.24 + 0.02, y: sy * 0.135 * (1 - Math.max(0, -k - 1) * 0.35), fig: figureOf('uk', 'sit', 0, Math.floor(hash(variant, k, sy, 3) * 3)) });
+  if (one) men.push({ x: 0.06, y: 0, fig: figureOf('uk', 'sit', 0, variant % 3) });
+  if (full && !one) for (let k = -2; k <= 2; k++) for (const sy of [-1, 0, 1]) if (hash(variant, k, sy) > 0.15) men.push({ x: k * 0.24 + 0.02, y: sy * 0.135 * (1 - Math.max(0, -k - 1) * 0.35), fig: figureOf('uk', 'sit', 0, Math.floor(hash(variant, k, sy, 3) * 3)) });
   const floor = Z0 - D * 0.62;
   const toMan = (m, x, y, z) => [-(x - m.x) / MAN_K, -(y - m.y) / MAN_K, (z - floor) / MAN_K]; // (facing -x, the bow)
   const near = (x, y) => men.filter((m) => Math.abs(x - m.x) < 0.2 && Math.abs(y - m.y) < 0.2);
@@ -1078,9 +1081,16 @@ export function boatScene(variant, full = true) {
     for (const m of near(x, y)) d = Math.min(d, m.fig.eval(toMan(m, x, y, z))[0] * MAN_K);
     return men.length ? Math.min(d, Math.max(0.03, Math.min(...men.map((m) => Math.hypot(x - m.x, y - m.y))) - 0.16)) : 1;
   };
+  // an oar from its rowlock out over the water; in a stroke the blade sweeps aft in the water and comes
+  // forward lifted clear of it
+  const oar = (x, y, z, ox, sy, a) => {
+    const sw = ph === null ? 0 : Math.cos(ph + a), lift = ph === null ? 0 : Math.max(0, Math.sin(ph + a)) * 0.09;
+    return sdCapsule(x, y, z, ox, sy * beam(ox) * 0.9, Z0 + 0.02, ox - 0.12 + sw * 0.2, sy * (B + 0.42), -0.01 + lift, 0.012, 0.012);
+  };
   const oars = (x, y, z) => {
     let d = 1;
-    if (full) for (let k = -1; k <= 1; k++) for (const sy of [-1, 1]) { const ox = k * 0.3 + 0.1, a = 0.35 + hash(variant, k, sy, 5) * 0.4; d = Math.min(d, sdCapsule(x, y, z, ox, sy * beam(ox) * 0.9, Z0 + 0.02, ox - 0.12 - a * 0.1, sy * (B + 0.42), -0.01, 0.012, 0.012)); }
+    if (one) for (const sy of [-1, 1]) d = Math.min(d, oar(x, y, z, 0.1, sy, 0));
+    else if (full) for (let k = -1; k <= 1; k++) for (const sy of [-1, 1]) d = Math.min(d, oar(x, y, z, k * 0.3 + 0.1, sy, ph === null ? hash(variant, k, sy, 5) * 2 : k * 0.25));
     else d = Math.min(d, sdCapsule(x, y, z, 0.2, 0.2, Z0 + 0.01, 0.05, 0.75, -0.01, 0.012, 0.012));
     return d;
   };
@@ -1097,6 +1107,7 @@ export function boatScene(variant, full = true) {
     const col = inside ? [0.48, 0.38, 0.25] : z < 0.035 ? [0.2, 0.22, 0.2] : mix3([0.34, 0.33, 0.32], [0.5, 0.48, 0.45], fbm(x * 20, y * 20, z * 20, 2)); // grey paint, a dark boot-top
     return { kind: 'solid', col: mul3(col, plank), spec: 0.05 };
   };
+  if (back) return { bounds: [-L - 0.1, -B - 0.55, -0.02, L + 0.1, B + 0.55, 0.48], sdf: (x, y, z) => sdf(-x, -y, z), shade: (x, y, z, nx, ny, nz) => shade(-x, -y, z, -nx, -ny, nz), supersample: 2 };
   return { bounds: [-L - 0.1, -B - 0.55, -0.02, L + 0.1, B + 0.55, 0.48], sdf, shade, supersample: 2 };
 }
 

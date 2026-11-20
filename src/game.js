@@ -485,7 +485,8 @@ function updateUnit(state, u, dt) {
   u.inTrench = !!tile && tile.trench > 0 && u.type !== 'artillery'; // a battery never goes down into a trench (it bridges it)
   // at sea: the men are in a boat (rowed in to the beach); stepping ashore leaves the boat beached at the water's edge
   const afloat = !!(tile && tile.sea) && !u.onShip; // (the guns on the River Clyde's deck are not in a boat)
-  if (u.afloat && !afloat && state.wrecks) state.wrecks.push({ x: u.x + 0.5 * teamDir(u.team), y: u.y, v: u.id % 3, t: state.time });
+  // the men jump out on the beach at once; one of the crew rows the empty boat back out to sea
+  if (u.afloat && !afloat && state.wrecks) (state.returning || (state.returning = [])).push({ x: u.x - 0.6 * teamDir(u.team), y: u.y, dir: -teamDir(u.team), t: state.time });
   u.afloat = afloat;
   // climbing out of a trench, or down into one, takes time: the men haul themselves over the parapet.
   // Out: as soon as the ground just ahead is no longer trench (the men are at the trench wall).
@@ -953,6 +954,11 @@ function explode(state, s) {
 }
 
 function updateEffects(state, dt) {
+  // boats rowed back out to sea after landing their men, until they pass out of sight off the map
+  if (state.returning && state.returning.length) {
+    for (const b of state.returning) b.x += b.dir * 1.1 * dt;
+    state.returning = state.returning.filter((b) => { const t = tileAt(state.map, b.x, b.y); return t && !t.off; });
+  }
   for (const e of state.effects) e.age += dt;
   state.effects = state.effects.filter((e) => e.age < e.life);
   if (state.effects.length > 700) state.effects.splice(0, state.effects.length - 700);
