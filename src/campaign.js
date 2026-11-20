@@ -797,7 +797,7 @@ export const LEVELS = [
       { who: 'Hasan', text: 'Perhaps the captain has been drinking.', img: 'assets/art/story-hasan.webp' },
       { who: 'Mehmet', text: 'Wine? Isn\'t that forbidden?', img: 'assets/art/story-mehmet.webp' },
       { who: 'Hasan', text: 'For us, Mehmet. Not for the British.', img: 'assets/art/story-hasan.webp' },
-      { who: '', text: 'The River Clyde runs aground on the beach with a tremendous crash.', img: 'assets/art/story-helles-clyde.webp', wide: true, sound: 'boom' },
+      { who: '', text: 'The River Clyde runs aground on the beach with a tremendous crash.', img: 'assets/art/story-helles-clyde.webp', wide: true, sound: 'grounding', hold: 4.5 }, // (her keel grinding up the sand, the crash, the groaning plates)
       { who: 'Mehmet', text: 'Allah! What a terrible landing!', img: 'assets/art/story-mehmet.webp' },
       { who: 'Hasan', text: 'See? That\'s why drinking is forbidden.', img: 'assets/art/story-hasan.webp' },
       { who: '', text: 'Out in the bay, the boats are putting off from the fleet.', img: 'assets/art/story-helles-fleet.webp', wide: true },
