@@ -2382,6 +2382,8 @@ export class Renderer {
       // a shell in the sea: the same column graded into water (optional)
       Promise.all([fetch('assets/fx/water-impact.json').then((r) => r.json()), loadImage('assets/fx/water-impact.webp')])
         .then(([wm, wi]) => { this.fxWater = { ...this.fx, meta: wm, img: wi }; }).catch(() => {});
+      Promise.all([fetch('assets/fx/ripple.json').then((r) => r.json()), loadImage('assets/fx/ripple.webp')])
+        .then(([rm, ri]) => { this.fxRipple = { meta: rm, img: ri }; }).catch(() => {});
     }).catch((e) => { this.fxLoading = null; console.warn('Impact animation unavailable:', e.message); });
     return this.fxLoading;
   }
@@ -2398,6 +2400,17 @@ export class Renderer {
   drawSplash(ctx, e, k, framed = false) {
     const p = iso(e.x, e.y), S = e.scale || 1, t = e.age, wind = this.atmo.wind.x;
     ctx.save();
+    if (this.fxRipple) { // the foam spreading on the surface, from its pre-rendered frames (crossfaded)
+      const R = this.fxRipple, M = R.meta, u = Math.min(0.999, t / M.duration) * (M.frameCount - 1), i0 = Math.floor(u), f = u - i0;
+      const w = 210 * S, h = w / 2, fade = Math.min(1, t / 0.12);
+      for (const [j, a] of [[i0, 1 - f], [Math.min(M.frameCount - 1, i0 + 1), f]]) {
+        if (a < 0.01) continue;
+        ctx.globalAlpha = a * fade;
+        ctx.drawImage(R.img, (j % M.columns) * M.frameW, Math.floor(j / M.columns) * M.frameH, M.frameW, M.frameH, p.x - w / 2, p.y - h / 2, w, h);
+      }
+      ctx.globalAlpha = 1;
+      if (framed) { ctx.restore(); return; }
+    }
     // rings spreading on the water
     for (const lag of [0, 0.5, 1.1]) {
       const q = (t - lag) / 2.6;
