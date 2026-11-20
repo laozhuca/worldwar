@@ -107,6 +107,9 @@ test('Brusilov\'s Storm: riflemen against riflemen, saps, reserves on day 1 and 
   s.map.tiles[hq.y * s.map.w + hq.x].owner = PLAYER;
   update(s, 1 / 30); stepCampaign(s);
   assert.equal(s.campaign.result, null, 'one headquarters taken is not enough');
+  s.map.tiles[hq.y * s.map.w + hq.x].owner = ENEMY; stepCampaign(s);
+  assert.ok(s.campaign.scene.img.includes('hq-lost'), 'a picture when a headquarters is lost again');
+  s.map.tiles[hq.y * s.map.w + hq.x].owner = PLAYER;
   for (const p of hq.posts) s.map.tiles[p.y * s.map.w + p.x].owner = PLAYER;
   update(s, 1 / 30); stepCampaign(s);
   assert.ok(s.campaign.scene && s.campaign.scene.img.includes('galicia-hq'), 'a picture as each headquarters falls');

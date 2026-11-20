@@ -540,7 +540,7 @@ export const LEVELS = [
     id: 'brusilov', n: 3, title: 'Brusilov\'s Storm', place: 'Galicia', date: 'June 1916',
     nations: ['russia', 'austria'], season: 'summer', start: 'west', startHour: 4,
     radius: 51, // a wider battlefield: half as long again each way
-    pictures: ['assets/art/story-galicia.webp', 'assets/art/scene-galicia-hq.webp', 'assets/art/story-ivanov.webp', 'assets/art/story-sokolov.webp'],
+    pictures: ['assets/art/story-galicia.webp', 'assets/art/scene-galicia-hq.webp', 'assets/art/scene-galicia-hq-lost.webp', 'assets/art/story-ivanov.webp', 'assets/art/story-sokolov.webp'],
     // the opening scene, like the tutorial's: two Russian soldiers in their trench before the bombardment
     opening: [
       { who: 'Galicia — June 4, 1916', text: 'Before dawn. Two Russian soldiers wait in a trench.', img: 'assets/art/story-galicia.webp', wide: true, hold: 2.5 },
@@ -725,15 +725,23 @@ export const LEVELS = [
       // check, not the ordinary rule, so the last picture is seen) a few seconds after the third falls
       const c = state.campaign, hq = state.map.hq[ENEMY], posts = [hq, ...(hq.posts || [])];
       c.taken = c.taken || [];
+      c.held = c.held || posts.map(() => false);
       const held = posts.map((q) => tileAt(state.map, q.x, q.y).owner === PLAYER);
       held.forEach((h, i) => {
-        if (!h || c.taken.includes(i)) return;
-        c.taken.push(i);
-        const n = held.filter(Boolean).length, name = ['The central', 'The northern', 'The southern'][i];
-        const text = n < posts.length ? `${name} Austrian headquarters is ours! ${posts.length - n} still to take.` : 'The last Austrian headquarters has fallen! The line is broken.';
-        pushMessage(state, text, 'good');
-        c.scene = { at: state.time, img: 'assets/art/scene-galicia-hq.webp', who: 'Galicia, June 1916', text };
-        state.events.push({ type: 'cheer' });
+        if (h === c.held[i]) return;
+        c.held[i] = h;
+        const n = held.filter(Boolean).length, name = ['central', 'northern', 'southern'][i];
+        if (h) { // taken (or taken back)
+          if (!c.taken.includes(i)) c.taken.push(i);
+          const text = n < posts.length ? `The ${name} Austrian headquarters is ours! ${posts.length - n} still to take.` : 'The last Austrian headquarters has fallen! The line is broken.';
+          pushMessage(state, text, 'good');
+          c.scene = { at: state.time, img: 'assets/art/scene-galicia-hq.webp', who: 'Galicia, June 1916', text };
+          state.events.push({ type: 'cheer' });
+        } else { // lost again to a counter-attack
+          const text = `The Austrians have retaken the ${name} headquarters!`;
+          pushMessage(state, text, 'loss');
+          c.scene = { at: state.time, img: 'assets/art/scene-galicia-hq-lost.webp', who: 'Galicia, June 1916', text };
+        }
       });
       if (held.every(Boolean)) {
         c.wonAt = c.wonAt ?? state.time;
