@@ -893,12 +893,14 @@ export const LEVELS = [
       } })),
       // the warships' guns
       ...[5.6, 7.0, 8.7, 10.5, 12.5, 14.5, 16.5, 18.5].map((at) => ({ at, run: (s) => {
-        const f = s.campaign.front;
+        // firing blind from the bay over the cliffs: the shells fall anywhere on our side of the beach
+        const c = s.campaign.coast, d = teamDir(PLAYER);
+        const land = s.campaign.shoreside || (s.campaign.shoreside = s.map.tiles.filter((t) => !t.off && !t.sea && !t.rock && (c(t.y) - t.x) * d >= 8).map((t) => t.y * s.map.w + t.x));
         for (let k = 0; k < 8; k++) {
-          const t = s.map.tiles[f[Math.floor(Math.random() * f.length)]], flight = 0.8 + k * 0.3;
-          s.shells.push({ x: t.x + 0.5 + (Math.random() - 0.5) * 4, y: t.y + 0.5 + (Math.random() - 0.5) * 3, t: flight, flight, team: ENEMY, fromX: t.x + 40, fromY: t.y, incoming: true, big: 3 }); // (a warship's heavy gun: three times a field gun's shell)
+          const t = s.map.tiles[land[Math.floor(Math.random() * land.length)]], flight = 0.8 + k * 0.3;
+          s.shells.push({ x: t.x + Math.random(), y: t.y + Math.random(), t: flight, flight, team: ENEMY, fromX: t.x + 40, fromY: t.y, incoming: true, big: 3 }); // (a warship's heavy gun: three times a field gun's shell)
         }
-        pushMessage(s, 'The warships are shelling our trenches!', 'warn');
+        pushMessage(s, 'The warships are shelling our side of the beach!', 'warn');
       } })),
       { at: 12, run: (s) => { reinforce(s, PLAYER, 2); pushMessage(s, 'Two platoons have come down from the village to stiffen the line.', 'good'); } },
       { at: 19, run: (s) => pushMessage(s, 'The light is going. One more hour!', 'side') },
