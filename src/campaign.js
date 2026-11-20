@@ -880,11 +880,6 @@ export const LEVELS = [
       state.campaign.beach = { x: coast(M) - d * 2 + 0.5, y: M + 0.5 };
       state.campaign.coast = (y) => coast(y);
     },
-    // after the opening the camera shows the bay (main.js)
-    tour(state) {
-      const b = state.buildings[0], c = state.campaign.beach, f = state.campaign.front, t = state.map.tiles[f[Math.floor(f.length * 0.8)]];
-      return [{ ...c, label: 'V Beach' }, { x: b.x - 2, y: b.y, label: 'The River Clyde' }, { x: t.x + 0.5, y: t.y + 0.5, label: 'Your line' }];
-    },
     events: [
       { at: 5.55, run: (s) => pushMessage(s, 'The boats are coming in. Hold your fire until they reach the wire!', 'side') },
       // the boats: tows of cutters rowed in across the bay, wave after wave
