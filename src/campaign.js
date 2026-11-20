@@ -830,11 +830,11 @@ export const LEVELS = [
       }
       noSquares(map);
       // ---- the River Clyde, run aground at the eastern end of the beach, her bow on the sand
-      const cy = M + 6, cx = coast(cy) + d * 5.4; // (a big ship: some 12 tiles long)
-      state.buildings = [{ img: 'assets/art/ship-river-clyde.webp', ax: 380, ay: 275, k: 0.5, x: cx + 0.5, y: cy + 0.5, hx: 5.5, hy: 0.85, name: 'The River Clyde' }];
-      for (const t of map.tiles) if (Math.abs(t.x + 0.5 - state.buildings[0].x) <= 5.5 && Math.abs(t.y + 0.5 - state.buildings[0].y) <= 0.85) { t.block = 1; t.wire = 0; }
+      const cy = M + 5, cx = coast(cy) + d * 6.8; // (a big ship: 14 tiles long)
+      state.buildings = [{ img: 'assets/art/ship-river-clyde.webp', ax: 468, ay: 339, k: 0.5, x: cx + 0.5, y: cy + 0.5, hx: 6.9, hy: 1.0, name: 'The River Clyde' }];
+      for (const t of map.tiles) if (Math.abs(t.x + 0.5 - state.buildings[0].x) <= 6.9 && Math.abs(t.y + 0.5 - state.buildings[0].y) <= 1.0) { t.block = 1; t.wire = 0; }
       // the enemy's 'headquarters' is the ship: his men come out of her sally ports (it cannot be taken)
-      map.hq[ENEMY] = { x: Math.floor(cx - d * 3), y: cy - 2, hidden: true };
+      map.hq[ENEMY] = { x: Math.floor(cx - d * 4), y: cy - 2, hidden: true };
       state.wrecks = [];
       state.arriving = { [ENEMY]: true }; // he lands all day: never 'broken' (the level ends at nightfall)
       map.rocks = true;
