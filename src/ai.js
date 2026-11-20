@@ -173,7 +173,7 @@ export function updateAI(state, ai, dt) {
     } else if (ai.offensive <= 0) {
       // an offensive at the weakest point of their line: few defenders, little wire, towards their HQ
       const reserves = rifles.filter((u) => u.ai.role === 'reserve' || u.ai.role === 'hold');
-      if (reserves.length >= 3 && res.ammo > 120) {
+      if (reserves.length >= (L.rush ? 2 : 3) && res.ammo > 120) {
         const foeFront = frontLine(map, foe), foeHq = map.hq[foe];
         let best = null, bs = Infinity;
         for (let y = 3; y < map.h - 3; y++) {
@@ -185,12 +185,18 @@ export function updateAI(state, ai, dt) {
           const score = men * 2 + wire * 4 + Math.abs(ty - foeHq.y - 0.5) * (L.centre || 0.6) + rand() * 4; // (a level may make him go for the centre)
           if (score < bs) { bs = score; best = { x: tx, y: ty }; }
         }
+        // rushing: once he is into their works he presses on from his furthest point towards their
+        // headquarters, never back to their front line behind him
+        if (L.rush) {
+          const ahead = mine.filter((u) => u.type === 'rifle' && !u.dead && !u.afloat && !u.onShip && foeFront[Math.floor(u.y)] >= 0 && (u.x - foeFront[Math.floor(u.y)] - 0.5) * dir > -1.5);
+          if (ahead.length) { const lead = ahead.reduce((a, u) => ((u.x - a.x) * dir > 0 ? u : a)); best = nextObjective(state, ai, { x: lead.x, y: lead.y }); }
+        }
         if (best) {
           // reserves, topped up from squads holding our line near the point of attack
           const line = rifles.filter((u) => u.ai.role === 'post' && Math.abs(u.y - best.y) < 7 && u.men >= 4)
             .sort((a, b) => Math.abs(a.y - best.y) - Math.abs(b.y - best.y));
           const force = reserves.concat(line).slice(0, L.force);
-          if (force.length >= 4) startOp(state, ai, 'attack', best, force, front);
+          if (force.length >= (L.rush ? 2 : 4)) startOp(state, ai, 'attack', best, force, front);
         }
       }
       ai.offensive = ai.op ? L.attackGap[0] + rand() * (L.attackGap[1] - L.attackGap[0]) : 25;
@@ -222,6 +228,8 @@ function startOp(state, ai, kind, target, units, front) {
   const dir = teamDir(ai.team);
   ai.op = { kind, target, ids: units.map((u) => u.id), stage: 'assemble', timer: 40, steps: 0 };
   for (const u of units) { u.ai.role = 'op'; u.ai.post = null; }
+  // rushing: no going back to form up - every man goes for the objective from where he stands
+  if ((ai.level || DIFFICULTY.medium).rush) { ai.op.stage = 'charge'; ai.op.timer = 40; ai.op.guns = []; orderMove(state, units, target.x, target.y, 'charge'); return; }
   // jump-off: our own trench facing the objective
   const row = Math.floor(target.y);
   const fx = front[row] >= 0 ? front[row] + 0.5 : target.x - dir * 8;
@@ -312,7 +320,7 @@ function updateOp(state, ai, dt) {
     const taken = tile && tile.owner === me && clear;
     if (taken) {
       op.steps++;
-      if (op.kind === 'counter' || op.steps >= (ai.level || DIFFICULTY.medium).steps) return end();
+      if (op.kind === 'counter' || (!Lv.rush && op.steps >= Lv.steps)) return end(); // (rushing, he never stops of his own accord: on to the next, and the next, to their headquarters)
       // on to the next objective; a squad stays to hold this one
       const hold = units.length > 3 ? units.reduce((a, u) => (u.men < a.men ? u : a)) : null;
       if (hold) { op.ids = op.ids.filter((id) => id !== hold.id); hold.ai.role = 'hold'; hold.order = null; }
