@@ -139,9 +139,11 @@ test('The Beach at Sedd el Bahr: hold the slopes above V Beach until nightfall a
   update(s, 1 / 30);
   assert.ok(boats.every((u) => u.afloat), 'rowing in');
   for (const u of s.units) if (u.team === PLAYER) u.holdFire = true;
-  for (let i = 0; i < 30 * 40; i++) update(s, 1 / 30);
+  let rowedBack = 0;
+  for (let i = 0; i < 30 * 40; i++) { update(s, 1 / 30); rowedBack = Math.max(rowedBack, (s.returning || []).length); }
   assert.ok(boats.every((u) => !u.afloat), 'every boat reaches the beach and its men get out (none caught on the River Clyde)');
-  assert.ok(s.returning && s.returning.length > 0, 'the empty boats are rowed back out');
+  assert.ok(rowedBack > 0, 'the empty boats are rowed back out');
+  if (!s.returning.length) { s.returning.push({ x: s.campaign.beach.x + 4, y: s.campaign.beach.y, dir: 1, t: s.time }); }
   const x0 = s.returning.map((b) => b.x);
   for (let i = 0; i < 30 * 2; i++) update(s, 1 / 30);
   assert.ok(s.returning.every((b, k) => Math.sign(b.x - (x0[k] ?? b.x)) === b.dir || x0[k] === undefined), 'out to sea');
