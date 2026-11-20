@@ -882,3 +882,24 @@ byId('btn-brief-back').addEventListener('click', showCampaign);
 byId('btn-debrief-campaign').addEventListener('click', showCampaign);
 byId('btn-level-retry').addEventListener('click', () => showBriefing(briefed));
 byId('btn-level-next').addEventListener('click', () => { const L = levelById(briefed), n = LEVELS.find((x) => x.n === L.n + 1); if (n) showBriefing(n.id); });
+
+// ------------------------------------------------------------ no leaving the game by accident
+// The browser's Back and Forward (toolbar buttons, the mouse's side buttons, Alt+Left/Right, the
+// Back/Forward keys) are caught: a history entry is kept in front of the game, and going back to it just
+// puts it back. The mouse side buttons are swallowed outright. During a battle, closing or reloading the
+// tab asks first.
+(function guardNavigation() {
+  try {
+    history.replaceState({ worldwar: 'base' }, '');
+    history.pushState({ worldwar: 'guard' }, '');
+    window.addEventListener('popstate', () => { history.pushState({ worldwar: 'guard' }, ''); });
+  } catch { /* (no history: nothing to guard) */ }
+  const swallow = (e) => { if (e.button === 3 || e.button === 4) { e.preventDefault(); e.stopPropagation(); } };
+  for (const ev of ['mousedown', 'mouseup', 'pointerdown', 'pointerup', 'auxclick']) window.addEventListener(ev, swallow, true);
+  window.addEventListener('keydown', (e) => {
+    if ((e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) || e.key === 'BrowserBack' || e.key === 'BrowserForward') { e.preventDefault(); e.stopPropagation(); }
+  }, true);
+  window.addEventListener('beforeunload', (e) => {
+    if (app.started && app.state && app.state.winner < 0) { e.preventDefault(); e.returnValue = ''; }
+  });
+})();
