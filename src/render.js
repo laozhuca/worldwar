@@ -951,6 +951,7 @@ export class Renderer {
     ctx.setTransform(d * z, 0, 0, d * z, d * (this.vw / 2 - this.cam.x * z + shx), d * (this.vh / 2 - this.cam.y * z + shy));
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.ground, -this.OX, -this.OY, this.gw, this.gh);
+    this.drawSurf(ctx, state.map);
     this.drawBridges(ctx, state.map, state.units);
 
     this.updateTracks(state);
@@ -2396,6 +2397,8 @@ export class Renderer {
       // a shell in the sea: the same column graded into water (optional)
       Promise.all([fetch('assets/fx/water-impact.json').then((r) => r.json()), loadImage('assets/fx/water-impact.webp')])
         .then(([wm, wi]) => { this.fxWater = { ...this.fx, meta: wm, img: wi }; }).catch(() => {});
+      Promise.all([fetch('assets/fx/surf.json').then((r) => r.json()), loadImage('assets/fx/surf.webp')])
+        .then(([sm, si]) => { this.fxSurf = { meta: sm, img: si }; }).catch(() => {});
       Promise.all([fetch('assets/fx/ripple.json').then((r) => r.json()), loadImage('assets/fx/ripple.webp')])
         .then(([rm, ri]) => { this.fxRipple = { meta: rm, img: ri }; }).catch(() => {});
     }).catch((e) => { this.fxLoading = null; console.warn('Impact animation unavailable:', e.message); });
@@ -2407,6 +2410,37 @@ export class Renderer {
    * buffer), and the whole cloud keeps rising, swelling and drifting downwind between drawn frames so the
    * slow late frames read as continuous motion. A soft shadow on the ground anchors it to the terrain.
    */
+  /**
+   * The surf along the water's edge (a level with sea): at every row of shore a pre-rendered strip running
+   * from the sea up the sand plays its looping wave - rolling in, breaking into foam, running up the
+   * sand and sliding back - each row a little out of step with the next, so the waves roll along the beach.
+   */
+  drawSurf(ctx, map) {
+    const F = this.fxSurf;
+    if (!F || !map.tiles.some((t) => t.sea)) return;
+    if (!this._shore || this._shore.map !== map) {
+      const W = map.w, rows = [];
+      for (const t of map.tiles) {
+        if (t.sea || t.off || t.rock || t.block) continue;
+        for (const s of [1, -1]) { const n = map.tiles[t.y * W + t.x + s]; if (n && n.sea && !n.block) rows.push({ x: t.x, y: t.y, s, ph: hash(t.y * 0.7, t.x * 0.3) * 0.25 + t.y * 0.085 }); }
+      }
+      this._shore = { map, rows };
+    }
+    const M = F.meta, now = performance.now() / 1000, base = ctx.getTransform();
+    for (const r of this._shore.rows) {
+      const u = ((now / M.period + r.ph) % 1 + 1) % 1, i0 = Math.floor(u * M.frameCount), f = u * M.frameCount - i0;
+      ctx.setTransform(base);
+      ctx.transform(TW / 2, TH / 2, -TW / 2, TH / 2, 0, 0); // (map tiles: x along one axis, y the other)
+      ctx.translate(r.s > 0 ? r.x + 2 : r.x - 1, r.y); if (r.s > 0) ctx.scale(-1, 1); // (the strip's sea end at the water)
+      for (const [j, a] of [[i0 % M.frameCount, 1 - f], [(i0 + 1) % M.frameCount, f]]) {
+        if (a < 0.02) continue;
+        ctx.globalAlpha = a;
+        ctx.drawImage(F.img, (j % M.columns) * M.frameW, Math.floor(j / M.columns) * M.frameH, M.frameW, M.frameH, 0, 0, M.tiles, 1);
+      }
+    }
+    ctx.globalAlpha = 1; ctx.setTransform(base);
+  }
+
   /**
    * A shell bursting in the sea: a white column of water thrown up and falling back, spray drifting
    * downwind, a flash of foam on the surface and rings spreading out across it.
