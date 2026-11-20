@@ -540,7 +540,7 @@ export const LEVELS = [
     id: 'brusilov', n: 3, title: 'Brusilov\'s Storm', place: 'Galicia', date: 'June 1916',
     nations: ['russia', 'austria'], season: 'summer', start: 'west', startHour: 4,
     radius: 51, // a wider battlefield: half as long again each way
-    pictures: ['assets/art/story-galicia.webp', 'assets/art/scene-galicia-hq.webp', 'assets/art/scene-galicia-hq-lost.webp', 'assets/art/story-ivanov.webp', 'assets/art/story-sokolov.webp'],
+    pictures: ['assets/art/church-galicia.webp', 'assets/art/story-galicia.webp', 'assets/art/scene-galicia-hq.webp', 'assets/art/scene-galicia-hq-lost.webp', 'assets/art/story-ivanov.webp', 'assets/art/story-sokolov.webp'],
     // the opening scene, like the tutorial's: two Russian soldiers in their trench before the bombardment
     opening: [
       { who: 'Galicia — June 4, 1916', text: 'Before dawn. Two Russian soldiers wait in a trench.', img: 'assets/art/story-galicia.webp', wide: true, hold: 2.5 },
@@ -704,6 +704,9 @@ export const LEVELS = [
         t.trench = 3;
         hq.posts.push({ x: t.x, y: t.y });
       }
+      // ---- the village church on the Austrian side, off towards the edge of the field (from its 3D model)
+      { const ch = { img: 'assets/art/church-galicia.webp', ax: 219, ay: 388, k: 0.5, x: W - 1 - 17.5, y: M + 10.5, hx: 2.2, hy: 2.8, name: 'The church' };
+        state.buildings = [ch]; state.buildingsAll = [ch]; blockBuilding(state, ch); delete state.buildingsAll; }
       map.dirty = true;
       state.resources[PLAYER] = { men: 40, ammo: 260, supplies: 160 };
       state.resources[ENEMY] = { men: 12, ammo: 120, supplies: 60 };
