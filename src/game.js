@@ -746,7 +746,7 @@ export function damageUnit(state, u, amount, blast = null, shooter = null) {
   else { // at sea the dead go over the side and float, drifting, until they sink from sight
     const fl = state.floaters || (state.floaters = []);
     for (let i = 0; i < Math.min(smashed ? 4 : 2, before - u.men); i++) fl.push({ kind: 'body', x: u.x + (rand() - 0.5) * (smashed ? 1.4 : 0.8), y: u.y + (rand() - 0.5) * (smashed ? 1.0 : 0.6), v: Math.floor(rand() * 3), d: [0, 2, 5][Math.floor(rand() * 3)], t: state.time, life: 22 + rand() * 18, m: rand() < 0.5 });
-    if (smashed) for (let i = 0; i < 6; i++) fl.push({ kind: 'piece', x: u.x + (rand() - 0.5) * 1.6, y: u.y + (rand() - 0.5) * 1.1, v: i === 0 ? 3 : Math.floor(rand() * 3), t: state.time, life: 28 + rand() * 20, m: rand() < 0.5 });
+    if (smashed) for (let i = 0; i < 3; i++) fl.push({ kind: 'piece', x: u.x + (rand() - 0.5) * 1.6, y: u.y + (rand() - 0.5) * 1.1, v: i === 0 ? 3 : Math.floor(rand() * 3), t: state.time, life: 28 + rand() * 20, m: rand() < 0.5 });
     if (fl.length > 160) fl.splice(0, fl.length - 160);
   }
   if (state.decals.length > 260) state.decals = state.decals.filter((d) => state.time - d.t < 140).slice(-260);

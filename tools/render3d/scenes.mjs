@@ -1119,7 +1119,7 @@ export function boatScene(variant, full = true, frame = -1, one = false, back = 
 export function boatPieceScene(kind) {
   const H = (k, j = 0) => hash(kind * 11 + 3, j, k);
   const parts = [];
-  if (kind < 3) for (let k = 0; k < 3 + Math.floor(H(1) * 3); k++) {
+  if (kind < 3) for (let k = 0; k < 1 + Math.floor(H(1) * 2); k++) {
     const a = H(2, k) * Math.PI, l = 0.14 + H(3, k) * 0.22, cx = (H(4, k) - 0.5) * 0.5, cy = (H(5, k) - 0.5) * 0.35;
     parts.push({ cx, cy, a, l, w: 0.03 + H(6, k) * 0.03, t: 0.012 + H(7, k) * 0.01, grey: H(8, k) < 0.5 });
   }
