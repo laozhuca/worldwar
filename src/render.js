@@ -2421,8 +2421,13 @@ export class Renderer {
     if (!this._shore || this._shore.map !== map) {
       const W = map.w, rows = [];
       for (const t of map.tiles) {
-        if (t.sea || t.off || t.rock || t.block) continue;
-        for (const s of [1, -1]) { const n = map.tiles[t.y * W + t.x + s]; if (n && n.sea && !n.block) rows.push({ x: t.x, y: t.y, s, ph: hash(t.y * 0.7, t.x * 0.3) * 0.25 + t.y * 0.085 }); }
+        if (t.sea || t.off || t.block) continue; // (the beach and the rocks of the headlands alike)
+        for (const s of [1, -1]) {
+          const nx = map.tiles[t.y * W + t.x + s], ny = map.tiles[(t.y + s) * W + t.x];
+          const ph = hash(t.y * 0.7, t.x * 0.3) * 0.25 + (t.y - t.x * 0.4) * 0.085;
+          if (nx && nx.sea && !nx.block) rows.push({ x: t.x, y: t.y, s, ax: 'x', ph, rock: !!t.rock });
+          if (ny && ny.sea && !ny.block) rows.push({ x: t.x, y: t.y, s, ax: 'y', ph, rock: !!t.rock });
+        }
       }
       this._shore = { map, rows };
     }
@@ -2430,8 +2435,10 @@ export class Renderer {
     for (const r of this._shore.rows) {
       const u = ((now / M.period + r.ph) % 1 + 1) % 1, i0 = Math.floor(u * M.frameCount), f = u * M.frameCount - i0;
       ctx.setTransform(base);
-      ctx.transform(TW / 2, TH / 2, -TW / 2, TH / 2, 0, 0); // (map tiles: x along one axis, y the other)
-      ctx.translate(r.s > 0 ? r.x + 2 : r.x - 1, r.y); if (r.s > 0) ctx.scale(-1, 1); // (the strip's sea end at the water)
+      // (map tiles, the strip's length along the map axis the water lies across, its sea end at the water)
+      if (r.ax === 'x') { ctx.transform(TW / 2, TH / 2, -TW / 2, TH / 2, 0, 0); ctx.translate(r.s > 0 ? r.x + 2 : r.x - 1, r.y); }
+      else { ctx.transform(-TW / 2, TH / 2, TW / 2, TH / 2, 0, 0); ctx.translate(r.s > 0 ? r.y + 2 : r.y - 1, r.x); }
+      if (r.s > 0) ctx.scale(-1, 1);
       for (const [j, a] of [[i0 % M.frameCount, 1 - f], [(i0 + 1) % M.frameCount, f]]) {
         if (a < 0.02) continue;
         ctx.globalAlpha = a;
