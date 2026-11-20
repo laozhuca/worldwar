@@ -831,7 +831,7 @@ export const LEVELS = [
       noSquares(map);
       // ---- the River Clyde, run aground at the eastern end of the beach, her bow on the sand
       const cy = M + 6, cx = coast(cy) + d * 3.3;
-      state.buildings = [{ prop: 'clyde', x: cx + 0.5, y: cy + 0.5, hx: 3.3, hy: 0.6 }];
+      state.buildings = [{ img: 'assets/art/ship-river-clyde.webp', ax: 228, ay: 165, k: 0.5, x: cx + 0.5, y: cy + 0.5, hx: 3.3, hy: 0.6, name: 'The River Clyde' }];
       for (const t of map.tiles) if (Math.abs(t.x + 0.5 - state.buildings[0].x) <= 3.3 && Math.abs(t.y + 0.5 - state.buildings[0].y) <= 0.6) { t.block = 1; t.wire = 0; }
       // the enemy's 'headquarters' is the ship: his men come out of her sally ports (it cannot be taken)
       map.hq[ENEMY] = { x: Math.floor(cx - d * 2), y: cy - 2, hidden: true };

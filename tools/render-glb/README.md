@@ -25,3 +25,9 @@ battle 1 in `src/campaign.js`), whose tiles inside the footprint are then made i
 | `town-dixmude-station.webp` | Dixmude Station | `--yaw 1.5708 --scale 2.4` |
 
 (The church quarter was cropped by hand when it was first made; the tool now crops automatically.)
+
+## V Beach (battle 4)
+
+| sprite | model | command options |
+| --- | --- | --- |
+| `ship-river-clyde.webp` | Harbor Steamship (the River Clyde) | `--yaw 1.5708 --scale 3.6` |

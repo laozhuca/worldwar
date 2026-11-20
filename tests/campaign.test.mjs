@@ -130,7 +130,7 @@ test('The Beach at Sedd el Bahr: hold the slopes above V Beach until nightfall a
   assert.ok(c.front.length > 20, 'our line above the beach');
   assert.ok(s.map.tiles.filter((t) => t.sea).length > 200, 'the sea');
   assert.ok(!s.units.some((u) => u.team === ENEMY), 'the enemy is still at sea');
-  assert.ok(s.buildings[0].prop === 'clyde', 'the River Clyde aground');
+  assert.ok(s.buildings[0].img.includes('river-clyde'), 'the River Clyde aground');
   s.time = ((5.75 - 5.5) / 24) * s.dayLength; stepCampaign(s);
   const boats = s.units.filter((u) => u.team === ENEMY);
   assert.ok(boats.length >= 5, 'the first boats');
