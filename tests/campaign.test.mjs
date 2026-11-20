@@ -109,8 +109,11 @@ test('Brusilov\'s Storm: riflemen against riflemen, saps, reserves on day 1 and 
   assert.equal(s.campaign.result, null, 'one headquarters taken is not enough');
   for (const p of hq.posts) s.map.tiles[p.y * s.map.w + p.x].owner = PLAYER;
   update(s, 1 / 30); stepCampaign(s);
+  assert.ok(s.campaign.scene && s.campaign.scene.img.includes('galicia-hq'), 'a picture as each headquarters falls');
+  assert.equal(s.campaign.result, null, 'the last picture is seen first');
+  s.time += 10; stepCampaign(s);
   assert.equal(s.campaign.result, 'won');
-  assert.equal(s.campaign.reason, 'The enemy headquarters has fallen.');
+  assert.equal(s.campaign.reason, 'All three enemy headquarters have fallen.');
   assert.ok(levelById('brusilov').medalsEarned(s)[0]);
 
   const l = createLevelGame('brusilov');

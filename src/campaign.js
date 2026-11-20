@@ -540,10 +540,10 @@ export const LEVELS = [
     id: 'brusilov', n: 3, title: 'Brusilov\'s Storm', place: 'Galicia', date: 'June 1916',
     nations: ['russia', 'austria'], season: 'summer', start: 'west', startHour: 4,
     radius: 51, // a wider battlefield: half as long again each way
-    pictures: ['assets/art/story-ivanov.webp', 'assets/art/story-sokolov.webp'],
+    pictures: ['assets/art/story-galicia.webp', 'assets/art/scene-galicia-hq.webp', 'assets/art/story-ivanov.webp', 'assets/art/story-sokolov.webp'],
     // the opening scene, like the tutorial's: two Russian soldiers in their trench before the bombardment
     opening: [
-      { who: 'Galicia — June 4, 1916', text: 'Before dawn. Two Russian soldiers wait in a trench.', hold: 2.5 },
+      { who: 'Galicia — June 4, 1916', text: 'Before dawn. Two Russian soldiers wait in a trench.', img: 'assets/art/story-galicia.webp', wide: true, hold: 2.5 },
       { who: 'Ivanov', text: 'Vodka? The priest blessed it.', img: 'assets/art/story-ivanov.webp' },
       { who: 'Sokolov', text: 'He blessed the men, you fool. Not the bottle.', img: 'assets/art/story-sokolov.webp' },
       { who: 'Ivanov', text: 'My wife says vodka will kill me.', img: 'assets/art/story-ivanov.webp' },
@@ -551,7 +551,7 @@ export const LEVELS = [
       { who: '', text: 'Ivanov rubs tar onto his leaking boots.', img: 'assets/art/story-ivanov.webp' },
       { who: 'Ivanov', text: 'Think God will protect us?', img: 'assets/art/story-ivanov.webp' },
       { who: 'Sokolov', text: 'He didn\'t protect the last lot. But you\'re welcome to ask.', img: 'assets/art/story-sokolov.webp' },
-      { who: '', text: 'Russian artillery opens fire.', sound: 'artyfire', hold: 1.6 },
+      { who: '', text: 'Russian artillery opens fire.', img: 'assets/art/story-galicia.webp', wide: true, sound: 'artyfire', hold: 1.6 },
     ],
     // ...the short, sharp bombardment begins
     openingEnd(state) {
@@ -696,7 +696,7 @@ export const LEVELS = [
       }
       // ---- three headquarters: the centre one and one on each flank, behind the support line
       const hq = map.hq[ENEMY];
-      hq.posts = [];
+      hq.posts = []; hq.byLevel = true; // (the level's check decides the win, after the last picture)
       for (const dy of [-20, 20]) {
         const y = M + dy;
         const t = trenchNear(ENEMY, ef2[y] + d * 9, y) || trenchNear(ENEMY, ef2[y] + d * 6, y);
@@ -721,6 +721,26 @@ export const LEVELS = [
       { at: 48 + 4, run: (s) => pushMessage(s, 'Day 3. The breakthrough must be made today.', 'side') },
     ],
     check(state) {
+      // each headquarters taken: a picture of the moment with the announcement; the battle is won (by this
+      // check, not the ordinary rule, so the last picture is seen) a few seconds after the third falls
+      const c = state.campaign, hq = state.map.hq[ENEMY], posts = [hq, ...(hq.posts || [])];
+      c.taken = c.taken || [];
+      const held = posts.map((q) => tileAt(state.map, q.x, q.y).owner === PLAYER);
+      held.forEach((h, i) => {
+        if (!h || c.taken.includes(i)) return;
+        c.taken.push(i);
+        const n = held.filter(Boolean).length, name = ['The central', 'The northern', 'The southern'][i];
+        const text = n < posts.length ? `${name} Austrian headquarters is ours! ${posts.length - n} still to take.` : 'The last Austrian headquarters has fallen! The line is broken.';
+        pushMessage(state, text, 'good');
+        c.scene = { at: state.time, img: 'assets/art/scene-galicia-hq.webp', who: 'Galicia, June 1916', text };
+        state.events.push({ type: 'cheer' });
+      });
+      if (held.every(Boolean)) {
+        c.wonAt = c.wonAt ?? state.time;
+        if (state.time - c.wonAt > 9) return { result: 'won', reason: 'All three enemy headquarters have fallen.' };
+        return null;
+      }
+      c.wonAt = undefined;
       if (clockHours(state) >= 72) return { result: 'lost', reason: 'Three days have passed and the enemy line still holds.' };
       return null;
     },
