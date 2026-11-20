@@ -704,8 +704,8 @@ export const LEVELS = [
         t.trench = 3;
         hq.posts.push({ x: t.x, y: t.y });
       }
-      // ---- the village church on the Austrian side, off towards the edge of the field (from its 3D model)
-      { const ch = { img: 'assets/art/church-galicia.webp', ax: 219, ay: 388, k: 0.5, x: W - 1 - 17.5, y: M + 10.5, hx: 2.2, hy: 2.8, name: 'The church' };
+      // ---- the village church in the Austrian corner of the field, behind their headquarters (from its 3D model)
+      { const ch = { img: 'assets/art/church-galicia.webp', ax: 219, ay: 388, k: 0.5, x: W - 1 - 6.5, y: M + 3.5, hx: 2.2, hy: 2.8, name: 'The church' }; // (in the far corner behind their lines)
         state.buildings = [ch]; state.buildingsAll = [ch]; blockBuilding(state, ch); delete state.buildingsAll; }
       map.dirty = true;
       state.resources[PLAYER] = { men: 40, ammo: 260, supplies: 160 };
