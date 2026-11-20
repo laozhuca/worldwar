@@ -892,7 +892,7 @@ function explode(state, s) {
       let cover = tt && tt.trench ? trenchCover(TRENCH_ARTY, tt) : (u.pinned ? 0.8 : 1);
       if (sheltered) cover *= nearMiss(tt);
       if (u.nest) cover = 0; // a concrete emplacement: a shell pins the crew down, it cannot kill them
-      damageUnit(state, u, 90 * K * (1 - (d / (1.6 * K)) * 0.6) * cover, { x: s.x, y: s.y, d }); // heavy shell: twice the old blast (a naval shell K times more)
+      damageUnit(state, u, 90 * (1 - (d / (1.6 * K)) * 0.6) * cover, { x: s.x, y: s.y, d }); // heavy shell: twice the old blast (a naval shell: the same damage, over K times the reach)
     }
     if (d < 3.2 * K) {
       // shell shock: men near a heavy impact stay down for several seconds, so a slow but steady
