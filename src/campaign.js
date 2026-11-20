@@ -780,7 +780,7 @@ export const LEVELS = [
   {
     id: 'helles', n: 4, title: 'The Beach at Sedd el Bahr', place: 'Cape Helles, Gallipoli', date: '25 April 1915',
     nations: ['ottoman', 'uk'], season: 'summer', start: 'west', startHour: 5.5,
-    advance: { [PLAYER]: 10 }, // our trenches on the slopes just above the beach
+    advance: { [PLAYER]: 4 }, // our trenches on the slopes, well back above a wide beach
     works: 'light',
     history: 'Dawn, 25 April 1915. The Allied fleet has failed to force the Dardanelles; now the army is to land at the tip of the Gallipoli peninsula and take the forts from behind. At V Beach, a little sandy bay below the ruined fortress of Sedd el Bahr, a company of the 26th Regiment holds the slopes above the sand, with wire strung along the beach and out into the shallows. Out in the bay the British are coming in, boat after boat, and an old collier, the River Clyde, is being run aground with two thousand men hidden inside. The warships\' guns will pound your trenches. Hold the beach until nightfall.',
     objectives: ['Hold your trenches above the beach until nightfall (20:00).', 'Do not let the enemy take more than half of your front line.', 'Do not let the enemy take your headquarters.'],
@@ -805,13 +805,13 @@ export const LEVELS = [
       state.units = state.units.filter((u) => u.team === PLAYER);
       // ---- the bay: a little curve of sand between two headlands; the sea beyond it
       const f = frontLine(map, PLAYER);
-      const coast = (y) => Math.round(f[M] + 15 - 4 * Math.exp(-(((y - M) / 9) ** 2)) + Math.abs(y - M) * 0.18); // (in our direction from the front line)
+      const coast = (y) => Math.round(f[M] + 21 - 4 * Math.exp(-(((y - M) / 9) ** 2)) + Math.abs(y - M) * 0.18); // (in our direction from the front line)
       for (const t of map.tiles) {
         if (t.off) continue;
         const c = coast(t.y);
         t.mud = 0; t.crater = 0; if (t.decor === 'tree') t.decor = rnd() < 0.4 ? 'stump' : null;
         if ((t.x - c) * d > 0) { t.sea = 1; t.trench = 0; t.owner = -1; t.wire = 0; t.decor = null; t.ground = 0; continue; }
-        t.ground = (c - t.x) * d <= 4 && Math.abs(t.y - M) <= 13 ? 5 : rnd() < 0.35 ? 1 : 0; // sand on the beach, dry scrub above
+        t.ground = (c - t.x) * d <= 10 && Math.abs(t.y - M) <= 13 ? 5 : rnd() < 0.35 ? 1 : 0; // sand on the beach, dry scrub above
       }
       // the headlands either side of the bay: rocky cliffs down to the water
       for (const t of map.tiles) {
