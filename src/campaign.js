@@ -779,99 +779,112 @@ export const LEVELS = [
   },
   {
     id: 'chunuk', n: 4, title: 'Dawn on Chunuk Bair', place: 'Gallipoli', date: 'August 1915',
-    nations: ['ottoman', 'uk'], season: 'mud', start: 'west', startHour: 4.5,
-    history: 'August 1915. In a night attack the British and New Zealanders have climbed the ridge of Chunuk Bair and seized the heights at the centre of your line. From there they can look down on the Dardanelles: if they hold it, the whole peninsula is lost. Lieutenant-Colonel Mustafa Kemal has ordered a counter-attack at first light. Every hour you wait, the enemy digs deeper and strings more wire. Take back every yard before dusk.',
-    objectives: ['Retake every section of your front line the enemy has seized.', 'Do it before dusk on day 1 (19:30).', 'Do not let the enemy take your headquarters.'],
-    rules: ['The enemy holds the centre of your front line with infantry and a machine gun.', 'Every hour he holds it he digs in deeper and wires it more thickly, and fresh men come up to him.', 'Your men may attack at once: the sooner, the cheaper.'],
-    medals: ['The heights retaken', 'At first light: every section retaken before 10:00', 'Fewer than 300 men lost'],
+    nations: ['ottoman', 'uk'], season: 'summer', start: 'west', startHour: 22,
+    history: 'August 1915. In the dark, the British and New Zealanders are climbing out of the bay below, up the steep scrub-choked gullies towards Chunuk Bair, the crest at the centre of your line. From the top they could look down on the Dardanelles: if they take it, the whole peninsula is lost. Only a thin line of your men holds the ridge, with the warships\' guns in the bay firing over their heads at it. Lieutenant-Colonel Mustafa Kemal is marching his division up to the heights through the night, and will attack at dawn. Hold the crest until he comes.',
+    objectives: ['Hold the crest until Kemal\'s division arrives at dawn on day 3.', 'Do not let the enemy take more than half of your front line.', 'Do not let the enemy take your headquarters.'],
+    rules: ['You hold the high ground: the enemy must climb to you up a few narrow gullies between rocky, scrub-covered spurs.', 'Your line is thin: few men, few reinforcements. The enemy attacks in wave after wave, day and night.', 'The warships in the bay shell the ridge every couple of hours.'],
+    medals: ['The crest held', 'Not a yard given: the whole front line yours at the end', 'Fewer than 250 men lost'],
     debrief: {
-      won: 'At dawn on 10 August 1915 Mustafa Kemal led the counter-attack in person and swept the British off Chunuk Bair. It was the turning point of the August offensive: the Allies never came so close again, and four months later they left Gallipoli. Kemal went on to found modern Turkey.',
-      lost: 'The enemy held the heights through the day. At Gallipoli the Ottoman line on Chunuk Bair was in fact retaken, at dawn on 10 August, by a counter-attack led from the front; without it, the campaign might have ended very differently.',
+      won: 'At dawn on 10 August 1915 Mustafa Kemal led his division in person over the crest of Chunuk Bair and swept the British off the heights. It was the turning point of the August offensive: the Allies never came so close again, and four months later they left Gallipoli. Kemal went on to found modern Turkey.',
+      lost: 'The crest fell before Kemal could come up. On Chunuk Bair in 1915 the thin Ottoman line was in fact pushed back, but Kemal\'s counter-attack at dawn on 10 August retook the heights; without it the campaign might have ended very differently.',
     },
     setup(state) {
-      const { map } = state, W = map.w, M = Math.floor(map.h / 2);
-      const front = frontTiles(state);
-      // the enemy has the centre of our front line: every front-line section within 6 rows of the middle
-      const lost = front.filter((i) => Math.abs(Math.floor(i / W) - M) <= 6);
-      for (const i of lost) map.tiles[i].owner = ENEMY;
-      // our men who held it are gone; the enemy's are in it
-      const inLost = (u) => lost.some((i) => Math.hypot(u.x - ((i % W) + 0.5), u.y - (Math.floor(i / W) + 0.5)) < 1.2);
-      state.units = state.units.filter((u) => !(u.team === PLAYER && inLost(u)));
-      const at = (i) => ({ x: (i % W) + 0.5, y: Math.floor(i / W) + 0.5 });
-      lost.forEach((i, k) => {
-        if (k % 3 !== 1) return;
-        const p = at(i), g = spawnUnit(state, k === Math.floor(lost.length / 2) || k === Math.floor(lost.length / 2) + 1 ? 'mg' : 'rifle', ENEMY, p.x, p.y);
-        g.ai.role = 'garrison';
-      });
-      const mid = at(lost[Math.floor(lost.length / 2)]);
-      if (!state.units.some((u) => u.team === ENEMY && u.type === 'mg' && u.ai.role === 'garrison')) spawnUnit(state, 'mg', ENEMY, mid.x, mid.y).ai.role = 'garrison';
+      const { map } = state, W = map.w, M = Math.floor(map.h / 2), d = teamDir(PLAYER);
+      const at = (x, y) => (x >= 0 && y >= 0 && x < W && y < map.h ? map.tiles[y * W + x] : null);
+      let seed = 1508;
+      const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+      // ---- a dry Gallipoli summer: thin scrub and bare earth, no mud
+      map.summer = true;
+      for (const t of map.tiles) { if (t.off) continue; t.mud = 0; t.crater = rnd() < 0.02 ? 1 : 0; if (!t.trench && !t.wire) t.ground = rnd() < 0.3 ? 1 : 0; if (t.decor === 'tree') t.decor = rnd() < 0.5 ? 'stump' : null; }
+      // the attackers have no wire out: they are coming up the hill
+      for (const t of map.tiles) if (t.wire && t.origWire === ENEMY) { t.wire = 0; t.origWire = -1; }
+      // ---- the slopes: rocky spurs, crowned with scrub, run down from the crest towards the bay, leaving a
+      // few narrow gullies the enemy must climb
+      const f = frontLine(map, PLAYER), ef = frontLine(map, ENEMY);
+      const rock = (t, scrub) => { if (t && !t.off && !t.trench && !t.wire) { t.rock = 1 + Math.floor(rnd() * 4); t.knoll = scrub ? 1 : 0; t.decor = null; t.ground = 0; } };
+      const gullies = [];
+      for (let y0 = M - 30, k = 0; y0 <= M + 30; k++) {
+        const width = 3 + Math.floor(rnd() * 3), gap = 2 + Math.floor(rnd() * 2); // a spur, then a gully
+        if (y0 > M - 30) gullies.push(y0 - Math.ceil(gap / 2));
+        for (let x = 0; x < W; x++) {
+          if (f[y0] < 0 || ef[y0] < 0) break;
+          const xa = f[y0] + d * 4, xb = ef[y0] - d * 3; // from below the crest down to the enemy's line
+          if ((x - xa) * d < 0 || (xb - x) * d < 0) continue;
+          const wob = Math.round(Math.sin(x * 0.45 + k) * 1.2);
+          for (let w = 0; w < width; w++) if (rnd() < 0.93) rock(at(x, y0 + w + wob), rnd() < 0.45);
+        }
+        y0 += width + gap;
+      }
+      noSquares(map);
+      map.rocks = true;
       map.dirty = true;
-      // a strong reserve of our own behind the line, ready to go in
-      reinforce(state, PLAYER, 4);
-      state.resources[PLAYER] = { men: 30, ammo: 360, supplies: 120 };
+      // ---- the armies: a thin line on the crest; the enemy strong below, and fed from the beaches
+      reinforce(state, PLAYER, 2);
+      reinforce(state, ENEMY, 6);
+      state.resources[PLAYER] = { men: 14, ammo: 300, supplies: 90 };
+      state.playerIncome = 0.7;
+      state.resources[ENEMY] = { men: 60, ammo: 600, supplies: 200 };
       const ai = state.ais[0];
-      ai.level = { ...DIFFICULTY.medium, firstAttack: 1500, attackGap: [600, 800] };
-      ai.offensive = 1500;
-      state.campaign.lost = lost;
-      state.campaign.dug = 0;
+      ai.level = { ...DIFFICULTY.hard, firstAttack: 40, attackGap: [110, 160], force: 8, steps: 4 };
+      ai.offensive = 40;
+      state.campaign.front = frontTiles(state);
+      state.campaign.gullies = gullies.filter((y) => f[y] >= 0).map((y) => ({ x: f[y] + d * 6 + 0.5, y: y + 0.5 }));
+    },
+    // after the opening the camera shows the gullies the enemy will come up (main.js)
+    tour(state) {
+      const g = state.campaign.gullies, pick = [g[1], g[Math.floor(g.length / 2)], g[g.length - 2]].filter(Boolean);
+      return pick.map((p, i) => ({ ...p, label: ['A gully: the enemy will come up here', 'And here', 'And here'][i] }));
     },
     events: [
-      { at: 4.6, run: (s) => pushMessage(s, 'The enemy holds the heights in the centre of our line. Counter-attack at once!', 'side') },
-      // every hour the enemy holds on he digs in, wires himself in, and is reinforced
-      ...[5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5, 18.5].map((at, k) => ({ at, run: (s) => {
-        const { map } = s, c = s.campaign, d = teamDir(PLAYER);
-        let any = false;
-        for (const i of c.lost) {
-          const t = map.tiles[i];
-          if (t.owner !== ENEMY) continue;
-          any = true;
-          if (k % 2 === 1) t.trench = Math.min(3, t.trench + 1); // sandbags, then concrete
-          for (const back of [1, 2]) { // wire on our side of the captured trench
-            const w = map.tiles[i - d * back];
-            if (w && !w.off && !w.trench && Math.random() < 0.35 + k * 0.05) { w.wire = 100; w.origWire = ENEMY; }
-          }
+      { at: 22.05, run: (s) => pushMessage(s, 'The enemy is climbing the gullies in the dark. Hold the crest until Kemal comes!', 'side') },
+      // the warships in the bay shell the ridge
+      ...[23.5, 26, 28.5, 31, 33.5, 36, 38.5, 41, 43.5, 46, 48.5, 51].map((at) => ({ at, run: (s) => {
+        const f = s.campaign.front;
+        for (let k = 0; k < 7; k++) {
+          const t = s.map.tiles[f[Math.floor(Math.random() * f.length)]], flight = 0.8 + k * 0.35;
+          s.shells.push({ x: t.x + 0.5 + (Math.random() - 0.5) * 4, y: t.y + 0.5 + (Math.random() - 0.5) * 3, t: flight, flight, team: ENEMY, fromX: t.x + 40, fromY: t.y, incoming: true });
         }
-        if (!any) return;
-        map.dirty = true; c.dug++;
-        if (k % 3 === 2) {
-          const q = c.lost.map((i) => map.tiles[i]).find((t) => t.owner === ENEMY);
-          for (const u of reinforce(s, ENEMY, 2)) { orderMove(s, [u], q.x + 0.5, q.y + 0.5); u.ai.role = 'garrison'; }
-          pushMessage(s, 'The enemy is digging in deeper, and fresh men are coming up to him.', 'warn');
-        } else pushMessage(s, 'The enemy is wiring and sandbagging the captured trenches.', 'warn');
+        pushMessage(s, 'The warships in the bay are shelling the ridge!', 'warn');
       } })),
+      // fresh battalions landed on the beaches below
+      ...[25, 30, 36, 42, 47].map((at) => ({ at, run: (s) => { reinforce(s, ENEMY, 5); pushMessage(s, 'Fresh enemy battalions are coming up from the beaches.', 'warn'); } })),
+      // and a little help for us along the ridge
+      ...[27, 39].map((at) => ({ at, run: (s) => { reinforce(s, PLAYER, 2); pushMessage(s, 'Two companies have come along the ridge to stiffen the line.', 'good'); } })),
+      { at: 24 + 6, run: (s) => pushMessage(s, 'Day 2. Kemal is on the march: he will be here at dawn tomorrow.', 'side') },
+      { at: 48 + 1, run: (s) => pushMessage(s, 'Day 3. Kemal\'s division is close. Hold on until first light!', 'side') },
+      { at: 48 + 4.5, run: (s) => {
+        s.campaign.relief = relieve(s, PLAYER, 'ottoman').map((u) => u.id);
+        s.campaign.relievedAt = s.time;
+        pushMessage(s, 'Dawn! Kemal\'s division is coming over the crest!', 'good');
+        s.events.push({ type: 'cheer' });
+      } },
     ],
     check(state) {
       const c = state.campaign;
-      const left2 = c.lost.filter((i) => state.map.tiles[i].owner !== PLAYER).length;
-      if (!left2) {
-        c.doneAt = c.doneAt ?? clockHours(state);
-        if (!c.cheered) { c.cheered = true; pushMessage(state, 'Every yard of the heights is ours again!', 'good'); state.events.push({ type: 'cheer' }); }
-        c.wonAt = c.wonAt ?? state.time;
-        if (state.time - c.wonAt > 4) return { result: 'won', reason: 'The heights are retaken.' };
-        return null;
+      if (c.relievedAt !== undefined) {
+        const rel = state.units.filter((u) => c.relief.includes(u.id) && !u.dead);
+        const there = rel.filter((u) => Math.hypot(u.x - u.reliefTo.x, u.y - u.reliefTo.y) < 2.5).length;
+        if (!c.manned && (there >= rel.length * 0.8 || state.time - c.relievedAt > 60)) {
+          c.manned = state.time;
+          pushMessage(state, 'Kemal\'s men are on the crest. Chunuk Bair is held!', 'good');
+          state.events.push({ type: 'cheer' });
+        }
+        if (c.manned && state.time - c.manned > 4) return { result: 'won', reason: 'The crest held until Kemal came.' };
       }
-      if (clockHours(state) >= 19.5) return { result: 'lost', reason: 'Dusk fell with the enemy still on the heights.' };
+      if (c.relievedAt === undefined && frontHeld(state) < c.front.length / 2) return { result: 'lost', reason: 'More than half of the crest has fallen.' }; // (once Kemal is coming over the crest, it is his to hold)
       return null;
-    },
-    markers(state) {
-      const c = state.campaign, W = state.map.w;
-      const held = c.lost.filter((i) => state.map.tiles[i].owner !== PLAYER);
-      // one marker for every few enemy-held sections, so the line reads clearly without a ring on every tile
-      return held.filter((_, k) => k % 4 === 0).map((i) => ({ x: (i % W) + 0.5, y: Math.floor(i / W) + 0.5, label: 'Retake' }));
     },
     tracker(state) {
       const h = clockHours(state), c = state.campaign;
-      const back = c.lost.filter((i) => state.map.tiles[i].owner === PLAYER).length;
       return [
-        'Retake the heights',
-        `Sections retaken: ${back} / ${c.lost.length}`,
-        h < 18.5 ? `The enemy digs in deeper in ${left(Math.max(0, Math.floor(h - 0.5) + 1.5 - h))}` : 'The enemy is dug in',
-        `Dusk in ${left(Math.max(0, 19.5 - h))}`,
+        'Hold the crest',
+        `Front line held: ${frontHeld(state)} / ${c.front.length} (no fewer than ${Math.ceil(c.front.length / 2)})`,
+        c.relievedAt === undefined ? `Kemal arrives in ${left(Math.max(0, 52.5 - h))}` : 'Kemal\'s division is here',
       ];
     },
     medalsEarned(state) {
       const c = state.campaign, won = c.result === 'won';
-      return [won, won && c.doneAt < 10, won && state.stats.lost[PLAYER] < 300];
+      return [won, won && frontHeld(state) === c.front.length, won && state.stats.lost[PLAYER] < 250];
     },
   },
   {

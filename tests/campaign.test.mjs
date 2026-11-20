@@ -125,23 +125,24 @@ test('Brusilov\'s Storm: riflemen against riflemen, saps, reserves on day 1 and 
   createGame();
 });
 
-test('Dawn on Chunuk Bair: retake the lost centre before dusk while the enemy digs in', () => {
+test('Dawn on Chunuk Bair: hold the crest against attacks up the gullies until Kemal comes at dawn on day 3', () => {
   const s = createLevelGame('chunuk'), c = s.campaign;
-  assert.ok(c.lost.length >= 8);
-  assert.ok(c.lost.every((i) => s.map.tiles[i].owner === ENEMY && s.map.tiles[i].origOwner === PLAYER));
-  assert.ok(s.units.some((u) => u.team === ENEMY && u.ai.role === 'garrison' && u.type === 'mg'));
-  const t0 = c.lost.map((i) => s.map.tiles[i].trench).reduce((a, b) => a + b);
-  s.time = ((7 - 4.5) / 24) * 420; stepCampaign(s);
-  assert.ok(c.dug >= 2, 'dug in');
-  assert.ok(c.lost.map((i) => s.map.tiles[i].trench).reduce((a, b) => a + b) > t0, 'deeper works');
-  for (const i of c.lost) s.map.tiles[i].owner = PLAYER;
-  stepCampaign(s);
-  s.time += 5; stepCampaign(s);
+  assert.ok(c.front.length > 30, 'the crest is recorded');
+  assert.ok(s.map.tiles.filter((t) => t.rock).length > 100, 'rocky spurs between the gullies');
+  assert.ok(!s.map.tiles.some((t) => t.wire && t.origWire === ENEMY), 'the attackers have no wire out');
+  assert.ok(levelById('chunuk').tour(s).length === 3, 'the camera shows the gullies');
+  const shells = s.shells.length;
+  s.time = ((23.6 - 22) / 24) * 420; stepCampaign(s);
+  assert.ok(s.shells.length > shells, 'the warships shell the ridge');
+  assert.equal(c.result, null);
+  s.time = ((52.6 - 22) / 24) * 420; stepCampaign(s);
+  assert.ok(c.relief && c.relief.length > 10, 'Kemal arrives');
+  s.time += 61; stepCampaign(s); s.time += 5; stepCampaign(s);
   assert.equal(c.result, 'won');
-  assert.ok(levelById('chunuk').medalsEarned(s)[1], 'before 10:00');
 
   const l = createLevelGame('chunuk');
-  l.time = ((19.5 - 4.5) / 24) * 420 + 1; stepCampaign(l);
+  for (const i of l.campaign.front) l.map.tiles[i].owner = ENEMY;
+  stepCampaign(l);
   assert.equal(l.campaign.result, 'lost');
   createGame();
 });
