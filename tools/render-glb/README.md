@@ -30,4 +30,4 @@ battle 1 in `src/campaign.js`), whose tiles inside the footprint are then made i
 
 | sprite | model | command options |
 | --- | --- | --- |
-| `ship-river-clyde.webp` | Harbor Steamship (the River Clyde) | `--yaw 1.5708 --scale 7.4` |
+| `ship-river-clyde.webp` | Harbor Steamship (the River Clyde) | `--yaw 1.5708 --scale 10.6` |
