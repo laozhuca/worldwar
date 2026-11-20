@@ -736,8 +736,8 @@ export function damageUnit(state, u, amount, blast = null, shooter = null) {
   if (u.dead || amount <= 0 || u.invulnerable) return; // invulnerable: kept alive by a scripted scene
   const t = UNIT_TYPES[u.type];
   const before = u.men;
-  if (u.afloat) amount *= 1.4; // men packed in an open boat
-  const smashed = u.afloat && blast; // a shell on a boat: it goes to pieces, and every man in it with it
+  if (u.afloat) amount *= blast ? 0.5 : 1.4; // men packed in an open boat: exposed to rifle and machine-gun fire, but low in the water, shell splinters mostly spent on the sea
+  const smashed = u.afloat && blast && blast.d < 0.5; // only a shell right on a boat smashes it, and every man in it; a near miss kills some, the boat rows on
   if (smashed) amount = u.hp;
   u.hp -= amount;
   u.men = Math.max(0, Math.ceil(u.hp / t.hpPerMan - 1e-6));
