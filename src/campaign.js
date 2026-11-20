@@ -866,9 +866,11 @@ export const LEVELS = [
         const { map } = s, W = map.w, M = Math.floor(map.h / 2), d = teamDir(PLAYER), c = s.campaign.coast;
         const n = k < 2 ? 5 : 3;
         for (let i = 0; i < n; i++) {
-          const y = M - 9 + Math.floor(((i + 0.5) / n) * 18) + Math.floor(Math.random() * 2);
+          let y = M - 9 + Math.floor(((i + 0.5) / n) * 18) + Math.floor(Math.random() * 2);
+          const ship = s.buildings && s.buildings[0];
+          if (ship && Math.abs(y + 0.5 - ship.y) <= ship.hy + 1.2) y = Math.round(ship.y + (y + 0.5 < ship.y ? -ship.hy - 1.7 : ship.hy + 1.2)); // (rowing in clear of the River Clyde)
           let x = c(y) + d * 9;
-          while (x >= 0 && x < W && map.tiles[y * W + x] && map.tiles[y * W + x].off) x -= d;
+          while (x >= 0 && x < W && map.tiles[y * W + x] && (map.tiles[y * W + x].off || map.tiles[y * W + x].block)) x -= d;
           const u = spawnUnit(s, 'rifle', ENEMY, x + 0.5, y + 0.5);
           u.ai.role = 'reserve';
           orderMove(s, [u], c(y) - d * 1 + 0.5, y + 0.5); // to the sandbank

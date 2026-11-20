@@ -136,6 +136,9 @@ test('The Beach at Sedd el Bahr: hold the slopes above V Beach until nightfall a
   assert.ok(boats.length >= 5, 'the first boats');
   update(s, 1 / 30);
   assert.ok(boats.every((u) => u.afloat), 'rowing in');
+  for (const u of s.units) if (u.team === PLAYER) u.holdFire = true;
+  for (let i = 0; i < 30 * 40; i++) update(s, 1 / 30);
+  assert.ok(boats.every((u) => !u.afloat), 'every boat reaches the beach and its men get out (none caught on the River Clyde)');
   s.time = ((20.1 - 5.5) / 24) * s.dayLength;
   for (const u of s.units) if (u.team === ENEMY) u.dead = true;
   for (const i of c.front) s.map.tiles[i].owner = PLAYER;
