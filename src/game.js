@@ -737,15 +737,23 @@ export function damageUnit(state, u, amount, blast = null, shooter = null) {
   const t = UNIT_TYPES[u.type];
   const before = u.men;
   if (u.afloat) amount *= 1.4; // men packed in an open boat
+  const smashed = u.afloat && blast; // a shell on a boat: it goes to pieces, and every man in it with it
+  if (smashed) amount = u.hp;
   u.hp -= amount;
   u.men = Math.max(0, Math.ceil(u.hp / t.hpPerMan - 1e-6));
   state.stats.lost[u.team] += before - u.men;
-  if (!u.afloat) for (let i = 0; i < Math.min(3, before - u.men); i++) fallen(state, u, blast, shooter); // (at sea they go into the water)
+  if (!u.afloat) for (let i = 0; i < Math.min(3, before - u.men); i++) fallen(state, u, blast, shooter);
+  else { // at sea the dead go over the side and float, drifting, until they sink from sight
+    const fl = state.floaters || (state.floaters = []);
+    for (let i = 0; i < Math.min(smashed ? 4 : 2, before - u.men); i++) fl.push({ kind: 'body', x: u.x + (rand() - 0.5) * (smashed ? 1.4 : 0.8), y: u.y + (rand() - 0.5) * (smashed ? 1.0 : 0.6), v: Math.floor(rand() * 3), d: [0, 2, 5][Math.floor(rand() * 3)], t: state.time, life: 22 + rand() * 18, m: rand() < 0.5 });
+    if (smashed) for (let i = 0; i < 6; i++) fl.push({ kind: 'piece', x: u.x + (rand() - 0.5) * 1.6, y: u.y + (rand() - 0.5) * 1.1, v: i === 0 ? 3 : Math.floor(rand() * 3), t: state.time, life: 28 + rand() * 20, m: rand() < 0.5 });
+    if (fl.length > 160) fl.splice(0, fl.length - 160);
+  }
   if (state.decals.length > 260) state.decals = state.decals.filter((d) => state.time - d.t < 140).slice(-260);
   if (u.hp <= 0) {
     u.dead = true;
     u.men = 0;
-    if (u.afloat && state.wrecks) state.wrecks.push({ x: u.x, y: u.y, v: 'empty', t: state.time }); // the boat drifts, empty
+    if (u.afloat && state.wrecks && !smashed) state.wrecks.push({ x: u.x, y: u.y, v: 'empty', t: state.time }); // the boat drifts, empty (a shell leaves only pieces)
     if (u.team === PLAYER) pushMessage(state, `${t.name} wiped out`, 'loss');
     state.effects.push({ type: 'smoke', x: u.x, y: u.y, age: 0, life: 2.5 });
   }
@@ -958,6 +966,10 @@ function updateEffects(state, dt) {
   if (state.returning && state.returning.length) {
     for (const b of state.returning) b.x += b.dir * 1.1 * dt;
     state.returning = state.returning.filter((b) => { const t = tileAt(state.map, b.x, b.y); return t && !t.off; });
+  }
+  if (state.floaters && state.floaters.length) { // the dead and the wreckage drift on the swell, then sink
+    for (const f of state.floaters) { f.x += 0.05 * dt; f.y += 0.02 * dt; }
+    state.floaters = state.floaters.filter((f) => state.time - f.t < f.life);
   }
   for (const e of state.effects) e.age += dt;
   state.effects = state.effects.filter((e) => e.age < e.life);

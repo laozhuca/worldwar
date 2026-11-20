@@ -645,6 +645,32 @@ export function corpseScene(nationKey, variant, dir) {
 }
 
 /**
+ * A dead man floating in the sea: a corpse sunk to the waterline, so only his back, shoulders and the
+ * crown of his head (or his chest and face, lying on his back) break the surface, darkened by the water,
+ * a little blood thinning into the sea round him. Turned to dir (x 45 degrees).
+ */
+export function floatScene(nationKey, variant, dir) {
+  const nat = NATIONS[nationKey];
+  const J = corpse(variant % 3); // (back, face, side: whole men)
+  J.pool = null;
+  const fig = figure(nat, J, hash(nationKey.length, variant + dir + 7) * 10);
+  const th = (dir * Math.PI) / 4, c = Math.cos(th), s = Math.sin(th);
+  const sink = 0.12; // metres below the surface
+  const toLocal = (x, y, z) => [(x * c + y * s) / K, (-x * s + y * c) / K, z / K + sink];
+  const sdf = (x, y, z) => Math.max(fig.eval(toLocal(x, y, z))[0] * K, -z); // only what is above the water
+  const shade = (x, y, z) => {
+    const p = toLocal(x, y, z);
+    const [, mat] = fig.eval(p);
+    let col = fig.colour(mat, p);
+    col = mix3(col, [0.1, 0.13, 0.14], 0.35 + clamp(0.03 - z, 0, 0.03) * 12); // soaked, darkest at the waterline
+    if (z < 0.006) col = mix3(col, [0.75, 0.8, 0.8], 0.35); // a rim of wet light where the sea laps at him
+    return { kind: 'solid', col, spec: 0.25, shin: 40 };
+  };
+  const E = 1.3 * K;
+  return { bounds: [-E, -E, -0.005, E, E, 0.5 * K], sdf, shade, supersample: 3 };
+}
+
+/**
  * A man shot down (rifle or machine-gun fire): FALL_FRAMES frames from standing to his corpse pose.
  *   0 back    - topples backward onto his back (corpse 'back')
  *   1 face    - pitches forward onto his face (corpse 'face')

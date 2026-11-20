@@ -1111,6 +1111,37 @@ export function boatScene(variant, full = true, frame = -1, one = false, back = 
   return { bounds: [-L - 0.1, -B - 0.55, -0.02, L + 0.1, B + 0.55, 0.48], sdf, shade, supersample: 2 };
 }
 
+// ===================================================================== a smashed boat
+/**
+ * What a shell leaves of a boat: kind 0-2, a few broken planks and a thwart floating awash; kind 3, the
+ * bow half of the hull, broken off at a jagged edge, low in the water. Only what is above the surface.
+ */
+export function boatPieceScene(kind) {
+  const H = (k, j = 0) => hash(kind * 11 + 3, j, k);
+  const parts = [];
+  if (kind < 3) for (let k = 0; k < 3 + Math.floor(H(1) * 3); k++) {
+    const a = H(2, k) * Math.PI, l = 0.14 + H(3, k) * 0.22, cx = (H(4, k) - 0.5) * 0.5, cy = (H(5, k) - 0.5) * 0.35;
+    parts.push({ cx, cy, a, l, w: 0.03 + H(6, k) * 0.03, t: 0.012 + H(7, k) * 0.01, grey: H(8, k) < 0.5 });
+  }
+  const plank = (q, x, y, z) => { const c = Math.cos(q.a), s2 = Math.sin(q.a), lx = (x - q.cx) * c + (y - q.cy) * s2, ly = -(x - q.cx) * s2 + (y - q.cy) * c; return sdRoundBox(lx, ly, z - 0.004, q.l, q.w, q.t, 0.006) + (Math.abs(lx) > q.l - 0.04 ? (vnoise(ly * 80, z * 80, q.a) - 0.5) * 0.03 : 0); };
+  const L = 0.5, B = 0.26, D = 0.2;
+  const half = (x, y, z) => { // the forward half of the hull, tilted, sitting low
+    const zz = z - 0.05 - x * 0.08, beam = B * Math.max(0.04, 1 - Math.max(0, -x / L) ** 2 * 0.9);
+    let d = Math.max((Math.hypot(x / L, y / beam, zz / D) - 1) * 0.15, zz - 0.0);
+    d = Math.max(d, -((Math.hypot(x / (L - 0.04), y / (beam - 0.025), (zz - 0.01) / (D - 0.025)) - 1) * 0.15)); // hollow
+    d = Math.max(d, x - 0.06 - (vnoise(y * 40, z * 40, 1) - 0.5) * 0.12); // broken off aft
+    return d;
+  };
+  const sdf = (x, y, z) => Math.max(kind === 3 ? half(x, y, z) : Math.min(...parts.map((q) => plank(q, x, y, z))), -z);
+  const shade = (x, y, z, nx, ny, nz) => {
+    const n = fbm(x * 30, y * 30, z * 30, 2);
+    const grey = kind === 3 ? nz < 0.5 && z < 0.06 : (parts.reduce((a, q) => (plank(q, x, y, z) < plank(a, x, y, z) ? q : a)).grey && nz > 0.3);
+    const col = grey ? mix3([0.34, 0.33, 0.32], [0.48, 0.46, 0.44], n) : mix3([0.36, 0.28, 0.18], [0.52, 0.41, 0.27], n);
+    return { kind: 'solid', col: mix3(col, [0.12, 0.15, 0.16], z < 0.01 ? 0.4 : 0.1), spec: 0.15 };
+  };
+  return { bounds: [-0.6, -0.5, -0.005, 0.6, 0.5, 0.2], sdf, shade, supersample: 2 };
+}
+
 // ===================================================================== the River Clyde
 /**
  * The SS River Clyde, the collier run aground at V Beach as a 'Trojan horse': a long black riveted hull
