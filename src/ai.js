@@ -182,7 +182,7 @@ export function updateAI(state, ai, dt) {
           const men = foes.filter((f) => f.type !== 'artillery' && Math.hypot(f.x - tx, f.y - ty) < 6).reduce((a, f) => a + f.men * (f.type === 'mg' ? 3 : 1), 0);
           let wire = 0;
           for (let k = 1; k <= 5; k++) { const t = tileAt(map, tx - dir * k, ty); if (t && t.wire > 0) wire++; }
-          const score = men * 2 + wire * 4 + Math.abs(ty - foeHq.y - 0.5) * 0.6 + rand() * 4;
+          const score = men * 2 + wire * 4 + Math.abs(ty - foeHq.y - 0.5) * (L.centre || 0.6) + rand() * 4; // (a level may make him go for the centre)
           if (score < bs) { bs = score; best = { x: tx, y: ty }; }
         }
         if (best) {
@@ -276,8 +276,12 @@ function updateOp(state, ai, dt) {
   const T = op.target, A = UNIT_TYPES.artillery;
   const inRange = (g, x, y) => { const d = Math.hypot(g.x - x, g.y - y); return d <= A.artyRange && d >= A.artyMinRange; };
 
+  const Lv = ai.level || DIFFICULTY.medium;
   if (op.stage === 'assemble') {
-    if (units.every((u) => !u.order) || op.timer <= 0) { op.stage = 'prep'; op.timer = 25; op.guns = []; }
+    if (units.every((u) => !u.order) || op.timer <= 0) {
+      if (Lv.rush) { orderMove(state, units, T.x, T.y, 'charge'); op.stage = 'charge'; op.timer = 40; op.guns = []; } // straight in with the bayonet
+      else { op.stage = 'prep'; op.timer = 25; op.guns = []; }
+    }
   } else if (op.stage === 'prep') {
     // every ready battery in range: the objective, then any machine gun covering the approach
     const ready = readyBatteries(mine).filter((g) => inRange(g, T.x, T.y)).slice(0, (ai.level || DIFFICULTY.medium).guns);
@@ -318,10 +322,10 @@ function updateOp(state, ai, dt) {
       orderMove(state, rest, T.x, T.y);
     } else if (op.timer <= 0 || units.every((u) => !u.order)) {
       // the charge stalled short of the trench: go to ground and try again with the guns
-      if (units.every((u) => !u.order) && !taken && (op.retries = (op.retries || 0) + 1) <= 2) { op.stage = 'prep'; op.timer = 25; op.guns = []; }
+      if (units.every((u) => !u.order) && !taken && (op.retries = (op.retries || 0) + 1) <= (Lv.retries || 2)) { if (Lv.rush) { orderMove(state, units, T.x, T.y, 'charge'); op.stage = 'charge'; op.timer = 40; } else { op.stage = 'prep'; op.timer = 25; op.guns = []; } }
       else return end();
     }
   } else if (op.stage === 'regroup') {
-    if (units.every((u) => !u.order) || op.timer <= 0) { op.stage = 'prep'; op.timer = 25; op.guns = []; }
+    if (units.every((u) => !u.order) || op.timer <= 0) { if (Lv.rush) { orderMove(state, units, op.target.x, op.target.y, 'charge'); op.stage = 'charge'; op.timer = 40; } else { op.stage = 'prep'; op.timer = 25; op.guns = []; } }
   }
 }

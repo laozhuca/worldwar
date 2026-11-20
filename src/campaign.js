@@ -852,8 +852,8 @@ export const LEVELS = [
       state.playerIncome = 0.6;
       state.resources[ENEMY] = { men: 0, ammo: 600, supplies: 200 }; // (no recruiting: every man comes by sea)
       const ai = state.ais[0];
-      ai.level = { ...DIFFICULTY.hard, income: 0, firstAttack: 120, attackGap: [90, 140], force: 7, steps: 3, guns: 0 };
-      ai.offensive = 120;
+      ai.level = { ...DIFFICULTY.hard, income: 0, firstAttack: 90, attackGap: [45, 75], force: 9, steps: 4, guns: 0, centre: 3, rush: true, retries: 5 }; // (he goes for the centre, with the bayonet, again and again)
+      ai.offensive = 90;
       state.campaign.front = frontTiles(state);
       state.campaign.beach = { x: coast(M) - d * 2 + 0.5, y: M + 0.5 };
       state.campaign.coast = (y) => coast(y);
