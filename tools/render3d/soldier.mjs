@@ -151,6 +151,11 @@ export function pose(name, frame = 0) {
     rifleMode = 'none';
     const up = frame % 2;
     tool = { a: [0.25, -0.12, up ? 1.0 : 0.82], b: [up ? 0.7 : 0.85, -0.02, up ? 0.35 : 0.04] };
+  } else if (name === 'sit') {
+    // sitting on a thwart in a boat: thighs forward, shins down, the rifle held upright between the knees
+    P = [0, 0, 0.46]; lean = 0.1;
+    legs = [leg(hipL(P), 1.42, 1.25), leg(hipR(P), 1.42, 1.3)];
+    rifleMode = 'upright';
   } else if (name === 'prone' || name === 'dead') {
     return lying(name);
   } else if (name === 'crawl') {
@@ -198,10 +203,11 @@ export function pose(name, frame = 0) {
   } else if (rifleMode === 'port') { hR = add(add(P, [0.22, -0.16, 0.08]), carry); hL = add(add(P, [0.38, 0.06, 0.26]), carry); }
   else if (rifleMode === 'charge') { hR = add(add(P, [0.3 + lean * 0.3, -0.14, 0.05 + lean * 0.15]), carry); hL = add(add(P, [0.66 + lean * 0.4, -0.06, 0.13 + lean * 0.2]), carry); }
   else if (rifleMode === 'aim') { hR = add(neck, [0.16, -0.14, -0.12]); hL = add(neck, [0.52, -0.06, -0.15]); head = add(head, [0.05, -0.03, -0.03]); }
+  else if (rifleMode === 'upright') { hR = add(P, [0.36, -0.06, 0.2]); hL = add(P, [0.37, 0.05, 0.42]); rifle = { butt: add(P, [0.42, 0, -0.44]), muzzle: add(P, [0.33, 0, 0.72]) }; }
   else { hR = tool.a; hL = add(tool.a, mul(norm(sub(tool.b, tool.a)), 0.35)); }
   if (rifleMode === 'slope') rifle = { butt: add(hL, [0.04, 0, -0.06]), muzzle: add(shL, [-0.3, 0.04, 0.52]) };
   else if (rifleMode === 'trail') rifle = { butt: add(hR, [-0.42, 0, -0.03]), muzzle: add(hR, [0.62, 0, 0.1]) };
-  else if (rifleMode !== 'none' && rifleMode !== 'carry' && rifleMode !== 'work' && rifleMode !== 'load' && rifleMode !== 'ears') {
+  else if (rifleMode !== 'none' && rifleMode !== 'upright' && rifleMode !== 'carry' && rifleMode !== 'work' && rifleMode !== 'load' && rifleMode !== 'ears') {
     if (rifleMode === 'aim' && frame === 1) { hR = add(hR, [-0.04, 0, 0.01]); hL = add(hL, [-0.03, 0, 0.05]); head = add(head, [-0.03, 0, 0.01]); } // the kick: muzzle up, shoulder back
     const dir = norm(sub(hL, hR));
     rifle = { butt: add(hR, mul(dir, rifleMode === 'aim' ? -0.18 : -0.32)), muzzle: add(hR, mul(dir, 0.95)), bayonet: rifleMode === 'charge' };
@@ -583,6 +589,11 @@ function figure(nat, J, seed) {
  * Scene for one soldier sprite. view 'a': facing world +x (toward camera, screen right-down);
  * view 'b': facing world -y (away, screen right-up). The game mirrors these for the other two.
  */
+/** A soldier as a figure to place in another scene (a man sitting in a boat): { eval(p) -> [d, mat], colour }, in metres, x forward. */
+export function figureOf(nationKey, poseName, frame = 0, variant = 0) {
+  return figure(variantOf(NATIONS[nationKey], variant), pose(poseName, frame), hash(nationKey.length, frame, variant) * 10);
+}
+
 export function soldierScene(nationKey, poseName, frame, view, portrait = false, variant = 0) {
   const nat = variantOf(NATIONS[nationKey], variant);
   const J = pose(poseName, frame);

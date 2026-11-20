@@ -1,5 +1,6 @@
 // SDF models for WorldWar props. Each factory returns a scene for core.render().
 import { sdBox2, sdRoundBox, sdCapsule, smin, vnoise, fbm, hash, clamp, mix, mix3 } from './core.mjs';
+import { figureOf, K as MAN_K } from './soldier.mjs';
 
 const TAU = Math.PI * 2;
 const C = {
@@ -1066,18 +1067,16 @@ export function boatScene(variant, full = true) {
     for (let k = -2; k <= 2; k++) d = Math.min(d, Math.max(Math.abs(x - k * 0.24) - 0.035, Math.abs(z - (Z0 - 0.035)) - 0.012, hullOuter(x, y, z) - 0.001)); // thwarts across
     return d;
   };
+  // the men: British infantry from the soldier models, sitting on the thwarts facing the bow, rifles upright
   const men = [];
-  if (full) for (let k = -3; k <= 2; k++) for (const sy of [-1, 0, 1]) if (hash(variant, k, sy) > 0.18 && !(k === -3 && sy === 0)) men.push({ x: k * 0.2 + 0.08, y: sy * 0.12 * (k === -3 ? 0.6 : 1), h: hash(variant, k, sy, 2) });
+  if (full) for (let k = -2; k <= 2; k++) for (const sy of [-1, 0, 1]) if (hash(variant, k, sy) > 0.15) men.push({ x: k * 0.24 + 0.02, y: sy * 0.135 * (1 - Math.max(0, -k - 1) * 0.35), fig: figureOf('uk', 'sit', 0, Math.floor(hash(variant, k, sy, 3) * 3)) });
+  const floor = Z0 - D * 0.62;
+  const toMan = (m, x, y, z) => [-(x - m.x) / MAN_K, -(y - m.y) / MAN_K, (z - floor) / MAN_K]; // (facing -x, the bow)
+  const near = (x, y) => men.filter((m) => Math.abs(x - m.x) < 0.2 && Math.abs(y - m.y) < 0.2);
   const man = (x, y, z) => {
     let d = 1;
-    for (const m of men) {
-      const torso = sdCapsule(x, y, z, m.x, m.y, Z0, m.x + 0.01, m.y, Z0 + 0.16, 0.055, 0.045);
-      const head = Math.hypot(x - m.x - 0.015, y - m.y, z - Z0 - 0.22) - 0.04;
-      const cap = Math.max(Math.hypot(x - m.x - 0.015, y - m.y, z - Z0 - 0.24) - 0.045, Z0 + 0.235 - z);
-      const pack = sdRoundBox(x - m.x - 0.07, y - m.y, z - Z0 - 0.1, 0.04, 0.05, 0.06, 0.015);
-      d = Math.min(d, torso, head, cap, pack);
-    }
-    return d;
+    for (const m of near(x, y)) d = Math.min(d, m.fig.eval(toMan(m, x, y, z))[0] * MAN_K);
+    return men.length ? Math.min(d, Math.max(0.03, Math.min(...men.map((m) => Math.hypot(x - m.x, y - m.y))) - 0.16)) : 1;
   };
   const oars = (x, y, z) => {
     let d = 1;
@@ -1089,9 +1088,8 @@ export function boatScene(variant, full = true) {
   const shade = (x, y, z, nx, ny, nz) => {
     const dh = hull(x, y, z), dm = man(x, y, z), dor = oars(x, y, z);
     if (dm < dh && dm < dor) {
-      const m = men.reduce((a, q) => (Math.hypot(q.x - x, q.y - y) < Math.hypot(a.x - x, a.y - y) ? q : a));
-      if (z > Z0 + 0.185 && z < Z0 + 0.235 && Math.hypot(x - m.x - 0.015, y - m.y) < 0.042) return { kind: 'solid', col: [0.62, 0.45, 0.36], spec: 0.04 }; // a face
-      return { kind: 'solid', col: z > Z0 + 0.235 ? [0.36, 0.33, 0.22] : mix3([0.42, 0.38, 0.25], [0.5, 0.45, 0.3], fbm(x * 40, y * 40, z * 40, 2)), spec: 0.03 }; // khaki
+      const m = near(x, y).reduce((a, q) => (!a || q.fig.eval(toMan(q, x, y, z))[0] < a.fig.eval(toMan(a, x, y, z))[0] ? q : a), null);
+      if (m) { const p = toMan(m, x, y, z); return { kind: 'solid', col: m.fig.colour(m.fig.eval(p)[1], p), spec: 0.05 }; }
     }
     if (dor < dh) return { kind: 'solid', col: [0.55, 0.45, 0.3], spec: 0.05 };
     const inside = ell(x, y, z, L - 0.05, Math.max(0.01, beam(x) - 0.028), D - 0.03) < 0.012 && nz > -0.2;
