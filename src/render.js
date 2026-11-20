@@ -2258,7 +2258,7 @@ export class Renderer {
         }
         ctx.globalAlpha = 1;
       } else if (e.type === 'splash') {
-        this.drawSplash(ctx, e, k);
+        this.drawSplash(ctx, e, k, anim && !!this.fxWater); // (with the water frames: only the rings and foam on the surface)
       } else if (e.type === 'boom') {
         if (anim) continue; // the impact animation has its own flash and earth column
         const p = iso(e.x, e.y);
@@ -2379,6 +2379,9 @@ export class Renderer {
       fr.addColorStop(0, 'rgba(255,240,210,1)'); fr.addColorStop(0.3, 'rgba(240,190,130,0.6)'); fr.addColorStop(1, 'rgba(200,140,90,0)');
       fg.fillStyle = fr; fg.fillRect(0, 0, 64, 64);
       this.fx = { meta, img, buf, shadow: sh, flash: fl };
+      // a shell in the sea: the same column graded into water (optional)
+      Promise.all([fetch('assets/fx/water-impact.json').then((r) => r.json()), loadImage('assets/fx/water-impact.webp')])
+        .then(([wm, wi]) => { this.fxWater = { ...this.fx, meta: wm, img: wi }; }).catch(() => {});
     }).catch((e) => { this.fxLoading = null; console.warn('Impact animation unavailable:', e.message); });
     return this.fxLoading;
   }
@@ -2392,7 +2395,7 @@ export class Renderer {
    * A shell bursting in the sea: a white column of water thrown up and falling back, spray drifting
    * downwind, a flash of foam on the surface and rings spreading out across it.
    */
-  drawSplash(ctx, e, k) {
+  drawSplash(ctx, e, k, framed = false) {
     const p = iso(e.x, e.y), S = e.scale || 1, t = e.age, wind = this.atmo.wind.x;
     ctx.save();
     // rings spreading on the water
@@ -2408,6 +2411,7 @@ export class Renderer {
     const fg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 30 * S);
     fg.addColorStop(0, `rgba(240,246,246,${0.75 * foam})`); fg.addColorStop(1, 'rgba(240,246,246,0)');
     ctx.fillStyle = fg; ctx.beginPath(); ctx.ellipse(p.x, p.y, 34 * S, 17 * S, 0, 0, TAU); ctx.fill();
+    if (framed) { ctx.restore(); return; }
     // the column: it shoots up in a fraction of a second, hangs, and collapses back under its own weight
     const up = Math.min(1, t / 0.28), fall = Math.max(0, (t - 0.55) / 1.6);
     const H = 115 * S * up * (1 - fall * fall * 0.85), alpha = Math.max(0, 1 - Math.max(0, t - 0.8) / 1.1) * (1 - fall * 0.4);
@@ -2450,10 +2454,12 @@ export class Renderer {
   }
 
   drawImpact(ctx, e, base) {
-    const F = this.fx, M = F.meta, T = M.frameTimes, N = M.frameCount;
-    const t = e.age;
-    if (t >= M.duration) return;
-    const opacity = Math.min(1, t / 0.035) * Math.min(1, (M.duration - t) / 1.2);
+    const F = e.water && this.fxWater ? this.fxWater : this.fx, M = F.meta, T = M.frameTimes, N = M.frameCount;
+    // at sea only the rising column of the sheet is played (its later frames are a billowing cloud, which
+    // water does not make), slowed down, and fading out as the water falls back
+    const t = e.water ? e.age * 0.3 : e.age, end = e.water ? T[Math.min(N - 1, 19)] : Math.min(M.duration, e.life || M.duration);
+    if (t >= end) return;
+    const opacity = Math.min(1, t / 0.035) * (e.water ? Math.min(1, (end - t) / (end * 0.55)) : Math.min(1, (end - t) / 1.2));
     const S = M.frameSize, cols = M.columns;
     // Blend in frame-index space with a cubic B-spline over four neighbouring frames: the weights always
     // sum to 1 and change smoothly through every drawn frame, so there is no pulse as each one passes
@@ -2489,7 +2495,7 @@ export class Renderer {
     // ground shadow, cast away from the sun (lower right)
     const dense = Math.min(1, t / 0.25) * (1 - Math.min(1, Math.max(0, (t - 2.2) / 2)));
     ctx.setTransform(base.a, base.b, base.c, base.d, base.e, base.f);
-    ctx.globalAlpha = 0.85 * dense;
+    ctx.globalAlpha = (e.water ? 0.3 : 0.85) * dense; // (on water only a faint shade)
     const sw = size * (0.45 + 0.35 * Math.min(1, t / 0.8));
     ctx.drawImage(F.shadow, gx + size * 0.08 - sw / 2, gy - sw * 0.2, sw, sw * 0.5);
     // the cloud (optionally mirrored)
