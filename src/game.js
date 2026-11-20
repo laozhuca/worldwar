@@ -484,7 +484,7 @@ function updateUnit(state, u, dt) {
   const wasIn = u.inTrench;
   u.inTrench = !!tile && tile.trench > 0 && u.type !== 'artillery'; // a battery never goes down into a trench (it bridges it)
   // at sea: the men are in a boat (rowed in to the beach); stepping ashore leaves the boat beached at the water's edge
-  const afloat = !!(tile && tile.sea);
+  const afloat = !!(tile && tile.sea) && !u.onShip; // (the guns on the River Clyde's deck are not in a boat)
   if (u.afloat && !afloat && state.wrecks) state.wrecks.push({ x: u.x + 0.5 * teamDir(u.team), y: u.y, v: u.id % 3, t: state.time });
   u.afloat = afloat;
   // climbing out of a trench, or down into one, takes time: the men haul themselves over the parapet.
@@ -639,8 +639,8 @@ function updateUnit(state, u, dt) {
 
   // --- small-arms fire
   u.fireTimer = Math.max(0, u.fireTimer - dt * (u.moving ? 0.6 : 1));
-  if (t.range && !charging && !u.holdFire && !u.afloat && u.target && u.setup <= 0 && !(u.packing > 0) && u.fireTimer <= 0) {
-    if (dist(u, u.target) <= t.range) {
+  if (t.range && !charging && !u.holdFire && !u.afloat && !(u.onShip && u.pinned) && u.target && u.setup <= 0 && !(u.packing > 0) && u.fireTimer <= 0) {
+    if (dist(u, u.target) <= (u.range || t.range)) { // (a unit may have its own reach: the River Clyde's guns)
       fire(state, u, u.target, t);
       u.fireTimer = t.fireInterval * (0.85 + rand() * 0.3);
     }
@@ -669,7 +669,7 @@ function findTargets(state, u, t) {
     if (e.dead || e.team === u.team) continue;
     const d = dist(u, e);
     if (d < cd) { cd = d; closest = e; }
-    if (t.range && d <= t.range) {
+    if (t.range && d <= (u.range || t.range)) {
       const score = d * (e.inTrench ? 1.4 : 1) * (e.type === 'artillery' ? 1.3 : 1);
       if (score < bestScore) { bestScore = score; best = e; }
     }
@@ -700,7 +700,7 @@ function fire(state, u, target, t) {
   else { ammoFactor = 0.25; shots = Math.max(1, Math.floor(shots * 0.25)); }
 
   const d = dist(u, target);
-  let acc = t.hitChance * (1 - 0.55 * (d / t.range));
+  let acc = t.hitChance * (1 - 0.55 * (d / (u.range || t.range)));
   if (u.suppression > 50) acc *= 0.35;
   else if (u.suppression > 25) acc *= 0.7;
   if (u.moving) acc *= 0.6;
@@ -723,7 +723,7 @@ function fire(state, u, target, t) {
   const sx = (target.x - u.x) - (target.y - u.y);
   if (Math.abs(sx) > 0.05) u.facing = Math.sign(sx);
   if (d > 0.01) { u.hx = (target.x - u.x) / d; u.hy = (target.y - u.y) / d; }
-  state.effects.push({ type: t.burst ? 'tracer' : 'volley', x: u.x, y: u.y, tx: target.x, ty: target.y, age: 0, life: t.burst ? 0.35 : 0.18, team: u.team, n: shots * ammoFactor });
+  state.effects.push({ type: t.burst ? 'tracer' : 'volley', x: u.x, y: u.y, tx: target.x, ty: target.y, age: 0, life: t.burst ? 0.35 : 0.18, team: u.team, n: shots * ammoFactor, deck: u.deck || 0 });
   state.events.push({ type: t.burst ? 'mg' : 'rifle', x: u.x, y: u.y, id: u.id });
 }
 
@@ -988,7 +988,7 @@ function refreshVisibility(state) {
   const mine = state.units.filter((u) => u.team === PLAYER && !u.dead);
   for (const e of state.units) {
     if (e.team === PLAYER) { e.visible = true; continue; }
-    e.visible = !!e.afloat || mine.some((u) => Math.hypot(u.x - e.x, u.y - e.y) <= UNIT_TYPES[u.type].sight);
+    e.visible = !!e.afloat || !!e.onShip || mine.some((u) => Math.hypot(u.x - e.x, u.y - e.y) <= UNIT_TYPES[u.type].sight);
   }
 }
 

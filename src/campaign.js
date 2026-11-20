@@ -835,6 +835,10 @@ export const LEVELS = [
       for (const t of map.tiles) if (Math.abs(t.x + 0.5 - state.buildings[0].x) <= 9.9 && Math.abs(t.y + 0.5 - state.buildings[0].y) <= 1.45) { t.block = 1; t.wire = 0; }
       // the enemy's 'headquarters' is the ship: his men come out of her sally ports (it cannot be taken)
       map.hq[ENEMY] = { x: Math.floor(cx - d * 6), y: cy - 3, hidden: true };
+      // the machine guns on her foredeck, behind their sandbags: they fire on our trenches all day and
+      // cannot be knocked out
+      { const b = state.buildings[0], mg = spawnUnit(state, 'mg', ENEMY, b.x - d * (b.hx - 0.5), b.y - 0.15); // at the very tip of her bow
+        mg.invulnerable = true; mg.ai.role = 'nest'; mg.setup = 0; mg.onShip = true; mg.deck = 46; mg.range = 16; state.campaign.shipGun = mg.id; } // (high on her deck, it reaches our trenches)
       state.wrecks = [];
       state.arriving = { [ENEMY]: true }; // he lands all day: never 'broken' (the level ends at nightfall)
       map.rocks = true;

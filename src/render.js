@@ -979,7 +979,7 @@ export class Renderer {
     }
     // concrete MG bunkers: always drawn (their places are known); the gun and crew inside are not
     if (state.bunkers) for (const b of state.bunkers) objs.push({ k: b.x + b.y + 0.3, kind: 'bunker', b, u: state.units.find((u) => u.id === b.id) });
-    for (const u of state.units) if (u.visible && !u.nest) objs.push({ k: u.x + u.y, kind: 'unit', u });
+    for (const u of state.units) if (u.visible && !u.nest) objs.push({ k: u.onShip ? 1e6 : u.x + u.y, kind: 'unit', u }); // (a gun on a ship's deck stands on top of her)
     if (state.wrecks) for (const w of state.wrecks) objs.push({ k: w.x + w.y - 0.5, kind: 'wreck', w });
     objs.sort((a, b) => a.k - b.k);
     for (const o of objs) {
@@ -990,6 +990,7 @@ export class Renderer {
       else if (o.kind === 'town') this.drawBackdrop(ctx, o.bd);
       else if (o.kind === 'wreck') { const c = iso(o.w.x, o.w.y); this.drawFrame(ctx, this.propGroup(), o.w.v === 'empty' ? 'boat_empty' : `boat${o.w.v}`, c.x, c.y, 1, o.w.v === 'empty'); }
       else if (o.kind === 'bunker') this.drawBunker(ctx, o.b, o.u, state.time, ui.selected.has(o.b.id));
+      else if (o.u.deck) { ctx.save(); ctx.translate(0, -o.u.deck); this.drawUnit(ctx, o.u, ui.selected.has(o.u.id), state.time); ctx.restore(); } // up on a ship's deck
       else this.drawUnit(ctx, o.u, ui.selected.has(o.u.id), state.time);
     }
 
@@ -2228,6 +2229,7 @@ export class Renderer {
       const seed = (e.x * 13.37 + e.y * 7.77) % 1;
       if (e.type === 'tracer') {
         const a = iso(e.x, e.y), b = iso(e.tx, e.ty);
+        if (e.deck) a.y -= e.deck; // fired from a ship's deck
         ctx.globalCompositeOperation = 'lighter';
         for (let i = 0; i < 3; i++) {
           const f0 = (k * 3 + i * 0.3) % 1, f1 = Math.min(1, f0 + 0.14);

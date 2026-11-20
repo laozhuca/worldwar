@@ -129,10 +129,12 @@ test('The Beach at Sedd el Bahr: hold the slopes above V Beach until nightfall a
   const s = createLevelGame('helles'), c = s.campaign;
   assert.ok(c.front.length > 20, 'our line above the beach');
   assert.ok(s.map.tiles.filter((t) => t.sea).length > 200, 'the sea');
-  assert.ok(!s.units.some((u) => u.team === ENEMY), 'the enemy is still at sea');
+  const gun = s.units.find((u) => u.id === c.shipGun);
+  assert.ok(gun && gun.type === 'mg' && gun.invulnerable, 'a machine gun on the River Clyde\'s bow that cannot be knocked out');
+  assert.ok(!s.units.some((u) => u.team === ENEMY && u !== gun), 'the rest of the enemy is still at sea');
   assert.ok(s.buildings[0].img.includes('river-clyde'), 'the River Clyde aground');
   s.time = ((5.75 - 5.5) / 24) * s.dayLength; stepCampaign(s);
-  const boats = s.units.filter((u) => u.team === ENEMY);
+  const boats = s.units.filter((u) => u.team === ENEMY && !u.onShip);
   assert.ok(boats.length >= 5, 'the first boats');
   update(s, 1 / 30);
   assert.ok(boats.every((u) => u.afloat), 'rowing in');
