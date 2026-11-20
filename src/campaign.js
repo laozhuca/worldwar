@@ -669,9 +669,9 @@ export const LEVELS = [
       for (const dy of [-18, -6, 6, 18]) if (f2[M + dy] >= 0) put('rifle', PLAYER, trenchNear(PLAYER, f2[M + dy] - d * 7, M + dy)); // support
       if (f2[M] >= 0) put('mg', PLAYER, trenchNear(PLAYER, f2[M - 2], M - 2));
       for (const dy of [-10, 10]) put('artillery', PLAYER, at(f2[M + dy] - d * 9, M + dy));
-      for (let dy = -30; dy <= 30; dy += 4) if (ef2[M + dy] >= 0) put('rifle', ENEMY, trenchNear(ENEMY, ef2[M + dy], M + dy)); // plenty of infantry
-      for (const dy of [-14, 0, 14]) if (ef2[M + dy] >= 0) put('rifle', ENEMY, trenchNear(ENEMY, ef2[M + dy] + d * 7, M + dy));
-      if (ef2[M + 3] >= 0) put('mg', ENEMY, trenchNear(ENEMY, ef2[M + 3], M + 3)); // and a single machine gun
+      for (let dy = -33; dy <= 33; dy += 3) if (ef2[M + dy] >= 0) put('rifle', ENEMY, trenchNear(ENEMY, ef2[M + dy], M + dy)); // plenty of infantry, all along the line
+      for (const dy of [-24, -14, -6, 0, 6, 14, 24]) if (ef2[M + dy] >= 0) put('rifle', ENEMY, trenchNear(ENEMY, ef2[M + dy] + d * 7, M + dy)); // and behind it in the support line
+      for (const dy of [-18, 3, 20]) if (ef2[M + dy] >= 0) put('mg', ENEMY, trenchNear(ENEMY, ef2[M + dy], M + dy)); // and only a few machine guns
       put('artillery', ENEMY, at(ef2[M] + d * 10, M));
       // ---- birch woods: white birches in groves and lines along the field edges, mostly behind the lines
       for (let k = 0; k < 34; k++) { // (two in three of the groves on our side, behind the Russian line)
@@ -709,18 +709,18 @@ export const LEVELS = [
         state.buildings = [ch]; state.buildingsAll = [ch]; blockBuilding(state, ch); delete state.buildingsAll; }
       map.dirty = true;
       state.resources[PLAYER] = { men: 40, ammo: 260, supplies: 160 };
-      state.resources[ENEMY] = { men: 12, ammo: 120, supplies: 60 };
+      state.resources[ENEMY] = { men: 30, ammo: 320, supplies: 120 };
       const ai = state.ais[0];
-      ai.level = { ...DIFFICULTY.medium, firstAttack: 1200, attackGap: [600, 800], income: 0.6 };
-      ai.offensive = 1200;
+      ai.level = { ...DIFFICULTY.hard, firstAttack: 600, attackGap: [300, 420], income: 1 }; // (he counter-attacks what he loses, and attacks himself)
+      ai.offensive = 600;
       state.campaign.efront = (() => { const out = []; ef.forEach((x, y) => { if (x >= 0) out.push(y * W + x); }); return out; })();
     },
     events: [
       { at: 4.1, run: (s) => pushMessage(s, 'Break the enemy line and press on: three headquarters must fall before his reserves come up.', 'side') },
       { at: 16, run: (s) => pushMessage(s, 'Air reconnaissance: Austrian reserves are coming up by rail. They will reach the line this evening.', 'warn') },
-      { at: 20, run: (s) => { reinforce(s, ENEMY, 5); pushMessage(s, 'Austrian reserves have reached their line.', 'warn'); } },
+      { at: 20, run: (s) => { reinforce(s, ENEMY, 8); pushMessage(s, 'Austrian reserves have reached their line.', 'warn'); } },
       { at: 24 + 4, run: (s) => pushMessage(s, 'Day 2. More reserves are on the way, German divisions among them.', 'side') },
-      { at: 24 + 20, run: (s) => { reinforce(s, ENEMY, 6); pushMessage(s, 'Fresh enemy reserves have reached their line.', 'warn'); } },
+      { at: 24 + 20, run: (s) => { reinforce(s, ENEMY, 10); pushMessage(s, 'Fresh enemy reserves have reached their line.', 'warn'); } },
       { at: 48 + 4, run: (s) => pushMessage(s, 'Day 3. The breakthrough must be made today.', 'side') },
     ],
     check(state) {

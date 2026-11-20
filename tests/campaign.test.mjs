@@ -96,11 +96,11 @@ test('Brusilov\'s Storm: riflemen against riflemen, saps, reserves on day 1 and 
   assert.ok(mine > 20, 'a big army');
   const count = (team, type) => s.units.filter((u) => u.team === team && u.type === type).length;
   assert.ok(count(PLAYER, 'rifle') >= 20 && count(ENEMY, 'rifle') >= 12, 'riflemen on both sides');
-  assert.ok(count(PLAYER, 'mg') <= 1 && count(ENEMY, 'mg') <= 1 && count(PLAYER, 'artillery') <= 2 && count(ENEMY, 'artillery') <= 1, 'few machine guns and guns');
+  assert.ok(count(PLAYER, 'mg') <= 1 && count(ENEMY, 'mg') <= 3 && count(PLAYER, 'artillery') <= 2 && count(ENEMY, 'artillery') <= 1, 'few machine guns and guns');
   s.time = ((20 - 4) / 24) * 420 + 0.1; stepCampaign(s);
-  assert.equal(foes(), start + 5, 'first reserves');
+  assert.equal(foes(), start + 8, 'first reserves');
   s.time = ((44 - 4) / 24) * 420 + 0.1; stepCampaign(s);
-  assert.equal(foes(), start + 11, 'second reserves');
+  assert.equal(foes(), start + 18, 'second reserves');
   assert.equal(s.campaign.result, null);
   const hq = s.map.hq[ENEMY];
   assert.equal(hq.posts.length, 2, 'three headquarters');
