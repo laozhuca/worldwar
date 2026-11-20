@@ -926,6 +926,11 @@ function explode(state, s) {
     }
   }
   const center = tileAt(map, s.x, s.y);
+  if (center && center.sea) { // a shell in the sea: a column of white water, no crater, no earth
+    state.effects.push({ type: 'splash', x: s.x, y: s.y, age: 0, life: 3.4, scale: 0.85 + rand() * 0.35, seed: rand() });
+    state.events.push({ type: 'boom', x: s.x, y: s.y });
+    return;
+  }
   if (center && !center.trench) {
     center.crater = Math.min(3, center.crater + 1);
     center.mud = 1;

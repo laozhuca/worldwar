@@ -2257,6 +2257,8 @@ export class Renderer {
           ctx.restore();
         }
         ctx.globalAlpha = 1;
+      } else if (e.type === 'splash') {
+        this.drawSplash(ctx, e, k);
       } else if (e.type === 'boom') {
         if (anim) continue; // the impact animation has its own flash and earth column
         const p = iso(e.x, e.y);
@@ -2386,6 +2388,67 @@ export class Renderer {
    * buffer), and the whole cloud keeps rising, swelling and drifting downwind between drawn frames so the
    * slow late frames read as continuous motion. A soft shadow on the ground anchors it to the terrain.
    */
+  /**
+   * A shell bursting in the sea: a white column of water thrown up and falling back, spray drifting
+   * downwind, a flash of foam on the surface and rings spreading out across it.
+   */
+  drawSplash(ctx, e, k) {
+    const p = iso(e.x, e.y), S = e.scale || 1, t = e.age, wind = this.atmo.wind.x;
+    ctx.save();
+    // rings spreading on the water
+    for (const lag of [0, 0.5, 1.1]) {
+      const q = (t - lag) / 2.6;
+      if (q <= 0 || q >= 1) continue;
+      const r = (12 + q * 80) * S;
+      ctx.strokeStyle = `rgba(225,238,240,${0.5 * (1 - q)})`; ctx.lineWidth = 2.2 * (1 - q) + 0.4;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, r, r * 0.5, 0, 0, TAU); ctx.stroke();
+    }
+    // the foam where it came down
+    const foam = Math.max(0, 1 - t / 3.2);
+    const fg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 30 * S);
+    fg.addColorStop(0, `rgba(240,246,246,${0.75 * foam})`); fg.addColorStop(1, 'rgba(240,246,246,0)');
+    ctx.fillStyle = fg; ctx.beginPath(); ctx.ellipse(p.x, p.y, 34 * S, 17 * S, 0, 0, TAU); ctx.fill();
+    // the column: it shoots up in a fraction of a second, hangs, and collapses back under its own weight
+    const up = Math.min(1, t / 0.28), fall = Math.max(0, (t - 0.55) / 1.6);
+    const H = 115 * S * up * (1 - fall * fall * 0.85), alpha = Math.max(0, 1 - Math.max(0, t - 0.8) / 1.1) * (1 - fall * 0.4);
+    if (H > 2 && alpha > 0) {
+      for (let i = 0; i < 9; i++) { // overlapping plumes of white water, the outer ones lower and spreading
+        const a = (i / 8 - 0.5) * 2, hh = H * (1 - Math.abs(a) * 0.45) * (0.85 + 0.3 * Math.sin(i * 2.3 + e.seed * 9));
+        const x0 = p.x + a * (6 + fall * 26) * S, x1 = x0 + a * (10 + fall * 30) * S + wind * fall * 14;
+        const w = (7 - Math.abs(a) * 2.5) * S * (1 + fall * 1.4);
+        const g = ctx.createLinearGradient(0, p.y, 0, p.y - hh);
+        g.addColorStop(0, `rgba(205,222,226,${0.85 * alpha})`); g.addColorStop(0.6, `rgba(244,248,248,${0.8 * alpha})`); g.addColorStop(1, `rgba(255,255,255,${0.15 * alpha})`);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(x0 - w, p.y);
+        ctx.quadraticCurveTo(x0 - w * 0.6, p.y - hh * 0.6, x1 - w * 0.4, p.y - hh);
+        ctx.quadraticCurveTo(x1, p.y - hh - w * 1.4, x1 + w * 0.4, p.y - hh);
+        ctx.quadraticCurveTo(x0 + w * 0.6, p.y - hh * 0.6, x0 + w, p.y);
+        ctx.closePath(); ctx.fill();
+      }
+      // a dark flash of the burst at the foot, in the first instant
+      if (t < 0.15) { ctx.fillStyle = `rgba(255,220,160,${0.7 * (1 - t / 0.15)})`; ctx.beginPath(); ctx.ellipse(p.x, p.y - 6 * S, 16 * S, 9 * S, 0, 0, TAU); ctx.fill(); }
+    }
+    // spray: droplets thrown out and falling, a mist drifting downwind
+    for (let i = 0; i < 26; i++) {
+      const r1 = hash(e.seed * 97 + i, i * 1.7), r2 = hash(i * 3.1, e.seed * 41 + 2);
+      const tt = t - r1 * 0.3;
+      if (tt <= 0 || tt > 1.9) continue;
+      const vx = (r2 - 0.5) * 90 * S, vy = -(70 + r1 * 120) * S;
+      const x = p.x + vx * tt + wind * tt * 10, y = p.y + vy * tt + 140 * tt * tt;
+      if (y > p.y + 4) continue;
+      ctx.fillStyle = `rgba(240,246,248,${0.8 * (1 - tt / 1.9)})`;
+      ctx.beginPath(); ctx.arc(x, y, 1.4 + r1 * 1.8, 0, TAU); ctx.fill();
+    }
+    if (t > 0.6) {
+      const m = Math.min(1, (t - 0.6) / 0.6) * Math.max(0, 1 - (t - 1.2) / 2.2);
+      const mg = ctx.createRadialGradient(p.x + wind * (t - 0.6) * 22, p.y - 40 * S, 0, p.x + wind * (t - 0.6) * 22, p.y - 40 * S, 55 * S);
+      mg.addColorStop(0, `rgba(235,242,244,${0.35 * m})`); mg.addColorStop(1, 'rgba(235,242,244,0)');
+      ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(p.x + wind * (t - 0.6) * 22, p.y - 40 * S, 55 * S, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+
   drawImpact(ctx, e, base) {
     const F = this.fx, M = F.meta, T = M.frameTimes, N = M.frameCount;
     const t = e.age;
