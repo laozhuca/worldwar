@@ -104,7 +104,7 @@ export class Atmosphere {
   }
 
   onEvent(ev, r) {
-    if (ev.type !== 'boom' || ev.x === undefined) return;
+    if ((ev.type !== 'boom' && ev.type !== 'splash') || ev.x === undefined) return;
     const c = r.screenToMap(r.vw / 2, r.vh / 2);
     const d = Math.hypot(ev.x - c.x, ev.y - c.y);
     this.shake = Math.min(9, this.shake + Math.max(0, 5 - d * 0.35) * r.cam.zoom);

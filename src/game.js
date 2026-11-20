@@ -940,7 +940,7 @@ function explode(state, s) {
   if (center && center.sea) { // a shell in the sea: a column of white water, no crater, no earth
     state.effects.push({ type: 'impact', water: true, x: s.x, y: s.y, age: 0, life: 3.2, flip: rand() < 0.5, scale: (0.8 + rand() * 0.3) * K }); // (pre-rendered frames, graded as water)
     state.effects.push({ type: 'splash', x: s.x, y: s.y, age: 0, life: 3.4, scale: (0.85 + rand() * 0.35) * K, seed: rand() });
-    state.events.push({ type: 'boom', x: s.x, y: s.y });
+    state.events.push({ type: 'splash', x: s.x, y: s.y }); // (its own sound: a burst under water)
     return;
   }
   if (center && !center.trench) {

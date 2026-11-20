@@ -271,7 +271,7 @@ const clockIcon = document.getElementById('clock-icon');
 const mini = document.getElementById('minimap');
 const mctx = mini.getContext('2d');
 
-const NOISY = new Set(['rifle', 'mg', 'boom', 'artyfire', 'death', 'incoming']);
+const NOISY = new Set(['rifle', 'mg', 'boom', 'artyfire', 'death', 'incoming', 'splash']);
 const pauseSign = document.getElementById('pause-sign');
 pauseSign.addEventListener('click', () => { if (app.paused) app.togglePause(); });
 function frame(now) {
