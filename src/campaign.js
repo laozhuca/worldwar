@@ -778,113 +778,145 @@ export const LEVELS = [
     },
   },
   {
-    id: 'chunuk', n: 4, title: 'Dawn on Chunuk Bair', place: 'Gallipoli', date: 'August 1915',
-    nations: ['ottoman', 'uk'], season: 'summer', start: 'west', startHour: 22,
-    history: 'August 1915. In the dark, the British and New Zealanders are climbing out of the bay below, up the steep scrub-choked gullies towards Chunuk Bair, the crest at the centre of your line. From the top they could look down on the Dardanelles: if they take it, the whole peninsula is lost. Only a thin line of your men holds the ridge, with the warships\' guns in the bay firing over their heads at it. Lieutenant-Colonel Mustafa Kemal is marching his division up to the heights through the night, and will attack at dawn. Hold the crest until he comes.',
-    objectives: ['Hold the crest until Kemal\'s division arrives at dawn on day 3.', 'Do not let the enemy take more than half of your front line.', 'Do not let the enemy take your headquarters.'],
-    rules: ['You hold the high ground: the enemy must climb to you up a few narrow gullies between rocky, scrub-covered spurs.', 'Your line is thin: few men, few reinforcements. The enemy attacks in wave after wave, day and night.', 'The warships in the bay shell the ridge every couple of hours.'],
-    medals: ['The crest held', 'Not a yard given: the whole front line yours at the end', 'Fewer than 250 men lost'],
+    id: 'helles', n: 4, title: 'The Beach at Sedd el Bahr', place: 'Cape Helles, Gallipoli', date: '25 April 1915',
+    nations: ['ottoman', 'uk'], season: 'summer', start: 'west', startHour: 5.5,
+    advance: { [PLAYER]: 10 }, // our trenches on the slopes just above the beach
+    works: 'light',
+    history: 'Dawn, 25 April 1915. The Allied fleet has failed to force the Dardanelles; now the army is to land at the tip of the Gallipoli peninsula and take the forts from behind. At V Beach, a little sandy bay below the ruined fortress of Sedd el Bahr, a company of the 26th Regiment holds the slopes above the sand, with wire strung along the beach and out into the shallows. Out in the bay the British are coming in, boat after boat, and an old collier, the River Clyde, is being run aground with two thousand men hidden inside. The warships\' guns will pound your trenches. Hold the beach until nightfall.',
+    objectives: ['Hold your trenches above the beach until nightfall (20:00).', 'Do not let the enemy take more than half of your front line.', 'Do not let the enemy take your headquarters.'],
+    rules: ['The enemy comes in by sea: his men are helpless in their boats, and the wire on the beach holds them under your fire.', 'The River Clyde, run aground on the beach, pours out fresh men through the day.', 'Your line is thin and the warships shell it every hour or so: make every rifle and machine gun count.'],
+    medals: ['The beach held', 'Not a yard given: the whole front line yours at nightfall', 'Fewer than 120 men lost'],
     debrief: {
-      won: 'At dawn on 10 August 1915 Mustafa Kemal led his division in person over the crest of Chunuk Bair and swept the British off the heights. It was the turning point of the August offensive: the Allies never came so close again, and four months later they left Gallipoli. Kemal went on to found modern Turkey.',
-      lost: 'The crest fell before Kemal could come up. On Chunuk Bair in 1915 the thin Ottoman line was in fact pushed back, but Kemal\'s counter-attack at dawn on 10 August retook the heights; without it the campaign might have ended very differently.',
+      won: 'At V Beach on 25 April 1915 a few hundred Ottoman soldiers held the landing for the whole day. The British lost so many men in the boats, on the gangways of the River Clyde and on the wire that they could not get off the sand until darkness fell. They took the beach and the fort the next day, but the delay, at Helles and at Anzac, cost the Allies the peninsula: eight months later they left Gallipoli.',
+      lost: 'Your line above the beach gave way. At V Beach in 1915 it did not: a handful of Ottoman riflemen held the landing until dark, and the British, pinned under a sandbank at the water\'s edge, lost more men there than on any other beach.',
     },
     setup(state) {
       const { map } = state, W = map.w, M = Math.floor(map.h / 2), d = teamDir(PLAYER);
       const at = (x, y) => (x >= 0 && y >= 0 && x < W && y < map.h ? map.tiles[y * W + x] : null);
-      let seed = 1508;
+      let seed = 2504;
       const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
-      // ---- a dry Gallipoli summer: thin scrub and bare earth, no mud
-      map.summer = true;
-      for (const t of map.tiles) { if (t.off) continue; t.mud = 0; t.crater = rnd() < 0.02 ? 1 : 0; if (!t.trench && !t.wire) t.ground = rnd() < 0.3 ? 1 : 0; if (t.decor === 'tree') t.decor = rnd() < 0.5 ? 'stump' : null; }
-      // the attackers have no wire out: they are coming up the hill
-      for (const t of map.tiles) if (t.wire && t.origWire === ENEMY) { t.wire = 0; t.origWire = -1; }
-      // ---- the slopes: rocky spurs, crowned with scrub, run down from the crest towards the bay, leaving a
-      // few narrow gullies the enemy must climb
-      const f = frontLine(map, PLAYER), ef = frontLine(map, ENEMY);
-      const rock = (t, scrub) => { if (t && !t.off && !t.trench && !t.wire) { t.rock = 1 + Math.floor(rnd() * 4); t.knoll = scrub ? 1 : 0; t.decor = null; t.ground = 0; } };
-      const gullies = [];
-      for (let y0 = M - 30, k = 0; y0 <= M + 30; k++) {
-        const width = 3 + Math.floor(rnd() * 3), gap = 2 + Math.floor(rnd() * 2); // a spur, then a gully
-        if (y0 > M - 30) gullies.push(y0 - Math.ceil(gap / 2));
-        for (let x = 0; x < W; x++) {
-          if (f[y0] < 0 || ef[y0] < 0) break;
-          const xa = f[y0] + d * 4, xb = ef[y0] - d * 3; // from below the crest down to the enemy's line
-          if ((x - xa) * d < 0 || (xb - x) * d < 0) continue;
-          const wob = Math.round(Math.sin(x * 0.45 + k) * 1.2);
-          for (let w = 0; w < width; w++) if (rnd() < 0.93) rock(at(x, y0 + w + wob), rnd() < 0.45);
-        }
-        y0 += width + gap;
+      state.dayLength = DAY_LENGTH * 2.2; // a long day: the battle lasts from dawn to dusk
+      map.summer = true; map.dry = true; // (no snow on these rocks)
+      // ---- no enemy works: he is still at sea
+      for (const t of map.tiles) {
+        if (t.owner === ENEMY || t.origOwner === ENEMY) { t.trench = 0; t.owner = t.origOwner = -1; }
+        if (t.wire && t.origWire === ENEMY) { t.wire = 0; t.origWire = -1; }
+      }
+      state.units = state.units.filter((u) => u.team === PLAYER);
+      // ---- the bay: a little curve of sand between two headlands; the sea beyond it
+      const f = frontLine(map, PLAYER);
+      const coast = (y) => Math.round(f[M] + 15 - 4 * Math.exp(-(((y - M) / 9) ** 2)) + Math.abs(y - M) * 0.18); // (in our direction from the front line)
+      for (const t of map.tiles) {
+        if (t.off) continue;
+        const c = coast(t.y);
+        t.mud = 0; t.crater = 0; if (t.decor === 'tree') t.decor = rnd() < 0.4 ? 'stump' : null;
+        if ((t.x - c) * d > 0) { t.sea = 1; t.trench = 0; t.owner = -1; t.wire = 0; t.decor = null; t.ground = 0; continue; }
+        t.ground = (c - t.x) * d <= 4 && Math.abs(t.y - M) <= 13 ? 5 : rnd() < 0.35 ? 1 : 0; // sand on the beach, dry scrub above
+      }
+      // the headlands either side of the bay: rocky cliffs down to the water
+      for (const t of map.tiles) {
+        if (t.off || t.sea || t.trench) continue;
+        const c = coast(t.y), up = (c - t.x) * d; // tiles above the water
+        if (Math.abs(t.y - M) >= 12 && up <= 7 + (Math.abs(t.y - M) - 12) * 0.4 && rnd() < 0.85) { t.rock = 1 + Math.floor(rnd() * 4); t.ground = 0; t.decor = null; }
+      }
+      // the sandbank at the water's edge (where the men who reach the beach take cover), and the wire: two
+      // belts across the sand, and more out in the shallows
+      for (let y = M - 10; y <= M + 10; y++) {
+        const c = coast(y);
+        // (one unbroken bank: where the shore steps over, it runs along the step too)
+        for (let x = c - d, n = Math.min(c, coast(y + 1), coast(y - 1)) - d; (x - n) * d >= 0; x -= d) { const bank = at(x, y); if (bank && !bank.rock && !bank.sea) { bank.trench = 1; bank.owner = bank.origOwner = ENEMY; bank.ground = 5; bank.wire = 0; } }
+        for (const back of [3, 4]) { const t = at(c - d * back, y); if (t && !t.trench && !t.rock && !(y % 7 === 3 && back === 3)) { t.wire = 100; t.origWire = PLAYER; } }
+        const sh = at(c + d, y); if (sh && rnd() < 0.6) { sh.wire = 100; sh.origWire = PLAYER; }
       }
       noSquares(map);
+      // ---- the River Clyde, run aground at the eastern end of the beach, her bow on the sand
+      const cy = M + 6, cx = coast(cy) + d * 3.3;
+      state.buildings = [{ prop: 'clyde', x: cx + 0.5, y: cy + 0.5, hx: 3.3, hy: 0.6 }];
+      for (const t of map.tiles) if (Math.abs(t.x + 0.5 - state.buildings[0].x) <= 3.3 && Math.abs(t.y + 0.5 - state.buildings[0].y) <= 0.6) { t.block = 1; t.wire = 0; }
+      // the enemy's 'headquarters' is the ship: his men come out of her sally ports (it cannot be taken)
+      map.hq[ENEMY] = { x: Math.floor(cx - d * 2), y: cy - 2, hidden: true };
+      state.wrecks = [];
+      state.arriving = { [ENEMY]: true }; // he lands all day: never 'broken' (the level ends at nightfall)
       map.rocks = true;
       map.dirty = true;
-      // ---- the armies: a thin line on the crest; the enemy strong below, and fed from the beaches
-      reinforce(state, PLAYER, 2);
-      reinforce(state, ENEMY, 6);
-      state.resources[PLAYER] = { men: 14, ammo: 300, supplies: 90 };
-      state.playerIncome = 0.7;
-      state.resources[ENEMY] = { men: 60, ammo: 600, supplies: 200 };
+      // ---- our side: the company on the slopes, a reserve, one battery across the straits
+      reinforce(state, PLAYER, 1);
+      { const q = map.hq[PLAYER]; spawnUnit(state, 'mg', PLAYER, q.x + 0.5 + d * 2, q.y + 0.5); spawnUnit(state, 'rifle', PLAYER, q.x + 0.5 + d, q.y + 2.5); } // the headquarters guard
+      let guns = 0;
+      state.units = state.units.filter((u) => u.type !== 'artillery' || guns++ < 1);
+      state.resources[PLAYER] = { men: 8, ammo: 320, supplies: 80 };
+      state.playerIncome = 0.6;
+      state.resources[ENEMY] = { men: 0, ammo: 600, supplies: 200 }; // (no recruiting: every man comes by sea)
       const ai = state.ais[0];
-      ai.level = { ...DIFFICULTY.hard, firstAttack: 40, attackGap: [110, 160], force: 8, steps: 4 };
-      ai.offensive = 40;
+      ai.level = { ...DIFFICULTY.hard, income: 0, firstAttack: 120, attackGap: [90, 140], force: 7, steps: 3, guns: 0 };
+      ai.offensive = 120;
       state.campaign.front = frontTiles(state);
-      state.campaign.gullies = gullies.filter((y) => f[y] >= 0).map((y) => ({ x: f[y] + d * 6 + 0.5, y: y + 0.5 }));
+      state.campaign.beach = { x: coast(M) - d * 2 + 0.5, y: M + 0.5 };
+      state.campaign.coast = (y) => coast(y);
     },
-    // after the opening the camera shows the gullies the enemy will come up (main.js)
+    // after the opening the camera shows the bay (main.js)
     tour(state) {
-      const g = state.campaign.gullies, pick = [g[1], g[Math.floor(g.length / 2)], g[g.length - 2]].filter(Boolean);
-      return pick.map((p, i) => ({ ...p, label: ['A gully: the enemy will come up here', 'And here', 'And here'][i] }));
+      const b = state.buildings[0], c = state.campaign.beach, f = state.campaign.front, t = state.map.tiles[f[Math.floor(f.length * 0.8)]];
+      return [{ ...c, label: 'V Beach' }, { x: b.x - 2, y: b.y, label: 'The River Clyde' }, { x: t.x + 0.5, y: t.y + 0.5, label: 'Your line' }];
     },
     events: [
-      { at: 22.05, run: (s) => pushMessage(s, 'The enemy is climbing the gullies in the dark. Hold the crest until Kemal comes!', 'side') },
-      // the warships in the bay shell the ridge
-      ...[23.5, 26, 28.5, 31, 33.5, 36, 38.5, 41, 43.5, 46, 48.5, 51].map((at) => ({ at, run: (s) => {
+      { at: 5.55, run: (s) => pushMessage(s, 'The boats are coming in. Hold your fire until they reach the wire!', 'side') },
+      // the boats: tows of cutters rowed in across the bay, wave after wave
+      ...[5.7, 6.0, 6.6, 7.6, 9.0, 11.0, 13.0, 15.0, 17.0].map((at, k) => ({ at, run: (s) => {
+        const { map } = s, W = map.w, M = Math.floor(map.h / 2), d = teamDir(PLAYER), c = s.campaign.coast;
+        const n = k < 2 ? 5 : 3;
+        for (let i = 0; i < n; i++) {
+          const y = M - 9 + Math.floor(((i + 0.5) / n) * 18) + Math.floor(Math.random() * 2);
+          let x = c(y) + d * 9;
+          while (x >= 0 && x < W && map.tiles[y * W + x] && map.tiles[y * W + x].off) x -= d;
+          const u = spawnUnit(s, 'rifle', ENEMY, x + 0.5, y + 0.5);
+          u.ai.role = 'reserve';
+          orderMove(s, [u], c(y) - d * 1 + 0.5, y + 0.5); // to the sandbank
+        }
+        pushMessage(s, k === 0 ? 'The first boats are pulling for the beach!' : 'More boats are coming in across the bay.', 'warn');
+      } })),
+      // men out of the River Clyde's sally ports
+      ...[6.4, 7.2, 8.4, 10.0, 12.0, 14.0, 16.0, 18.0].map((at, k) => ({ at, run: (s) => {
+        const q = s.map.hq[ENEMY], c = s.campaign.coast, d = teamDir(PLAYER);
+        for (let i = 0; i < 2; i++) {
+          const u = spawnUnit(s, 'rifle', ENEMY, q.x + 0.5, q.y + 0.5 - i * 0.8);
+          u.ai.role = 'reserve';
+          orderMove(s, [u], c(q.y) - d * 1 + 0.5, q.y + 0.5 - i);
+        }
+        pushMessage(s, k === 0 ? 'The River Clyde has run aground! Men are pouring out of her sides.' : 'More men are coming out of the River Clyde.', 'warn');
+      } })),
+      // the warships' guns
+      ...[5.6, 7.0, 8.7, 10.5, 12.5, 14.5, 16.5, 18.5].map((at) => ({ at, run: (s) => {
         const f = s.campaign.front;
-        for (let k = 0; k < 7; k++) {
-          const t = s.map.tiles[f[Math.floor(Math.random() * f.length)]], flight = 0.8 + k * 0.35;
+        for (let k = 0; k < 8; k++) {
+          const t = s.map.tiles[f[Math.floor(Math.random() * f.length)]], flight = 0.8 + k * 0.3;
           s.shells.push({ x: t.x + 0.5 + (Math.random() - 0.5) * 4, y: t.y + 0.5 + (Math.random() - 0.5) * 3, t: flight, flight, team: ENEMY, fromX: t.x + 40, fromY: t.y, incoming: true });
         }
-        pushMessage(s, 'The warships in the bay are shelling the ridge!', 'warn');
+        pushMessage(s, 'The warships are shelling our trenches!', 'warn');
       } })),
-      // fresh battalions landed on the beaches below
-      ...[25, 30, 36, 42, 47].map((at) => ({ at, run: (s) => { reinforce(s, ENEMY, 5); pushMessage(s, 'Fresh enemy battalions are coming up from the beaches.', 'warn'); } })),
-      // and a little help for us along the ridge
-      ...[27, 39].map((at) => ({ at, run: (s) => { reinforce(s, PLAYER, 2); pushMessage(s, 'Two companies have come along the ridge to stiffen the line.', 'good'); } })),
-      { at: 24 + 6, run: (s) => pushMessage(s, 'Day 2. Kemal is on the march: he will be here at dawn tomorrow.', 'side') },
-      { at: 48 + 1, run: (s) => pushMessage(s, 'Day 3. Kemal\'s division is close. Hold on until first light!', 'side') },
-      { at: 48 + 4.5, run: (s) => {
-        s.campaign.relief = relieve(s, PLAYER, 'ottoman').map((u) => u.id);
-        s.campaign.relievedAt = s.time;
-        pushMessage(s, 'Dawn! Kemal\'s division is coming over the crest!', 'good');
-        s.events.push({ type: 'cheer' });
-      } },
+      { at: 12, run: (s) => { reinforce(s, PLAYER, 2); pushMessage(s, 'Two platoons have come down from the village to stiffen the line.', 'good'); } },
+      { at: 19, run: (s) => pushMessage(s, 'The light is going. One more hour!', 'side') },
     ],
     check(state) {
       const c = state.campaign;
-      if (c.relievedAt !== undefined) {
-        const rel = state.units.filter((u) => c.relief.includes(u.id) && !u.dead);
-        const there = rel.filter((u) => Math.hypot(u.x - u.reliefTo.x, u.y - u.reliefTo.y) < 2.5).length;
-        if (!c.manned && (there >= rel.length * 0.8 || state.time - c.relievedAt > 60)) {
-          c.manned = state.time;
-          pushMessage(state, 'Kemal\'s men are on the crest. Chunuk Bair is held!', 'good');
-          state.events.push({ type: 'cheer' });
-        }
-        if (c.manned && state.time - c.manned > 4) return { result: 'won', reason: 'The crest held until Kemal came.' };
+      if (frontHeld(state) < c.front.length / 2) return { result: 'lost', reason: 'More than half of our line above the beach has fallen.' };
+      if (clockHours(state) >= 20) {
+        if (!c.cheered) { c.cheered = true; pushMessage(state, 'Night falls. The enemy is still pinned on the beach!', 'good'); state.events.push({ type: 'cheer' }); c.nightAt = state.time; }
+        if (state.time - c.nightAt > 4) return { result: 'won', reason: 'The beach held until nightfall.' };
       }
-      if (c.relievedAt === undefined && frontHeld(state) < c.front.length / 2) return { result: 'lost', reason: 'More than half of the crest has fallen.' }; // (once Kemal is coming over the crest, it is his to hold)
       return null;
     },
     tracker(state) {
       const h = clockHours(state), c = state.campaign;
       return [
-        'Hold the crest',
+        'Hold the beach',
         `Front line held: ${frontHeld(state)} / ${c.front.length} (no fewer than ${Math.ceil(c.front.length / 2)})`,
-        c.relievedAt === undefined ? `Kemal arrives in ${left(Math.max(0, 52.5 - h))}` : 'Kemal\'s division is here',
+        `Nightfall in ${left(Math.max(0, 20 - h))}`,
       ];
     },
     medalsEarned(state) {
       const c = state.campaign, won = c.result === 'won';
-      return [won, won && frontHeld(state) === c.front.length, won && state.stats.lost[PLAYER] < 250];
+      return [won, won && frontHeld(state) === c.front.length, won && state.stats.lost[PLAYER] < 120];
     },
   },
   {

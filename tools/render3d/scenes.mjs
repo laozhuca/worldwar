@@ -730,7 +730,7 @@ export function rockScene(variant, heavy) {
  * size: the footprint in tiles (1, 2 or 3; the sprite is drawn centred on an size x size block of
  * rock tiles). heavy: deep winter snow.
  */
-export function boulderScene(variant, size, heavy) {
+export function boulderScene(variant, size, heavy, dry = false) {
   const R = size * 0.5; // half the footprint
   const H = (key, k = 0) => hash(variant * 7 + size * 31, k, key);
   // the boulders: one big one, and smaller ones fallen against it
@@ -785,7 +785,7 @@ export function boulderScene(variant, size, heavy) {
     const edge = isRock ? 1 : clamp((0.9 - r) * 4, 0, 1);
     // snow on the tops and every upward face, deeper in heavy snow
     const lie = nz - (heavy ? 0.42 : 0.55) - (isRock || isStone ? 0 : heavy ? 0.35 : 0.6) + (z / size) * 0.15 + (fbm(x * 14, y * 14, z * 14, 3) - 0.5) * 0.35;
-    if (lie > 0.3) return { kind: 'solid', col: mix3(C.snow, [0.7, 0.74, 0.8], clamp(0.6 - lie, 0, 0.5)), spec: 0.12, alpha: edge };
+    if (!dry && lie > 0.3) return { kind: 'solid', col: mix3(C.snow, [0.7, 0.74, 0.8], clamp(0.6 - lie, 0, 0.5)), spec: 0.12, alpha: edge };
     const n = fbm(x * 9, y * 9, z * 9, 4), n2 = fbm(x * 40, y * 40, z * 40, 2);
     if (!isRock && !isStone) return { kind: 'solid', col: mix3([0.12, 0.115, 0.11], [0.28, 0.27, 0.25], n2), spec: 0.04, alpha: edge * 0.85 };
     let col = mix3([0.4, 0.39, 0.37], [0.66, 0.65, 0.62], n * 0.7 + n2 * 0.3); // pale weathered limestone
@@ -807,7 +807,7 @@ export function boulderScene(variant, size, heavy) {
  * hollows. size: the footprint in tiles (1, 2, 3, or 9 for the great ridges at the back of a valley).
  * heavy: deep snow.
  */
-export function cragScene(variant, size, heavy, wooded = false) {
+export function cragScene(variant, size, heavy, wooded = false, dry = false) {
   const R = size * 0.5;
   const H = (key, k = 0) => hash(variant * 13 + size * 37, k, key);
   const giant = size > 3;
@@ -933,7 +933,7 @@ export function cragScene(variant, size, heavy, wooded = false) {
     // snow in patches on the gentler upward faces and ledges, more of it higher up and in deep winter
     const patch = fbm(x * 2.6 / Math.sqrt(size) + 3, y * 2.6 / Math.sqrt(size), z * 2.6, 3) - 0.5; // snow lies in broad patches, not specks
     const snowy = isRock ? nz - (heavy ? 0.55 : 0.72) - (wooded ? 0.12 : 0) + hz * 0.2 + patch * 1.1 : patch * 1.4 - (heavy ? 0.05 : 0.3) + (isStone ? -0.2 : 0);
-    if (snowy > 0.18) return { kind: 'solid', col: mix3(C.snow, [0.7, 0.75, 0.84], clamp(0.5 - snowy, 0, 0.45)), spec: 0.12, alpha: edge, aoMin: 0.5, fill: 1.2 };
+    if (!dry && snowy > 0.18) return { kind: 'solid', col: mix3(C.snow, [0.7, 0.75, 0.84], clamp(0.5 - snowy, 0, 0.45)), spec: 0.12, alpha: edge, aoMin: 0.5, fill: 1.2 };
     // grass and turf on the ledges low down and over the scree
     const grassy = (isRock ? nz - (wooded ? 0.28 : 0.6) - hz * (wooded ? 0.15 : 0.55) : 0.45 - (isStone ? 0.7 : 0)) + (n1 - 0.5) * 0.8;
     if (grassy > 0.05) return { kind: 'solid', col: mix3(mix3(GRASS, TURF, clamp(n2 * 1.4 - 0.2, 0, 1)), [0.2, 0.2, 0.13], clamp(0.3 - grassy, 0, 0.3)), spec: 0.03, alpha: edge, aoMin: wooded ? 0.6 : 0, fill: wooded ? 1.3 : 1 };
@@ -1044,6 +1044,116 @@ export function screeScene(variant, heavy) {
     return { kind: 'solid', col, spec: 0.06, aoMin: 0.5 };
   };
   return { bounds: [-0.62, -0.62, -0.05, 0.62, 0.62, 0.2], sdf, shade, supersample: 2 };
+}
+
+// ===================================================================== landing boat
+/**
+ * A ship's cutter of the 1915 landings, rowed in towards the beach, bow towards -x: a clinker-built
+ * wooden hull, oars out, the men packed in on the thwarts in khaki with their packs. Drawn on the water.
+ * full: crowded with men (false: drifting empty, the crew shot down, an oar trailing).
+ */
+export function boatScene(variant, full = true) {
+  const L = 0.82, B = 0.27, D = 0.2; // half-length, half-beam, depth
+  const hullOuter = (x, y, z) => {
+    const taper = 1 - Math.max(0, -x / L) ** 2 * 0.85 - Math.max(0, x / L) ** 3 * 0.35; // a fine bow, a fuller stern
+    const w = B * Math.max(0.05, taper), zz = z - 0.12;
+    return Math.max(Math.hypot(x / L, y / w, (zz + D * 0.2) / D) - 1, zz - 0.06) * Math.min(w, D) * 0.9;
+  };
+  const hull = (x, y, z) => {
+    let d = hullOuter(x, y, z);
+    const inner = hullOuter(x * 1.04, y * 1.18, z - 0.035) + 0.015; // hollowed out
+    d = Math.max(d, -Math.max(inner, -(z - 0.045)));
+    for (let k = -2; k <= 2; k++) d = Math.min(d, Math.max(sdBox2(x - k * 0.24, y, 0.03, B * 0.85), Math.abs(z - 0.12) - 0.012, hullOuter(x, y, z))); // thwarts
+    return d;
+  };
+  const men = [];
+  if (full) for (let k = -3; k <= 2; k++) for (const sy of [-1, 0, 1]) if (hash(variant, k, sy) > 0.18 && !(k === -3 && sy === 0)) men.push({ x: k * 0.2 + 0.08, y: sy * 0.12 * (k === -3 ? 0.6 : 1), h: hash(variant, k, sy, 2) });
+  const man = (x, y, z) => {
+    let d = 1;
+    for (const m of men) {
+      const torso = sdCapsule(x, y, z, m.x, m.y, 0.14, m.x + 0.01, m.y, 0.3, 0.055, 0.045);
+      const head = Math.hypot(x - m.x - 0.015, y - m.y, z - 0.36) - 0.04;
+      const cap = Math.max(Math.hypot(x - m.x - 0.015, y - m.y, z - 0.38) - 0.045, 0.375 - z);
+      const pack = sdRoundBox(x - m.x - 0.07, y - m.y, z - 0.24, 0.04, 0.05, 0.06, 0.015);
+      d = Math.min(d, torso, head, cap, pack);
+    }
+    return d;
+  };
+  const oars = (x, y, z) => {
+    let d = 1;
+    if (full) for (let k = -1; k <= 1; k++) for (const sy of [-1, 1]) { const ox = k * 0.3 + 0.1, a = 0.35 + hash(variant, k, sy, 5) * 0.4; d = Math.min(d, sdCapsule(x, y, z, ox, sy * B * 0.9, 0.17, ox + Math.sin(a) * 0.25 * sy * 0 - 0.1, sy * (B + 0.42), 0.02, 0.012, 0.012)); }
+    else d = Math.min(d, sdCapsule(x, y, z, 0.2, 0.22, 0.16, 0.05, 0.75, 0.02, 0.012, 0.012));
+    return d;
+  };
+  const sdf = (x, y, z) => Math.min(hull(x, y, z), man(x, y, z), oars(x, y, z));
+  const shade = (x, y, z, nx, ny, nz) => {
+    const dh = hull(x, y, z), dm = man(x, y, z), dor = oars(x, y, z);
+    if (dm < dh && dm < dor) {
+      const m = men.reduce((a, q) => (Math.hypot(q.x - x, q.y - y) < Math.hypot(a.x - x, a.y - y) ? q : a));
+      if (z > 0.325 && z < 0.4 && Math.hypot(x - m.x - 0.015, y - m.y) < 0.042 && z < 0.37) return { kind: 'solid', col: [0.62, 0.45, 0.36], spec: 0.04 }; // a face
+      return { kind: 'solid', col: z > 0.37 ? [0.36, 0.33, 0.22] : mix3([0.42, 0.38, 0.25], [0.5, 0.45, 0.3], fbm(x * 40, y * 40, z * 40, 2)), spec: 0.03 }; // khaki
+    }
+    if (dor < dh) return { kind: 'solid', col: [0.55, 0.45, 0.3], spec: 0.05 };
+    const plank = Math.abs(((z * 26) % 1) - 0.5) < 0.08 ? 0.75 : 1; // clinker strakes
+    const inside = z > 0.03 && hullOuter(x * 1.04, y * 1.18, z - 0.035) < 0.02;
+    const col = inside ? [0.42, 0.33, 0.22] : z < 0.075 ? [0.2, 0.22, 0.2] : mix3([0.34, 0.33, 0.32], [0.5, 0.48, 0.45], fbm(x * 20, y * 20, z * 20, 2)); // grey paint, a dark boot-top
+    return { kind: 'solid', col: mul3(col, plank), spec: 0.05 };
+  };
+  return { bounds: [-L - 0.1, -B - 0.55, -0.02, L + 0.1, B + 0.55, 0.48], sdf, shade, supersample: 2 };
+}
+
+// ===================================================================== the River Clyde
+/**
+ * The SS River Clyde, the collier run aground at V Beach as a 'Trojan horse': a long black riveted hull
+ * streaked with rust, bow towards -x on the sand, square sally ports cut in her sides with gangways
+ * running down them, a sandbagged machine-gun nest on the foredeck, a white bridge amidships, one tall
+ * funnel and two masts. Footprint about 7 x 1.2 tiles.
+ */
+export function clydeScene() {
+  const L = 3.4, B = 0.55, H = 0.75; // half-length, half-beam, freeboard
+  const hull = (x, y, z) => {
+    const bow = Math.max(0, (-x - L + 0.9) / 0.9), stern = Math.max(0, (x - L + 0.5) / 0.5);
+    const w = B * (1 - bow * bow * 0.95) * (1 - stern * stern * 0.4);
+    let d = Math.max(sdBox2(x, y, L, Math.max(0.02, w)), z - H - Math.max(0, -x - L + 1.2) * 0.12, -z - 0.05); // the sheer rises to the bow
+    // sally ports: dark openings in her side, two each side forward of the bridge
+    return d;
+  };
+  const deck = (x, y, z) => {
+    const bridge = sdRoundBox(x - 0.3, y, z - H - 0.22, 0.32, B * 0.75, 0.22, 0.02);
+    const wheel = sdRoundBox(x - 0.32, y, z - H - 0.5, 0.18, B * 0.55, 0.07, 0.01);
+    const funnel = Math.max(Math.hypot(x - 0.95, y) - 0.13, Math.abs(z - H - 0.75) - 0.75);
+    const mast1 = Math.max(Math.hypot(x + 1.9, y) - 0.03, Math.abs(z - H - 0.9) - 0.9);
+    const mast2 = Math.max(Math.hypot(x - 2.3, y) - 0.03, Math.abs(z - H - 0.8) - 0.8);
+    const hatch = Math.min(sdRoundBox(x + 1.2, y, z - H - 0.06, 0.3, 0.3, 0.06, 0.01), sdRoundBox(x - 1.7, y, z - H - 0.06, 0.3, 0.3, 0.06, 0.01));
+    const nest = Math.max(Math.hypot(x + 2.75, y) - 0.22, Math.abs(z - H - 0.2) - 0.1, -(Math.hypot(x + 2.75, y) - 0.15)); // sandbags round the gun
+    const gun = sdCapsule(x, y, z, -2.75, 0, H + 0.24, -3.05, 0, H + 0.26, 0.025);
+    return Math.min(bridge, wheel, funnel, mast1, mast2, hatch, nest, gun);
+  };
+  const gangways = (x, y, z) => { let d = 1; for (const gx of [-1.5, -0.8]) for (const sy of [-1, 1]) d = Math.min(d, sdCapsule(x, y, z, gx, sy * B, 0.3, gx - 0.45, sy * (B + 0.55), 0.02, 0.07, 0.07)); return d; };
+  const sdf = (x, y, z) => Math.min(hull(x, y, z), deck(x, y, z), gangways(x, y, z), z * 0.7 + (Math.hypot(x / (L + 0.6), y / (B + 0.8)) < 1 ? 0 : 1));
+  const shade = (x, y, z, nx, ny, nz) => {
+    const dh = hull(x, y, z), dd = deck(x, y, z), dg = gangways(x, y, z);
+    const n = fbm(x * 12, y * 12, z * 12, 3);
+    if (dg < dh && dg < dd && dg < 0.02) return { kind: 'solid', col: [0.4, 0.33, 0.24], spec: 0.03 };
+    if (dd < dh && dd < 0.02) {
+      if (Math.hypot(x - 0.95, y) < 0.15 && z > H + 0.1) return { kind: 'solid', col: z > H + 1.3 ? [0.1, 0.1, 0.1] : [0.55, 0.32, 0.18], spec: 0.08 }; // funnel, black-topped
+      if (Math.hypot(x + 2.75, y) < 0.25 && z > H) return { kind: 'solid', col: mix3([0.55, 0.48, 0.35], [0.65, 0.58, 0.44], n), spec: 0.02 }; // sandbags
+      if (Math.abs(x - 0.3) < 0.34 && z > H + 0.02) return { kind: 'solid', col: mix3([0.72, 0.7, 0.64], [0.82, 0.8, 0.74], n), spec: 0.06 }; // the white bridge
+      return { kind: 'solid', col: [0.3, 0.25, 0.2], spec: 0.04 };
+    }
+    if (dh < 0.02) {
+      if (nz > 0.7 && z > H - 0.05) return { kind: 'solid', col: mix3([0.36, 0.32, 0.27], [0.46, 0.41, 0.34], n), spec: 0.03 }; // the deck
+      // the sally ports cut in her sides
+      for (const gx of [-1.5, -0.8]) if (Math.abs(x - gx) < 0.12 && Math.abs(z - 0.35) < 0.1 && Math.abs(Math.abs(y) - B) < 0.03) return { kind: 'solid', col: [0.03, 0.03, 0.03], spec: 0 };
+      let col = mix3([0.08, 0.08, 0.09], [0.16, 0.15, 0.15], n); // black hull
+      col = mix3(col, [0.38, 0.2, 0.1], clamp(fbm(x * 6, y * 6, z * 30, 2) * 2 - 1.1, 0, 0.6)); // rust streaks
+      if (z < 0.12) col = mix3(col, [0.35, 0.12, 0.08], 0.6); // red below the waterline
+      if (Math.abs(((x * 7) % 1)) < 0.03) col = mul3(col, 0.7); // plate seams
+      return { kind: 'solid', col, spec: 0.1 };
+    }
+    return z < -0.004 ? { kind: 'none' } : { kind: 'catcher' };
+  };
+  return { bounds: [-L - 0.7, -B - 1.0, -0.06, L + 0.7, B + 1.0, H + 1.85], sdf, shade, supersample: 2 };
 }
 
 // ===================================================================== MG pillbox

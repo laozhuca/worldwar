@@ -472,6 +472,7 @@ function terrainFactor(tile) {
   if (tile.wire > 0) f *= tile.wire > 50 ? WIRE_SLOW : WIRE_SLOW * 2;
   if (tile.crater) f *= 0.85;
   if (tile.mud) f *= 0.88;
+  if (tile.sea) f *= 0.5; // rowing in
   if (tile.ground === 3) f *= 0.82; // scree: loose stones underfoot
   if (tile.trench) f *= 0.8;
   return f;
@@ -482,6 +483,10 @@ function updateUnit(state, u, dt) {
   const tile = tileAt(state.map, u.x, u.y);
   const wasIn = u.inTrench;
   u.inTrench = !!tile && tile.trench > 0 && u.type !== 'artillery'; // a battery never goes down into a trench (it bridges it)
+  // at sea: the men are in a boat (rowed in to the beach); stepping ashore leaves the boat beached at the water's edge
+  const afloat = !!(tile && tile.sea);
+  if (u.afloat && !afloat && state.wrecks) state.wrecks.push({ x: u.x + 0.5 * teamDir(u.team), y: u.y, v: u.id % 3, t: state.time });
+  u.afloat = afloat;
   // climbing out of a trench, or down into one, takes time: the men haul themselves over the parapet.
   // Out: as soon as the ground just ahead is no longer trench (the men are at the trench wall).
   // In: on stepping onto a trench tile.
@@ -634,7 +639,7 @@ function updateUnit(state, u, dt) {
 
   // --- small-arms fire
   u.fireTimer = Math.max(0, u.fireTimer - dt * (u.moving ? 0.6 : 1));
-  if (t.range && !charging && !u.holdFire && u.target && u.setup <= 0 && !(u.packing > 0) && u.fireTimer <= 0) {
+  if (t.range && !charging && !u.holdFire && !u.afloat && u.target && u.setup <= 0 && !(u.packing > 0) && u.fireTimer <= 0) {
     if (dist(u, u.target) <= t.range) {
       fire(state, u, u.target, t);
       u.fireTimer = t.fireInterval * (0.85 + rand() * 0.3);
@@ -730,14 +735,16 @@ export function damageUnit(state, u, amount, blast = null, shooter = null) {
   if (u.dead || amount <= 0 || u.invulnerable) return; // invulnerable: kept alive by a scripted scene
   const t = UNIT_TYPES[u.type];
   const before = u.men;
+  if (u.afloat) amount *= 1.4; // men packed in an open boat
   u.hp -= amount;
   u.men = Math.max(0, Math.ceil(u.hp / t.hpPerMan - 1e-6));
   state.stats.lost[u.team] += before - u.men;
-  for (let i = 0; i < Math.min(3, before - u.men); i++) fallen(state, u, blast, shooter);
+  if (!u.afloat) for (let i = 0; i < Math.min(3, before - u.men); i++) fallen(state, u, blast, shooter); // (at sea they go into the water)
   if (state.decals.length > 260) state.decals = state.decals.filter((d) => state.time - d.t < 140).slice(-260);
   if (u.hp <= 0) {
     u.dead = true;
     u.men = 0;
+    if (u.afloat && state.wrecks) state.wrecks.push({ x: u.x, y: u.y, v: 'empty', t: state.time }); // the boat drifts, empty
     if (u.team === PLAYER) pushMessage(state, `${t.name} wiped out`, 'loss');
     state.effects.push({ type: 'smoke', x: u.x, y: u.y, age: 0, life: 2.5 });
   }
@@ -973,7 +980,7 @@ function refreshVisibility(state) {
   const mine = state.units.filter((u) => u.team === PLAYER && !u.dead);
   for (const e of state.units) {
     if (e.team === PLAYER) { e.visible = true; continue; }
-    e.visible = mine.some((u) => Math.hypot(u.x - e.x, u.y - e.y) <= UNIT_TYPES[u.type].sight);
+    e.visible = !!e.afloat || mine.some((u) => Math.hypot(u.x - e.x, u.y - e.y) <= UNIT_TYPES[u.type].sight);
   }
 }
 
@@ -991,6 +998,7 @@ function checkVictory(state) {
     }
   }
   for (const team of [PLAYER, ENEMY]) {
+    if (state.arriving && state.arriving[team]) continue; // (an army still coming ashore is not broken)
     const alive = state.units.some((u) => u.team === team && u.type !== 'artillery');
     if (!alive && state.resources[team].men < UNIT_TYPES.rifle.cost.men && state.time > 5) {
       state.winner = 1 - team;

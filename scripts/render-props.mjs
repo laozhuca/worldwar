@@ -34,12 +34,16 @@ function jobs() {
     for (let v = 0; v < 4; v++) list.push({ name: `rock${v}${s}`, kind: 'rock', args: [v, snow] });
     for (const size of [1, 2, 3]) for (let v = 0; v < 3; v++) list.push({ name: `boulder${size}_${v}${s}`, kind: 'crag', args: [v, size, snow] });
     for (const size of [1, 2, 3]) for (let v = 0; v < 3; v++) list.push({ name: `round${size}_${v}${s}`, kind: 'boulder', args: [v, size, snow] });
+    if (!snow) for (const size of [1, 2, 3]) for (let v = 0; v < 3; v++) { list.push({ name: `boulder${size}_${v}_d`, kind: 'crag', args: [v, size, false, false, true] }); list.push({ name: `round${size}_${v}_d`, kind: 'boulder', args: [v, size, false, true] }); } // dry rock, no snow (Gallipoli)
     for (const size of [1, 2, 3]) for (let v = 0; v < 3; v++) list.push({ name: `knoll${size}_${v}${s}`, kind: 'crag', args: [v + 20, size, snow, true] }); // impassable: rock grown over with grass and conifers
     for (let v = 0; v < 4; v++) list.push({ name: `scree${v}${s}`, kind: 'scree', args: [v, snow] }); // passable loose stones // rounded boulders, mixed in among the crags
     for (let v = 0; v < 3; v++) list.push({ name: `giant${v}${s}`, kind: 'crag', args: [v + 5, 9, snow], scale: 1.5 }); // the great boulders at the back of a valley
     for (const ax of ['x', 'y']) list.push({ name: `bridge_${ax}${s}`, kind: 'bridge', args: [ax, snow] });
   }
   for (const view of ['a', 'b']) list.push({ name: `mg_${view}`, kind: 'mg', args: [view] });
+  for (let v = 0; v < 3; v++) list.push({ name: `boat${v}`, kind: 'boat', args: [v, true] }); // landing boats, rowed in
+  list.push({ name: 'boat_empty', kind: 'boat', args: [7, false] });
+  list.push({ name: 'clyde', kind: 'clyde', args: [], scale: 1.6 }); // the River Clyde
   for (const snow of [false, true]) list.push({ name: `hq${snow ? '_s' : ''}`, kind: 'hq', args: [snow] });
   for (const snow of [false, true]) for (const w of [false, true]) list.push({ name: `bunker${w ? '_x' : ''}${snow ? '_s' : ''}`, kind: 'bunker', args: [snow, w] });
   for (let d = 0; d < 8; d++) for (let f = 0; f < 8; f++) list.push({ name: `gun_d${d}_f${f}`, kind: 'gun', args: [d, f] });
@@ -82,7 +86,7 @@ if (isMainThread && process.argv[2] === '--footprints') {
   const core = await import('../tools/render3d/core.mjs');
   const scenes = await import('../tools/render3d/scenes.mjs');
   const sold = await import('../tools/render3d/soldier.mjs');
-  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, bunker: scenes.bunkerScene, rock: scenes.rockScene, boulder: scenes.boulderScene, crag: scenes.cragScene, birch: scenes.birchScene, knoll: scenes.knollScene, scree: scenes.screeScene, bridge: scenes.bridgeScene, gun: scenes.gunScene, soldier: sold.soldierScene, corpse: sold.corpseScene, part: sold.partScene, fall: sold.fallScene };
+  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, bunker: scenes.bunkerScene, rock: scenes.rockScene, boulder: scenes.boulderScene, crag: scenes.cragScene, boat: scenes.boatScene, clyde: scenes.clydeScene, birch: scenes.birchScene, knoll: scenes.knollScene, scree: scenes.screeScene, bridge: scenes.bridgeScene, gun: scenes.gunScene, soldier: sold.soldierScene, corpse: sold.corpseScene, part: sold.partScene, fall: sold.fallScene };
   const out = {};
   for (const j of jobs()) {
     const sc = make[j.kind](...j.args), scale = core.PX_PER_UNIT * (j.scale || SCALE);
@@ -132,7 +136,7 @@ if (isMainThread) {
 } else {
   const core = await import('../tools/render3d/core.mjs');
   const scenes = await import('../tools/render3d/scenes.mjs');
-  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, bunker: scenes.bunkerScene, rock: scenes.rockScene, boulder: scenes.boulderScene, crag: scenes.cragScene, birch: scenes.birchScene, knoll: scenes.knollScene, scree: scenes.screeScene, bridge: scenes.bridgeScene, gun: scenes.gunScene, soldier: (await import('../tools/render3d/soldier.mjs')).soldierScene, corpse: (await import('../tools/render3d/soldier.mjs')).corpseScene, part: (await import('../tools/render3d/soldier.mjs')).partScene, fall: (await import('../tools/render3d/soldier.mjs')).fallScene };
+  const make = { trench: scenes.trenchScene, wire: scenes.wireScene, trunk: scenes.trunkScene, log: scenes.logScene, debris: scenes.debrisScene, mg: scenes.mgScene, hq: scenes.hqScene, bunker: scenes.bunkerScene, rock: scenes.rockScene, boulder: scenes.boulderScene, crag: scenes.cragScene, boat: scenes.boatScene, clyde: scenes.clydeScene, birch: scenes.birchScene, knoll: scenes.knollScene, scree: scenes.screeScene, bridge: scenes.bridgeScene, gun: scenes.gunScene, soldier: (await import('../tools/render3d/soldier.mjs')).soldierScene, corpse: (await import('../tools/render3d/soldier.mjs')).corpseScene, part: (await import('../tools/render3d/soldier.mjs')).partScene, fall: (await import('../tools/render3d/soldier.mjs')).fallScene };
   parentPort.on('message', (job) => {
     const scale = job.scale || SCALE;
     const r = core.render(make[job.kind](...job.args), core.PX_PER_UNIT * scale);

@@ -5,7 +5,7 @@ import { setWestTeam, setMapRadius } from './map.js';
 import { setNextId } from './game.js';
 
 export const SAVE_VERSION = 1;
-const TILE_KEYS = ['mud', 'shade', 'crater', 'trench', 'owner', 'origOwner', 'wire', 'origWire', 'build', 'decor', 'dmg', 'decorHp', 'splinters', 'rock', 'block', 'bridge', 'bridgeHp', 'ground', 'hidden', 'knoll'];
+const TILE_KEYS = ['mud', 'shade', 'crater', 'trench', 'owner', 'origOwner', 'wire', 'origWire', 'build', 'decor', 'dmg', 'decorHp', 'splinters', 'rock', 'block', 'bridge', 'bridgeHp', 'ground', 'hidden', 'knoll', 'sea'];
 
 /** The battle as a JSON string. */
 export function serialize(state) {
@@ -19,7 +19,7 @@ export function serialize(state) {
   const data = {
     version: SAVE_VERSION,
     savedAt: Date.now(),
-    map: { w: map.w, h: map.h, west: map.west, hq: map.hq, band: map.band, bandBack: map.bandBack, extraTop: map.extraTop, summer: map.summer, forest: map.forest, rocks: map.rocks, startView: map.startView, giants: map.giants, tiles: map.tiles.map((t) => TILE_KEYS.map((k) => t[k])) },
+    map: { w: map.w, h: map.h, west: map.west, hq: map.hq, band: map.band, bandBack: map.bandBack, extraTop: map.extraTop, summer: map.summer, forest: map.forest, dry: map.dry, rocks: map.rocks, startView: map.startView, giants: map.giants, tiles: map.tiles.map((t) => TILE_KEYS.map((k) => t[k])) },
     units,
     rest: { ...state, map: undefined, units: undefined, effects: [], events: [] },
   };
@@ -50,7 +50,7 @@ export function deserialize(json) {
     return t;
   });
   const map = { w: d.map.w, h: d.map.h, r: R, tiles, dirty: true, hq: d.map.hq, changes: [], west: d.map.west };
-  for (const k of ['band', 'bandBack', 'extraTop', 'summer', 'forest', 'rocks', 'startView', 'giants']) if (d.map[k] != null) map[k] = d.map[k];
+  for (const k of ['band', 'bandBack', 'extraTop', 'summer', 'forest', 'dry', 'rocks', 'startView', 'giants']) if (d.map[k] != null) map[k] = d.map[k];
   setWestTeam(map.west);
   const byId = new Map(d.units.map((u) => [u.id, u]));
   for (const u of d.units) {

@@ -125,22 +125,24 @@ test('Brusilov\'s Storm: riflemen against riflemen, saps, reserves on day 1 and 
   createGame();
 });
 
-test('Dawn on Chunuk Bair: hold the crest against attacks up the gullies until Kemal comes at dawn on day 3', () => {
-  const s = createLevelGame('chunuk'), c = s.campaign;
-  assert.ok(c.front.length > 30, 'the crest is recorded');
-  assert.ok(s.map.tiles.filter((t) => t.rock).length > 100, 'rocky spurs between the gullies');
-  assert.ok(!s.map.tiles.some((t) => t.wire && t.origWire === ENEMY), 'the attackers have no wire out');
-  assert.ok(levelById('chunuk').tour(s).length === 3, 'the camera shows the gullies');
-  const shells = s.shells.length;
-  s.time = ((23.6 - 22) / 24) * 420; stepCampaign(s);
-  assert.ok(s.shells.length > shells, 'the warships shell the ridge');
-  assert.equal(c.result, null);
-  s.time = ((52.6 - 22) / 24) * 420; stepCampaign(s);
-  assert.ok(c.relief && c.relief.length > 10, 'Kemal arrives');
-  s.time += 61; stepCampaign(s); s.time += 5; stepCampaign(s);
+test('The Beach at Sedd el Bahr: hold the slopes above V Beach until nightfall against boats and the River Clyde', () => {
+  const s = createLevelGame('helles'), c = s.campaign;
+  assert.ok(c.front.length > 20, 'our line above the beach');
+  assert.ok(s.map.tiles.filter((t) => t.sea).length > 200, 'the sea');
+  assert.ok(!s.units.some((u) => u.team === ENEMY), 'the enemy is still at sea');
+  assert.ok(s.buildings[0].prop === 'clyde', 'the River Clyde aground');
+  s.time = ((5.75 - 5.5) / 24) * s.dayLength; stepCampaign(s);
+  const boats = s.units.filter((u) => u.team === ENEMY);
+  assert.ok(boats.length >= 5, 'the first boats');
+  update(s, 1 / 30);
+  assert.ok(boats.every((u) => u.afloat), 'rowing in');
+  s.time = ((20.1 - 5.5) / 24) * s.dayLength;
+  for (const u of s.units) if (u.team === ENEMY) u.dead = true;
+  for (const i of c.front) s.map.tiles[i].owner = PLAYER;
+  stepCampaign(s); s.time += 5; stepCampaign(s);
   assert.equal(c.result, 'won');
 
-  const l = createLevelGame('chunuk');
+  const l = createLevelGame('helles');
   for (const i of l.campaign.front) l.map.tiles[i].owner = ENEMY;
   stepCampaign(l);
   assert.equal(l.campaign.result, 'lost');
@@ -329,7 +331,7 @@ test('A battery never goes into a trench: it lays planks over it and crosses at 
   // no 2x2 blocks of trench on any map, and none can be dug
   const sq = (st) => { const m = st.map, T = (x, y) => { const t = m.tiles[y * m.w + x]; return t && !t.off && t.trench; }; let n = 0; for (let y = 0; y < m.h - 1; y++) for (let x = 0; x < m.w - 1; x++) if (T(x, y) && T(x + 1, y) && T(x, y + 1) && T(x + 1, y + 1)) n++; return n; };
   assert.equal(sq(s), 0);
-  for (const id of ['ypres', 'isonzo', 'brusilov', 'chunuk', 'amiens']) assert.equal(sq(createLevelGame(id)), 0, id);
+  for (const id of ['ypres', 'isonzo', 'brusilov', 'helles', 'amiens']) assert.equal(sq(createLevelGame(id)), 0, id);
   const t = s.map.tiles.find((q) => !q.trench && !q.off && makesSquare(s.map, q.x, q.y));
   if (t) assert.equal(canBuild(s, PLAYER, 'trench', t.x + 0.5, t.y + 0.5).reason, 'Trenches cannot form a square');
   createGame();

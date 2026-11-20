@@ -447,10 +447,12 @@ export class Renderer {
     const c = cv.getContext('2d'), img = c.createImageData(W, H), d = img.data;
     for (const t of map.tiles) {
       const i = (t.y * W + t.x) * 4;
-      const torn = t.mud || t.crater || t.trench ? 1 : 0; // churned earth keeps its own colour
+      const torn = !t.sea && (t.mud || t.crater || t.trench) ? 1 : 0; // churned earth keeps its own colour
       const v = hash(t.x * 0.61, t.y * 0.37) * 0.25;
       let col = [0, 0, 0], a = 0;
-      if (t.ground === 4) { col = [186 + v * 50, 156 + v * 40, 84]; a = 0.72; } // ripening wheat
+      if (t.sea) { const sh = map.tiles[t.y * W + t.x - 1]; const shallow = sh && !sh.sea ? 1 : 0; col = shallow ? [150, 170, 165] : [52 + v * 30, 92 + v * 30, 110 + v * 20]; a = 1; } // the sea: deep blue-green, paler in the surf
+      else if (t.ground === 5) { col = [196 + v * 40, 178 + v * 34, 132]; a = 0.85; } // sand
+      else if (t.ground === 4) { col = [186 + v * 50, 156 + v * 40, 84]; a = 0.72; } // ripening wheat
       else if (t.ground === 1) { // meadow: olive green, drying to straw in patches, never the same twice
         const dry = Math.max(0, Math.sin(t.x * 0.31 + 1.3) * Math.cos(t.y * 0.27 - 0.8) + (hash(t.y * 0.9, t.x * 1.7) - 0.5) * 0.9);
         col = [100 + v * 30 + dry * 46, 112 + v * 24 + dry * 22, 64 + dry * 18]; a = 0.5;
@@ -978,6 +980,7 @@ export class Renderer {
     // concrete MG bunkers: always drawn (their places are known); the gun and crew inside are not
     if (state.bunkers) for (const b of state.bunkers) objs.push({ k: b.x + b.y + 0.3, kind: 'bunker', b, u: state.units.find((u) => u.id === b.id) });
     for (const u of state.units) if (u.visible && !u.nest) objs.push({ k: u.x + u.y, kind: 'unit', u });
+    if (state.wrecks) for (const w of state.wrecks) objs.push({ k: w.x + w.y - 0.5, kind: 'wreck', w });
     objs.sort((a, b) => a.k - b.k);
     for (const o of objs) {
       if (o.kind === 'decor') this.drawDecor(ctx, o.t);
@@ -985,6 +988,7 @@ export class Renderer {
       else if (o.kind === 'rock') this.drawRock(ctx, o.r);
       else if (o.kind === 'giant') { const c = iso(o.gi.x, o.gi.y); this.drawFrame(ctx, this.propGroup(), `giant${o.gi.v}${(this.S ?? 1) > 0.7 ? '_s' : ''}`, c.x, c.y, 1, o.gi.m); }
       else if (o.kind === 'town') this.drawBackdrop(ctx, o.bd);
+      else if (o.kind === 'wreck') { const c = iso(o.w.x, o.w.y); this.drawFrame(ctx, this.propGroup(), o.w.v === 'empty' ? 'boat_empty' : `boat${o.w.v}`, c.x, c.y, 1, o.w.v === 'empty'); }
       else if (o.kind === 'bunker') this.drawBunker(ctx, o.b, o.u, state.time, ui.selected.has(o.b.id));
       else this.drawUnit(ctx, o.u, ui.selected.has(o.u.id), state.time);
     }
@@ -1379,7 +1383,7 @@ export class Renderer {
 
   /** Load a backdrop's picture (a pre-rendered town seen through the game's camera). */
   loadBackdrop(bd) {
-    if (!bd) return Promise.resolve();
+    if (!bd || bd.prop) return Promise.resolve(); // (a prop is in the atlas)
     this.backdrops = this.backdrops || {};
     if (!this.backdrops[bd.img]) this.backdrops[bd.img] = retry(() => loadImage(bd.img)).then((im) => { this.backdrops[bd.img].img = im; return im; }).catch(() => null);
     return this.backdrops[bd.img];
@@ -1393,6 +1397,7 @@ export class Renderer {
 
   /** A town standing on the battlefield (pre-rendered through the game's camera and light). */
   drawBackdrop(ctx, bd) {
+    if (bd.prop) { const c = iso(bd.x, bd.y); this.drawFrame(ctx, this.propGroup(), bd.prop, c.x, c.y, 1); return; } // pre-rendered with the props (a ship)
     const e = this.backdrops && this.backdrops[bd.img], im = e && e.img;
     if (!im) { this.loadBackdrop(bd); return; }
     const c = iso(bd.x, bd.y);
@@ -1423,7 +1428,8 @@ export class Renderer {
     const snow = (this.S ?? 1) > 0.7 ? '_s' : '';
     // jagged crags and rounded boulders mixed, as they fall in the mountains; or a knoll of dwarf pine
     const kind = r.knoll ? 'knoll' : hash(r.x * 2.9 + 1.7, r.y * 5.3) < 0.42 ? 'round' : 'boulder';
-    if (this.drawFrame(ctx, this.propGroup(), `${kind}${r.size}_${r.v}${snow}`, c.x, c.y, 1.22 + h * 0.2, h > 0.5)) return;
+    const dry = this.map && this.map.dry && kind !== 'knoll' ? '_d' : ''; // (a dry, snowless country: Gallipoli)
+    if (this.drawFrame(ctx, this.propGroup(), `${kind}${r.size}_${r.v}${dry || snow}`, c.x, c.y, 1.22 + h * 0.2, h > 0.5)) return;
     if (this.drawFrame(ctx, this.propGroup(), `boulder${r.size}_${r.v}${snow}`, c.x, c.y, 1.22 + h * 0.2, h > 0.5)) return;
     if (this.drawFrame(ctx, this.propGroup(), `rock${r.v}${snow}`, c.x, c.y, (1.4 + h * 0.35) * r.size, h > 0.5)) return;
     ctx.fillStyle = '#77736b'; // fallback: a plain grey boulder
@@ -1838,6 +1844,11 @@ export class Renderer {
   drawUnit(ctx, u, selected, time) {
     const t = UNIT_TYPES[u.type];
     const p = iso(u.x, u.y);
+    if (u.afloat) { // rowed in to the beach: the men in their boat
+      if (selected) { ctx.strokeStyle = 'rgba(160,255,110,0.95)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.ellipse(p.x, p.y, 30, 14, 0, 0, TAU); ctx.stroke(); }
+      const bob = Math.sin(time * 1.7 + u.id) * 1.2;
+      if (this.drawFrame(ctx, this.propGroup(), `boat${u.id % 3}`, p.x, p.y + bob, 1)) return;
+    }
     if (selected) {
       ctx.strokeStyle = 'rgba(160,255,110,0.95)'; ctx.lineWidth = 1.6;
       ctx.beginPath(); ctx.ellipse(p.x, p.y, 22, 11, 0, 0, TAU); ctx.stroke();
