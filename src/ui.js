@@ -32,7 +32,7 @@ export class UI {
 
   get state() { return this.app.state; }
 
-  playerUnits() { return this.state.units.filter((u) => u.team === PLAYER && !u.dead); }
+  playerUnits() { return this.state.units.filter((u) => u.team === PLAYER && !u.dead && !u.ally); } // (allied divisions fight on our side under their own command)
   selectedUnits() { return this.playerUnits().filter((u) => this.selected.has(u.id)); }
 
   setMode(mode) {

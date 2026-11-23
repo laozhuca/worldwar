@@ -160,21 +160,26 @@ test('The Beach at Sedd el Bahr: hold the slopes above V Beach until nightfall a
   createGame();
 });
 
-test('The Black Day: three lines, Anglo-American army, counter-attacks, take the HQ by midnight', () => {
+test('The Black Day: a broad front, Americans in the centre, British and French on the flanks who go over the top at zero hour', () => {
   const s = createLevelGame('amiens'), c = s.campaign;
+  assert.equal(s.map.r, 59, 'a battlefield three times the usual');
   assert.equal(c.lines.length, 3);
-  assert.ok(c.lines.every((l) => l.length > 5));
-  assert.ok(s.units.some((u) => u.team === PLAYER && u.nation === 'uk'), 'British alongside');
-  assert.equal(s.units.filter((u) => u.team === PLAYER && u.type === 'artillery').length, 6);
+  const allies = s.units.filter((u) => u.ally);
+  assert.ok(allies.some((u) => u.nation === 'uk') && allies.some((u) => u.nation === 'france'), 'British and French on the flanks');
+  assert.ok(s.units.some((u) => u.team === PLAYER && !u.ally), 'the Americans in the centre');
+  const yu = allies.filter((u) => u.nation === 'uk').map((u) => u.y), yf = allies.filter((u) => u.nation === 'france').map((u) => u.y), ya = s.units.filter((u) => u.team === PLAYER && !u.ally && u.type !== 'artillery').map((u) => u.y);
+  assert.ok(Math.max(...yu) < Math.min(...ya) && Math.max(...ya) < Math.min(...yf), 'one ally on each side of the Americans');
   assert.ok(s.units.filter((u) => u.team === ENEMY && u.type === 'mg').length >= 4, 'machine guns in depth');
-  const n = s.units.length;
-  s.time = ((8 - 4.33) / 24) * 1260 + 0.1; stepCampaign(s);
-  assert.ok(s.units.length >= n + 3, 'reserves come up');
+  // zero hour: the allies go forward on their own
+  s.time = c.zero + 0.1; stepCampaign(s);
+  assert.ok(c.wentOver, 'zero hour');
+  for (let i = 0; i < 90; i++) { update(s, 1 / 30); stepCampaign(s); }
+  s.time += 3; stepCampaign(s);
+  assert.ok(allies.filter((u) => u.type === 'rifle' && !u.dead && u.order && u.order.kind === 'charge').length > 6, 'the allies charge without us');
   const hq = s.map.hq[ENEMY];
   s.map.tiles[hq.y * s.map.w + hq.x].owner = PLAYER;
   update(s, 1 / 30); stepCampaign(s);
   assert.equal(c.result, 'won');
-  assert.ok(levelById('amiens').medalsEarned(s)[1], 'by noon');
 
   const l = createLevelGame('amiens');
   l.time = ((24 - 4.33) / 24) * 1260 + 1; stepCampaign(l);

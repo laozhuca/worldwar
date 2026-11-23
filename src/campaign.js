@@ -2,7 +2,7 @@
 // DOM-free (driven from main.js, and headlessly from the tests). A level's progress lives in
 // state.campaign as plain data, so a campaign battle saves and loads like any other.
 import { PLAYER, ENEMY, DIFFICULTY } from './config.js';
-import { createGame, spawnUnit, pushMessage, orderMove } from './game.js';
+import { createGame, spawnUnit, pushMessage, orderMove, orderBarrage } from './game.js';
 import { frontLine, teamDir, tileAt, noSquares, makesSquare } from './map.js';
 
 const DAY_LENGTH = 420; // seconds of game time per 24 hours (as atmosphere.js)
@@ -952,64 +952,59 @@ export const LEVELS = [
   },
   {
     id: 'amiens', n: 5, title: 'The Black Day', place: 'Amiens, France', date: 'August 1918',
-    nations: ['usa', 'germany'], allies: ['uk'], season: 'mud', start: 'west', startHour: 4.33,
-    history: 'August 1918. Four years of war have taught the Allied armies how to win. At 04:20, in thick fog, more than two thousand guns open fire at once, with no warning bombardment, and the infantry go forward close behind the barrage. American and British divisions stand side by side. The German line is deep, three trench lines bristling with machine guns, and he will counter-attack whatever you take. But this time you have the guns, the shells and the men. Break all three lines and take his headquarters before the day is out.',
-    objectives: ['Break all three enemy trench lines.', 'Take the enemy headquarters before midnight.', 'Do not let the enemy take your headquarters.'],
-    rules: ['You have six batteries, plenty of shells and a large army, Americans and British together.', 'The enemy defends in depth: machine guns in every line, not just the front.', 'Every few hours his reserves counter-attack whatever you have just taken.', 'A long summer day: the clock runs slower than in other battles. His wire is mostly crushed and his divisions are understrength.'],
-    medals: ['The Black Day of the German army', 'By noon: the enemy headquarters taken before 12:00', 'Fewer than 500 men lost'],
+    nations: ['usa', 'germany'], allies: ['uk', 'france'], season: 'mud', start: 'east', startHour: 4.33,
+    radius: 59, // a broad front: three times the usual battlefield
+    history: 'August 1918. Four years of war have taught the Allied armies how to win. Your American division holds the centre of a great line, with the British on one flank and the French on the other. At zero hour, in thick fog, more than two thousand guns open fire at once and the whole line goes forward behind the barrage - with you or without you. The German line is deep, three trench lines bristling with machine guns, and he will counter-attack whatever is taken. Break through and take his headquarters before the day is out.',
+    objectives: ['Take the enemy headquarters before midnight.', 'Go forward with the British and French at zero hour.', 'Do not let the enemy take your headquarters.'],
+    rules: ['You command the Americans in the centre. The British and French on your flanks are under their own command: at zero hour they attack whatever you do.', 'Zero hour comes after a short countdown. Be ready to go forward with them, or they will be fighting alone.', 'The enemy defends in depth, and every few hours his reserves counter-attack what has been taken. A long summer day: the clock runs slower than in other battles.'],
+    medals: ['The Black Day of the German army', 'By noon: the enemy headquarters taken before 12:00', 'Fewer than 800 men lost along the whole front, allies included'],
     debrief: {
       won: 'On 8 August 1918 the Allied armies advanced eight miles in a single day, and whole German units surrendered. General Ludendorff called it "the black day of the German army". It began the Hundred Days Offensive, and three months later the war was over.',
       lost: 'The German line held its depth until nightfall. In August 1918 it did not: the Allied attack at Amiens broke through in a single day. It was the beginning of the end of the war.',
     },
     setup(state) {
-      const { map } = state, W = map.w, M = Math.floor(map.h / 2);
-      state.resources[PLAYER] = { men: 60, ammo: 900, supplies: 240 };
-      state.playerIncome = 1.3;
-      // the army: Americans and British side by side, and six batteries
-      const brits = reinforce(state, PLAYER, 6);
-      brits.forEach((u, i) => { if (i % 2 === 0) u.nation = 'uk'; });
-      state.units.filter((u) => u.team === PLAYER && u.type !== 'artillery').forEach((u, i) => { if (i % 3 === 0) u.nation = 'uk'; });
-      const d = teamDir(PLAYER), f = frontLine(map, PLAYER);
-      for (const dy of [-14, -4, 4, 14]) { const g = spawnUnit(state, 'artillery', PLAYER, f[M + dy] - d * 5 + 0.5, M + dy + 0.5); if (dy > 0) g.nation = 'uk'; }
-      // defence in depth: machine guns in his support and reserve lines too
-      const e = teamDir(ENEMY), ef = frontLine(map, ENEMY);
-      const lineTiles = (off) => {
-        const out = [];
-        for (let y = 0; y < map.h; y++) {
-          if (ef[y] < 0) continue;
-          for (const dx of [-1, 0, 1]) {
-            const x = ef[y] - e * off + dx, t = map.tiles[y * W + x];
-            if (t && !t.off && t.trench && t.origOwner === ENEMY && !out.includes(y * W + x)) out.push(y * W + x);
-          }
-        }
-        return out;
-      };
-      const lines = [lineTiles(0), lineTiles(7), lineTiles(11)];
-      for (const [off, rows] of [[7, [0]], [11, [0]]]) {
-        for (const dy of rows) {
-          const y = M + dy, x = ef[y] >= 0 ? ef[y] - e * off : -1;
-          const t = x >= 0 && map.tiles[y * W + x];
-          if (t && t.trench) { const g = spawnUnit(state, 'mg', ENEMY, x + 0.5, y + 0.5); g.ai.role = 'garrison'; }
-        }
+      const { map } = state, W = map.w, M = Math.floor(map.h / 2), d = teamDir(PLAYER), e = teamDir(ENEMY);
+      const at = (x, y) => (x >= 0 && y >= 0 && x < W && y < map.h ? map.tiles[y * W + x] : null);
+      const f = frontLine(map, PLAYER), ef = frontLine(map, ENEMY);
+      const rows = []; for (let y = 0; y < map.h; y++) if (f[y] >= 0 && ef[y] >= 0) rows.push(y);
+      const y0 = rows[0], y1 = rows[rows.length - 1], third = (y1 - y0) / 3;
+      // the front in three sectors: the British on one flank, the Americans (you) in the centre, the French on the other
+      const sector = (y) => (y < y0 + third ? 'uk' : y > y1 - third ? 'france' : 'usa');
+      state.campaign.sectors = { y0, y1, a: Math.round(y0 + third), b: Math.round(y1 - third) };
+      const trenchNear = (team, x0, yy) => { for (let r = 0; r <= 3; r++) for (const dy of [0, -1, 1, -2, 2]) for (const dx of [-r, r]) { const t = at(x0 + dx, yy + dy); if (t && t.trench && t.owner === team && !state.units.some((u) => Math.floor(u.x) === t.x && Math.floor(u.y) === t.y)) return t; } return null; };
+      const put = (type, team, t, nation) => { if (!t) return null; const u = spawnUnit(state, type, team, t.x + 0.5, t.y + 0.5); u.inTrench = !!t.trench; if (nation && nation !== 'usa') { u.nation = nation; u.ally = true; } return u; };
+      // ---- every sector garrisoned afresh, all along the broad front
+      state.units = [];
+      for (let y = y0 + 1; y <= y1 - 1; y += 3) {
+        const n = sector(y);
+        put('rifle', PLAYER, trenchNear(PLAYER, f[y], y), n);
+        if ((y - y0) % 9 === 1) put('rifle', PLAYER, trenchNear(PLAYER, f[y] - d * 7, y), n); // support
+        if ((y - y0) % 12 === 4) put('mg', PLAYER, trenchNear(PLAYER, f[y], y), n);
       }
-      // 1918: his divisions are understrength (half his rifle squads gone), and the tanks have
-      // crushed most of his wire
-      const rifles = state.units.filter((u) => u.team === ENEMY && u.type === 'rifle');
-      const gone = new Set(rifles.filter((_, i) => i % 2 === 1).map((u) => u.id));
-      state.units = state.units.filter((u) => !gone.has(u.id));
+      for (let y = y0 + 4; y <= y1 - 4; y += 9) { const t = at(f[y] - d * 9, y); if (t && !t.trench) put('artillery', PLAYER, t, sector(y)); }
+      // the enemy: riflemen along his whole front, machine guns in every line, batteries behind
+      for (let y = y0 + 1; y <= y1 - 1; y += 4) put('rifle', ENEMY, trenchNear(ENEMY, ef[y], y));
+      for (let y = y0 + 3; y <= y1 - 3; y += 8) put('mg', ENEMY, trenchNear(ENEMY, ef[y], y));
+      for (const off of [7, 11]) for (let y = y0 + 6; y <= y1 - 6; y += 12) { const g = put('mg', ENEMY, trenchNear(ENEMY, ef[y] - e * off, y)); if (g) g.ai.role = 'garrison'; }
+      for (let y = y0 + 8; y <= y1 - 8; y += 14) { const t = at(ef[y] - e * 9, y); if (t && !t.trench) put('artillery', ENEMY, t); }
+      // 1918: the tanks have crushed most of his wire
       let k = 0;
       for (const t of map.tiles) if (t.wire && t.origWire === ENEMY && k++ % 4) t.wire = 0;
       map.dirty = true;
-      // one long summer day: the clock runs at a third of its usual speed
-      state.dayLength = DAY_LENGTH * 3;
-      state.resources[ENEMY] = { men: 20, ammo: 400, supplies: 100 };
+      // his three lines (for the tracker), across the whole front
+      const lineTiles = (off) => { const out = []; for (const y of rows) for (const dx of [-1, 0, 1]) { const x = ef[y] - e * off + dx, t = at(x, y); if (t && !t.off && t.trench && t.origOwner === ENEMY && !out.includes(y * W + x)) out.push(y * W + x); } return out; };
+      state.campaign.lines = [lineTiles(0), lineTiles(7), lineTiles(11)];
+      state.resources[PLAYER] = { men: 50, ammo: 700, supplies: 200 };
+      state.playerIncome = 1.2;
+      state.dayLength = DAY_LENGTH * 3; // one long summer day
+      state.resources[ENEMY] = { men: 30, ammo: 500, supplies: 120 };
       const ai = state.ais[0];
-      ai.level = { ...DIFFICULTY.medium, firstAttack: 3600, attackGap: [1200, 1500], income: 0.5 };
+      ai.level = { ...DIFFICULTY.medium, firstAttack: 3600, attackGap: [1200, 1500], income: 0.7 };
       ai.offensive = 3600;
-      state.campaign.lines = lines;
+      state.campaign.zero = 120; // zero hour, in seconds of battle time
     },
     events: [
-      { at: 4.4, run: (s) => pushMessage(s, 'Zero hour. The guns are firing on every line: go in behind the barrage.', 'side') },
+      { at: 4.36, run: (s) => pushMessage(s, 'Zero hour is coming. The British and French will go over the top at zero hour, whether we are ready or not.', 'side') },
       ...[8, 11, 14, 17, 20].map((at) => ({ at, run: (s) => {
         // a counter-attack on the ground we took most recently: the enemy-side-most trench we hold that was his
         const { map } = s;
@@ -1021,21 +1016,48 @@ export const LEVELS = [
       } })),
     ],
     check(state) {
+      const c = state.campaign;
+      // zero hour: the allies' guns open on the German front line, and their infantry go over the top
+      if (!c.wentOver && state.time >= c.zero) {
+        c.wentOver = state.time;
+        const ef = frontLine(state.map, ENEMY);
+        for (const g of state.units.filter((u) => u.ally && u.type === 'artillery' && !u.dead)) { const y = Math.floor(g.y); if (ef[y] >= 0) orderBarrage(state, [g], ef[y] + 0.5, y + 0.5); }
+        pushMessage(state, 'Zero hour! The British and French are going over the top!', 'good');
+        state.events.push({ type: 'cheer' });
+      }
+      // after it the allies keep going: each squad from trench to trench of the enemy's in its own stretch of the
+      // front, as far as his last line; then they hold what they have taken
+      if (c.wentOver && state.time - (c.allyTick || 0) > 2) {
+        c.allyTick = state.time;
+        const dir = teamDir(PLAYER), W = state.map.w;
+        for (const u of state.units) {
+          if (!u.ally || u.dead || u.type === 'artillery' || u.order || u.allyDone) continue;
+          let best = null, bd = Infinity;
+          for (let dy = -3; dy <= 3; dy++) for (let ax = 1; ax <= 48; ax++) {
+            const t = state.map.tiles[(Math.floor(u.y) + dy) * W + Math.floor(u.x) + dir * ax];
+            if (t && t.trench && t.owner === ENEMY) { const dd = ax + Math.abs(dy) * 0.8; if (dd < bd) { bd = dd; best = t; } }
+          }
+          if (best) orderMove(state, [u], best.x + 0.5, best.y + 0.5, 'charge');
+          else u.allyDone = true;
+        }
+      }
       if (clockHours(state) >= 24) return { result: 'lost', reason: 'Midnight came with the enemy headquarters still in his hands.' };
       return null;
     },
     tracker(state) {
       const h = clockHours(state), c = state.campaign;
       const names = ['Front line', 'Support line', 'Reserve line'];
+      const zero = c.wentOver ? 'The British and French have gone over the top' : (() => { const t = Math.max(0, Math.ceil(c.zero - state.time)); return `Zero hour in ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; })();
       return [
         'Break through and take the enemy HQ',
+        zero,
         ...c.lines.map((L2, k) => { const n = L2.filter((i) => state.map.tiles[i].owner === PLAYER).length; return `${names[k]}: ${n >= L2.length / 2 ? 'broken' : 'holding'} (${n} / ${L2.length} taken)`; }),
         `Midnight in ${left(Math.max(0, 24 - h))}`,
       ];
     },
     medalsEarned(state) {
       const c = state.campaign, won = c.result === 'won';
-      return [won, won && c.endHour < 12, won && state.stats.lost[PLAYER] < 500];
+      return [won, won && c.endHour < 12, won && state.stats.lost[PLAYER] < 800]; // (allied losses are counted with ours)
     },
   },
 ];
