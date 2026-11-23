@@ -970,6 +970,7 @@ export const LEVELS = [
       const y0 = rows[0], y1 = rows[rows.length - 1], third = (y1 - y0) / 3;
       // the front in three sectors: the British on one flank, the Americans (you) in the centre, the French on the other
       const sector = (y) => (y < y0 + third ? 'uk' : y > y1 - third ? 'france' : 'usa');
+      map.mirror = true; // shown mirrored left to right: the Allies attack from the lower left towards the upper right
       state.campaign.sectors = { y0, y1, a: Math.round(y0 + third), b: Math.round(y1 - third) };
       const trenchNear = (team, x0, yy) => { for (let r = 0; r <= 3; r++) for (const dy of [0, -1, 1, -2, 2]) for (const dx of [-r, r]) { const t = at(x0 + dx, yy + dy); if (t && t.trench && t.owner === team && !state.units.some((u) => Math.floor(u.x) === t.x && Math.floor(u.y) === t.y)) return t; } return null; };
       const put = (type, team, t, nation) => { if (!t) return null; const u = spawnUnit(state, type, team, t.x + 0.5, t.y + 0.5); u.inTrench = !!t.trench; if (nation && nation !== 'usa') { u.nation = nation; u.ally = true; } return u; };

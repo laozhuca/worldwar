@@ -793,7 +793,7 @@ function playTour(state, points, done) {
   stopOpening();
   if (!points.length) { done(); return; }
   const r = renderer, home = { x: r.cam.x, y: r.cam.y, z: r.cam.zoom }, GLIDE = 1.1, HOLD = 2.4, ZOOM = Math.max(home.z, 1.5);
-  const stops = [...points.map((p) => { const w = iso(p.x, p.y); return { ...p, w: { x: w.x, y: w.y - 20 } }; }), { home: true, w: home }];
+  const stops = [...points.map((p) => { const w = iso(p.x, p.y); return { ...p, w: { x: r.M * w.x, y: w.y - 20 } }; }), { home: true, w: home }]; // (camera space: mirrored on a mirrored level)
   let i = 0, t = 0, from = { ...home };
   const finish = () => { if (opening !== self) return; cleanup(); opening = null; r.cam.zoom = home.z; r.cam.x = home.x; r.cam.y = home.y; r.clampCam(); done(); };
   const onKey = (e) => { if (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); finish(); } };

@@ -135,10 +135,10 @@ export class Renderer {
   }
 
   worldToScreen(wx, wy) {
-    return { x: (wx - this.cam.x) * this.cam.zoom + this.vw / 2, y: (wy - this.cam.y) * this.cam.zoom + this.vh / 2 };
+    return { x: (this.M * wx - this.cam.x) * this.cam.zoom + this.vw / 2, y: (wy - this.cam.y) * this.cam.zoom + this.vh / 2 }; // (M: -1 on a level shown mirrored)
   }
   screenToWorld(sx, sy) {
-    return { x: (sx - this.vw / 2) / this.cam.zoom + this.cam.x, y: (sy - this.vh / 2) / this.cam.zoom + this.cam.y };
+    return { x: this.M * ((sx - this.vw / 2) / this.cam.zoom + this.cam.x), y: (sy - this.vh / 2) / this.cam.zoom + this.cam.y };
   }
   screenToMap(sx, sy) {
     const w = this.screenToWorld(sx, sy);
@@ -151,7 +151,7 @@ export class Renderer {
   centerOn(x, y) {
     const p = iso(x, y);
     // centre it in the open part of the screen, between the top bar and the command panel
-    this.cam.x = p.x; this.cam.y = p.y - (this.insets.top - this.insets.bottom) / 2 / this.cam.zoom;
+    this.cam.x = this.M * p.x; this.cam.y = p.y - (this.insets.top - this.insets.bottom) / 2 / this.cam.zoom;
     this.clampCam();
   }
   /**
@@ -258,6 +258,7 @@ export class Renderer {
    * props). Called again when a battle on a field of another size is drawn.
    */
   setGeometry(R) {
+    if (this.M === undefined) this.M = 1;
     this.R = R; this._gustExt = null;
     const RR = R + 0.5, C = (2 * R + 1) / 2;
     // the camera may go right to the battlefield's edge and no further: nothing beyond it ever shows
@@ -273,9 +274,16 @@ export class Renderer {
 
   /** Size the ground and the camera's limits for this battle's field (a level may have a larger one). */
   fitMap(map) {
+    this.M = map.mirror ? -1 : 1; // a level may be shown mirrored left to right (the battle is the same; only the picture flips)
     if ((map.r ?? MAP_R) === this.R) return;
     this.setGeometry(map.r ?? MAP_R);
     this.relief = null; this.rcv = null; this.groundDrawn = false; this._rocks = null;
+  }
+
+  /** Text drawn in the world: reads the right way round even on a level shown mirrored. */
+  wtext(ctx, str, x, y) {
+    if (this.M > 0) { ctx.fillText(str, x, y); return; }
+    ctx.save(); ctx.translate(x, y); ctx.scale(-1, 1); ctx.fillText(str, 0, 0); ctx.restore();
   }
 
   /** Tile bounds (inclusive, clamped) of the area being redrawn, or null for a full redraw. */
@@ -948,7 +956,7 @@ export class Renderer {
     ctx.setTransform(d, 0, 0, d, 0, 0);
     ctx.fillStyle = '#101215';
     ctx.fillRect(0, 0, this.vw, this.vh);
-    ctx.setTransform(d * z, 0, 0, d * z, d * (this.vw / 2 - this.cam.x * z + shx), d * (this.vh / 2 - this.cam.y * z + shy));
+    ctx.setTransform(d * z * this.M, 0, 0, d * z, d * (this.vw / 2 - this.cam.x * z + shx), d * (this.vh / 2 - this.cam.y * z + shy));
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.ground, -this.OX, -this.OY, this.gw, this.gh);
     this.drawSurf(ctx, state.map);
@@ -1081,8 +1089,8 @@ export class Renderer {
       ctx.lineWidth = 3;
       for (const j of [0, 0.5]) { const q = (k + j) % 1; ctx.strokeStyle = `rgba(255, 214, 140, ${1 - q})`; ctx.beginPath(); ctx.ellipse(p.x, p.y, 40 + q * 50, 20 + q * 25, 0, 0, TAU); ctx.stroke(); }
       ctx.font = 'italic 17px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillText(m.label || '', p.x + 1, p.y - 47);
-      ctx.fillStyle = '#ffe9b8'; ctx.fillText(m.label || '', p.x, p.y - 48);
+      ctx.fillStyle = 'rgba(0,0,0,0.8)'; this.wtext(ctx, m.label || '', p.x + 1, p.y - 47);
+      ctx.fillStyle = '#ffe9b8'; this.wtext(ctx, m.label || '', p.x, p.y - 48);
       ctx.restore();
       return;
     }
@@ -1092,8 +1100,8 @@ export class Renderer {
     ctx.beginPath(); ctx.ellipse(p.x, p.y, 12, 6, 0, 0, TAU); ctx.stroke();
     if (m.label) {
       ctx.font = 'italic 12px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText(m.label, p.x + 1, p.y - 15);
-      ctx.fillStyle = '#fff3d6'; ctx.fillText(m.label, p.x, p.y - 16);
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'; this.wtext(ctx, m.label, p.x + 1, p.y - 15);
+      ctx.fillStyle = '#fff3d6'; this.wtext(ctx, m.label, p.x, p.y - 16);
     }
     ctx.restore();
   }
@@ -1592,8 +1600,8 @@ export class Renderer {
       ctx.beginPath(); ctx.moveTo(head.x, head.y); ctx.quadraticCurveTo(head.x + 8, head.y + wave, head.x + 17, head.y + 3 + wave);
       ctx.lineTo(head.x + 17, head.y + 9 + wave); ctx.quadraticCurveTo(head.x + 8, head.y + 7 - wave, head.x, head.y + 9); ctx.closePath(); ctx.fill();
       ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText('HQ', c.x + 0.5, c.y + 34.5);
-      ctx.fillStyle = '#e8e8e0'; ctx.fillText('HQ', c.x, c.y + 34);
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'; this.wtext(ctx, 'HQ', c.x + 0.5, c.y + 34.5);
+      ctx.fillStyle = '#e8e8e0'; this.wtext(ctx, 'HQ', c.x, c.y + 34);
       return;
     }
     // earth mound
@@ -1650,8 +1658,8 @@ export class Renderer {
     const wave = Math.sin(state.time * 3 + team) * 2;
     ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px + 15, top + 3 + wave); ctx.lineTo(px, top + 7); ctx.closePath(); ctx.fill();
     ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText('HQ', c.x + 12.5, c.y + 0.5);
-    ctx.fillStyle = '#e8e8e0'; ctx.fillText('HQ', c.x + 12, c.y);
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; this.wtext(ctx, 'HQ', c.x + 12.5, c.y + 0.5);
+    ctx.fillStyle = '#e8e8e0'; this.wtext(ctx, 'HQ', c.x + 12, c.y);
   }
 
   /** Footprints / ruts left by moving troops. */
@@ -2134,8 +2142,8 @@ export class Renderer {
       ctx.beginPath(); ctx.arc(cx, cy, 6, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0.02, Math.min(1, k))); ctx.stroke();
       ctx.font = '9px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
       const label = bridging ? 'Laying planks' : gun ? (packing ? 'Limbering up' : 'Unlimbering') : (packing ? 'Packing up' : 'Setting up');
-      ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText(label, cx + 0.5, cy - 8.5);
-      ctx.fillStyle = '#f0e6cc'; ctx.fillText(label, cx, cy - 9);
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'; this.wtext(ctx, label, cx + 0.5, cy - 8.5);
+      ctx.fillStyle = '#f0e6cc'; this.wtext(ctx, label, cx, cy - 9);
     }
     // status bars
     const maxHp = t.men * t.hpPerMan;
@@ -2151,11 +2159,11 @@ export class Renderer {
     }
     if (u.type === 'artillery' && u.team === PLAYER && u.cooldown > 0) {
       ctx.fillStyle = '#ddd'; ctx.font = '8px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(`reload ${Math.ceil(u.cooldown)}s`, p.x, by - 2);
+      this.wtext(ctx, `reload ${Math.ceil(u.cooldown)}s`, p.x, by - 2);
     }
     if (u.pinned) {
       ctx.fillStyle = '#ffb060'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('PINNED', p.x, by - 2);
+      this.wtext(ctx, 'PINNED', p.x, by - 2);
     }
   }
 
@@ -2596,7 +2604,7 @@ export class Renderer {
     this.mmCanvas = mctx.canvas;
     if (!state.map.band && this.mmBase && mctx.canvas.height !== this.mmBase) { mctx.canvas.height = this.mmBase; mctx.canvas.style.height = ''; return; }
     if (!this.mmBase) this.mmBase = mctx.canvas.height;
-    mctx.setTransform(1, 0, 0, 1, 0, 0);
+    mctx.setTransform(this.M, 0, 0, 1, this.M < 0 ? w : 0, 0); // (a level shown mirrored: its minimap too)
     mctx.fillStyle = '#121309'; mctx.fillRect(0, 0, w, h);
     // the part of the world shown: a valley level's own rectangle, stretched to fill the box; otherwise the
     // whole battlefield, at its own proportions
@@ -2633,6 +2641,7 @@ export class Renderer {
   minimapToWorld(mx, my) {
     const m = this.mini;
     if (!m) return null;
+    if (this.M < 0) mx = (this.mmCanvas ? this.mmCanvas.width : 0) - mx;
     return { x: (mx - m.ox) / m.sx + m.x0, y: (my - m.oy) / m.sy + m.y0 };
   }
 }

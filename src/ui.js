@@ -247,7 +247,7 @@ export class UI {
         this.r.clampCam();
         // keep the world point that was under the fingers under their midpoint (zoom + pan together)
         const now = this.r.screenToWorld(p.mid.x, p.mid.y);
-        this.r.cam.x += t.anchor.x - now.x; this.r.cam.y += t.anchor.y - now.y;
+        this.r.cam.x += this.r.M * (t.anchor.x - now.x); this.r.cam.y += t.anchor.y - now.y;
         this.r.clampCam();
         return;
       }
@@ -302,7 +302,7 @@ export class UI {
       e.preventDefault();
       const r = mm.getBoundingClientRect(), p = e.touches[0];
       const w = this.r.minimapToWorld((p.clientX - r.left) * (mm.width / mm.clientWidth), (p.clientY - r.top) * (mm.height / mm.clientHeight));
-      if (w) { this.r.cam.x = w.x; this.r.cam.y = w.y; this.r.clampCam(); }
+      if (w) { this.r.cam.x = this.r.M * w.x; this.r.cam.y = w.y; this.r.clampCam(); }
     };
     mm.addEventListener('touchstart', mmTouch, { passive: false });
     mm.addEventListener('touchmove', mmTouch, { passive: false });
@@ -378,7 +378,7 @@ export class UI {
       this.r.cam.zoom *= e.deltaY < 0 ? 1.12 : 1 / 1.12;
       this.r.clampCam();
       const after = this.r.screenToWorld(e.offsetX, e.offsetY);
-      this.r.cam.x += before.x - after.x;
+      this.r.cam.x += this.r.M * (before.x - after.x);
       this.r.cam.y += before.y - after.y;
       this.r.clampCam();
     }, { passive: false });
@@ -386,7 +386,7 @@ export class UI {
     const mm = $('minimap');
     const mmJump = (e) => {
       const w = this.r.minimapToWorld(e.offsetX * (mm.width / mm.clientWidth), e.offsetY * (mm.height / mm.clientHeight));
-      if (w) { this.r.cam.x = w.x; this.r.cam.y = w.y; this.r.clampCam(); }
+      if (w) { this.r.cam.x = this.r.M * w.x; this.r.cam.y = w.y; this.r.clampCam(); }
     };
     let mmDown = false;
     mm.addEventListener('mousedown', (e) => { mmDown = true; mmJump(e); });
