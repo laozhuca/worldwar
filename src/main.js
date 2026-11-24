@@ -828,7 +828,27 @@ function playOpening(state, lines, done, scene = null) {
   const box = document.getElementById('story');
   const who = box.querySelector('.who'), line = box.querySelector('.line'), hint = box.querySelector('.hint'), pic = box.querySelector('.pic');
   let i = -1, t = 0, until = 0;
+  // the dialogue: the speakers (by portrait) in the order they first speak - the first on the left, the second on the right
+  const duo = document.getElementById('duo'), sides = [...duo.querySelectorAll('.side')], bubble = duo.querySelector('.bubble'), narr = duo.querySelector('.narr'), duoHint = duo.querySelector('.hint');
+  const speakers = [...new Set(lines.filter((l) => l.img && !l.wide && l.who).map((l) => l.img))].slice(0, 2);
+  const names = speakers.map((img) => lines.find((l) => l.img === img && l.who).who);
+  sides.forEach((sd, k) => { sd.classList.toggle('away', !speakers[k]); if (speakers[k]) { sd.querySelector('img').src = speakers[k]; sd.querySelector('.name').textContent = names[k]; } });
+  const showDuo = (l) => {
+    box.className = 'hidden';
+    duo.classList.remove('hidden');
+    duo.style.bottom = (document.getElementById('bottom')?.offsetHeight || 0) + 'px'; // (above the command panel)
+    const k = l.who ? speakers.indexOf(l.img) : -1;
+    if (k >= 0) names[k] = l.who; // ('Hasan', or 'Sergeant Hasan' when he is first named so)
+    sides.forEach((sd, j) => { sd.classList.toggle('quiet', j !== k); sd.querySelector('.name').textContent = names[j] || ''; });
+    bubble.classList.toggle('hidden', k < 0); narr.classList.toggle('hidden', k >= 0);
+    if (k >= 0) { bubble.className = 'bubble from-' + (k ? 'right' : 'left'); bubble.textContent = l.text; bubble.style.animation = 'none'; void bubble.offsetWidth; bubble.style.animation = ''; } // (re-run its pop-in)
+    else narr.textContent = l.text; // (a line of narration over the two of them)
+    duoHint.textContent = i === 0 ? (matchMedia('(pointer: coarse)').matches ? 'Tap to continue' : 'Click or press Space to continue · Esc to skip') : '';
+    duoHint.classList.toggle('hidden', i !== 0);
+  };
   const show = (l) => {
+    if (l.img && !l.wide && speakers.includes(l.img)) { showDuo(l); return; }
+    duo.classList.add('hidden');
     box.className = 'center opening';
     pic.classList.toggle('hidden', !l.img);
     pic.classList.toggle('wide', !!l.wide);
@@ -853,12 +873,13 @@ function playOpening(state, lines, done, scene = null) {
     if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); next(); }
     else if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); finish(); }
   };
-  const cleanup = () => { window.removeEventListener('keydown', onKey, true); box.onclick = null; box.className = 'hidden'; pic.classList.remove('wide'); };
+  const cleanup = () => { window.removeEventListener('keydown', onKey, true); box.onclick = null; duo.onclick = null; box.className = 'hidden'; duo.classList.add('hidden'); pic.classList.remove('wide'); };
   const finish = () => { if (opening !== self) return; cleanup(); opening = null; play({ done: true }); if (scene) { r.cam.x = home.x; r.cam.y = home.y; r.cam.zoom = home.z; r.clampCam(); } done(); };
   const self = { tick(dt) { t += dt; play({ i, t, dt }); if (t >= until) next(); }, stop: cleanup };
   opening = self;
   window.addEventListener('keydown', onKey, true);
   box.onclick = next;
+  duo.onclick = next;
   next();
 }
 function showDebrief(s) {

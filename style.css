@@ -861,3 +861,39 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 
 /* a battle with tanks: the four recruit buttons in two columns, so they fit the panel */
 .group .btns:has(> button[data-recruit="tank"]:not(.hidden)) { grid-template-columns: auto auto; column-gap: 6px; }
+
+/* a level's opening dialogue: the two speakers in the lower corners of the battlefield, the words in a speech bubble
+   beside whoever is speaking (its tail towards him); the other waits, dimmed */
+#duo { position: absolute; left: 0; right: 0; top: 40px; bottom: 170px; z-index: 5; cursor: pointer; --ps: clamp(100px, min(32vh, 19vw), 250px); --gap: 3vw;
+  background: linear-gradient(to top, rgba(14, 12, 10, 0.78), rgba(14, 12, 10, 0.25) 55%, rgba(14, 12, 10, 0)); }
+#duo.hidden { display: none; }
+#duo .side { position: absolute; bottom: 2.4vh; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: opacity 0.35s, filter 0.35s, transform 0.35s; }
+#duo .side.left { left: var(--gap); } #duo .side.right { right: var(--gap); }
+#duo .side img { width: var(--ps); height: var(--ps); object-fit: cover; border: 1px solid rgba(239, 228, 203, 0.45); box-shadow: 0 4px 18px rgba(0, 0, 0, 0.75); }
+#duo .side .name { font-size: clamp(11px, 1.2vw, 15px); letter-spacing: 3px; text-transform: uppercase; color: #e6d7b8; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+#duo .side.quiet { opacity: 0.45; filter: grayscale(0.6) brightness(0.8); transform: scale(0.94); }
+#duo .side.away { display: none; }
+#duo .bubble { position: absolute; bottom: calc(2.4vh + var(--ps) * 0.42); max-width: min(560px, calc(100vw - 2 * (var(--gap) + var(--ps)) - 70px));
+  padding: 14px 22px; border-radius: 16px; background: #efe5cc; color: #221a12; font-style: italic; font-size: clamp(16px, 1.8vw, 25px); line-height: 1.4;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.6); animation: bubble-in 0.22s ease-out; }
+#duo .bubble.hidden, #duo .narr.hidden { display: none; }
+#duo .bubble.from-left { left: calc(var(--gap) + var(--ps) + 26px); }
+#duo .bubble.from-right { right: calc(var(--gap) + var(--ps) + 26px); }
+#duo .bubble::after { content: ''; position: absolute; bottom: 18px; border: 11px solid transparent; }
+#duo .bubble.from-left::after { left: -20px; border-right: 12px solid #efe5cc; border-left: 0; }
+#duo .bubble.from-right::after { right: -20px; border-left: 12px solid #efe5cc; border-right: 0; }
+@keyframes bubble-in { from { opacity: 0; transform: scale(0.92) translateY(6px); } to { opacity: 1; transform: none; } }
+#duo .narr { position: absolute; left: calc(var(--gap) + var(--ps) + 26px); right: calc(var(--gap) + var(--ps) + 26px); bottom: calc(2.4vh + var(--ps) * 0.42);
+  text-align: center; color: #eadfc8; font-style: italic; font-size: clamp(16px, 1.8vw, 24px); text-shadow: 0 1px 3px #000; }
+#duo .hint { position: absolute; left: 0; right: 0; bottom: 0.4vh; text-align: center; font-size: 14px; color: #fff3d6; text-shadow: 0 1px 2px #000; }
+#duo .hint::before { content: '\25B8  '; color: #e8c98a; }
+#duo .hint.hidden { display: none; }
+/* narrow screens: the bubble above the two portraits, its tail down towards the speaker */
+@media (max-width: 700px) {
+  #duo { --ps: clamp(84px, 24vw, 130px); --gap: 4vw; }
+  #duo .bubble, #duo .narr { left: 4vw; right: 4vw; max-width: none; bottom: calc(2.4vh + var(--ps) + 46px); }
+  #duo .bubble.from-left, #duo .bubble.from-right { left: 4vw; right: 4vw; }
+  #duo .bubble.from-left::after, #duo .bubble.from-right::after { bottom: -12px; border: 10px solid transparent; border-top: 12px solid #efe5cc; border-bottom: 0; }
+  #duo .bubble.from-left::after { left: calc(var(--ps) * 0.5); right: auto; }
+  #duo .bubble.from-right::after { right: calc(var(--ps) * 0.5); left: auto; }
+}
