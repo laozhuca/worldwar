@@ -877,6 +877,33 @@ export const LEVELS = [
         for (const back of [3, 4]) { const t = at(c - d * back, y); if (t && !t.trench && !t.rock && !(y % 7 === 3 && back === 3)) { t.wire = 100; t.origWire = PLAYER; } }
         const sh = at(c + d, y); if (sh && rnd() < 0.6) { sh.wire = 100; sh.origWire = PLAYER; }
       }
+      // ---- our works run on down the slope towards the sand: a second fire trench and a forward line on the brow
+      // above the beach, zigzagging, with communication trenches back up to the main line - whoever gets off the
+      // sand is fighting in our trenches at once. (The line we must hold is still the main one.)
+      state.campaign.mainFront = frontTiles(state);
+      {
+        const ok = (t) => t && !t.off && !t.sea && !t.rock && !t.block && t.ground !== 5 || (t && t.trench && t.owner === PLAYER);
+        const dig = (x, y, lvl) => { const t = at(x, y); if (!ok(t) || (!t.trench && makesSquare(map, x, y))) return false; t.trench = Math.max(t.trench, lvl); t.owner = t.origOwner = PLAYER; t.wire = 0; t.decor = null; t.mud = 0; return true; };
+        const f0 = (y) => (f[y] >= 0 ? f[y] : f[M]);
+        // a fire trench along x = at(y), with traverses jogging a tile in and out
+        const fwd = (y) => coast(y) - d * 11, mid = (y) => Math.round((f0(y) + fwd(y)) / 2); // (the forward line one tile above the sand)
+        const line = (xAt, y0, y1, lvl) => {
+          let x = xAt(y0), jog = 0;
+          for (let y = y0; y <= y1; y++) {
+            if (rnd() < 0.35) jog = jog ? 0 : (rnd() < 0.5 ? 1 : -1);
+            const nx = xAt(y) + d * jog;
+            while (x !== nx) { dig(x, y, lvl); x += Math.sign(nx - x); } // (along the row to the traverse)
+            dig(x, y, lvl);
+          }
+        };
+        line(mid, M - 13, M + 13, 2); // the second fire trench
+        line(fwd, M - 11, M + 11, 1); // the forward line, on the brow above the sand (hastily dug)
+        // communication trenches from the main line down through both, wandering a little
+        for (let y = M - 12 + Math.floor(rnd() * 3); y <= M + 12; y += 4 + Math.floor(rnd() * 3)) {
+          let x = f0(y), yy = y;
+          while ((fwd(yy) - x) * d > 0) { x += d; if (rnd() < 0.25) { const j = rnd() < 0.5 ? -1 : 1; if (dig(x - d, yy + j, 1)) yy += j; } dig(x, yy, 1); }
+        }
+      }
       noSquares(map);
       // ---- the River Clyde, run aground at the eastern end of the beach, her bow on the sand
       const cy = M + 4, cx = coast(cy) + d * 9.8; // (a big ship: 20 tiles long)
@@ -904,21 +931,22 @@ export const LEVELS = [
       const ai = state.ais[0];
       ai.level = { ...DIFFICULTY.hard, income: 0, firstAttack: 90, attackGap: [45, 75], force: 9, steps: 4, guns: 0, centre: 3, rush: true, retries: 5 }; // (he goes for the centre, with the bayonet, again and again)
       ai.offensive = 90;
-      state.campaign.front = frontTiles(state);
+      state.campaign.front = state.campaign.mainFront; delete state.campaign.mainFront; // (the main line: the forward works may be lost and retaken)
       state.campaign.beach = { x: coast(M) - d * 2 + 0.5, y: M + 0.5 };
       state.campaign.coast = (y) => coast(y);
     },
     events: [
-      { at: 5.55, run: (s) => pushMessage(s, 'The boats are coming in. Hold your fire until they reach the wire!', 'side') },
-      // the boats: tows of cutters rowed in across the bay, wave after wave
-      ...[5.7, 6.0, 6.6, 7.6, 9.0, 11.0, 13.0, 15.0, 17.0].map((at, k) => ({ at, run: (s) => {
+      // the boats: tows of cutters rowed in across the bay, wave after wave - the first, the biggest (ten boats,
+      // sixty men), the moment the warships' first salvo has fallen
+      ...[5.66, 6.1, 6.6, 7.6, 9.0, 11.0, 13.0, 15.0, 17.0].map((at, k) => ({ at, run: (s) => {
         const { map } = s, W = map.w, M = Math.floor(map.h / 2), d = teamDir(PLAYER), c = s.campaign.coast;
-        const n = k < 2 ? 5 : 3;
+        const n = k === 0 ? 10 : k === 1 ? 5 : 3;
+        if (k === 0) pushMessage(s, 'The boats are coming in. Hold your fire until they reach the wire!', 'side');
         for (let i = 0; i < n; i++) {
-          let y = M - 9 + Math.floor(((i + 0.5) / n) * 18) + Math.floor(Math.random() * 2);
+          let y = M - 10 + Math.floor(((i + 0.5) / n) * 20) + Math.floor(Math.random() * 2);
           const ship = s.buildings && s.buildings[0];
           if (ship && Math.abs(y + 0.5 - ship.y) <= ship.hy + 1.2) y = Math.round(ship.y + (y + 0.5 < ship.y ? -ship.hy - 1.7 : ship.hy + 1.2)); // (rowing in clear of the River Clyde)
-          let x = c(y) + d * 9;
+          let x = c(y) + d * (9 + (n > 5 ? (i % 2) * 3 : 0)); // (a big wave in two ranks of boats)
           while (x >= 0 && x < W && map.tiles[y * W + x] && (map.tiles[y * W + x].off || map.tiles[y * W + x].block)) x -= d;
           const u = spawnUnit(s, 'rifle', ENEMY, x + 0.5, y + 0.5);
           u.ai.role = 'reserve';
@@ -927,7 +955,7 @@ export const LEVELS = [
         pushMessage(s, k === 0 ? 'The first boats are pulling for the beach!' : 'More boats are coming in across the bay.', 'warn');
       } })),
       // men out of the River Clyde's sally ports
-      ...[6.4, 7.2, 8.4, 10.0, 12.0, 14.0, 16.0, 18.0].map((at, k) => ({ at, run: (s) => {
+      ...[5.68, 7.2, 8.4, 10.0, 12.0, 14.0, 16.0, 18.0].map((at, k) => ({ at, run: (s) => { // (her first men with the first boats)
         const q = s.map.hq[ENEMY], c = s.campaign.coast, d = teamDir(PLAYER);
         for (let i = 0; i < 2; i++) {
           const u = spawnUnit(s, 'rifle', ENEMY, q.x + 0.5, q.y + 0.5 - i * 0.8);
@@ -937,7 +965,7 @@ export const LEVELS = [
         pushMessage(s, k === 0 ? 'The River Clyde has run aground! Men are pouring out of her sides.' : 'More men are coming out of the River Clyde.', 'warn');
       } })),
       // the warships' guns
-      ...[5.6, 7.0, 8.7, 10.5, 12.5, 14.5, 16.5, 18.5].map((at) => ({ at, run: (s) => {
+      ...[5.52, 7.0, 8.7, 10.5, 12.5, 14.5, 16.5, 18.5].map((at) => ({ at, run: (s) => { // (the first salvo as soon as the battle opens)
         // firing blind from the bay over the cliffs: the shells fall anywhere on our side of the beach
         const c = s.campaign.coast, d = teamDir(PLAYER);
         const land = s.campaign.shoreside || (s.campaign.shoreside = s.map.tiles.filter((t) => !t.off && !t.sea && !t.rock && (c(t.y) - t.x) * d >= 8).map((t) => t.y * s.map.w + t.x));
