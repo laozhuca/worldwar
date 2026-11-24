@@ -1724,16 +1724,16 @@ export class Renderer {
         if (trench(cx, cy) || trench(cx + dx / 2, cy + dy / 2) || trench(cx + dx, cy + dy)) continue;
         // the band, a little darker at its edges
         // a ridge of churned earth thrown up along each side, catching the light
-        ctx.strokeStyle = snow ? `rgba(236,240,246,${0.5 * a})` : `rgba(150,130,100,${0.38 * a})`; ctx.lineWidth = 0.05;
+        ctx.strokeStyle = snow ? `rgba(236,240,246,${0.22 * a})` : `rgba(150,130,100,${0.16 * a})`; ctx.lineWidth = 0.05;
         ctx.beginPath();
         for (const e of [-1, 1]) { const ex = cx + nx * e * W * 0.62, ey = cy + ny * e * W * 0.62; ctx.moveTo(ex, ey); ctx.lineTo(ex + dx, ey + dy); }
         ctx.stroke();
-        ctx.fillStyle = snow ? `rgba(60,66,78,${0.5 * a})` : `rgba(14,9,5,${0.58 * a})`;
+        ctx.fillStyle = snow ? `rgba(60,66,78,${0.24 * a})` : `rgba(14,9,5,${0.28 * a})`;
         ctx.beginPath();
         ctx.moveTo(cx + nx * W / 2, cy + ny * W / 2); ctx.lineTo(cx + nx * W / 2 + dx, cy + ny * W / 2 + dy);
         ctx.lineTo(cx - nx * W / 2 + dx, cy - ny * W / 2 + dy); ctx.lineTo(cx - nx * W / 2, cy - ny * W / 2); ctx.closePath(); ctx.fill();
         // the imprints of the tread plates, across the band
-        ctx.strokeStyle = snow ? `rgba(30,34,44,${0.6 * a})` : `rgba(4,2,1,${0.7 * a})`; ctx.lineWidth = 0.04;
+        ctx.strokeStyle = snow ? `rgba(30,34,44,${0.3 * a})` : `rgba(4,2,1,${0.34 * a})`; ctx.lineWidth = 0.04;
         ctx.beginPath();
         for (let s2 = 0.04; s2 < L; s2 += 0.09) { const px = cx + ux * s2, py = cy + uy * s2; ctx.moveTo(px + nx * W * 0.45, py + ny * W * 0.45); ctx.lineTo(px - nx * W * 0.45, py - ny * W * 0.45); }
         ctx.stroke();
@@ -1841,12 +1841,26 @@ export class Renderer {
 
   /** A tank (pre-rendered from its 3D model, 8 headings), rocking a little on the move; nose-down when ditched. */
   drawTank(ctx, p, u, t, selected, time) {
+    // its weight on the ground: a dark soft shadow right under the hull, the shape of its footprint (laid flat
+    // in map space along its heading), so it sits on the earth rather than hovering over it
+    {
+      const dir8 = ((Math.round(Math.atan2(u.hy, u.hx) / (Math.PI / 4)) % 8) + 8) % 8;
+      ctx.save();
+      ctx.translate(p.x, p.y + (u.stuck === 'ditched' ? 7 : 0));
+      ctx.transform(TW / 2, TH / 2, -TW / 2, TH / 2, 0, 0); // map tiles
+      ctx.rotate(dir8 * Math.PI / 4);
+      ctx.scale(1.25, 0.72); // half its length, half its width (tiles)
+      const g = ctx.createRadialGradient(0, 0, 0.2, 0, 0, 1);
+      g.addColorStop(0, 'rgba(8,6,4,0.62)'); g.addColorStop(0.7, 'rgba(8,6,4,0.42)'); g.addColorStop(1, 'rgba(8,6,4,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 1, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
     if (selected) { ctx.strokeStyle = 'rgba(160,255,110,0.95)'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.ellipse(p.x, p.y, 52, 26, 0, 0, TAU); ctx.stroke(); }
     const dir = ((Math.round(Math.atan2(u.hy, u.hx) / (Math.PI / 4)) % 8) + 8) % 8;
     // the tracks run while it moves (4 pre-rendered positions of the tread links), still when it stops
     const frame = Math.floor((u.roll || 0) * 36) % 4; // (about 8 frames a second at its pace)
     const rock = 0;
-    const sink = u.stuck === 'ditched' ? 7 : 0;
+    const sink = (u.stuck === 'ditched' ? 7 : 0) + 3; // (settled a little into the earth)
     ctx.save();
     if (u.stuck === 'ditched') { ctx.translate(p.x, p.y); ctx.rotate(0.1 * (dir < 4 ? 1 : -1)); ctx.translate(-p.x, -p.y); }
     const ok = this.drawFrame(ctx, 'units', `tank_d${dir}_f${frame}`, p.x, p.y + rock + sink, 1);
