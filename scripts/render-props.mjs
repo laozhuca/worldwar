@@ -41,11 +41,11 @@ function jobs() {
     for (const ax of ['x', 'y']) list.push({ name: `bridge_${ax}${s}`, kind: 'bridge', args: [ax, snow] });
   }
   for (const view of ['a', 'b']) list.push({ name: `mg_${view}`, kind: 'mg', args: [view] });
-  for (let v = 0; v < 3; v++) list.push({ name: `boat${v}`, kind: 'boat', args: [v, true] }); // landing boats, rowed in
-  for (let v = 0; v < 3; v++) for (let f = 0; f < 4; f++) list.push({ name: `boat${v}_r${f}`, kind: 'boat', args: [v, true, f] }); // ...the stroke of the oars
+  for (let v = 0; v < 3; v++) list.push({ name: `boat${v}`, kind: 'boat', args: [v, true, -1, false, true] }); // landing boats, rowed in (bow towards the beach)
+  for (let v = 0; v < 3; v++) for (let f = 0; f < 4; f++) list.push({ name: `boat${v}_r${f}`, kind: 'boat', args: [v, true, f, false, true] }); // ...the stroke of the oars
   for (let k = 0; k < 4; k++) list.push({ name: `boat_piece${k}`, kind: 'boatpiece', args: [k] }); // a boat smashed by a shell
-  for (let f = 0; f < 4; f++) list.push({ name: `boat_back_r${f}`, kind: 'boat', args: [1, false, f, true, true] }); // emptied, one man rowing her back out to sea
-  list.push({ name: 'boat_empty', kind: 'boat', args: [7, false] });
+  for (let f = 0; f < 4; f++) list.push({ name: `boat_back_r${f}`, kind: 'boat', args: [1, false, f, true, false] }); // emptied, one man rowing her back out to sea (bow seaward)
+  list.push({ name: 'boat_empty', kind: 'boat', args: [7, false, -1, false, true] });
   list.push({ name: 'clyde', kind: 'clyde', args: [], scale: 1.6 }); // the River Clyde
   for (const snow of [false, true]) list.push({ name: `hq${snow ? '_s' : ''}`, kind: 'hq', args: [snow] });
   for (const snow of [false, true]) for (const w of [false, true]) list.push({ name: `bunker${w ? '_x' : ''}${snow ? '_s' : ''}`, kind: 'bunker', args: [snow, w] });
