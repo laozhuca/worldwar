@@ -797,7 +797,7 @@ export const LEVELS = [
       { who: 'Hasan', text: 'Perhaps the captain has been drinking.', img: 'assets/art/story-hasan.webp' },
       { who: 'Mehmet', text: 'Wine? Isn\'t that forbidden?', img: 'assets/art/story-mehmet.webp' },
       { who: 'Hasan', text: 'For us, Mehmet. Not for the British.', img: 'assets/art/story-hasan.webp' },
-      { who: '', text: 'The River Clyde runs aground on the beach with a tremendous crash.', sound: 'grounding', hold: 4.5 }, // (on the map she grinds up onto the sand; her keel grinding, the crash, the groaning plates)
+      { who: '', text: 'The River Clyde runs aground on the beach with a tremendous crash.', hold: 4.5 }, // (on the map she runs up onto the sand: openingScene plays the crash as she strikes)
       { who: 'Mehmet', text: 'Allah! What a terrible landing!', img: 'assets/art/story-mehmet.webp' },
       { who: 'Hasan', text: 'See? That\'s why drinking is forbidden.', img: 'assets/art/story-hasan.webp' },
       { who: '', text: 'Out in the bay, the boats are putting off from the fleet.', img: 'assets/art/story-helles-fleet.webp', wide: true },
@@ -811,28 +811,24 @@ export const LEVELS = [
     openingScene(s, o) {
       const c = s.campaign, b = s.buildings && s.buildings[0], fin = c.clyde;
       if (!b || !fin) return;
-      const IN = 5, GROUND = 10, NEAR = 3, d = fin.d;
+      const IN = 5, TRIP = 22, d = fin.d; // (her run in takes about as long as the lines of dialogue before she grounds)
       // she starts just beyond the edge of the map (her bow a tile past its last tile of sea), so she comes into view at once
       if (c.clydeFar === undefined) {
         const { map } = s, y = Math.floor(fin.y); let edge = Math.floor(fin.x);
         for (let x = Math.floor(fin.x); x >= 0 && x < map.w; x += d) { const t = map.tiles[y * map.w + x]; if (t && !t.off) edge = x; }
-        c.clydeFar = Math.max(NEAR + 10, Math.abs(edge + 0.5 - fin.x) + b.hx + 1);
+        c.clydeFar = Math.max(10, Math.abs(edge + 0.5 - fin.x) + b.hx + 1);
       }
-      const FAR = c.clydeFar;
+      const FAR = c.clydeFar, v = FAR / TRIP; // (tiles a second: one steady speed all the way in)
       const place = (x) => { const dx = x - b.x; if (!dx) return; b.x = x; const mg = s.units.find((u) => u.id === c.shipGun); if (mg) mg.x += dx; };
       if (o.done) { place(fin.x); return; }
-      if (o.i < IN) place(fin.x + d * FAR); // still out in the bay with the fleet
-      else if (o.i < GROUND) { // under way, slowing as she nears the shore
-        if (o.start && o.i === IN) c.clydeRun = 0;
-        c.clydeRun = (c.clydeRun || 0) + (o.dt || 0);
-        const k = Math.min(1, c.clydeRun / 20), e = 1 - (1 - k) ** 1.6;
-        place(fin.x + d * (FAR - (FAR - NEAR) * e));
-      } else if (o.i === GROUND) { // up the sand: the last few tiles in a second, the whole ship shuddering
-        if (o.start) { c.clydeFrom = (b.x - fin.x) * d; o.shake(9); }
-        const k = Math.min(1, o.t / 1.2);
-        place(fin.x + d * c.clydeFrom * (1 - k * (2 - k)));
-      } else place(fin.x);
-      if (o.i >= IN && o.i <= GROUND) o.look(b.x - d * 4, b.y + 1, 1.2); // the camera rides along off her bow
+      if (o.i < IN) { place(fin.x + d * FAR); return; } // still out in the bay with the fleet
+      // under way from the line where one ship leaves the others, at a steady speed until she strikes the beach
+      c.clydeRun = (c.clydeRun || 0) + (o.dt || 0);
+      const left = Math.max(0, FAR - v * c.clydeRun);
+      place(fin.x + d * left);
+      if (!c.clydeHeard && left <= v * 2.3) { c.clydeHeard = true; o.sound('grounding'); } // (the recording's crash comes 2.3 s in)
+      if (left === 0 && !c.clydeStruck) { c.clydeStruck = true; o.shake(9); }
+      if (!c.clydeStruck || o.i <= IN + 5) o.look(b.x - d * 4, b.y + 1, 1.2); // the camera rides along off her bow
     },
     works: 'light',
     history: 'Dawn, 25 April 1915. The Allied fleet has failed to force the Dardanelles; now the army is to land at the tip of the Gallipoli peninsula and take the forts from behind. At V Beach, a little sandy bay below the ruined fortress of Sedd el Bahr, a company of the 26th Regiment holds the slopes above the sand, with wire strung along the beach and out into the shallows. Out in the bay the British are coming in, boat after boat, and an old collier, the River Clyde, is being run aground with two thousand men hidden inside. The warships\' guns will pound your trenches. Hold the beach until nightfall.',
@@ -884,7 +880,7 @@ export const LEVELS = [
       noSquares(map);
       // ---- the River Clyde, run aground at the eastern end of the beach, her bow on the sand
       const cy = M + 4, cx = coast(cy) + d * 9.8; // (a big ship: 20 tiles long)
-      state.buildings = [{ img: 'assets/art/ship-river-clyde.webp', ax: 671, ay: 487, k: 0.5, x: cx + 0.5, y: cy + 0.5, hx: 9.9, hy: 1.45, name: 'The River Clyde' }];
+      state.buildings = [{ img: 'assets/art/ship-river-clyde.webp', ax: 645, ay: 487, k: 0.5, x: cx + 0.5, y: cy + 0.5, hx: 9.9, hy: 1.45, name: 'The River Clyde' }];
       state.campaign.clyde = { x: cx + 0.5, y: cy + 0.5, d }; // where she runs aground (the opening brings her in from the bay)
       for (const t of map.tiles) if (Math.abs(t.x + 0.5 - state.buildings[0].x) <= 9.9 && Math.abs(t.y + 0.5 - state.buildings[0].y) <= 1.45) { t.block = 1; t.wire = 0; }
       // the enemy's 'headquarters' is the ship: his men come out of her sally ports (it cannot be taken)

@@ -8,10 +8,23 @@ const L = new THREE.Vector3(-0.38, -0.62, 0.69).normalize(); // the game's sun (
 let model;
 window.load = async (f) => { model = (await new GLTFLoader().loadAsync(f)).scene; window.model = model; return true; };
 // render: yaw (rad), S = tiles per model unit, P = px per tile; returns { url, ax, ay } (ax, ay: where the model's centre on the ground lands)
-window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null }) => {
+window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null, cut = null }) => {
   const scene = new THREE.Scene();
   const root = new THREE.Group(); scene.add(root);
   const m = model.clone(true);
+  // cut: boxes in the model's own coordinates ([[x0, y0, z0], [x1, y1, z1]], ...) whose triangles are left out
+  // (stray geometry baked into a model, e.g. a slab of ground stuck to a ship's bow)
+  if (cut) m.traverse((o) => {
+    if (!o.isMesh) return;
+    const g = o.geometry = o.geometry.clone(), pos = g.attributes.position;
+    const idx = g.index ? Array.from(g.index.array) : Array.from({ length: pos.count }, (_, i) => i), keep = [];
+    const inBox = (x, y, z) => cut.some(([a, b]) => x >= a[0] && x <= b[0] && y >= a[1] && y <= b[1] && z >= a[2] && z <= b[2]);
+    for (let i = 0; i < idx.length; i += 3) {
+      let cx = 0, cy = 0, cz = 0; for (let k = 0; k < 3; k++) { cx += pos.getX(idx[i + k]); cy += pos.getY(idx[i + k]); cz += pos.getZ(idx[i + k]); }
+      if (!inBox(cx / 3, cy / 3, cz / 3)) keep.push(idx[i], idx[i + 1], idx[i + 2]);
+    }
+    g.setIndex(keep);
+  });
   m.rotation.x = Math.PI / 2; // glTF Y up -> Z up
   const holder = new THREE.Group(); holder.add(m); holder.rotation.z = yaw; holder.scale.setScalar(S);
   root.add(holder);

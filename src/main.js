@@ -823,7 +823,7 @@ function playOpening(state, lines, done, scene = null) {
   const r = renderer;
   const look = (x, y, z) => { const w = iso(x, y); const tx = r.M * w.x, ty = w.y, k = 0.08; r.cam.x += (tx - r.cam.x) * k; r.cam.y += (ty - r.cam.y) * k; r.cam.zoom += (z - r.cam.zoom) * k; r.clampCam(); };
   const shake = (v) => { r.atmo.shake = Math.max(r.atmo.shake, v); };
-  const play = (o) => { if (scene) scene(state, { look, shake, ...o }); };
+  const play = (o) => { if (scene) scene(state, { look, shake, sound: (n) => sound.play(n, 1), ...o }); };
   const home = { x: r.cam.x, y: r.cam.y, z: r.cam.zoom }; // (where the camera goes back to when the scene is over)
   const box = document.getElementById('story');
   const who = box.querySelector('.who'), line = box.querySelector('.line'), hint = box.querySelector('.hint'), pic = box.querySelector('.pic');
