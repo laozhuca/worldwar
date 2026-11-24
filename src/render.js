@@ -1795,7 +1795,7 @@ export class Renderer {
     if (selected) { ctx.strokeStyle = 'rgba(160,255,110,0.95)'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.ellipse(p.x, p.y, 52, 26, 0, 0, TAU); ctx.stroke(); }
     const dir = ((Math.round(Math.atan2(u.hy, u.hx) / (Math.PI / 4)) % 8) + 8) % 8;
     // the tracks run while it moves (4 pre-rendered positions of the tread links), still when it stops
-    const frame = Math.floor(((u.roll || 0) * 14)) % 4;
+    const frame = Math.floor((u.roll || 0) * 36) % 4; // (about 8 frames a second at its pace)
     const rock = 0;
     const sink = u.stuck === 'ditched' ? 7 : 0;
     ctx.save();

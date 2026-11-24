@@ -36,7 +36,7 @@ window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null }) => {
               float th = atan(vMP.y / ${T.ay.toFixed(4)}, vMP.x / ${T.ax.toFixed(4)});
               float k = fract(th * ${(T.r / T.period).toFixed(4)} + ${T.phase.toFixed(4)});
               float plate = smoothstep(0.0, 0.1, k) * (1.0 - smoothstep(0.58, 0.68, k));
-              diffuseColor.rgb *= mix(0.42, 1.1, plate);
+              diffuseColor.rgb *= mix(0.18, 1.35, plate);
             } }`);
       };
     }
