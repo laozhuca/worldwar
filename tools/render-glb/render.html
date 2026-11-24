@@ -8,7 +8,7 @@ const L = new THREE.Vector3(-0.38, -0.62, 0.69).normalize(); // the game's sun (
 let model;
 window.load = async (f) => { model = (await new GLTFLoader().loadAsync(f)).scene; return true; };
 // render: yaw (rad), S = tiles per model unit, P = px per tile; returns { url, ax, ay } (ax, ay: where the model's centre on the ground lands)
-window.renderTown = ({ yaw, S, P, marker, ground = 0 }) => {
+window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null }) => {
   const scene = new THREE.Scene();
   const root = new THREE.Group(); scene.add(root);
   const m = model.clone(true);
@@ -21,7 +21,26 @@ window.renderTown = ({ yaw, S, P, marker, ground = 0 }) => {
   holder.position.set(-c.x, -c.y, -bb.min.z);
   holder.updateMatrixWorld(true);
   const b2 = new THREE.Box3().setFromObject(holder);
-  m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; const mt = o.material; mt.metalness = 0; mt.roughness = 0.9; mt.metalnessMap = null; mt.roughnessMap = null; mt.needsUpdate = true; } });
+  m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; const mt = o.material = o.material.clone(); mt.metalness = 0; mt.roughness = 0.9; mt.metalnessMap = null; mt.roughnessMap = null;
+    // tread: { band: [a, b], hw, ax, ay, period, phase } - the track belts (surfaces facing out of the side
+    // profile, within the band of the half-width) painted with tread links shifted by phase: a frame of the
+    // tracks running (for a model whose tracks are not separate parts)
+    if (tread) {
+      const T = tread, key = JSON.stringify(T);
+      mt.customProgramCacheKey = () => key;
+      mt.onBeforeCompile = (sh) => {
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMP; varying vec3 vMN;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvMP = position; vMN = normal;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vMP; varying vec3 vMN;').replace('#include <map_fragment>', `#include <map_fragment>
+          { float lat = abs(vMP.z) / ${T.hw.toFixed(4)}; vec3 n = normalize(vMN);
+            if (lat > ${T.band[0].toFixed(3)} && lat < ${T.band[1].toFixed(3)} && abs(n.z) < 0.45) {
+              float th = atan(vMP.y / ${T.ay.toFixed(4)}, vMP.x / ${T.ax.toFixed(4)});
+              float k = fract(th * ${(T.r / T.period).toFixed(4)} + ${T.phase.toFixed(4)});
+              float plate = smoothstep(0.0, 0.1, k) * (1.0 - smoothstep(0.58, 0.68, k));
+              diffuseColor.rgb *= mix(0.42, 1.1, plate);
+            } }`);
+      };
+    }
+    mt.needsUpdate = true; } });
   if (marker) { const q = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0xff0000 })); q.position.set(3, 0, 0.15); scene.add(q); }
   // ground: receives the shadow only
   const R = Math.max(b2.max.x - b2.min.x, b2.max.y - b2.min.y);

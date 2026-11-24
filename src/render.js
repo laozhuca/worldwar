@@ -1794,11 +1794,13 @@ export class Renderer {
   drawTank(ctx, p, u, t, selected, time) {
     if (selected) { ctx.strokeStyle = 'rgba(160,255,110,0.95)'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.ellipse(p.x, p.y, 52, 26, 0, 0, TAU); ctx.stroke(); }
     const dir = ((Math.round(Math.atan2(u.hy, u.hx) / (Math.PI / 4)) % 8) + 8) % 8;
-    const rock = u.moving ? Math.sin(time * 7 + u.seed * 9) * 1.2 : 0;
+    // the tracks run while it moves (4 pre-rendered positions of the tread links), still when it stops
+    const frame = Math.floor(((u.roll || 0) * 14)) % 4;
+    const rock = 0;
     const sink = u.stuck === 'ditched' ? 7 : 0;
     ctx.save();
     if (u.stuck === 'ditched') { ctx.translate(p.x, p.y); ctx.rotate(0.1 * (dir < 4 ? 1 : -1)); ctx.translate(-p.x, -p.y); }
-    const ok = this.drawFrame(ctx, 'units', `tank_d${dir}`, p.x, p.y + rock + sink, 1);
+    const ok = this.drawFrame(ctx, 'units', `tank_d${dir}_f${frame}`, p.x, p.y + rock + sink, 1);
     ctx.restore();
     if (!ok) { ctx.fillStyle = '#4a4436'; ctx.beginPath(); ctx.ellipse(p.x, p.y - 12, 40, 20, 0, 0, TAU); ctx.fill(); }
     if (u.stuck === 'broken' && Math.floor(time * 2 + u.seed * 5) % 3 === 0) { ctx.fillStyle = 'rgba(70,70,72,0.35)'; ctx.beginPath(); ctx.arc(p.x + 6, p.y - 44 - (time * 12 % 14), 7, 0, TAU); ctx.fill(); } // smoke from the engine

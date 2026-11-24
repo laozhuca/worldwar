@@ -40,5 +40,8 @@ battle 1 in `src/campaign.js`), whose tiles inside the footprint are then made i
 
 ## The Black Day (battle 5)
 
-`tank_d0`-`tank_d7` (in `assets/props`, packed into the units atlas): Rustclad Landship, rendered for each of
-the 8 headings d with `--yaw π/4 + (5 - d)·π/4 --scale 1.3 --px 3 --sat 0.85` (manifest scale 3).
+`tank_d{0-7}_f{0-3}` (in `assets/props`, packed into the units atlas): Rustclad Landship, for each of the 8
+headings d at yaw π/4 + (5 - d)·π/4, scale 1.3, px 3, saturation 0.85 (manifest scale 3), in 4 positions of the
+tracks: the model is one mesh, so `renderTown` takes a `tread` option that paints moving tread links on the
+track belts (surfaces facing out of the side profile, between 20% and 62% of the half-width) - band [0.2, 0.62],
+hw 0.677, ax 0.95, ay 0.42, r 0.68, period 0.075, phase f/4.
