@@ -470,8 +470,8 @@ export function planRoute(state, u, x, y) {
   return findPath(state.map, u.x, u.y, x, y, speedAt, climb);
 }
 
-export const TANK_DITCH = 0.1; // chance of ditching in each enemy trench a tank crosses (a third of that in its own)
-export const TANK_BREAKDOWN = 1 / 200; // chance per second, on the move, of a mechanical failure
+export const TANK_DITCH = 0.1; // chance of ditching in each enemy trench a tank crosses (never in its own: the crossings are known)
+export const TANK_BREAKDOWN = 1 / 1500; // chance per second, on the move, of a mechanical failure
 /**
  * A tank's own business each tick: it flattens the wire it rolls over; crossing a trench it may ditch
  * (nose down, tracks spinning) and on the move it may break down - either way it moves no more, though it
@@ -482,9 +482,9 @@ function tankTick(state, u, tile, dt) {
   if (tile && tile.wire > 0) { tile.wire = 0; markChanged(state.map, tile.x, tile.y); }
   const key = tile ? tile.y * state.map.w + tile.x : -1;
   if (key !== u.lastTile) {
-    // on rolling down into a trench (not along one): it may ditch - more likely in the enemy's broad trenches
+    // on rolling down into a trench (not along one): it may ditch in the enemy's broad trenches
     const into = tile && tile.trench && !u.wasOnTrench;
-    if (into && !u.stuck && rand() < (tile.origOwner === u.team ? TANK_DITCH * 0.35 : TANK_DITCH)) { u.stuck = 'ditched'; if (u.team === PLAYER) pushMessage(state, 'A tank has ditched in a trench!', 'warn'); }
+    if (into && !u.stuck && tile.origOwner !== u.team && rand() < TANK_DITCH) { u.stuck = 'ditched'; if (u.team === PLAYER) pushMessage(state, 'A tank has ditched in a trench!', 'warn'); }
     u.wasOnTrench = !!(tile && tile.trench);
     u.lastTile = key;
   }
