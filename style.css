@@ -871,6 +871,7 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 #duo .side.left { left: var(--gap); } #duo .side.right { right: var(--gap); }
 #duo .side img { width: var(--ps); height: var(--ps); object-fit: cover; border: 1px solid rgba(239, 228, 203, 0.45); box-shadow: 0 4px 18px rgba(0, 0, 0, 0.75); }
 #duo .side .name { font-size: clamp(11px, 1.2vw, 15px); letter-spacing: 3px; text-transform: uppercase; color: #e6d7b8; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+#duo .side img.flip { transform: scaleX(-1); }
 #duo .side.quiet { opacity: 0.45; filter: grayscale(0.6) brightness(0.8); transform: scale(0.94); }
 #duo .side.away { display: none; }
 #duo .bubble { position: absolute; bottom: calc(2.4vh + var(--ps) * 0.42); max-width: min(560px, calc(100vw - 2 * (var(--gap) + var(--ps)) - 70px));

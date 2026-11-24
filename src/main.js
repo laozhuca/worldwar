@@ -816,6 +816,13 @@ function playTour(state, points, done) {
   window.addEventListener('keydown', onKey, true);
   view.addEventListener('pointerdown', onClick, true);
 }
+/** Which way the speakers' portraits look (1: to the right of the picture, -1: to the left), and which have lettering. */
+const LOOKS = {
+  'story-leguen': { dir: 1, lettering: true }, 'story-moreau': { dir: 1, lettering: true }, // (FUSILIERS MARINS on their caps)
+  'story-rossi': { dir: 1 }, 'story-bianchi': { dir: 1 },
+  'story-mehmet': { dir: -1 }, 'story-hasan': { dir: -1 },
+  // (Ivanov and Sokolov look straight out of the picture)
+};
 function playOpening(state, lines, done, scene = null) {
   stopOpening();
   // a level may play its own scene on the map under the dialogue: told which line is up, how long it has been
@@ -832,7 +839,16 @@ function playOpening(state, lines, done, scene = null) {
   const duo = document.getElementById('duo'), sides = [...duo.querySelectorAll('.side')], bubble = duo.querySelector('.bubble'), narr = duo.querySelector('.narr'), duoHint = duo.querySelector('.hint');
   const speakers = [...new Set(lines.filter((l) => l.img && !l.wide && l.who).map((l) => l.img))].slice(0, 2);
   const names = speakers.map((img) => lines.find((l) => l.img === img && l.who).who);
-  sides.forEach((sd, k) => { sd.classList.toggle('away', !speakers[k]); if (speakers[k]) { sd.querySelector('img').src = speakers[k]; sd.querySelector('.name').textContent = names[k]; } });
+  // turned to face each other: the one on the left looking right, the one on the right looking left - a portrait
+  // looking the other way is mirrored, unless there is lettering in it (it would read backwards)
+  sides.forEach((sd, k) => {
+    sd.classList.toggle('away', !speakers[k]);
+    if (!speakers[k]) return;
+    const im = sd.querySelector('img'), look = LOOKS[(speakers[k].match(/([^/]+)\.\w+$/) || [])[1]];
+    im.src = speakers[k];
+    im.classList.toggle('flip', !!look && look.dir === (k ? 1 : -1) && !look.lettering);
+    sd.querySelector('.name').textContent = names[k];
+  });
   const showDuo = (l) => {
     box.className = 'hidden';
     duo.classList.remove('hidden');
