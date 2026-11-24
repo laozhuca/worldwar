@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const F = new THREE.Vector3(-0.61237, -0.61237, -0.5); // the game's view direction (map X, Y on the ground, Z up)
 const L = new THREE.Vector3(-0.38, -0.62, 0.69).normalize(); // the game's sun (-0.62, -0.38, 0.69) with X and Y swapped: the game's map is the mirror image of three.js's right-handed world
 let model;
-window.load = async (f) => { model = (await new GLTFLoader().loadAsync(f)).scene; return true; };
+window.load = async (f) => { model = (await new GLTFLoader().loadAsync(f)).scene; window.model = model; return true; };
 // render: yaw (rad), S = tiles per model unit, P = px per tile; returns { url, ax, ay } (ax, ay: where the model's centre on the ground lands)
 window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null }) => {
   const scene = new THREE.Scene();
@@ -32,11 +32,14 @@ window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null }) => {
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMP; varying vec3 vMN;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvMP = position; vMN = normal;');
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vMP; varying vec3 vMN;').replace('#include <map_fragment>', `#include <map_fragment>
           { float lat = abs(vMP.z) / ${T.hw.toFixed(4)}; vec3 n = normalize(vMN);
-            if (lat > ${T.band[0].toFixed(3)} && lat < ${T.band[1].toFixed(3)} && abs(n.z) < 0.45) {
+            vec2 q = vec2(vMP.x / ${T.ax.toFixed(4)}, vMP.y / ${T.ay.toFixed(4)}); float rho = length(q);
+            vec2 rd = normalize(vec2(vMP.x / ${(T.ax * T.ax).toFixed(5)}, vMP.y / ${(T.ay * T.ay).toFixed(5)}));
+            float rdot = length(n.xy) > 0.01 ? dot(normalize(n.xy), rd) : 0.0;
+            if (lat > ${T.band[0].toFixed(3)} && lat < ${T.band[1].toFixed(3)} && abs(n.z) < 0.45 && rho > ${(T.rho ? T.rho[0] : 0).toFixed(3)} && rho < ${(T.rho ? T.rho[1] : 9).toFixed(3)} && rdot > ${(T.rad ?? -2).toFixed(3)} && vMP.y < ${(T.ymax ?? 9).toFixed(3)} && (abs(vMP.x) > ${(T.xin ?? 0).toFixed(3)} || (abs(n.y) > 0.6 && ((vMP.y > ${(T.ytop ?? -9).toFixed(3)} && vMP.y < ${(T.ytopmax ?? 9).toFixed(3)}) || vMP.y < ${(T.ybot ?? 9).toFixed(3)})))) {
               float th = atan(vMP.y / ${T.ay.toFixed(4)}, vMP.x / ${T.ax.toFixed(4)});
               float k = fract(th * ${(T.r / T.period).toFixed(4)} + ${T.phase.toFixed(4)});
               float plate = smoothstep(0.0, 0.1, k) * (1.0 - smoothstep(0.58, 0.68, k));
-              diffuseColor.rgb *= mix(0.18, 1.35, plate);
+              diffuseColor.rgb *= mix(0.18, 1.35, plate);${T.debug ? ' diffuseColor.rgb = vec3(1.0, 0.0, 0.0);' : ''}
             } }`);
       };
     }
