@@ -772,7 +772,7 @@ async function startLevel(id) {
   const L = levelById(id);
   const begin = () => { if (L.openingEnd) L.openingEnd(state); announce(state); };
   const afterOpening = () => (L.tour ? playTour(state, L.tour(state), begin) : begin());
-  if (L.opening) playOpening(state, L.opening, afterOpening);
+  if (L.opening) playOpening(state, L.opening, afterOpening, L.openingScene);
   else afterOpening();
 }
 
@@ -816,8 +816,15 @@ function playTour(state, points, done) {
   window.addEventListener('keydown', onKey, true);
   view.addEventListener('pointerdown', onClick, true);
 }
-function playOpening(state, lines, done) {
+function playOpening(state, lines, done, scene = null) {
   stopOpening();
+  // a level may play its own scene on the map under the dialogue: told which line is up, how long it has been
+  // shown, and the frame time; it can steer the camera (look) and shake it
+  const r = renderer;
+  const look = (x, y, z) => { const w = iso(x, y); const tx = r.M * w.x, ty = w.y, k = 0.08; r.cam.x += (tx - r.cam.x) * k; r.cam.y += (ty - r.cam.y) * k; r.cam.zoom += (z - r.cam.zoom) * k; r.clampCam(); };
+  const shake = (v) => { r.atmo.shake = Math.max(r.atmo.shake, v); };
+  const play = (o) => { if (scene) scene(state, { look, shake, ...o }); };
+  const home = { x: r.cam.x, y: r.cam.y, z: r.cam.zoom }; // (where the camera goes back to when the scene is over)
   const box = document.getElementById('story');
   const who = box.querySelector('.who'), line = box.querySelector('.line'), hint = box.querySelector('.hint'), pic = box.querySelector('.pic');
   let i = -1, t = 0, until = 0;
@@ -840,14 +847,15 @@ function playOpening(state, lines, done) {
     show(l);
     t = 0; until = (l.hold || 2.2) + l.text.split(' ').length * 0.3;
     if (l.sound) sound.play(l.sound, 1);
+    play({ i, t: 0, dt: 0, start: true });
   };
   const onKey = (e) => {
     if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); next(); }
     else if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); finish(); }
   };
   const cleanup = () => { window.removeEventListener('keydown', onKey, true); box.onclick = null; box.className = 'hidden'; pic.classList.remove('wide'); };
-  const finish = () => { if (opening !== self) return; cleanup(); opening = null; done(); };
-  const self = { tick(dt) { t += dt; if (t >= until) next(); }, stop: cleanup };
+  const finish = () => { if (opening !== self) return; cleanup(); opening = null; play({ done: true }); if (scene) { r.cam.x = home.x; r.cam.y = home.y; r.cam.zoom = home.z; r.clampCam(); } done(); };
+  const self = { tick(dt) { t += dt; play({ i, t, dt }); if (t >= until) next(); }, stop: cleanup };
   opening = self;
   window.addEventListener('keydown', onKey, true);
   box.onclick = next;
