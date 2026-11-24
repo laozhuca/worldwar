@@ -88,6 +88,12 @@ export class UI {
   /** One of the units answers the order (voice + speech bubble). */
   speak(kind, units) {
     if (!units || !units.length) return;
+    // a tank answers with its engine and tracks (one at a time: a new one cuts the last short), not a voice
+    if (units.some((u) => u.type === 'tank') && (kind === 'select' || kind === 'move' || kind === 'charge')) {
+      this.sound.play('tank', 1);
+      units = units.filter((u) => u.type !== 'tank');
+      if (!units.length) return;
+    }
     if (kind === 'charge') this.sound.charge();
     if (!this.voices) return;
     // the unit nearest the middle of the screen answers, so its speech bubble is in view
@@ -190,7 +196,7 @@ export class UI {
     orderMove(this.state, mv, x, y, kind);
     // a third of infantry move orders are answered by marching boots (crunching snow in winter) instead
     // of a voice; charges always get their shout, whistle and battle cry
-    if (kind !== 'charge' && mv.some((u) => u.type !== 'artillery') && Math.random() < 0.33) this.sound.play(this.state.season === 'winter' ? 'bootsSnow' : 'boots', 1);
+    if (kind !== 'charge' && mv.some((u) => u.type !== 'artillery' && u.type !== 'tank') && Math.random() < 0.33) this.sound.play(this.state.season === 'winter' ? 'bootsSnow' : 'boots', 1);
     else this.speak(kind === 'charge' ? 'charge' : 'move', mv);
     this.state.effects.push({ type: 'boom', x, y, age: 0.55, life: 0.7 });
     return true;

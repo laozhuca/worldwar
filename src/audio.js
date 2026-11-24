@@ -17,7 +17,7 @@ export class Sound {
   /** Recorded sound effects (assets/sfx), decoded once audio is unlocked. */
   loadSamples() {
     if (this.sampleLoad || !this.ctx) return;
-    const SETS = { artyfire: ['fire'], boom: ['shell-2', 'shell-3', 'shell-4'], rifle: ['rifle-1', 'rifle-2', 'rifle-3', 'rifle-4', 'rifle-5'], mg: ['mg-1', 'mg-2', 'mg-3', 'mg-4'], whistle: ['whistle'], cry: ['battle-cry'], death: ['death-1', 'death-2', 'death-3', 'death-4'], boots: ['boots'], bootsSnow: ['boots-snow'], trumpet: ['trumpet'], incoming: ['whistle-in-1', 'whistle-in-2'], duck: ['duck-1', 'duck-2', 'bird-1', 'bird-2'], wind: ['wind-birch'], splash: ['water-burst'], grounding: ['clyde-grounding'] }; // a lull: a duck or a bird
+    const SETS = { artyfire: ['fire'], boom: ['shell-2', 'shell-3', 'shell-4'], rifle: ['rifle-1', 'rifle-2', 'rifle-3', 'rifle-4', 'rifle-5'], mg: ['mg-1', 'mg-2', 'mg-3', 'mg-4'], whistle: ['whistle'], cry: ['battle-cry'], death: ['death-1', 'death-2', 'death-3', 'death-4'], boots: ['boots'], bootsSnow: ['boots-snow'], trumpet: ['trumpet'], incoming: ['whistle-in-1', 'whistle-in-2'], duck: ['duck-1', 'duck-2', 'bird-1', 'bird-2'], wind: ['wind-birch'], splash: ['water-burst'], grounding: ['clyde-grounding'], tank: ['tank-1', 'tank-2', 'tank-3', 'tank-4', 'tank-5'] }; // a lull: a duck or a bird
     this.sampleLoad = Promise.all(Object.entries(SETS).map(([type, names]) => Promise.all(names.map((n) =>
       fetch(`assets/sfx/${n}.mp3`).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a)).catch(() => null)))
       .then((bufs) => { const ok = bufs.filter(Boolean); if (ok.length) this.samples[type] = ok; })));
@@ -61,7 +61,7 @@ export class Sound {
   playSample(type, vol, delay = 0) {
     const bufs = this.samples[type];
     if (!bufs) return false;
-    const MAX = { splash: 6, cry: 6, boom: 8, artyfire: 4, rifle: 6, death: 3, incoming: 3 }[type] || 4; // cap overlapping long tails in a heavy barrage
+    const MAX = { tank: 1, splash: 6, cry: 6, boom: 8, artyfire: 4, rifle: 6, death: 3, incoming: 3 }[type] || 4; // cap overlapping long tails in a heavy barrage
     const c = this.ctx, act = (this.active[type] ||= []);
     // a new impact always plays; at the cap the oldest tail fades out over 0.4 s to make room
     if (act.length >= MAX) {
@@ -75,7 +75,7 @@ export class Sound {
     // shell bursts are heard from far off: louder, and they fade less with distance
     if (type === 'boom') vol = Math.sqrt(vol);
     if (type === 'splash') vol = Math.sqrt(vol); // (heard from far off, like a shell burst)
-    g.gain.value = vol * ({ grounding: 1.3, splash: 1.6, boom: 1.9, artyfire: 0.75, rifle: 0.5, whistle: 0.8, cry: 0.9, death: 0.75, boots: 0.6, bootsSnow: 0.6, trumpet: 0.8, incoming: 0.6, duck: 0.55 }[type] || 0.7);
+    g.gain.value = vol * ({ tank: 0.9, grounding: 1.3, splash: 1.6, boom: 1.9, artyfire: 0.75, rifle: 0.5, whistle: 0.8, cry: 0.9, death: 0.75, boots: 0.6, bootsSnow: 0.6, trumpet: 0.8, incoming: 0.6, duck: 0.55 }[type] || 0.7);
     src.connect(g); g.connect(this.master);
     const voice = { src, g };
     act.push(voice);
@@ -244,7 +244,7 @@ export class Sound {
     if (type === 'mg' && this.samples.mg && id !== undefined) { this.playGun(id, vol); return; }
     if (type === 'cheer') { this.cheer(); return; }
     const now = performance.now();
-    const gap = { splash: 60, boom: 60, artyfire: 90, mg: 110, rifle: 70, supply: 500, whistle: 2500, cry: 2500, death: 250, boots: 3000, bootsSnow: 3000, incoming: 300 }[type] || 80;
+    const gap = { tank: 350, splash: 60, boom: 60, artyfire: 90, mg: 110, rifle: 70, supply: 500, whistle: 2500, cry: 2500, death: 250, boots: 3000, bootsSnow: 3000, incoming: 300 }[type] || 80;
     if (now - (this.last[type] || 0) < gap) return;
     this.last[type] = now;
     if (this.playSample(type, vol, delay)) return;
