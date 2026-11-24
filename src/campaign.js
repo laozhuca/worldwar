@@ -951,6 +951,7 @@ export const LEVELS = [
           const u = spawnUnit(s, 'rifle', ENEMY, x + 0.5, y + 0.5);
           u.ai.role = 'reserve';
           orderMove(s, [u], c(y) - d * 1 + 0.5, y + 0.5); // to the sandbank
+          if (k === 0) (s.campaign.firstWave ||= { ids: [], at: s.time }).ids.push(u.id); // (the first wave goes in all together: check)
         }
         pushMessage(s, k === 0 ? 'The first boats are pulling for the beach!' : 'More boats are coming in across the bay.', 'warn');
       } })),
@@ -961,6 +962,7 @@ export const LEVELS = [
           const u = spawnUnit(s, 'rifle', ENEMY, q.x + 0.5, q.y + 0.5 - i * 0.8);
           u.ai.role = 'reserve';
           orderMove(s, [u], c(q.y) - d * 1 + 0.5, q.y + 0.5 - i);
+          if (k === 0) (s.campaign.firstWave ||= { ids: [], at: s.time }).ids.push(u.id);
         }
         pushMessage(s, k === 0 ? 'The River Clyde has run aground! Men are pouring out of her sides.' : 'More men are coming out of the River Clyde.', 'warn');
       } })),
@@ -986,6 +988,27 @@ export const LEVELS = [
     ],
     check(state) {
       const c = state.campaign;
+      // the first wave goes up the beach all together, every squad of it, as soon as the boats are in (or once
+      // most are, if some are slow): each straight at the nearest of our trenches up the slope from it
+      const fw = c.firstWave;
+      if (fw && !fw.charged) {
+        const us = fw.ids.map((id) => state.units.find((u) => u.id === id)).filter((u) => u && !u.dead);
+        const ashore = us.filter((u) => !u.afloat && !u.order);
+        if (!us.length) fw.charged = true;
+        else if (ashore.length === us.length || (ashore.length >= us.length * 0.7 && state.time - fw.at > 30) || state.time - fw.at > 60) {
+          fw.charged = true;
+          const { map } = state, W = map.w, up = -teamDir(PLAYER); // (up the slope, away from the sea: towards us)
+          for (const u of us) {
+            let best = null, bd = Infinity;
+            for (let dy = -3; dy <= 3; dy++) for (let ax = 1; ax <= 30; ax++) {
+              const t = map.tiles[(Math.floor(u.y) + dy) * W + Math.floor(u.x) + up * ax];
+              if (t && t.trench && t.owner === PLAYER) { const dd = ax + Math.abs(dy) * 0.8; if (dd < bd) bd = dd, best = t; break; }
+            }
+            if (best) { u.ai.role = 'reserve'; orderMove(state, [u], best.x + 0.5, best.y + 0.5, 'charge'); }
+          }
+          pushMessage(state, 'The first wave is charging up the beach!', 'warn');
+        }
+      }
       if (frontHeld(state) < c.front.length / 2) return { result: 'lost', reason: 'More than half of our line above the beach has fallen.' };
       if (clockHours(state) >= 20) {
         if (!c.cheered) { c.cheered = true; pushMessage(state, 'Night falls. The enemy is still pinned on the beach!', 'good'); state.events.push({ type: 'cheer' }); c.nightAt = state.time; }
