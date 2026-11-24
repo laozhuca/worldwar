@@ -83,7 +83,7 @@ export const UNIT_TYPES = {
     hpPerMan: 40,
     range: 8, // its machine guns, firing every way
     sight: 9,
-    speed: 0.22,
+    speed: 0.44,
     melee: 0,
     fireInterval: 0.6,
     burst: 6,
