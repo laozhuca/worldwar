@@ -470,8 +470,9 @@ export function planRoute(state, u, x, y) {
   return findPath(state.map, u.x, u.y, x, y, speedAt, climb);
 }
 
-export const TANK_DITCH = 0.1; // chance of ditching in each enemy trench a tank crosses (never in its own: the crossings are known)
-export const TANK_HIT = 0.25; // share of a tank's full strength a direct shell hit takes away (four hits knock it out)
+export const TANK_DITCH = 0.2; // chance of ditching in each enemy trench a tank crosses (never in its own: the crossings are known)
+export const TANK_HIT = 0.34, TANK_NEAR = 0.1; // share of a tank's full strength a shell takes away: bursting right on it (three
+// hits knock it out), or close beside it (within 1.5 tiles)
 export const TANK_BREAKDOWN = 1 / 1500; // chance per second, on the move, of a mechanical failure
 /**
  * A tank's own business each tick: it flattens the wire it rolls over; crossing a trench it may ditch
@@ -787,10 +788,10 @@ function fire(state, u, target, t) {
  */
 export function damageUnit(state, u, amount, blast = null, shooter = null) {
   if (u.dead || amount <= 0 || u.invulnerable) return; // invulnerable: kept alive by a scripted scene
-  if (u.type === 'tank') { // armour: bullets and splinters glance off; a shell bursting right on it does a quarter of its strength
-    if (!blast || blast.d > 0.8) return;
+  if (u.type === 'tank') { // armour: bullets glance off; a shell right on it or close beside it costs it a share of its strength
+    if (!blast || blast.d > 1.5) return;
     const full = UNIT_TYPES.tank.men * UNIT_TYPES.tank.hpPerMan;
-    amount = Math.min(u.hp, full * TANK_HIT);
+    amount = Math.min(u.hp, full * (blast.d <= 0.8 ? TANK_HIT : TANK_NEAR));
     if (amount >= u.hp) {
       state.effects.push({ type: 'smoke', x: u.x, y: u.y, age: 0, life: 40 }, { type: 'boom', x: u.x, y: u.y, age: 0, life: 0.7 });
       if (u.team === PLAYER) pushMessage(state, 'A tank has been knocked out!', 'loss');

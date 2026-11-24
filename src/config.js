@@ -98,7 +98,7 @@ export const UNIT_TYPES = {
     cost: { men: 8, ammo: 300, supplies: 200 },
     hotkey: '4',
     special: true, // (only where a level provides it)
-    desc: 'A landship: rolls over wire and trenches, its machine guns fire every way and its side guns hit what lies abeam. Bullets glance off and it is never pinned; a direct shell hit costs it a quarter of its strength. It may ditch in a trench or break down, and its ammunition runs out.',
+    desc: 'A landship: rolls over wire and trenches, its machine guns fire every way and its side guns hit what lies abeam. Bullets glance off and it is never pinned; a direct shell hit costs it a third of its strength, a near miss less. It may ditch in a trench or break down, and its ammunition runs out.',
   },
 };
 
