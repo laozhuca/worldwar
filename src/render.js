@@ -1671,6 +1671,13 @@ export class Renderer {
       const p = last.get(u.id);
       if (!p) { last.set(u.id, { x: u.x, y: u.y }); continue; }
       const d = Math.hypot(u.x - p.x, u.y - p.y);
+      if (u.type === 'tank') { // a tank's tracks: a segment of both treads for every quarter tile it rolls
+        if (d < 0.25) continue;
+        (this.tankTracks || (this.tankTracks = [])).push({ x0: p.x, y0: p.y, x1: u.x, y1: u.y, t: state.time });
+        if (this.tankTracks.length > 2400) this.tankTracks.splice(0, this.tankTracks.length - 2400);
+        p.x = u.x; p.y = u.y;
+        continue;
+      }
       if (d < 0.45) continue;
       tr.push({ x: u.x, y: u.y, ang: Math.atan2(u.y - p.y, u.x - p.x), t: state.time, w: u.type === 'artillery' ? 2 : 1 });
       p.x = u.x; p.y = u.y;
@@ -1678,6 +1685,7 @@ export class Renderer {
     if (tr.length > 1600) tr.splice(0, tr.length - 1600);
   }
   drawTracks(ctx, state) {
+    this.drawTankTracks(ctx, state);
     if (!this.tracks) return;
     const snow = (this.S ?? 1) > 0.2;
     for (const k of this.tracks) {
@@ -1691,6 +1699,43 @@ export class Renderer {
         ctx.beginPath(); ctx.ellipse(p.x + ox * i * 0.6, p.y + oy * i * 0.6, 4.5, 2.2, 0, 0, TAU); ctx.fill();
       }
     }
+  }
+
+  /**
+   * The ruts a tank leaves: two bands of churned earth, the imprint of each tread plate across them, laid flat
+   * on the ground (in map space) along its path; they fade slowly over some minutes.
+   */
+  drawTankTracks(ctx, state) {
+    const T = this.tankTracks;
+    if (!T || !T.length) return;
+    const snow = (this.S ?? 1) > 0.2, LIFE = 360, GAUGE = 0.36, W = 0.24;
+    const base = ctx.getTransform();
+    ctx.transform(TW / 2, TH / 2, -TW / 2, TH / 2, 0, 0); // map tiles
+    for (const k of T) {
+      const age = state.time - k.t;
+      if (age > LIFE || age < 0) continue;
+      const a = (1 - age / LIFE) ** 0.7;
+      const dx = k.x1 - k.x0, dy = k.y1 - k.y0, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, nx = -uy, ny = ux;
+      for (const side of [-1, 1]) {
+        const cx = k.x0 + nx * GAUGE * side, cy = k.y0 + ny * GAUGE * side;
+        // the band, a little darker at its edges
+        // a ridge of churned earth thrown up along each side, catching the light
+        ctx.strokeStyle = snow ? `rgba(236,240,246,${0.5 * a})` : `rgba(150,130,100,${0.38 * a})`; ctx.lineWidth = 0.05;
+        ctx.beginPath();
+        for (const e of [-1, 1]) { const ex = cx + nx * e * W * 0.62, ey = cy + ny * e * W * 0.62; ctx.moveTo(ex, ey); ctx.lineTo(ex + dx, ey + dy); }
+        ctx.stroke();
+        ctx.fillStyle = snow ? `rgba(60,66,78,${0.5 * a})` : `rgba(14,9,5,${0.58 * a})`;
+        ctx.beginPath();
+        ctx.moveTo(cx + nx * W / 2, cy + ny * W / 2); ctx.lineTo(cx + nx * W / 2 + dx, cy + ny * W / 2 + dy);
+        ctx.lineTo(cx - nx * W / 2 + dx, cy - ny * W / 2 + dy); ctx.lineTo(cx - nx * W / 2, cy - ny * W / 2); ctx.closePath(); ctx.fill();
+        // the imprints of the tread plates, across the band
+        ctx.strokeStyle = snow ? `rgba(30,34,44,${0.6 * a})` : `rgba(4,2,1,${0.7 * a})`; ctx.lineWidth = 0.04;
+        ctx.beginPath();
+        for (let s2 = 0.04; s2 < L; s2 += 0.09) { const px = cx + ux * s2, py = cy + uy * s2; ctx.moveTo(px + nx * W * 0.45, py + ny * W * 0.45); ctx.lineTo(px - nx * W * 0.45, py - ny * W * 0.45); }
+        ctx.stroke();
+      }
+    }
+    ctx.setTransform(base);
   }
 
   /** Load soldier sheets for the nations in play, plus the artillery art. */
