@@ -1709,6 +1709,7 @@ export class Renderer {
     const T = this.tankTracks;
     if (!T || !T.length) return;
     const snow = (this.S ?? 1) > 0.2, LIFE = 360, GAUGE = 0.36, W = 0.24;
+    const map = state.map, trench = (x, y) => { const q = tileAt(map, x, y); return !!(q && q.trench); };
     const base = ctx.getTransform();
     ctx.transform(TW / 2, TH / 2, -TW / 2, TH / 2, 0, 0); // map tiles
     for (const k of T) {
@@ -1718,6 +1719,8 @@ export class Renderer {
       const dx = k.x1 - k.x0, dy = k.y1 - k.y0, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, nx = -uy, ny = ux;
       for (const side of [-1, 1]) {
         const cx = k.x0 + nx * GAUGE * side, cy = k.y0 + ny * GAUGE * side;
+        // no ruts across a trench: there the tread spans the gap in the air (nor in one dug since)
+        if (trench(cx, cy) || trench(cx + dx / 2, cy + dy / 2) || trench(cx + dx, cy + dy)) continue;
         // the band, a little darker at its edges
         // a ridge of churned earth thrown up along each side, catching the light
         ctx.strokeStyle = snow ? `rgba(236,240,246,${0.5 * a})` : `rgba(150,130,100,${0.38 * a})`; ctx.lineWidth = 0.05;
