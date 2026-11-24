@@ -91,8 +91,8 @@ export const UNIT_TYPES = {
     damage: 6,
     suppressPerShot: 2.6,
     ammoPerShot: 0, // (its own ammunition, aboard)
-    mgRounds: 300, // bursts of machine-gun fire it carries
-    shells: 20, // rounds for its side guns
+    mgRounds: 150, // bursts of machine-gun fire it carries
+    shells: 10, // rounds for its side guns
     cannonRange: 11,
     cannonInterval: 4.5,
     cost: { men: 8, ammo: 300, supplies: 200 },

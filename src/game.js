@@ -786,9 +786,11 @@ function fire(state, u, target, t) {
 
   u.firing = t.burst ? 0.4 : 0.15;
   u.lastShot = state.time; // (a man firing from under planks shows himself)
-  const sx = (target.x - u.x) - (target.y - u.y);
-  if (Math.abs(sx) > 0.05) u.facing = Math.sign(sx);
-  if (d > 0.01) { u.hx = (target.x - u.x) / d; u.hy = (target.y - u.y) / d; }
+  if (u.type !== 'tank') { // (a tank's machine guns fire every way: the hull does not swing round to shoot, ditched or not)
+    const sx = (target.x - u.x) - (target.y - u.y);
+    if (Math.abs(sx) > 0.05) u.facing = Math.sign(sx);
+    if (d > 0.01) { u.hx = (target.x - u.x) / d; u.hy = (target.y - u.y) / d; }
+  }
   state.effects.push({ type: t.burst ? 'tracer' : 'volley', x: u.x, y: u.y, tx: target.x, ty: target.y, age: 0, life: t.burst ? 0.35 : 0.18, team: u.team, n: shots * ammoFactor, deck: u.deck || 0 });
   state.events.push({ type: t.burst ? 'mg' : 'rifle', x: u.x, y: u.y, id: u.id });
 }
