@@ -903,6 +903,14 @@ export const LEVELS = [
           let x = f0(y), yy = y;
           while ((fwd(yy) - x) * d > 0) { x += d; if (rnd() < 0.25) { const j = rnd() < 0.5 ? -1 : 1; if (dig(x - d, yy + j, 1)) yy += j; } dig(x, yy, 1); }
         }
+        // machine guns dug in: three along the second fire trench and one in the forward line, at the middle of the bay
+        const mgAt = (xAt, y) => {
+          let best = null, bd = Infinity;
+          for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const t = at(xAt(y + dy) + dx, y + dy); if (t && t.trench && t.owner === PLAYER) { const q = Math.hypot(dx, dy); if (q < bd) { bd = q; best = t; } } }
+          if (best) { const g = spawnUnit(state, 'mg', PLAYER, best.x + 0.5, best.y + 0.5); g.inTrench = true; g.setup = 0; }
+        };
+        for (const dy of [-8, 0, 8]) mgAt(mid, M + dy);
+        mgAt(fwd, M - 2);
       }
       noSquares(map);
       // ---- the River Clyde, run aground at the eastern end of the beach, her bow on the sand
@@ -952,6 +960,19 @@ export const LEVELS = [
           u.ai.role = 'reserve';
           orderMove(s, [u], c(y) - d * 1 + 0.5, y + 0.5); // to the sandbank
           if (k === 0) (s.campaign.firstWave ||= { ids: [], at: s.time }).ids.push(u.id); // (the first wave goes in all together: check)
+        }
+        // and machine-gun teams in the mix (two with the first wave, one with each after): ashore they set up
+        // behind the sandbank and fire on our trenches over the heads of their riflemen
+        for (let i = 0, nm = k === 0 ? 2 : 1; i < nm; i++) {
+          let y = M - 6 + Math.floor(((i + 0.5) / nm) * 12) + Math.floor(Math.random() * 3) - 1;
+          const ship = s.buildings && s.buildings[0];
+          if (ship && Math.abs(y + 0.5 - ship.y) <= ship.hy + 1.2) y = Math.round(ship.y - ship.hy - 1.7);
+          let x = c(y) + d * 11;
+          while (x >= 0 && x < W && map.tiles[y * W + x] && (map.tiles[y * W + x].off || map.tiles[y * W + x].block)) x -= d;
+          const g = spawnUnit(s, 'mg', ENEMY, x + 0.5, y + 0.5);
+          g.ai.role = 'hold';
+          orderMove(s, [g], c(y) - d * 1 + 0.5, y + 0.5);
+          if (k === 0) (s.campaign.firstWave ||= { ids: [], at: s.time }).mgs = [...(s.campaign.firstWave.mgs || []), g.id];
         }
         pushMessage(s, k === 0 ? 'The first boats are pulling for the beach!' : 'More boats are coming in across the bay.', 'warn');
       } })),
@@ -1007,6 +1028,16 @@ export const LEVELS = [
             if (best) { u.ai.role = 'reserve'; orderMove(state, [u], best.x + 0.5, best.y + 0.5, 'charge'); }
           }
           pushMessage(state, 'The first wave is charging up the beach!', 'warn');
+        }
+      }
+      // its machine guns come up behind it once the riflemen are into our forward trenches, to fire from there
+      if (fw && fw.charged && !fw.mgsUp && fw.mgs && state.time - (fw.chargedAt ??= state.time) > 20) {
+        fw.mgsUp = true;
+        const { map } = state, W = map.w, up = -teamDir(PLAYER);
+        for (const id of fw.mgs) {
+          const g = state.units.find((u) => u.id === id);
+          if (!g || g.dead || g.afloat) continue;
+          for (let ax = 1; ax <= 20; ax++) { const t = map.tiles[Math.floor(g.y) * W + Math.floor(g.x) + up * ax]; if (t && t.trench && t.owner === ENEMY && t.origOwner === PLAYER) { orderMove(state, [g], t.x + 0.5, t.y + 0.5); break; } if (t && t.trench && t.owner === PLAYER) break; }
         }
       }
       if (frontHeld(state) < c.front.length / 2) return { result: 'lost', reason: 'More than half of our line above the beach has fallen.' };

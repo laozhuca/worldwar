@@ -144,9 +144,9 @@ test('The Beach at Sedd el Bahr: hold the slopes above V Beach until nightfall a
   assert.ok(boats.every((u) => !u.afloat), 'every boat reaches the beach and its men get out (none caught on the River Clyde)');
   assert.ok(rowedBack > 0, 'the empty boats are rowed back out');
   if (!s.returning.length) { s.returning.push({ x: s.campaign.beach.x + 4, y: s.campaign.beach.y, dir: 1, t: s.time }); }
-  const x0 = s.returning.map((b) => b.x);
+  const x0 = new Map(s.returning.map((b) => [b, b.x])); // (followed boat by boat: others come and go meanwhile)
   for (let i = 0; i < 30 * 2; i++) update(s, 1 / 30);
-  assert.ok(s.returning.every((b, k) => Math.sign(b.x - (x0[k] ?? b.x)) === b.dir || x0[k] === undefined), 'out to sea');
+  assert.ok(s.returning.every((b) => !x0.has(b) || Math.sign(b.x - x0.get(b)) === b.dir), 'out to sea');
   s.time = ((20.1 - 5.5) / 24) * s.dayLength;
   for (const u of s.units) if (u.team === ENEMY) u.dead = true;
   for (const i of c.front) s.map.tiles[i].owner = PLAYER;
