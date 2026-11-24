@@ -27,6 +27,65 @@ function frontTiles(state) {
 const frontHeld = (state) => state.campaign.front.filter((i) => state.map.tiles[i].owner === PLAYER).length;
 
 /**
+ * V Beach: the first wave comes out of the River Clyde. The moment the warships' first salvo has fallen her sally
+ * ports open and twelve squads pour out onto the sand either side of her bow, two at a time, with two machine-gun
+ * teams that set up at the bow; each squad charges our machine guns as soon as it is out (firstWaveCharge).
+ */
+function firstWaveFromClyde(s) {
+  const fw = s.campaign.firstWave ||= { ids: [], mgs: [], at: s.time };
+  fw.toCome = 12; fw.mgToCome = 2; fw.next = s.time;
+  pushMessage(s, 'The River Clyde\'s sally ports are open - her men are pouring out onto the beach!', 'warn');
+}
+/** Her men out onto the sand: the tiles of beach beside her bow (found once). */
+function clydeExits(s) {
+  const c = s.campaign;
+  if (c.clydeExits) return c.clydeExits;
+  const { map } = s, W = map.w, d = teamDir(PLAYER), b = s.buildings && s.buildings[0], out = [];
+  if (b) {
+    const tip = Math.floor(b.x - d * b.hx);
+    for (const y of [Math.floor(b.y) - 2, Math.floor(b.y) + 2, Math.floor(b.y) - 3, Math.floor(b.y) + 3]) {
+      for (let x = tip + d * 3, k = 0; k < 10; k++, x -= d) { const t = map.tiles[y * W + x]; if (t && !t.off && !t.sea && !t.rock && !t.block) { out.push(t); break; } }
+    }
+  }
+  return (c.clydeExits = out);
+}
+function firstWavePour(s) {
+  const fw = s.campaign.firstWave;
+  if (!fw || !(fw.toCome > 0 || fw.mgToCome > 0) || s.time < fw.next) return;
+  fw.next = s.time + 1.2;
+  const exits = clydeExits(s);
+  if (!exits.length) { fw.toCome = fw.mgToCome = 0; return; }
+  for (let k = 0; k < 2 && fw.toCome > 0; k++) {
+    const t = exits[(fw.toCome + k) % exits.length];
+    const u = spawnUnit(s, 'rifle', ENEMY, t.x + 0.3 + Math.random() * 0.4, t.y + 0.3 + Math.random() * 0.4);
+    u.ai.role = 'wave'; fw.ids.push(u.id); fw.toCome--;
+  }
+  if (fw.mgToCome > 0 && fw.toCome <= 6) { // (the machine guns come out halfway through, and set up by her bow)
+    const t = exits[fw.mgToCome % exits.length];
+    const g = spawnUnit(s, 'mg', ENEMY, t.x + 0.5, t.y + 0.5);
+    g.ai.role = 'hold'; fw.mgs.push(g.id); fw.mgToCome--;
+  }
+}
+/** The first wave's riflemen: whoever is not on the move charges the nearest of our machine guns (our riflemen once they are gone). */
+function firstWaveCharge(state) {
+  const fw = state.campaign.firstWave;
+  if (!fw || state.time - (fw.tick || 0) < 1) return;
+  fw.tick = state.time;
+  const ours = state.units.filter((u) => u.team === PLAYER && !u.dead && u.type !== 'artillery');
+  const guns = ours.filter((u) => u.type === 'mg');
+  for (const id of fw.ids) {
+    const u = state.units.find((q) => q.id === id);
+    if (!u || u.dead || u.order) continue;
+    const pool = guns.length ? guns : ours;
+    if (!pool.length) continue;
+    const tgt = pool.reduce((a, b) => (Math.hypot(b.x - u.x, b.y - u.y) < Math.hypot(a.x - u.x, a.y - u.y) ? b : a));
+    if (Math.hypot(tgt.x - u.x, tgt.y - u.y) < 0.6) continue; // (on top of it: fighting it out hand to hand)
+    orderMove(state, [u], tgt.x, tgt.y, 'charge');
+  }
+  if (!fw.announced) { fw.announced = true; pushMessage(state, 'The first wave is charging our machine guns!', 'warn'); }
+}
+
+/**
  * A building standing on the battlefield: its tiles are made impassable, and any trench it stands on is dug
  * round it instead (each stretch it cut is joined up again by the shortest way round), units standing
  * there step out to the nearest open ground.
@@ -946,10 +1005,10 @@ export const LEVELS = [
     events: [
       // the boats: tows of cutters rowed in across the bay, wave after wave - the first, the biggest (ten boats,
       // sixty men), the moment the warships' first salvo has fallen
-      ...[5.66, 6.1, 6.6, 7.6, 9.0, 11.0, 13.0, 15.0, 17.0].map((at, k) => ({ at, run: (s) => {
+      ...[5.6, 6.1, 6.6, 7.6, 9.0, 11.0, 13.0, 15.0, 17.0].map((at, k) => ({ at, run: (s) => {
         const { map } = s, W = map.w, M = Math.floor(map.h / 2), d = teamDir(PLAYER), c = s.campaign.coast;
         const n = k === 0 ? 10 : k === 1 ? 5 : 3;
-        if (k === 0) pushMessage(s, 'The boats are coming in. Hold your fire until they reach the wire!', 'side');
+        if (k === 0) return; // (the first wave comes out of the River Clyde, not in boats)
         for (let i = 0; i < n; i++) {
           let y = M - 10 + Math.floor(((i + 0.5) / n) * 20) + Math.floor(Math.random() * 2);
           const ship = s.buildings && s.buildings[0];
@@ -959,11 +1018,10 @@ export const LEVELS = [
           const u = spawnUnit(s, 'rifle', ENEMY, x + 0.5, y + 0.5);
           u.ai.role = 'reserve';
           orderMove(s, [u], c(y) - d * 1 + 0.5, y + 0.5); // to the sandbank
-          if (k === 0) (s.campaign.firstWave ||= { ids: [], at: s.time }).ids.push(u.id); // (the first wave goes in all together: check)
         }
-        // and machine-gun teams in the mix (two with the first wave, one with each after): ashore they set up
-        // behind the sandbank and fire on our trenches over the heads of their riflemen
-        for (let i = 0, nm = k === 0 ? 2 : 1; i < nm; i++) {
+        // and a machine-gun team in the mix with each wave (the first wave brought two): ashore it sets up behind
+        // the sandbank and fires on our trenches over the heads of the riflemen
+        for (let i = 0, nm = 1; i < nm; i++) {
           let y = M - 6 + Math.floor(((i + 0.5) / nm) * 12) + Math.floor(Math.random() * 3) - 1;
           const ship = s.buildings && s.buildings[0];
           if (ship && Math.abs(y + 0.5 - ship.y) <= ship.hy + 1.2) y = Math.round(ship.y - ship.hy - 1.7);
@@ -972,20 +1030,19 @@ export const LEVELS = [
           const g = spawnUnit(s, 'mg', ENEMY, x + 0.5, y + 0.5);
           g.ai.role = 'hold';
           orderMove(s, [g], c(y) - d * 1 + 0.5, y + 0.5);
-          if (k === 0) (s.campaign.firstWave ||= { ids: [], at: s.time }).mgs = [...(s.campaign.firstWave.mgs || []), g.id];
         }
         pushMessage(s, k === 0 ? 'The first boats are pulling for the beach!' : 'More boats are coming in across the bay.', 'warn');
       } })),
       // men out of the River Clyde's sally ports
-      ...[5.68, 7.2, 8.4, 10.0, 12.0, 14.0, 16.0, 18.0].map((at, k) => ({ at, run: (s) => { // (her first men with the first boats)
+      ...[5.6, 7.2, 8.4, 10.0, 12.0, 14.0, 16.0, 18.0].map((at, k) => ({ at, run: (s) => { // (the first: the first wave, twelve squads)
+        if (k === 0) { firstWaveFromClyde(s); return; }
         const q = s.map.hq[ENEMY], c = s.campaign.coast, d = teamDir(PLAYER);
         for (let i = 0; i < 2; i++) {
           const u = spawnUnit(s, 'rifle', ENEMY, q.x + 0.5, q.y + 0.5 - i * 0.8);
           u.ai.role = 'reserve';
           orderMove(s, [u], c(q.y) - d * 1 + 0.5, q.y + 0.5 - i);
-          if (k === 0) (s.campaign.firstWave ||= { ids: [], at: s.time }).ids.push(u.id);
         }
-        pushMessage(s, k === 0 ? 'The River Clyde has run aground! Men are pouring out of her sides.' : 'More men are coming out of the River Clyde.', 'warn');
+        pushMessage(s, 'More men are coming out of the River Clyde.', 'warn');
       } })),
       // the warships' guns
       ...[5.52, 7.0, 8.7, 10.5, 12.5, 14.5, 16.5, 18.5].map((at) => ({ at, run: (s) => { // (the first salvo as soon as the battle opens)
@@ -1009,29 +1066,11 @@ export const LEVELS = [
     ],
     check(state) {
       const c = state.campaign;
-      // the first wave goes up the beach all together, every squad of it, as soon as the boats are in (or once
-      // most are, if some are slow): each straight at the nearest of our trenches up the slope from it
+      firstWavePour(state); // the first wave out of the River Clyde, two squads at a time
+      firstWaveCharge(state); // ...and it goes for our machine guns, and keeps going
+      // its machine guns come up behind it once the riflemen are into our works, to fire from there
       const fw = c.firstWave;
-      if (fw && !fw.charged) {
-        const us = fw.ids.map((id) => state.units.find((u) => u.id === id)).filter((u) => u && !u.dead);
-        const ashore = us.filter((u) => !u.afloat && !u.order);
-        if (!us.length) fw.charged = true;
-        else if (ashore.length === us.length || (ashore.length >= us.length * 0.7 && state.time - fw.at > 30) || state.time - fw.at > 60) {
-          fw.charged = true;
-          const { map } = state, W = map.w, up = -teamDir(PLAYER); // (up the slope, away from the sea: towards us)
-          for (const u of us) {
-            let best = null, bd = Infinity;
-            for (let dy = -3; dy <= 3; dy++) for (let ax = 1; ax <= 30; ax++) {
-              const t = map.tiles[(Math.floor(u.y) + dy) * W + Math.floor(u.x) + up * ax];
-              if (t && t.trench && t.owner === PLAYER) { const dd = ax + Math.abs(dy) * 0.8; if (dd < bd) bd = dd, best = t; break; }
-            }
-            if (best) { u.ai.role = 'reserve'; orderMove(state, [u], best.x + 0.5, best.y + 0.5, 'charge'); }
-          }
-          pushMessage(state, 'The first wave is charging up the beach!', 'warn');
-        }
-      }
-      // its machine guns come up behind it once the riflemen are into our forward trenches, to fire from there
-      if (fw && fw.charged && !fw.mgsUp && fw.mgs && state.time - (fw.chargedAt ??= state.time) > 20) {
+      if (fw && !fw.mgsUp && state.time - fw.at > 25) {
         fw.mgsUp = true;
         const { map } = state, W = map.w, up = -teamDir(PLAYER);
         for (const id of fw.mgs) {

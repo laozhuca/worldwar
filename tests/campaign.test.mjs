@@ -133,9 +133,17 @@ test('The Beach at Sedd el Bahr: hold the slopes above V Beach until nightfall a
   assert.ok(gun && gun.type === 'mg' && gun.invulnerable, 'a machine gun on the River Clyde\'s bow that cannot be knocked out');
   assert.ok(!s.units.some((u) => u.team === ENEMY && u !== gun), 'the rest of the enemy is still at sea');
   assert.ok(s.buildings[0].img.includes('river-clyde'), 'the River Clyde aground');
-  s.time = ((5.75 - 5.5) / 24) * s.dayLength; stepCampaign(s);
-  const boats = s.units.filter((u) => u.team === ENEMY && !u.onShip);
-  assert.ok(boats.length >= 5, 'the first boats');
+  s.time = ((5.65 - 5.5) / 24) * s.dayLength; stepCampaign(s);
+  for (let i = 0; i < 30 * 10; i++) { update(s, 1 / 30); stepCampaign(s); }
+  const wave = s.units.filter((u) => u.team === ENEMY && !u.onShip && u.type === 'rifle');
+  assert.ok(wave.length >= 12, 'the first wave: twelve squads out of the River Clyde');
+  assert.ok(!s.units.some((u) => u.team === ENEMY && u.afloat), 'none of it in boats');
+  assert.ok(wave.every((u) => Math.hypot(u.x - s.buildings[0].x, u.y - s.buildings[0].y) < 16), 'out by her bow');
+  assert.ok(wave.filter((u) => u.order && u.order.kind === 'charge').length >= 10, 'charging');
+  const before = new Set(s.units);
+  s.time = ((6.15 - 5.5) / 24) * s.dayLength; stepCampaign(s);
+  const boats = s.units.filter((u) => u.team === ENEMY && !u.onShip && !before.has(u));
+  assert.ok(boats.length >= 5, 'the next boats');
   update(s, 1 / 30);
   assert.ok(boats.every((u) => u.afloat), 'rowing in');
   for (const u of s.units) if (u.team === PLAYER) u.holdFire = true;
