@@ -471,6 +471,7 @@ export function planRoute(state, u, x, y) {
 }
 
 export const TANK_DITCH = 0.1; // chance of ditching in each enemy trench a tank crosses (never in its own: the crossings are known)
+export const TANK_HIT = 0.25; // share of a tank's full strength a direct shell hit takes away (four hits knock it out)
 export const TANK_BREAKDOWN = 1 / 1500; // chance per second, on the move, of a mechanical failure
 /**
  * A tank's own business each tick: it flattens the wire it rolls over; crossing a trench it may ditch
@@ -569,8 +570,9 @@ function updateUnit(state, u, dt) {
   if (u.overTop && (!u.inTrench || !u.order)) u.overTop = false;
   u.suppression = Math.max(0, u.suppression - dt * SUPPRESSION_DECAY);
   if (u.shock > 0) { u.shock -= dt; u.suppression = Math.max(u.suppression, 75); }
+  if (u.type === 'tank') { u.suppression = 0; u.shock = 0; } // (armour: the crew are neither suppressed nor pinned)
   const charging = !!(u.order && u.order.kind === 'charge');
-  if (charging || u.inTrench) u.pinned = false;
+  if (charging || u.inTrench || u.type === 'tank') u.pinned = false;
   else if (u.suppression > 60) u.pinned = true;
   else if (u.suppression < 30) u.pinned = false;
   u.cooldown = Math.max(0, u.cooldown - dt);
@@ -690,7 +692,7 @@ function updateUnit(state, u, dt) {
 
   // --- small-arms fire
   u.fireTimer = Math.max(0, u.fireTimer - dt * (u.moving ? 0.6 : 1));
-  if (t.range && !charging && !u.holdFire && !u.afloat && !(u.onShip && u.pinned) && !(u.type === 'tank' && !(u.mgRounds > 0)) && u.target && u.setup <= 0 && !(u.packing > 0) && u.fireTimer <= 0) {
+  if (t.range && (!charging || u.type === 'tank') && !u.holdFire && !u.afloat && !(u.onShip && u.pinned) && !(u.type === 'tank' && !(u.mgRounds > 0)) && u.target && u.setup <= 0 && !(u.packing > 0) && u.fireTimer <= 0) {
     if (dist(u, u.target) <= (u.range || t.range)) { // (a unit may have its own reach: the River Clyde's guns)
       fire(state, u, u.target, t);
       if (u.type === 'tank') u.mgRounds--;
@@ -785,11 +787,17 @@ function fire(state, u, target, t) {
  */
 export function damageUnit(state, u, amount, blast = null, shooter = null) {
   if (u.dead || amount <= 0 || u.invulnerable) return; // invulnerable: kept alive by a scripted scene
-  if (u.type === 'tank') { // armour: bullets and splinters glance off; only a shell bursting right on it knocks it out
+  if (u.type === 'tank') { // armour: bullets and splinters glance off; a shell bursting right on it does a quarter of its strength
     if (!blast || blast.d > 0.8) return;
-    amount = u.hp;
-    state.effects.push({ type: 'smoke', x: u.x, y: u.y, age: 0, life: 40 }, { type: 'boom', x: u.x, y: u.y, age: 0, life: 0.7 });
-    if (u.team === PLAYER) pushMessage(state, 'A tank has been knocked out by a direct hit!', 'loss');
+    const full = UNIT_TYPES.tank.men * UNIT_TYPES.tank.hpPerMan;
+    amount = Math.min(u.hp, full * TANK_HIT);
+    if (amount >= u.hp) {
+      state.effects.push({ type: 'smoke', x: u.x, y: u.y, age: 0, life: 40 }, { type: 'boom', x: u.x, y: u.y, age: 0, life: 0.7 });
+      if (u.team === PLAYER) pushMessage(state, 'A tank has been knocked out!', 'loss');
+    } else {
+      state.effects.push({ type: 'smoke', x: u.x, y: u.y, age: 0, life: 6 });
+      if (u.team === PLAYER) pushMessage(state, 'A tank has been hit by a shell!', 'warn');
+    }
   }
   const t = UNIT_TYPES[u.type];
   const before = u.men;
