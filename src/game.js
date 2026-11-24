@@ -482,6 +482,17 @@ export const TANK_BREAKDOWN = 1 / 1500; // chance per second, on the move, of a 
 function tankTick(state, u, tile, dt) {
   const t = UNIT_TYPES.tank;
   if (tile && tile.wire > 0) { tile.wire = 0; markChanged(state.map, tile.x, tile.y); }
+  // it rides down the trees in its way: a standing tree is pushed over (a fallen trunk), a stump snapped to
+  // splinters - on the tile under it and those its hull reaches (within 0.8 of its centre)
+  if (u.moving) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const q = tileAt(state.map, u.x + dx, u.y + dy);
+    if (!q || !q.decor || Math.hypot(q.x + 0.5 - u.x, q.y + 0.5 - u.y) > 0.8) continue;
+    if (q.decor === 'tree' || q.decor === 'birch') { q.decor = 'log'; q.decorHp = 1; }
+    else if (q.decor === 'stump') { q.decor = null; q.decorHp = undefined; q.splinters = 1; }
+    else continue;
+    markChanged(state.map, q.x, q.y);
+    if (rand() < 0.5) state.events.push({ type: 'crash', x: q.x + 0.5, y: q.y + 0.5 });
+  }
   const key = tile ? tile.y * state.map.w + tile.x : -1;
   if (key !== u.lastTile) {
     // on rolling down into a trench (not along one): it may ditch in the enemy's broad trenches

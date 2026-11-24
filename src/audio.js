@@ -256,6 +256,10 @@ export class Sound {
       case 'artyfire':
         this.burst({ dur: 0.5, freq: 500, vol: 0.5 * vol });
         break;
+      case 'crash': // a tree going down under a tank: the crack of the trunk and the crunch of branches
+        this.burst({ dur: 0.12, freq: 2200, type: 'bandpass', q: 1.2, vol: 0.5 * vol });
+        this.burst({ dur: 0.45, freq: 600, vol: 0.45 * vol, delay: 0.05 });
+        break;
       case 'mg':
         for (let i = 0; i < 4; i++) this.burst({ dur: 0.05, freq: 1800, type: 'bandpass', q: 1.2, vol: 0.35 * vol, delay: i * 0.07 });
         break;
