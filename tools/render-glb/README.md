@@ -37,3 +37,8 @@ battle 1 in `src/campaign.js`), whose tiles inside the footprint are then made i
 | sprite | model | command options |
 | --- | --- | --- |
 | `church-galicia.webp` | Autumn Sanctuary (wooden church with onion domes) | `--yaw 1.5708 --scale 3` |
+
+## The Black Day (battle 5)
+
+`tank_d0`-`tank_d7` (in `assets/props`, packed into the units atlas): Rustclad Landship, rendered for each of
+the 8 headings d with `--yaw π/4 + (5 - d)·π/4 --scale 1.3 --px 3 --sat 0.85` (manifest scale 3).

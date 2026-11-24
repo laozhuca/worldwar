@@ -413,6 +413,7 @@ export class UI {
           case '1': this.doRecruit('rifle'); break;
           case '2': this.doRecruit('mg'); break;
           case '3': this.doRecruit('artillery'); break;
+          case '4': if (this.state.special && this.state.special.tank) this.doRecruit('tank'); break;
           case ' ': e.preventDefault(); this.centerOnFront(); break;
         }
       }
@@ -504,6 +505,7 @@ export class UI {
     const threatened = hqThreatened(s, PLAYER);
     for (const [type, t] of Object.entries(UNIT_TYPES)) {
       const b = document.querySelector(`[data-recruit="${type}"]`);
+      if (t.special) b.classList.toggle('hidden', !(s.special && s.special[type])); // (only in a battle that provides it)
       b.disabled = threatened || !(res.men >= t.cost.men && res.ammo >= t.cost.ammo && res.supplies >= t.cost.supplies);
       b.title = threatened ? 'Enemy troops are at our HQ: no new units can be raised until they are driven off' : t.desc;
     }
@@ -559,7 +561,8 @@ export class UI {
         else if (u.type === 'artillery' && u.packing > 0) status = 'limbering up';
         else if (u.type === 'artillery' && u.setup > 0 && !u.order) status = 'unlimbering';
         // MG teams and batteries show their weapon, rifle squads a soldier of the army
-        const por = u.type === 'mg' || u.type === 'artillery' ? `<img class="portrait equip" src="assets/art/card-${u.type}.webp" alt="">`
+        if (u.type === 'tank') status = u.stuck === 'ditched' ? 'DITCHED' : u.stuck === 'broken' ? 'BROKEN DOWN' : !(u.shells > 0) && !(u.mgRounds > 0) ? 'out of ammunition' : `${u.shells} shells · ${u.mgRounds} MG` + (u.order ? ' · moving' : '');
+        const por = u.type === 'mg' || u.type === 'artillery' || u.type === 'tank' ? `<img class="portrait equip" src="assets/art/card-${u.type}.webp" alt="">`
           : this.r.portraitOf && s.nations ? `<img class="portrait" src="${this.r.portraitOf(s.nations[PLAYER])}" alt="">` : '';
         // a portrait card: its name at the top, the unit's picture large with its men in a corner badge, the status,
         // and the strength and suppression bars at the bottom

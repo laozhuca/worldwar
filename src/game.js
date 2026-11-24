@@ -79,6 +79,7 @@ function nearestTrenchInRow(map, team, x, y) {
 
 export function spawnUnit(state, type, team, x, y) {
   const t = UNIT_TYPES[type];
+  const tankStores = type === 'tank' ? { shells: t.shells, mgRounds: t.mgRounds, cannonTimer: 2 } : {};
   const u = {
     id: nextId++,
     type, team, x, y,
@@ -111,6 +112,7 @@ export function spawnUnit(state, type, team, x, y) {
     seed: rand(),
     dead: false,
     ai: {},
+    ...tankStores,
   };
   const tile = tileAt(state.map, x, y);
   u.inTrench = !!tile && tile.trench > 0;
@@ -218,11 +220,12 @@ export function buyUnit(state, team, type) {
   const t = UNIT_TYPES[type];
   const res = state.resources[team];
   if (hqThreatened(state, team)) return 'HQ under attack, no recruiting';
+  if (t.special && !(state.special && state.special[type])) return 'Not available in this battle';
   if (!canAfford(res, t.cost)) return 'Not enough resources';
   pay(res, t.cost);
   const hq = state.map.hq[team];
   const dir = teamDir(team);
-  if (type !== 'artillery') {
+  if (type !== 'artillery' && type !== 'tank') {
     // infantry and machine guns muster in the trenches near headquarters (not on the open ground beside
     // them, to climb in again at once): the least crowded spot of our own trench within a few tiles
     const spot = musterSpot(state, team);
@@ -458,12 +461,58 @@ const speedAt = (tile) => (tile.rock || tile.block ? 0 : terrainFactor(tile));
 export function planRoute(state, u, x, y) {
   if (globalThis.NO_PATH) return null; // (simulation experiments)
   const C = CLIMB[u.type] || CLIMB.rifle, sp = UNIT_TYPES[u.type].speed || 0.8;
+  if (u.type === 'tank') return findPath(state.map, u.x, u.y, x, y, (t) => (t.rock || t.block ? 0 : t.trench ? 0.6 : t.wire ? 0.9 : terrainFactor(t)), () => 0); // (it rolls over wire and trenches)
   if (u.type === 'artillery') { // a battery crosses a trench on planks it lays over it, never down in it
     const enter = (t) => (t.trench && !t.bridge ? BRIDGE_TIME * sp + 1 : 0);
     return findPath(state.map, u.x, u.y, x, y, (t) => (t.trench ? (t.bridge ? 1 : 0.9) : speedAt(t)), () => 0, enter);
   }
   const climb = (out) => (out ? C.out : C.in) * (1 + CLIMB_GAP * (C.groups - 1)) * 0.75 * sp;
   return findPath(state.map, u.x, u.y, x, y, speedAt, climb);
+}
+
+export const TANK_DITCH = 0.1; // chance of ditching in each enemy trench a tank crosses (a third of that in its own)
+export const TANK_BREAKDOWN = 1 / 200; // chance per second, on the move, of a mechanical failure
+/**
+ * A tank's own business each tick: it flattens the wire it rolls over; crossing a trench it may ditch
+ * (nose down, tracks spinning) and on the move it may break down - either way it moves no more, though it
+ * fights on; and its side guns fire on what lies abeam while it has shells.
+ */
+function tankTick(state, u, tile, dt) {
+  const t = UNIT_TYPES.tank;
+  if (tile && tile.wire > 0) { tile.wire = 0; markChanged(state.map, tile.x, tile.y); }
+  const key = tile ? tile.y * state.map.w + tile.x : -1;
+  if (key !== u.lastTile) {
+    // on rolling down into a trench (not along one): it may ditch - more likely in the enemy's broad trenches
+    const into = tile && tile.trench && !u.wasOnTrench;
+    if (into && !u.stuck && rand() < (tile.origOwner === u.team ? TANK_DITCH * 0.35 : TANK_DITCH)) { u.stuck = 'ditched'; if (u.team === PLAYER) pushMessage(state, 'A tank has ditched in a trench!', 'warn'); }
+    u.wasOnTrench = !!(tile && tile.trench);
+    u.lastTile = key;
+  }
+  if (u.moving && !u.stuck && rand() < TANK_BREAKDOWN * dt) { u.stuck = 'broken'; if (u.team === PLAYER) pushMessage(state, 'A tank has broken down!', 'warn'); }
+  if (u.stuck) { u.order = null; u.path = null; }
+  // the side guns: at whatever lies abeam (within 50 degrees of square to its heading), riflemen and guns first
+  u.cannonTimer = (u.cannonTimer || 0) - dt;
+  if (u.cannonTimer > 0 || !(u.shells > 0)) return;
+  const hl = Math.hypot(u.hx, u.hy) || 1, hx = u.hx / hl, hy = u.hy / hl;
+  let best = null, bs = Infinity;
+  for (const e of state.units) {
+    if (e.dead || e.team === u.team || !e.visible && e.team !== PLAYER) continue;
+    const dx = e.x - u.x, dy = e.y - u.y, d = Math.hypot(dx, dy);
+    if (d < 1.5 || d > t.cannonRange) continue;
+    if (Math.abs((dx * hx + dy * hy) / d) > 0.64) continue; // not abeam
+    const sc = d * (e.type === 'mg' ? 0.6 : e.type === 'artillery' ? 0.7 : e.type === 'tank' ? 0.5 : 1);
+    if (sc < bs) { bs = sc; best = e; }
+  }
+  if (!best) { u.cannonTimer = 0.5; return; }
+  u.shells--; u.cannonTimer = t.cannonInterval * (0.85 + rand() * 0.3);
+  const sp = 0.25 + dist(u, best) * 0.05, a = rand() * Math.PI * 2, r = rand() * sp;
+  const side = Math.sign((best.x - u.x) * -hy + (best.y - u.y) * hx) || 1;
+  const fx = -hy * side, fy = hx * side;
+  state.effects.push({ type: 'gunflash', x: u.x + fx * 0.6, y: u.y + fy * 0.6, age: 0, life: 0.3, hx: fx, hy: fy, facing: Math.sign(fx - fy) || 1 });
+  state.events.push({ type: 'artyfire', x: u.x, y: u.y });
+  u.firing = 0.3; u.lastShot = state.time; u.cannonSide = side;
+  explode(state, { x: best.x + Math.cos(a) * r, y: best.y + Math.sin(a) * r, team: u.team, big: 0.55 }); // (a 6-pounder: a small burst)
+  if (u.shells === 0 && u.team === PLAYER) pushMessage(state, 'A tank has fired its last shell.', 'warn');
 }
 
 function terrainFactor(tile) {
@@ -482,7 +531,8 @@ function updateUnit(state, u, dt) {
   const t = UNIT_TYPES[u.type];
   const tile = tileAt(state.map, u.x, u.y);
   const wasIn = u.inTrench;
-  u.inTrench = !!tile && tile.trench > 0 && u.type !== 'artillery'; // a battery never goes down into a trench (it bridges it)
+  u.inTrench = !!tile && tile.trench > 0 && u.type !== 'artillery' && u.type !== 'tank'; // a battery never goes down into a trench (it bridges it); a tank rolls over it
+  if (u.type === 'tank') tankTick(state, u, tile, dt);
   // at sea: the men are in a boat (rowed in to the beach); stepping ashore leaves the boat beached at the water's edge
   const afloat = !!(tile && tile.sea) && !u.onShip; // (the guns on the River Clyde's deck are not in a boat)
   // the men jump out on the beach at once; one of the crew rows the empty boat back out to sea
@@ -491,7 +541,7 @@ function updateUnit(state, u, dt) {
   // climbing out of a trench, or down into one, takes time: the men haul themselves over the parapet.
   // Out: as soon as the ground just ahead is no longer trench (the men are at the trench wall).
   // In: on stepping onto a trench tile.
-  if (u.order && !u.climb && u.type !== 'artillery') {
+  if (u.order && !u.climb && u.type !== 'artillery' && u.type !== 'tank') {
     const charge = u.order.kind === 'charge';
     // the unit climbs group by group (a rifle squad's two ranks, an MG team's two pairs, a battery crew's
     // three pairs, hauling the gun): each group takes `rank` seconds, the next starting as the one before is
@@ -628,7 +678,7 @@ function updateUnit(state, u, dt) {
   }
 
   // --- melee (bayonets, clubs, grenades)
-  if (u.closest && closeD < MELEE_RANGE) {
+  if (u.closest && closeD < MELEE_RANGE && u.type !== 'tank') {
     let dmg = u.men * t.melee * dt * 1.5;
     if (u.chargeBonus > 0) dmg *= 2.0; // the shock of a bayonet charge
     if (u.suppression > 50) dmg *= 0.5;
@@ -640,9 +690,10 @@ function updateUnit(state, u, dt) {
 
   // --- small-arms fire
   u.fireTimer = Math.max(0, u.fireTimer - dt * (u.moving ? 0.6 : 1));
-  if (t.range && !charging && !u.holdFire && !u.afloat && !(u.onShip && u.pinned) && u.target && u.setup <= 0 && !(u.packing > 0) && u.fireTimer <= 0) {
+  if (t.range && !charging && !u.holdFire && !u.afloat && !(u.onShip && u.pinned) && !(u.type === 'tank' && !(u.mgRounds > 0)) && u.target && u.setup <= 0 && !(u.packing > 0) && u.fireTimer <= 0) {
     if (dist(u, u.target) <= (u.range || t.range)) { // (a unit may have its own reach: the River Clyde's guns)
       fire(state, u, u.target, t);
+      if (u.type === 'tank') u.mgRounds--;
       u.fireTimer = t.fireInterval * (0.85 + rand() * 0.3);
     }
   }
@@ -734,6 +785,12 @@ function fire(state, u, target, t) {
  */
 export function damageUnit(state, u, amount, blast = null, shooter = null) {
   if (u.dead || amount <= 0 || u.invulnerable) return; // invulnerable: kept alive by a scripted scene
+  if (u.type === 'tank') { // armour: bullets and splinters glance off; only a shell bursting right on it knocks it out
+    if (!blast || blast.d > 0.8) return;
+    amount = u.hp;
+    state.effects.push({ type: 'smoke', x: u.x, y: u.y, age: 0, life: 40 }, { type: 'boom', x: u.x, y: u.y, age: 0, life: 0.7 });
+    if (u.team === PLAYER) pushMessage(state, 'A tank has been knocked out by a direct hit!', 'loss');
+  }
   const t = UNIT_TYPES[u.type];
   const before = u.men;
   if (u.afloat) amount *= blast ? 0.5 : 1.4; // men packed in an open boat: exposed to rifle and machine-gun fire, but low in the water, shell splinters mostly spent on the sea
@@ -742,7 +799,7 @@ export function damageUnit(state, u, amount, blast = null, shooter = null) {
   u.hp -= amount;
   u.men = Math.max(0, Math.ceil(u.hp / t.hpPerMan - 1e-6));
   state.stats.lost[u.team] += before - u.men;
-  if (!u.afloat) for (let i = 0; i < Math.min(3, before - u.men); i++) fallen(state, u, blast, shooter);
+  if (!u.afloat && u.type !== 'tank') for (let i = 0; i < Math.min(3, before - u.men); i++) fallen(state, u, blast, shooter);
   else { // at sea the dead go over the side and float, drifting, until they sink from sight
     const fl = state.floaters || (state.floaters = []);
     for (let i = 0; i < Math.min(smashed ? 4 : 2, before - u.men); i++) fl.push({ kind: 'body', x: u.x + (rand() - 0.5) * (smashed ? 1.4 : 0.8), y: u.y + (rand() - 0.5) * (smashed ? 1.0 : 0.6), v: Math.floor(rand() * 3), d: [0, 2, 5][Math.floor(rand() * 3)], t: state.time, life: 22 + rand() * 18, m: rand() < 0.5 });

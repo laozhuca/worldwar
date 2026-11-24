@@ -853,3 +853,6 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 #pause-sign.hidden { display: none; }
 @keyframes pause-in { from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); } }
 @media (max-width: 700px), (max-height: 500px) { #pause-sign { width: 104px; height: 104px; } #pause-sign span { font-size: 36px; } }
+
+/* a battle with tanks: the four recruit buttons in two columns, so they fit the panel */
+.group .btns:has(> button[data-recruit="tank"]:not(.hidden)) { grid-template-columns: auto auto; column-gap: 6px; }

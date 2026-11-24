@@ -956,7 +956,7 @@ export const LEVELS = [
     radius: 59, // a broad front: three times the usual battlefield
     history: 'August 1918. Four years of war have taught the Allied armies how to win. Your American division holds the centre of a great line, with the British on one flank and the French on the other. At zero hour, in thick fog, more than two thousand guns open fire at once and the whole line goes forward behind the barrage - with you or without you. The German line is deep, three trench lines bristling with machine guns, and he will counter-attack whatever is taken. Break through and take his headquarters before the day is out.',
     objectives: ['Take the enemy headquarters before midnight.', 'Go forward with the British and French at zero hour.', 'Do not let the enemy take your headquarters.'],
-    rules: ['You command the Americans in the centre. The British and French on your flanks are under their own command: at zero hour they attack whatever you do.', 'Zero hour comes after a short countdown. Be ready to go forward with them, or they will be fighting alone.', 'The enemy defends in depth, and every few hours his reserves counter-attack what has been taken. A long summer day: the clock runs slower than in other battles.'],
+    rules: ['You command the Americans in the centre. The British and French on your flanks are under their own command: at zero hour they attack whatever you do.', 'Zero hour comes after a short countdown. Be ready to go forward with them, or they will be fighting alone.', 'Tanks can be built at headquarters, at great cost: they crush wire and cross trenches, but may ditch or break down, and only carry so much ammunition.', 'The enemy defends in depth, and every few hours his reserves counter-attack what has been taken. A long summer day: the clock runs slower than in other battles.'],
     medals: ['The Black Day of the German army', 'By noon: the enemy headquarters taken before 12:00', 'Fewer than 800 men lost along the whole front, allies included'],
     debrief: {
       won: 'On 8 August 1918 the Allied armies advanced eight miles in a single day, and whole German units surrendered. General Ludendorff called it "the black day of the German army". It began the Hundred Days Offensive, and three months later the war was over.',
@@ -1002,6 +1002,7 @@ export const LEVELS = [
       const ai = state.ais[0];
       ai.level = { ...DIFFICULTY.medium, firstAttack: 3600, attackGap: [1200, 1500], income: 0.7 };
       ai.offensive = 3600;
+      state.special = { tank: true }; // tanks can be built at headquarters in this battle
       state.campaign.zero = 120; // zero hour, in seconds of battle time
     },
     events: [

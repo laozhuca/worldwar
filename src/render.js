@@ -1790,6 +1790,27 @@ export class Renderer {
     return true;
   }
 
+  /** A tank (pre-rendered from its 3D model, 8 headings), rocking a little on the move; nose-down when ditched. */
+  drawTank(ctx, p, u, t, selected, time) {
+    if (selected) { ctx.strokeStyle = 'rgba(160,255,110,0.95)'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.ellipse(p.x, p.y, 52, 26, 0, 0, TAU); ctx.stroke(); }
+    const dir = ((Math.round(Math.atan2(u.hy, u.hx) / (Math.PI / 4)) % 8) + 8) % 8;
+    const rock = u.moving ? Math.sin(time * 7 + u.seed * 9) * 1.2 : 0;
+    const sink = u.stuck === 'ditched' ? 7 : 0;
+    ctx.save();
+    if (u.stuck === 'ditched') { ctx.translate(p.x, p.y); ctx.rotate(0.1 * (dir < 4 ? 1 : -1)); ctx.translate(-p.x, -p.y); }
+    const ok = this.drawFrame(ctx, 'units', `tank_d${dir}`, p.x, p.y + rock + sink, 1);
+    ctx.restore();
+    if (!ok) { ctx.fillStyle = '#4a4436'; ctx.beginPath(); ctx.ellipse(p.x, p.y - 12, 40, 20, 0, 0, TAU); ctx.fill(); }
+    if (u.stuck === 'broken' && Math.floor(time * 2 + u.seed * 5) % 3 === 0) { ctx.fillStyle = 'rgba(70,70,72,0.35)'; ctx.beginPath(); ctx.arc(p.x + 6, p.y - 44 - (time * 12 % 14), 7, 0, TAU); ctx.fill(); } // smoke from the engine
+    // strength (it is a direct hit or nothing), shells and machine-gun rounds, and what is wrong with it
+    const by = p.y - 58;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(p.x - 18, by, 36, 7);
+    ctx.fillStyle = '#e8c35a'; ctx.fillRect(p.x - 17, by + 1, 34 * Math.max(0, (u.shells || 0) / t.shells), 2);
+    ctx.fillStyle = '#c9c4b2'; ctx.fillRect(p.x - 17, by + 4, 34 * Math.max(0, (u.mgRounds || 0) / t.mgRounds), 2);
+    const label = u.stuck === 'ditched' ? 'DITCHED' : u.stuck === 'broken' ? 'BROKEN DOWN' : !(u.shells > 0) && !(u.mgRounds > 0) ? 'NO AMMUNITION' : '';
+    if (label) { ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffb060'; this.wtext(ctx, label, p.x, by - 2); }
+  }
+
   /** Howitzer from the supplied art: a faces -x, b faces +y; mirrored for -y / +x. */
   /** Heading a gun is drawn with: trail-first while being moved, otherwise laid on its target. */
   static gunHeading(u) { return Renderer.travelling(u) ? [-u.hx, -u.hy] : [u.aimX ?? u.hx, u.aimY ?? u.hy]; }
@@ -1871,6 +1892,7 @@ export class Renderer {
       const stroke = Math.floor((time * 2.2 + u.id * 0.37) % 4); // all hands at the oars
       if (this.drawFrame(ctx, this.propGroup(), `boat${u.id % 3}_r${stroke}`, p.x, p.y + bob, 1) || this.drawFrame(ctx, this.propGroup(), `boat${u.id % 3}`, p.x, p.y + bob, 1)) return;
     }
+    if (u.type === 'tank') { this.drawTank(ctx, p, u, t, selected, time); return; }
     if (selected) {
       ctx.strokeStyle = 'rgba(160,255,110,0.95)'; ctx.lineWidth = 1.6;
       ctx.beginPath(); ctx.ellipse(p.x, p.y, 22, 11, 0, 0, TAU); ctx.stroke();

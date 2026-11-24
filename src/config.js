@@ -75,6 +75,31 @@ export const UNIT_TYPES = {
     hotkey: '3',
     desc: 'Field guns. Bombard a target area: kills, suppresses, cuts wire and wrecks trenches.',
   },
+  tank: {
+    key: 'tank',
+    name: 'Tank',
+    short: 'Tank',
+    men: 8,
+    hpPerMan: 40,
+    range: 8, // its machine guns, firing every way
+    sight: 9,
+    speed: 0.22,
+    melee: 0,
+    fireInterval: 0.6,
+    burst: 6,
+    hitChance: 0.22,
+    damage: 6,
+    suppressPerShot: 2.6,
+    ammoPerShot: 0, // (its own ammunition, aboard)
+    mgRounds: 300, // bursts of machine-gun fire it carries
+    shells: 20, // rounds for its side guns
+    cannonRange: 11,
+    cannonInterval: 4.5,
+    cost: { men: 8, ammo: 300, supplies: 260 },
+    hotkey: '4',
+    special: true, // (only where a level provides it)
+    desc: 'A landship: rolls over wire and trenches, its machine guns fire every way and its side guns hit what lies abeam. Only a direct shell hit destroys it, but it may ditch in a trench or break down, and its ammunition runs out.',
+  },
 };
 
 // Damage multipliers by trench level (index 0 = open ground).
