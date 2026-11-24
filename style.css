@@ -843,7 +843,12 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 @media (max-width: 860px), (max-height: 600px) { #overlay.plain-mode #briefing-panel .brief-army .fig-img { height: clamp(110px, 34vh, 200px); } }
 
 /* a level's opening scene: its wide pictures at their own proportions (no letterbox) */
-#story.opening .pic.wide { width: min(560px, 70vw); height: auto; max-height: calc(100vh - 360px); object-fit: cover; }
+#story.opening { width: min(1180px, 96vw); transform: translate(-50%, -50%); }
+#story.opening .pic.wide { width: min(1000px, 92vw, calc((100vh - 300px) * 16 / 9)); height: auto; max-width: none; max-height: none; aspect-ratio: 16 / 9; object-fit: cover; }
+/* the speakers' portraits, and the words, grow with the screen too */
+#story.opening .pic:not(.wide) { width: clamp(110px, min(28vh, 22vw), 240px); height: clamp(110px, min(28vh, 22vw), 240px); }
+#story.opening .who { font-size: clamp(13px, 1.3vw, 17px); }
+#story.opening .line { font-size: clamp(17px, 2.1vw, 30px); }
 
 /* the battle paused: a big pause sign in the middle of the battlefield */
 #pause-sign { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 26px 34px 18px; border: 1px solid rgba(239, 228, 203, 0.35); border-radius: 50%; width: 150px; height: 150px; justify-content: center; background: radial-gradient(circle, rgba(14, 12, 10, 0.78), rgba(14, 12, 10, 0.55)); color: #f1e6c8; cursor: pointer; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.6); animation: pause-in 0.25s ease-out; }
