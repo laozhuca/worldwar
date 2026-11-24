@@ -1004,6 +1004,26 @@ export const LEVELS = [
       ai.offensive = 3600;
       state.special = { tank: true }; // tanks can be built at headquarters in this battle
       state.campaign.zero = 120; // zero hour, in seconds of battle time
+      // ---- the British and French each have their own headquarters, in the middle of their sector, as far
+      // behind their front as ours: their fresh squads come up from there (they count for nothing in the victory)
+      const hqP = map.hq[PLAYER], depth = (f[hqP.y] - hqP.x) * d;
+      hqP.allies = [];
+      for (const [nation, y] of [['uk', Math.round((y0 + state.campaign.sectors.a) / 2)], ['france', Math.round((state.campaign.sectors.b + y1) / 2)]]) {
+        const x0 = f[y] - d * depth;
+        let best = null, bd = Infinity;
+        for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) {
+          const t = at(x0 + dx, y + dy);
+          if (t && !t.off && t.trench && t.owner === PLAYER && !t.wire) { const dd = Math.hypot(dx, dy * 1.3); if (dd < bd) { bd = dd; best = t; } }
+        }
+        const t = best || at(x0, y);
+        if (!t) continue;
+        t.trench = 3; t.decor = null;
+        for (const [ax, ay] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) { const n = at(t.x + ax, t.y + ay); if (n) n.decor = null; }
+        hqP.allies.push({ x: t.x, y: t.y, nation, label: nation === 'uk' ? 'British HQ' : 'French HQ' });
+      }
+      // after zero hour each ally attacks again every so often: fresh squads up from his HQ, and the whole sector charges
+      state.campaign.waveAt = { uk: -1e9, france: -1e9 };
+      state.campaign.nextWave = { uk: 120 + 110, france: 120 + 170 };
     },
     events: [
       { at: 4.36, run: (s) => pushMessage(s, 'Zero hour is coming. The British and French will go over the top at zero hour, whether we are ready or not.', 'side') },
@@ -1026,16 +1046,33 @@ export const LEVELS = [
         for (const g of state.units.filter((u) => u.ally && u.type === 'artillery' && !u.dead)) { const y = Math.floor(g.y); if (ef[y] >= 0) orderBarrage(state, [g], ef[y] + 0.5, y + 0.5); }
         pushMessage(state, 'Zero hour! The British and French are going over the top!', 'good');
         state.events.push({ type: 'cheer' });
+        if (c.waveAt) c.waveAt = { uk: state.time, france: state.time };
       }
-      // after it the allies keep going: each squad from trench to trench of the enemy's in its own stretch of the
-      // front, as far as his last line; then they hold what they have taken
+      // every so often (each in turn) the British or the French attack again: two fresh squads come up from their
+      // headquarters, and every squad of theirs that is not already fighting forward charges
+      if (c.wentOver && c.nextWave) for (const n of ['uk', 'france']) {
+        if (state.time < c.nextWave[n]) continue;
+        c.nextWave[n] = state.time + 100 + Math.random() * 50;
+        c.waveAt[n] = state.time;
+        const hq = (state.map.hq[PLAYER].allies || []).find((q) => q.nation === n);
+        const alive = state.units.filter((u) => u.ally && u.nation === n && !u.dead && u.type === 'rifle').length;
+        if (hq && tileAt(state.map, hq.x, hq.y).owner === PLAYER && alive < 16) for (let k = 0; k < 2; k++) {
+          const u = spawnUnit(state, 'rifle', PLAYER, hq.x + 0.5, hq.y + 0.5);
+          u.nation = n; u.ally = true; u.inTrench = true;
+        }
+        for (const u of state.units) if (u.ally && u.nation === n) u.allyDone = false;
+        pushMessage(state, n === 'uk' ? 'The British are attacking again!' : 'The French are attacking again!', 'side');
+      }
+      // in an attack the allies keep going: each squad from trench to trench of the enemy's in its own stretch of
+      // the front, as far as his last line; between attacks they hold what they have taken
       if (c.wentOver && state.time - (c.allyTick || 0) > 2) {
         c.allyTick = state.time;
         const dir = teamDir(PLAYER), W = state.map.w;
         for (const u of state.units) {
           if (!u.ally || u.dead || u.type === 'artillery' || u.order || u.allyDone) continue;
+          if (c.waveAt && state.time - (c.waveAt[u.nation] ?? -1e9) > 75) continue; // (the attack has spent itself)
           let best = null, bd = Infinity;
-          for (let dy = -3; dy <= 3; dy++) for (let ax = 1; ax <= 48; ax++) {
+          for (let dy = -3; dy <= 3; dy++) for (let ax = 1; ax <= 90; ax++) {
             const t = state.map.tiles[(Math.floor(u.y) + dy) * W + Math.floor(u.x) + dir * ax];
             if (t && t.trench && t.owner === ENEMY) { const dd = ax + Math.abs(dy) * 0.8; if (dd < bd) { bd = dd; best = t; } }
           }

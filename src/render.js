@@ -985,6 +985,7 @@ export class Renderer {
       const q = state.map.hq[team];
       if (!q.hidden) objs.push({ k: q.x + q.y + 1, kind: 'hq', q, team });
       if (q.posts) for (const p of q.posts) objs.push({ k: p.x + p.y + 1, kind: 'hq', q: p, team });
+      if (q.allies) for (const p of q.allies) objs.push({ k: p.x + p.y + 1, kind: 'hq', q: p, team }); // (an ally's own HQ)
     }
     // concrete MG bunkers: always drawn (their places are known); the gun and crew inside are not
     if (state.bunkers) for (const b of state.bunkers) objs.push({ k: b.x + b.y + 0.3, kind: 'bunker', b, u: state.units.find((u) => u.id === b.id) });
@@ -1600,8 +1601,8 @@ export class Renderer {
       ctx.beginPath(); ctx.moveTo(head.x, head.y); ctx.quadraticCurveTo(head.x + 8, head.y + wave, head.x + 17, head.y + 3 + wave);
       ctx.lineTo(head.x + 17, head.y + 9 + wave); ctx.quadraticCurveTo(head.x + 8, head.y + 7 - wave, head.x, head.y + 9); ctx.closePath(); ctx.fill();
       ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(0,0,0,0.7)'; this.wtext(ctx, 'HQ', c.x + 0.5, c.y + 34.5);
-      ctx.fillStyle = '#e8e8e0'; this.wtext(ctx, 'HQ', c.x, c.y + 34);
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'; this.wtext(ctx, q.label || 'HQ', c.x + 0.5, c.y + 34.5);
+      ctx.fillStyle = '#e8e8e0'; this.wtext(ctx, q.label || 'HQ', c.x, c.y + 34);
       return;
     }
     // earth mound
