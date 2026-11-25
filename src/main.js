@@ -8,6 +8,7 @@ import { createTutorialGame, runTutorial } from './tutorial.js';
 import { LEVELS, PROLOGUE, levelById, createLevelGame, stepCampaign, loadProgress, recordResult, markTutorialDone, clockHours, dayTime } from './campaign.js';
 import { Sound } from './audio.js';
 import { PLAYER, NATIONS } from './config.js';
+import { AI_VERSION } from './ai.js';
 import { hourOf } from './atmosphere.js';
 
 // An element by id, or a detached stand-in, so one missing element (an old cached page) cannot stop the rest of the wiring.
@@ -922,6 +923,9 @@ byId('btn-epitaph-campaign').addEventListener('click', () => showCampaign());
 byId('m-campaign').addEventListener('click', () => (loadProgress().tutorial ? showCampaign() : showBriefing('prologue')));
 function labelCampaign() { document.getElementById('m-campaign').textContent = loadProgress().tutorial ? 'Campaign' : 'Tutorial'; }
 labelCampaign();
+// the enemy commander's version, wherever it plays: the battle's top bar and the campaign screen (and the console)
+for (const el of document.querySelectorAll('.ai-ver')) el.textContent = el.classList.contains('camp-ai') ? `Enemy commander: AI ${AI_VERSION}` : `AI ${AI_VERSION}`;
+console.info(`WorldWar - enemy commander AI ${AI_VERSION}`);
 byId('btn-level-start').addEventListener('click', () => (briefed === 'prologue' ? startTutorial() : startLevel(briefed)));
 byId('btn-brief-back').addEventListener('click', showCampaign);
 byId('btn-debrief-campaign').addEventListener('click', showCampaign);

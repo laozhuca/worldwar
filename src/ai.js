@@ -5,6 +5,14 @@ import { buyUnit, orderMove, orderBarrage, orderHalt, placeBuild, teamDir } from
 
 const rand = Math.random;
 
+/**
+ * The commander's version, shown in the game (top bar) and on the campaign screen, so a report of how the enemy
+ * behaved can be matched to the code. Raise it with every change to how the computer plays.
+ * 1.x: the first commander. 2.0: safer routes (trenches, round the wire), the double across the open, every
+ * resource into units, large prepared attacks with every gun, falling back, counter-battery fire.
+ */
+export const AI_VERSION = '2.0';
+
 export function createAI(team, difficulty = 'medium') {
   const level = DIFFICULTY[difficulty] || DIFFICULTY.medium;
   return {

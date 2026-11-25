@@ -9,18 +9,18 @@
   <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="assets/icon/apple-touch-icon.png">
   <meta name="theme-color" content="#15120d">
-  <link rel="stylesheet" href="style.css?v=eda54965" />
+  <link rel="stylesheet" href="style.css?v=f7becfcd" />
   <!-- stamp:begin (scripts/stamp.mjs) -->
   <script type="importmap">
   {
     "imports": {
-      "./src/ai.js": "./src/ai.js?v=3350ad03",
+      "./src/ai.js": "./src/ai.js?v=96640aaa",
       "./src/atmosphere.js": "./src/atmosphere.js?v=e3ff2b7a",
       "./src/audio.js": "./src/audio.js?v=d87f9739",
       "./src/campaign.js": "./src/campaign.js?v=ad7087af",
       "./src/config.js": "./src/config.js?v=71dc84ee",
       "./src/game.js": "./src/game.js?v=b8a890ad",
-      "./src/main.js": "./src/main.js?v=c3042abb",
+      "./src/main.js": "./src/main.js?v=ac29d7bd",
       "./src/map.js": "./src/map.js?v=3ed5bbdb",
       "./src/model-view.js": "./src/model-view.js?v=214a5b12",
       "./src/path.js": "./src/path.js?v=23c490f7",
@@ -40,7 +40,7 @@
     <canvas id="view"></canvas>
 
     <div id="topbar">
-      <div class="title" title="Main menu">WORLDWAR <span id="matchup"></span></div>
+      <div class="title" title="Main menu">WORLDWAR <span id="matchup"></span> <span class="ai-ver" title="Version of the enemy's commander (AI)"></span></div>
       <div class="res" title="Manpower: recruit new units"><b>👥</b> <span id="res-men">0</span><em>Men</em></div>
       <div class="res" title="Ammunition: rifles, machine guns and shells"><b>🎯</b> <span id="res-ammo">0</span><em>Ammo</em></div>
       <div class="res" title="Supplies: recruit, dig, wire, reinforce trenches"><b>📦</b> <span id="res-supplies">0</span><em>Supplies</em></div>
@@ -248,6 +248,7 @@
         <h1>Campaign</h1>
         <p class="lead">Five battles of the Great War, on four fronts. Each is won by a different kind of soldiering.</p>
         <div id="level-list"></div>
+        <p class="ai-ver camp-ai" title="Version of the enemy's commander (AI)"></p>
         <button class="big back" data-back>Back</button>
       </div>
       <div class="panel hidden" id="briefing-panel">
@@ -349,6 +350,6 @@
       document.getElementById('boot-reload').onclick = function () { location.reload(); };
     }, 20000);
   </script>
-  <script type="module" src="src/main.js?v=c3042abb"></script>
+  <script type="module" src="src/main.js?v=ac29d7bd"></script>
 </body>
 </html>

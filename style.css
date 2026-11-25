@@ -898,3 +898,7 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
   #duo .bubble.from-left::after { left: calc(var(--ps) * 0.5); right: auto; }
   #duo .bubble.from-right::after { right: calc(var(--ps) * 0.5); left: auto; }
 }
+
+/* the enemy commander's version (for reports of how it played) */
+#topbar .title .ai-ver { font-style: normal; font-size: 10px; letter-spacing: 1px; color: var(--muted); opacity: 0.8; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 3px; padding: 0 4px; margin-left: 4px; }
+.camp-ai { margin: 8px 0 0; font-size: 12px; letter-spacing: 1px; color: #a89e8a; text-align: center; }
