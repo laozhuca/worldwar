@@ -7,7 +7,7 @@ import { ModelView } from './model-view.js';
 import { createTutorialGame, runTutorial } from './tutorial.js';
 import { LEVELS, PROLOGUE, levelById, createLevelGame, stepCampaign, loadProgress, recordResult, markTutorialDone, clockHours, dayTime } from './campaign.js';
 import { Sound } from './audio.js';
-import { PLAYER, NATIONS } from './config.js';
+import { PLAYER, ENEMY, NATIONS } from './config.js';
 import { AI_VERSION } from './ai.js';
 import { hourOf } from './atmosphere.js';
 
@@ -313,6 +313,7 @@ function frame(now) {
   pauseSign.classList.toggle('hidden', !pausedInPlay);
   sound.holdMusic(pausedInPlay);
   renderer.draw(s, ui);
+  hqAlert(s);
   miniTimer -= dt;
   if (miniTimer <= 0) { miniTimer = 0.25; renderer.drawMinimap(mctx, s, mini.width, mini.height); }
 
@@ -776,6 +777,23 @@ async function startLevel(id) {
   if (L.opening) playOpening(state, L.opening, afterOpening, L.openingScene);
   else afterOpening();
 }
+
+// ------------------------------------------------------------ a headquarters being held: the countdown banner
+// (the ring and dial at the headquarters itself are drawn in the battlefield, render.js; this shows wherever the camera is)
+const hqAlertEl = document.getElementById('hq-alert');
+let hqAlertAt = null;
+function hqAlert(s) {
+  const hold = s.hqHold, show = (team) => hold && hold[team] !== null && hold[team] !== undefined && s.winner < 0;
+  const team = show(ENEMY) ? ENEMY : show(PLAYER) ? PLAYER : -1; // (ours in danger comes first)
+  hqAlertEl.classList.toggle('hidden', team < 0);
+  if (team < 0) return;
+  const need = (s.hqHoldFor && s.hqHoldFor[team]) || 5, left = Math.max(0, Math.ceil(need - (s.time - hold[team])));
+  hqAlertEl.classList.toggle('ours', team === ENEMY);
+  hqAlertEl.querySelector('b').textContent = left;
+  hqAlertEl.querySelector('span').textContent = team === ENEMY ? 'The enemy is in our headquarters - retake it!' : 'Hold the enemy headquarters!';
+  hqAlertAt = s.map.hq[1 - team];
+}
+hqAlertEl.addEventListener('click', () => { if (hqAlertAt) { renderer.centerOn(hqAlertAt.x + 0.5, hqAlertAt.y + 0.5); renderer.clampCam(); } });
 
 // ------------------------------------------------------------ a level's opening scene
 // Like the prologue's: pictures and lines of dialogue in the story box, each shown for a time that suits

@@ -909,3 +909,14 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
   #overlay.menu-mode { background: linear-gradient(rgba(10, 8, 6, 0.35), rgba(10, 8, 6, 0.35)), #0b0c0e url('assets/art/menu-truce-grey.webp') 62% center / cover no-repeat; }
 }
 #overlay.menu-mode #m-music { text-shadow: 0 1px 3px #000, 0 0 8px rgba(0, 0, 0, 0.8); }
+
+/* the headquarters countdown banner (top of the battlefield): gold while we hold theirs, red while he holds ours */
+#hq-alert { position: absolute; top: 48px; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 10px;
+  padding: 6px 16px; border-radius: 3px; cursor: pointer; font: 15px Georgia, serif; letter-spacing: 1px; color: #f4ead2;
+  background: rgba(20, 16, 12, 0.88); border: 1px solid #e0b860; box-shadow: 0 2px 14px rgba(0, 0, 0, 0.6); }
+#hq-alert.hidden { display: none; }
+#hq-alert b { font-size: 22px; min-width: 18px; text-align: center; color: #f0c860; }
+#hq-alert.ours { border-color: #e0503c; animation: hq-alarm 0.8s ease-in-out infinite alternate; }
+#hq-alert.ours b { color: #ff6a50; }
+@keyframes hq-alarm { from { box-shadow: 0 0 6px rgba(230, 70, 50, 0.4); } to { box-shadow: 0 0 22px rgba(230, 70, 50, 0.9); } }
+@media (max-width: 700px) { #hq-alert { top: 92px; font-size: 13px; } }
