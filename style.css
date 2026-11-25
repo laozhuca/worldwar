@@ -936,3 +936,10 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 @media (max-width: 700px), (max-height: 500px) {
   #overlay.plain-mode :is(#campaign-panel, #save-panel, #help-panel, #credits-panel) button.big.back { position: static; margin-top: 12px; }
 }
+
+/* the campaign list, saved battles, instructions and credits: the same photographs as New Game (one of four at
+   random, --setup-bg), a little darker under their columns of text */
+#overlay.plain-mode.photo-mode {
+  background: linear-gradient(rgba(8, 9, 11, 0.62), rgba(8, 9, 11, 0.42) 30%, rgba(8, 9, 11, 0.5) 70%, rgba(8, 9, 11, 0.82)),
+    #0b0c0e var(--setup-bg, url('assets/art/menu-mortar-grey.webp')) right center / cover no-repeat;
+}

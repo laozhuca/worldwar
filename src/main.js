@@ -449,7 +449,8 @@ const SETUP_BACKDROPS = ['assets/art/menu-mortar-grey.webp', 'assets/art/menu-ri
 let lastPanel = null;
 function showPanel(id, back = 'menu') {
   backTo = back;
-  if ((id === 'setup-panel' || id === 'save-panel') && lastPanel !== 'setup-panel' && lastPanel !== 'save-panel') {
+  const PHOTO = ['setup-panel', 'save-panel', 'campaign-panel', 'help-panel', 'credits-panel']; // (one photograph across them: a new one when coming from elsewhere)
+  if (PHOTO.includes(id) && !PHOTO.includes(lastPanel)) {
     const pick = SETUP_BACKDROPS[Math.floor(Math.random() * SETUP_BACKDROPS.length)];
     document.getElementById('overlay').style.setProperty('--setup-bg', `url('${pick}')`);
   }
@@ -467,6 +468,7 @@ function showPanel(id, back = 'menu') {
   document.getElementById('overlay').classList.toggle('loading-mode', id === 'loading-panel' || id === 'boot-panel');
   document.getElementById('overlay').classList.toggle('setup-mode', id === 'setup-panel');
   document.getElementById('overlay').classList.toggle('save-mode', id === 'save-panel');
+  document.getElementById('overlay').classList.toggle('photo-mode', ['save-panel', 'campaign-panel', 'help-panel', 'credits-panel'].includes(id)); // (New Game's photographs behind them too)
   // the other screens: plain lettering on the darkened photo, like the main menu
   document.getElementById('overlay').classList.toggle('plain-mode', ['help-panel', 'credits-panel', 'save-panel', 'exit-panel', 'loading-panel', 'boot-panel', 'epitaph-panel', 'campaign-panel', 'briefing-panel', 'debrief-panel'].includes(id));
   document.getElementById('overlay').classList.toggle('debrief-mode', id === 'debrief-panel');
