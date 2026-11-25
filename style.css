@@ -13,7 +13,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 13px/1.4 Georgia, 'Times New Roman', serif; overflow: hidden; user-select: none; }
 #app { position: fixed; inset: 0; }
-#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: image-set(url('assets/ui/cursor.png') 1x, url('assets/ui/cursor@2x.png') 2x) 3 3, url('assets/ui/cursor.png') 3 3, crosshair; } /* (a rifle cartridge, its tip the hot spot) */
 .hidden { display: none !important; }
 button { font: inherit; color: var(--text); background: #2b3038; border: 1px solid var(--border); border-radius: 3px; padding: 4px 8px; cursor: pointer; }
 button:hover { background: #39404a; border-color: var(--accent); }

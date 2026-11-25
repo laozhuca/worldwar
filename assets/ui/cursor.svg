@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+  <!-- The game's mouse pointer: a rifle cartridge in outline, brass-brown on a pale rim, its tip (the hot spot, 3,3) up and left -->
+  <g transform="translate(3 3) rotate(-45) scale(1.15)" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M0 0 C 2.6 3.5, 4.3 7.5, 4.2 11 L 3.4 13 L 4.4 15 L 4.4 28 L 3.7 29 L 4.8 30 L 4.8 32.5 L -4.8 32.5 L -4.8 30 L -3.7 29 L -4.4 28 L -4.4 15 L -3.4 13 L -4.2 11 C -4.3 7.5, -2.6 3.5, 0 0 Z" fill="rgba(30, 20, 10, 0.25)" stroke="rgba(255, 244, 222, 0.8)" stroke-width="3.6"/>
+    <path d="M0 0 C 2.6 3.5, 4.3 7.5, 4.2 11 L 3.4 13 L 4.4 15 L 4.4 28 L 3.7 29 L 4.8 30 L 4.8 32.5 L -4.8 32.5 L -4.8 30 L -3.7 29 L -4.4 28 L -4.4 15 L -3.4 13 L -4.2 11 C -4.3 7.5, -2.6 3.5, 0 0 Z" stroke="#24160a" stroke-width="2.4"/>
+    <path d="M0 0 C 2.6 3.5, 4.3 7.5, 4.2 11 L 3.4 13 L 4.4 15 L 4.4 28 L 3.7 29 L 4.8 30 L 4.8 32.5 L -4.8 32.5 L -4.8 30 L -3.7 29 L -4.4 28 L -4.4 15 L -3.4 13 L -4.2 11 C -4.3 7.5, -2.6 3.5, 0 0 Z" stroke="#b27a40" stroke-width="1.5"/>
+    <path d="M0 0 C 2.6 3.5, 4.3 7.5, 4.2 11 L 3.4 13 L 4.4 15 L 4.4 28 L 3.7 29 L 4.8 30 L 4.8 32.5 L -4.8 32.5 L -4.8 30 L -3.7 29 L -4.4 28 L -4.4 15 L -3.4 13 L -4.2 11 C -4.3 7.5, -2.6 3.5, 0 0 Z" stroke="#e8bf8a" stroke-width="0.45"/>
+  </g>
+</svg>

@@ -1104,8 +1104,26 @@ export class Renderer {
 
   /** The fallen: 3D-rendered bodies in 6 poses x 8 directions (older saves: the 2-view dead pose). */
   /** The tutorial's target marker: a pulsing ring on the ground with a short label. */
+  /**
+   * The marker over whatever is pointed out (a target, a place in the opening tour): a glowing amber chevron
+   * pointing down at it, bobbing gently (as assets/ui/marker.svg). y: the chevron's point; s: its size.
+   */
+  drawChevron(ctx, x, y, s, time) {
+    const b = Math.sin(time * 3.2) * 3 * s;
+    const pts = [[-22, -26], [0, 0], [22, -26], [13, -26], [0, -12], [-13, -26]].map(([px, py]) => [x + px * s, y + b + py * s]);
+    const path = () => { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (const q of pts.slice(1)) ctx.lineTo(q[0], q[1]); ctx.closePath(); };
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = 'rgba(255, 150, 30, 0.95)'; ctx.shadowBlur = 14 * s;
+    path(); ctx.fillStyle = 'rgba(255, 170, 40, 0.22)'; ctx.fill();
+    ctx.strokeStyle = '#ffae2a'; ctx.lineWidth = 3.4 * s; ctx.stroke();
+    ctx.shadowBlur = 0; ctx.strokeStyle = '#fff0a0'; ctx.lineWidth = 1.2 * s; ctx.stroke();
+    ctx.restore();
+  }
+
   drawStoryMarker(ctx, m, time) {
     const p = iso(m.x, m.y), k = (time * 1.2) % 1;
+    this.drawChevron(ctx, p.x, p.y - (m.strong ? 58 : 26), m.strong ? 1.1 : 0.7, time);
     ctx.save();
     if (m.strong) { // a place being pointed out: a warm glow and wide, bright rings, clear even at night
       ctx.globalCompositeOperation = 'lighter';
@@ -1116,8 +1134,8 @@ export class Renderer {
       ctx.lineWidth = 3;
       for (const j of [0, 0.5]) { const q = (k + j) % 1; ctx.strokeStyle = `rgba(255, 214, 140, ${1 - q})`; ctx.beginPath(); ctx.ellipse(p.x, p.y, 40 + q * 50, 20 + q * 25, 0, 0, TAU); ctx.stroke(); }
       ctx.font = 'italic 17px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      ctx.fillStyle = 'rgba(0,0,0,0.8)'; this.wtext(ctx, m.label || '', p.x + 1, p.y - 47);
-      ctx.fillStyle = '#ffe9b8'; this.wtext(ctx, m.label || '', p.x, p.y - 48);
+      ctx.fillStyle = 'rgba(0,0,0,0.8)'; this.wtext(ctx, m.label || '', p.x + 1, p.y - 97);
+      ctx.fillStyle = '#ffe9b8'; this.wtext(ctx, m.label || '', p.x, p.y - 98);
       ctx.restore();
       return;
     }
@@ -1127,8 +1145,8 @@ export class Renderer {
     ctx.beginPath(); ctx.ellipse(p.x, p.y, 12, 6, 0, 0, TAU); ctx.stroke();
     if (m.label) {
       ctx.font = 'italic 12px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      ctx.fillStyle = 'rgba(0,0,0,0.7)'; this.wtext(ctx, m.label, p.x + 1, p.y - 15);
-      ctx.fillStyle = '#fff3d6'; this.wtext(ctx, m.label, p.x, p.y - 16);
+      ctx.fillStyle = 'rgba(0,0,0,0.7)'; this.wtext(ctx, m.label, p.x + 1, p.y - 51);
+      ctx.fillStyle = '#fff3d6'; this.wtext(ctx, m.label, p.x, p.y - 52);
     }
     ctx.restore();
   }
