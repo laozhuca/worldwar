@@ -349,7 +349,7 @@ export function update(state, dt) {
     deliverSupplies(state);
   }
 
-  for (const ai of state.ais) updateAI(state, ai, dt);
+  for (const ai of state.ais) (ai.update || updateAI)(state, ai, dt); // (an experiment may give one side another commander)
 
   for (const u of state.units) if (!u.dead) updateUnit(state, u, dt);
 
@@ -420,7 +420,8 @@ function steer(map, u, mx, my) {
 // the AI's artillery keeps clear of its own troops: it will not open fire within FRIENDLY_CLEAR tiles of
 // them, and lifts a barrage when they come within FRIENDLY_LIFT of where it falls (shells scatter ~2 tiles)
 export const FRIENDLY_CLEAR = 3, FRIENDLY_LIFT = 2.6;
-const aiTeam = (state, team) => state.ais.some((a) => a.team === team);
+const aiTeam = (state, team) => state.ais.some((a) => a.team === team && !a.legacy); // (legacy: an experiment's old-style commander)
+const AI_DOUBLE = 1.35; // the computer's riflemen at the double across open ground
 /** True if any of the team's men (not its guns) are within r tiles of (x, y). */
 export function friendsNear(state, team, x, y, r) {
   for (const u of state.units) if (!u.dead && u.team === team && u.type !== 'artillery' && Math.hypot(u.x - x, u.y - y) < r) return true;
@@ -467,8 +468,13 @@ export function planRoute(state, u, x, y) {
     return findPath(state.map, u.x, u.y, x, y, (t) => (t.trench ? (t.bridge ? 1 : 0.9) : speedAt(t)), () => 0, enter);
   }
   const climb = (out) => (out ? C.out : C.in) * (1 + CLIMB_GAP * (C.groups - 1)) * 0.75 * sp;
+  // the computer's men weigh danger as well as time: they keep to the trenches where a trench goes their way,
+  // cross open ground only where they must, and go round wire wherever there is a way round
+  if (aiTeam(state, u.team)) return findPath(state.map, u.x, u.y, x, y, safeAt, climb);
   return findPath(state.map, u.x, u.y, x, y, speedAt, climb);
 }
+const AI_OPEN = 0.7, AI_WIRE = 0.12; // (how much worse than its walking time open ground and wire count, to the computer)
+const safeAt = (tile) => (tile.rock || tile.block ? 0 : tile.trench ? terrainFactor(tile) / 0.8 : terrainFactor(tile) * AI_OPEN * (tile.wire > 0 ? AI_WIRE : 1));
 
 export const TANK_DITCH = 0.2; // chance of ditching in each enemy trench a tank crosses (never in its own: the crossings are known)
 export const TANK_HIT = 0.34, TANK_NEAR = 0.1; // share of a tank's full strength a shell takes away: bursting right on it (three
@@ -636,6 +642,8 @@ function updateUnit(state, u, dt) {
       }
     }
     let speed = t.speed * (u.type === 'artillery' && tile && tile.trench ? 1 : terrainFactor(tile)) * (u.order.kind === 'charge' ? CHARGE_SPEED : 1);
+    // the computer's riflemen cross open ground at the double (not through wire), and keep to a walk in the trenches
+    if (u.type === 'rifle' && u.order.kind !== 'charge' && !u.inTrench && !(tile && tile.wire > 0) && aiTeam(state, u.team)) speed *= AI_DOUBLE;
     if (u.climb) speed *= 0.25; // over the parapet, or down into the trench
     if (u.pinned) speed *= 0.3;
     else if (u.order.kind !== 'charge' && u.suppression > 40) speed *= 0.6;

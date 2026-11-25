@@ -34,6 +34,19 @@ function densest(units) {
   return best;
 }
 
+/** The nearest tile of our own trench to (x, y) within r tiles (optionally only those that pass `ok`), or null. */
+function ownTrenchNear(state, team, x, y, r, ok = null) {
+  const { map } = state;
+  let best = null, bd = Infinity;
+  for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    const t = tileAt(map, x + dx, y + dy);
+    if (!t || !t.trench || t.owner !== team || (ok && !ok(t))) continue;
+    const d = Math.hypot(t.x + 0.5 - x, t.y + 0.5 - y);
+    if (d < bd) { bd = d; best = t; }
+  }
+  return best;
+}
+
 const readyBatteries = (mine) =>
   mine.filter((u) => u.type === 'artillery' && u.ai.role === 'battery' && u.cooldown <= 0 && !u.barrage);
 
@@ -72,13 +85,22 @@ export function updateAI(state, ai, dt) {
   const frontX = median(front);
   if (frontX < 0) return;
 
-  // --- recruitment
-  const count = { rifle: 0, mg: 0, artillery: 0 };
-  for (const u of mine) count[u.type]++;
-  if (count.artillery < 2) buyUnit(state, me, 'artillery');
-  else if (count.mg < 4) buyUnit(state, me, 'mg');
-  else if (count.rifle < L.rifleCap - 7 || (count.rifle < L.rifleCap && res.men > 24)) buyUnit(state, me, 'rifle');
-  else if (L.guns > 2 && count.artillery < 3 && res.supplies > 120) buyUnit(state, me, 'artillery');
+  // --- recruitment: every man, round and sandbag goes into new units, as fast as they come in - guns enough to
+  // prepare an attack (one for every eight squads), machine guns to hold the line (one for every four), the rest riflemen
+  const count = { rifle: 0, mg: 0, artillery: 0, tank: 0 };
+  for (const u of mine) count[u.type] = (count[u.type] || 0) + 1;
+  for (let n = 0; n < 4; n++) {
+    const wantGuns = Math.min(4, 2 + Math.floor(count.rifle / 8)), wantMg = Math.min(8, 3 + Math.floor(count.rifle / 4));
+    const order = count.artillery < wantGuns ? ['artillery', 'mg', 'rifle'] : count.mg < wantMg ? ['mg', 'rifle'] : ['rifle'];
+    let got = null;
+    for (const type of order) {
+      if (type === 'rifle' && count.rifle >= L.rifleCap * 1.6) continue;
+      const r = buyUnit(state, me, type);
+      if (r && typeof r === 'object') { got = type; break; }
+    }
+    if (!got) break;
+    count[got]++;
+  }
 
   // --- defensive posts along the front trench
   const posts = [];
@@ -117,7 +139,8 @@ export function updateAI(state, ai, dt) {
       orderMove(state, [u], best.x + 0.5, best.y + 0.5);
     } else {
       u.ai.role = 'reserve';
-      orderMove(state, [u], frontX - dir * 6 + 0.5, map.h / 2 + (rand() - 0.5) * 14);
+      const t = ownTrenchNear(state, me, frontX - dir * 6 + 0.5, map.h / 2 + (rand() - 0.5) * 14, 6);
+      if (t) orderMove(state, [u], t.x + 0.5, t.y + 0.5); else orderMove(state, [u], frontX - dir * 6 + 0.5, map.h / 2 + (rand() - 0.5) * 14);
     }
   }
 
@@ -141,14 +164,21 @@ export function updateAI(state, ai, dt) {
   if (ready.length > (ai.op ? 1 : 0) && ammoOk && ai.defensive <= 0) {
     const threats = foes.filter((f) => !f.inTrench && (f.x - frontX) * dir > -2 && Math.abs(f.x - frontX) < 13);
     if (threats.length) {
+      // two batteries on the attackers out in the open if two can be spared
       const tgt = densest(threats);
-      if (orderBarrage(state, [ready[0]], tgt.x, tgt.y)) ai.defensive = L.defensiveGap;
+      const n = Math.min(ready.length - (ai.op ? 1 : 0), 2);
+      let fired = false;
+      for (let k = 0; k < n; k++) if (orderBarrage(state, [ready[k]], tgt.x + (k ? (rand() - 0.5) * 2 : 0), tgt.y + (k ? (rand() - 0.5) * 2 : 0))) fired = true;
+      if (fired) ai.defensive = L.defensiveGap;
       ready = readyBatteries(mine);
     }
   }
   // --- artillery: harassing fire on the enemy line
   if (ready.length && ammoOk && ai.harass <= 0 && !ai.op) {
-    const tgt = densest(foes.filter((f) => f.type !== 'artillery'));
+    // their batteries first (counter-battery fire), then their machine guns, then wherever their men are thickest
+    const A = UNIT_TYPES.artillery, reach = (f) => { const d = Math.hypot(f.x - ready[0].x, f.y - ready[0].y); return d <= A.artyRange && d >= A.artyMinRange; };
+    const guns = foes.filter((f) => f.type === 'artillery' && reach(f)), mgs = foes.filter((f) => f.type === 'mg' && reach(f));
+    const tgt = guns[0] || densest(mgs) || densest(foes.filter((f) => f.type !== 'artillery'));
     if (tgt && orderBarrage(state, [ready[0]], tgt.x, tgt.y)) ai.harass = 30 + rand() * 25;
   }
 
@@ -173,7 +203,12 @@ export function updateAI(state, ai, dt) {
     } else if (ai.offensive <= 0) {
       // an offensive at the weakest point of their line: few defenders, little wire, towards their HQ
       const reserves = rifles.filter((u) => u.ai.role === 'reserve' || u.ai.role === 'hold');
-      if (reserves.length >= (L.rush ? 2 : 3) && res.ammo > 120) {
+      // a big push, not a trickle: he waits until he has a large force together (or has waited long enough)
+      const need = L.rush ? 2 : Math.max(4, Math.round(L.force * 1.25));
+      ai.massing = (ai.massing || 0) + 1;
+      const ready2 = reserves.length >= need || (reserves.length >= 3 && ai.massing > L.attackGap[1]);
+      if (ready2 && res.ammo > 120) {
+        ai.massing = 0;
         const foeFront = frontLine(map, foe), foeHq = map.hq[foe];
         let best = null, bs = Infinity;
         for (let y = 3; y < map.h - 3; y++) {
@@ -195,11 +230,26 @@ export function updateAI(state, ai, dt) {
           // reserves, topped up from squads holding our line near the point of attack
           const line = rifles.filter((u) => u.ai.role === 'post' && Math.abs(u.y - best.y) < 7 && u.men >= 4)
             .sort((a, b) => Math.abs(a.y - best.y) - Math.abs(b.y - best.y));
-          const force = reserves.concat(line).slice(0, L.force);
+          const force = reserves.concat(line).slice(0, Math.max(L.force, reserves.length)); // (every reserve goes)
           if (force.length >= (L.rush ? 2 : 4)) startOp(state, ai, 'attack', best, force, front);
         }
       }
       ai.offensive = ai.op ? L.attackGap[0] + rand() * (L.attackGap[1] - L.attackGap[0]) : 25;
+    }
+  }
+
+  // --- survival: a squad cut down to a couple of men leaves the attack for the nearest trench of ours behind it;
+  // and squads holding ground or waiting in reserve out in the open get down into a trench nearby
+  for (const u of mine) {
+    if (u.type !== 'rifle' || u.dead) continue;
+    const t = tileAt(map, u.x, u.y);
+    if (u.ai.role === 'op' && u.men <= 3 && !(u.order && u.order.kind === 'charge' && u.closest && Math.hypot(u.closest.x - u.x, u.closest.y - u.y) < 2)) {
+      const back = ownTrenchNear(state, me, u.x - dir * 3, u.y, 8, (q) => (q.x + 0.5 - u.x) * dir <= 0.5);
+      if (back) { if (ai.op) ai.op.ids = ai.op.ids.filter((id) => id !== u.id); u.ai.role = 'hold'; orderMove(state, [u], back.x + 0.5, back.y + 0.5); }
+    } else if ((u.ai.role === 'hold' || u.ai.role === 'reserve') && !u.order && !(t && t.trench)) {
+      // out in the open with no attack going on: into the nearest trench of ours, back the way it came if need be
+      const near = ownTrenchNear(state, me, u.x, u.y, 4) || ownTrenchNear(state, me, u.x - dir * 5, u.y, 9);
+      if (near) orderMove(state, [u], near.x + 0.5, near.y + 0.5);
     }
   }
 
@@ -274,7 +324,7 @@ function updateOp(state, ai, dt) {
   const men = units.reduce((a, u) => a + u.men, 0);
   // the operation ends: the men dig in where they stand, they do not walk back
   const end = () => {
-    for (const u of units) { u.ai.role = 'hold'; u.order = null; }
+    for (const u of units) { u.ai.role = 'hold'; if (u.order && u.order.kind === 'charge') u.order = null; } // (a charge stops; men falling back keep going)
     ai.op = null;
   };
   if (!units.length || men < 7) return end(); // spent
@@ -292,15 +342,20 @@ function updateOp(state, ai, dt) {
     }
   } else if (op.stage === 'prep') {
     // every ready battery in range: the objective, then any machine gun covering the approach
-    const ready = readyBatteries(mine).filter((g) => inRange(g, T.x, T.y)).slice(0, (ai.level || DIFFICULTY.medium).guns);
+    // every ready battery in range (at least three): the objective first, then the machine guns covering the
+    // approach, then wherever their men are thickest in the trenches round it - the trench is shelled before the men go
+    const ready = readyBatteries(mine).filter((g) => inRange(g, T.x, T.y)).slice(0, Math.max(3, (ai.level || DIFFICULTY.medium).guns));
     if (ready.length) {
       const mgs = foes.filter((f) => f.type === 'mg' && Math.hypot(f.x - T.x, f.y - T.y) < 7 && Math.hypot(f.x - T.x, f.y - T.y) > 2.5);
+      const held = foes.filter((f) => f.type === 'rifle' && f.inTrench && Math.hypot(f.x - T.x, f.y - T.y) < 6 && Math.hypot(f.x - T.x, f.y - T.y) > 2.5);
+      const aims = [T, ...mgs, ...(held.length ? [densest(held)] : [])];
       ready.forEach((g, i) => {
-        const tg = i > 0 && mgs[i - 1] && inRange(g, mgs[i - 1].x, mgs[i - 1].y) ? mgs[i - 1] : T;
-        if (orderBarrage(state, [g], tg.x, tg.y)) op.guns.push({ id: g.id, x: tg.x, y: tg.y });
+        const tg = aims[i % aims.length];
+        const aim = inRange(g, tg.x, tg.y) ? tg : T;
+        if (orderBarrage(state, [g], aim.x, aim.y)) op.guns.push({ id: g.id, x: aim.x, y: aim.y });
       });
       op.stage = 'wait'; op.timer = 60;
-    } else if (op.timer <= 0) { op.stage = 'wait'; op.timer = 0; }
+    } else if (op.timer <= -45 || (op.timer <= 0 && !mine.some((g) => g.type === 'artillery' && inRange(g, T.x, T.y)))) { op.stage = 'wait'; op.timer = 0; } // (no going in without the guns, if the guns can be had within the minute)
   } else if (op.stage === 'wait') {
     // go so as to arrive as the last shells on the objective fall
     const lead = units.reduce((a, u) => Math.min(a, Math.hypot(u.x - T.x, u.y - T.y)), Infinity);
@@ -330,8 +385,16 @@ function updateOp(state, ai, dt) {
       orderMove(state, rest, T.x, T.y);
     } else if (op.timer <= 0 || units.every((u) => !u.order)) {
       // the charge stalled short of the trench: go to ground and try again with the guns
-      if (units.every((u) => !u.order) && !taken && (op.retries = (op.retries || 0) + 1) <= (Lv.retries || 2)) { if (Lv.rush) { orderMove(state, units, T.x, T.y, 'charge'); op.stage = 'charge'; op.timer = 40; } else { op.stage = 'prep'; op.timer = 25; op.guns = []; } }
-      else return end();
+      if (units.every((u) => !u.order) && !taken && (op.retries = (op.retries || 0) + 1) <= (Lv.retries || 2)) {
+        if (Lv.rush) { orderMove(state, units, T.x, T.y, 'charge'); op.stage = 'charge'; op.timer = 40; }
+        else { // back to the shelter of our nearest trench while the guns are got ready again, then once more
+          for (const u of units) { const b = ownTrenchNear(state, me, u.x - dir * 3, u.y, 9); if (b) orderMove(state, [u], b.x + 0.5, b.y + 0.5); }
+          op.stage = 'assemble'; op.timer = 30;
+        }
+      } else { // given up: back into our trenches, not left lying out in front of theirs
+        for (const u of units) { const b = ownTrenchNear(state, me, u.x - dir * 3, u.y, 9); if (b) orderMove(state, [u], b.x + 0.5, b.y + 0.5); }
+        return end();
+      }
     }
   } else if (op.stage === 'regroup') {
     if (units.every((u) => !u.order) || op.timer <= 0) { if (Lv.rush) { orderMove(state, units, op.target.x, op.target.y, 'charge'); op.stage = 'charge'; op.timer = 40; } else { op.stage = 'prep'; op.timer = 25; op.guns = []; } }
