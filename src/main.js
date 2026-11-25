@@ -446,7 +446,7 @@ let backTo = 'menu'; // where a panel's Back button goes: the main menu, or stra
 /** Show one overlay panel (the battle pauses underneath). */
 // New Game and Saved battles share a backdrop, drawn at random each time one of them opens
 const SETUP_BACKDROPS = ['assets/art/menu-mortar-grey.webp', 'assets/art/menu-rider-grey.webp', 'assets/art/menu-assault-grey.webp', 'assets/art/menu-vickers-grey.webp'];
-let lastPanel = null;
+let lastPanel = null, lastExit = null;
 function showPanel(id, back = 'menu') {
   backTo = back;
   const PHOTO = ['setup-panel', 'save-panel', 'campaign-panel', 'help-panel', 'credits-panel']; // (one photograph across them: a new one when coming from elsewhere)
@@ -468,6 +468,10 @@ function showPanel(id, back = 'menu') {
   document.getElementById('overlay').classList.toggle('loading-mode', id === 'loading-panel' || id === 'boot-panel');
   document.getElementById('overlay').classList.toggle('setup-mode', id === 'setup-panel');
   document.getElementById('overlay').classList.toggle('save-mode', id === 'save-panel');
+  // leaving the game: one of the two photographs of a quiet trench (German, British) at random
+  if (id === 'exit-panel' && lastExit !== id) document.getElementById('overlay').style.setProperty('--exit-bg', `url('assets/art/${Math.random() < 0.5 ? 'exit-german' : 'exit-british'}.webp')`);
+  lastExit = id;
+  document.getElementById('overlay').classList.toggle('exit-mode', id === 'exit-panel');
   document.getElementById('overlay').classList.toggle('photo-mode', ['save-panel', 'campaign-panel', 'help-panel', 'credits-panel'].includes(id)); // (New Game's photographs behind them too)
   // the other screens: plain lettering on the darkened photo, like the main menu
   document.getElementById('overlay').classList.toggle('plain-mode', ['help-panel', 'credits-panel', 'save-panel', 'exit-panel', 'loading-panel', 'boot-panel', 'epitaph-panel', 'campaign-panel', 'briefing-panel', 'debrief-panel'].includes(id));
