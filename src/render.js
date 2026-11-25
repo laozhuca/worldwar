@@ -434,6 +434,7 @@ export class Renderer {
     }
     fc.putImageData(img, 0, 0);
     if (map.summer) this.drawSummer(g, map, tb, cover);
+    if (map.tiles.some((t) => t.pond)) this.drawPonds(g, map, tb);
     g.save();
     g.globalCompositeOperation = 'multiply';
     isoT(g, 1);
@@ -477,6 +478,28 @@ export class Renderer {
     g.globalCompositeOperation = 'soft-light'; g.globalAlpha = 0.9; g.drawImage(cv, 0, 0); // lighten
     g.globalCompositeOperation = 'color'; g.globalAlpha = 0.34; g.drawImage(cv, 0, 0); // and colour
     g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.35; g.drawImage(cv, 0, 0);
+    g.restore();
+  }
+
+  /** Standing water (a broken river's pools): a murky green-grey tint over the water lying in their basins (relief). */
+  drawPonds(g, map, tb) {
+    const W = map.w, H = map.h;
+    const cv = this._ponds || (this._ponds = document.createElement('canvas'));
+    cv.width = W; cv.height = H;
+    const c = cv.getContext('2d'), img = c.createImageData(W, H), d = img.data;
+    for (const t of map.tiles) {
+      if (!t.pond) continue;
+      const i = (t.y * W + t.x) * 4, v = hash(t.x * 0.61, t.y * 0.37) * 18;
+      d[i] = 62 + v; d[i + 1] = 80 + v; d[i + 2] = 78 + v; d[i + 3] = 255;
+    }
+    c.putImageData(img, 0, 0);
+    const TWh = TW / 2, THh = TH / 2;
+    g.save();
+    g.setTransform(TWh, THh, -TWh, THh, this.OX, this.OY);
+    if (tb) { g.beginPath(); g.rect(tb.x0, tb.y0, tb.x1 - tb.x0 + 1, tb.y1 - tb.y0 + 1); g.clip(); }
+    g.imageSmoothingEnabled = true;
+    g.globalAlpha = 0.55; g.drawImage(cv, 0, 0);
+    g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.3; g.drawImage(cv, 0, 0);
     g.restore();
   }
 

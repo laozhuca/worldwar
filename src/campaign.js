@@ -1137,6 +1137,28 @@ export const LEVELS = [
       const sector = (y) => (y < y0 + third ? 'uk' : y > y1 - third ? 'france' : 'usa');
       map.mirror = true; // shown mirrored left to right: the Allies attack from the lower left towards the upper right
       state.campaign.sectors = { y0, y1, a: Math.round(y0 + third), b: Math.round(y1 - third) };
+      // ---- the Somme, between our sector and the French: four years of shelling have broken it into a chain of
+      // swamps - pools of standing water (impassable, no trench or wire through them), muddy ground round them,
+      // and causeways of firm ground between where men can cross
+      {
+        const yb = state.campaign.sectors.b;
+        let seed = 818;
+        const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+        let x = 0, mid = yb, pool = true, run = 3 + Math.floor(rnd() * 6);
+        for (; x < W; x++) {
+          if (--run <= 0) { pool = !pool; run = pool ? 3 + Math.floor(rnd() * 7) : 1 + Math.floor(rnd() * 3); }
+          if (rnd() < 0.2) mid = Math.max(yb - 2, Math.min(yb + 2, mid + (rnd() < 0.5 ? -1 : 1))); // (it meanders)
+          if (!pool) continue;
+          const wide = 2 + Math.floor(rnd() * 3), top = mid - Math.floor(wide / 2);
+          for (let y = top; y < top + wide; y++) {
+            const t = at(x, y);
+            if (!t || t.off) continue;
+            Object.assign(t, { pond: 1, sea: 1, block: 1, trench: 0, owner: -1, origOwner: -1, wire: 0, origWire: -1, decor: null, crater: 0, ground: 0, mud: 1 });
+          }
+        }
+        for (const t of map.tiles) if (!t.pond && !t.off) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const n = at(t.x + dx, t.y + dy); if (n && n.pond) { t.mud = 1; t.decor = null; break; } } // (its marshy banks)
+        noSquares(map);
+      }
       const trenchNear = (team, x0, yy) => { for (let r = 0; r <= 3; r++) for (const dy of [0, -1, 1, -2, 2]) for (const dx of [-r, r]) { const t = at(x0 + dx, yy + dy); if (t && t.trench && t.owner === team && !state.units.some((u) => Math.floor(u.x) === t.x && Math.floor(u.y) === t.y)) return t; } return null; };
       const put = (type, team, t, nation) => { if (!t) return null; const u = spawnUnit(state, type, team, t.x + 0.5, t.y + 0.5); u.inTrench = !!t.trench; if (nation && nation !== 'usa') { u.nation = nation; u.ally = true; } return u; };
       // ---- every sector garrisoned afresh, all along the broad front
@@ -1147,12 +1169,12 @@ export const LEVELS = [
         if ((y - y0) % 9 === 1) put('rifle', PLAYER, trenchNear(PLAYER, f[y] - d * 7, y), n); // support
         if ((y - y0) % 12 === 4) put('mg', PLAYER, trenchNear(PLAYER, f[y], y), n);
       }
-      for (let y = y0 + 4; y <= y1 - 4; y += 9) { const t = at(f[y] - d * 9, y); if (t && !t.trench) put('artillery', PLAYER, t, sector(y)); }
+      for (let y = y0 + 4; y <= y1 - 4; y += 9) { const t = at(f[y] - d * 9, y); if (t && !t.trench && !t.block) put('artillery', PLAYER, t, sector(y)); }
       // the enemy: riflemen along his whole front, machine guns in every line, batteries behind
       for (let y = y0 + 1; y <= y1 - 1; y += 4) put('rifle', ENEMY, trenchNear(ENEMY, ef[y], y));
       for (let y = y0 + 3; y <= y1 - 3; y += 8) put('mg', ENEMY, trenchNear(ENEMY, ef[y], y));
       for (const off of [7, 11]) for (let y = y0 + 6; y <= y1 - 6; y += 12) { const g = put('mg', ENEMY, trenchNear(ENEMY, ef[y] - e * off, y)); if (g) g.ai.role = 'garrison'; }
-      for (let y = y0 + 8; y <= y1 - 8; y += 14) { const t = at(ef[y] - e * 9, y); if (t && !t.trench) put('artillery', ENEMY, t); }
+      for (let y = y0 + 8; y <= y1 - 8; y += 14) { const t = at(ef[y] - e * 9, y); if (t && !t.trench && !t.block) put('artillery', ENEMY, t); }
       // 1918: the tanks have crushed most of his wire
       let k = 0;
       for (const t of map.tiles) if (t.wire && t.origWire === ENEMY && k++ % 4) t.wire = 0;

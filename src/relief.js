@@ -183,6 +183,20 @@ export class Relief {
       }
     }
 
+    // 3b. pools of standing water (a river broken up by the shelling into a chain of swamps): a deep basin under
+    // every pool tile, its edge ragged, so the water lies in it with a soft muddy shore
+    for (let ty = Math.max(0, wy0 - 2); ty <= Math.min(Ht - 1, wy1 + 2); ty++) for (let tx = Math.max(0, wx0 - 2); tx <= Math.min(W - 1, wx1 + 2); tx++) {
+      const t = T(tx, ty);
+      if (!t || !t.pond) continue;
+      const cx = (t.x + 0.5) * R - PX, cy = (t.y + 0.5) * R - PY, rr = R * 0.95, ext = rr * 1.2;
+      for (let y = Math.max(0, Math.floor(cy - ext)); y < Math.min(wh, Math.ceil(cy + ext)); y++) {
+        for (let x = Math.max(0, Math.floor(cx - ext)); x < Math.min(ww, Math.ceil(cx + ext)); x++) {
+          const q = Math.hypot(x - cx, y - cy) / (rr * (0.8 + edge[G(x, y)] * 0.4));
+          if (q < 1) H[y * ww + x] -= 1.5 * (1 - q * q);
+        }
+      }
+    }
+
     // 4. wheel ruts winding across the churned ground (fixed paths, stamped where they cross the window)
     for (let k = 0; k < 26; k++) {
       let x = hash2(k, 1, 9) * mw, y = hash2(k, 2, 9) * mh;
