@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-  <!-- The game's mouse pointer: a rifle cartridge in outline, brass-brown on a pale rim, its sharp tip (the hot spot, 3,3) up and left -->
+  <!-- The game's mouse pointer: a rifle cartridge in outline, green (as the selection rings) on a dark rim, its sharp tip (the hot spot, 3,3) up and left -->
   <g transform="translate(3 3) rotate(-45) scale(1.15)" fill="none" stroke-linejoin="miter" stroke-miterlimit="8" stroke-linecap="round">
-    <path d="M0 0 C 1.3 2.6, 3.0 6.2, 3.1 9.4 L 3.1 11 L 4.9 13.6 L 4.9 26.6 L 4.0 27.6 L 5.2 28.6 L 5.2 30.4 L -5.2 30.4 L -5.2 28.6 L -4.0 27.6 L -4.9 26.6 L -4.9 13.6 L -3.1 11 L -3.1 9.4 C -3.0 6.2, -1.3 2.6, 0 0 Z" fill="rgba(30, 20, 10, 0.25)" stroke="rgba(255, 244, 222, 0.8)" stroke-width="3.6"/>
-    <path d="M0 0 C 1.3 2.6, 3.0 6.2, 3.1 9.4 L 3.1 11 L 4.9 13.6 L 4.9 26.6 L 4.0 27.6 L 5.2 28.6 L 5.2 30.4 L -5.2 30.4 L -5.2 28.6 L -4.0 27.6 L -4.9 26.6 L -4.9 13.6 L -3.1 11 L -3.1 9.4 C -3.0 6.2, -1.3 2.6, 0 0 Z M -3.1 9.4 L 3.1 9.4" stroke="#24160a" stroke-width="2.4"/>
-    <path d="M0 0 C 1.3 2.6, 3.0 6.2, 3.1 9.4 L 3.1 11 L 4.9 13.6 L 4.9 26.6 L 4.0 27.6 L 5.2 28.6 L 5.2 30.4 L -5.2 30.4 L -5.2 28.6 L -4.0 27.6 L -4.9 26.6 L -4.9 13.6 L -3.1 11 L -3.1 9.4 C -3.0 6.2, -1.3 2.6, 0 0 Z M -3.1 9.4 L 3.1 9.4" stroke="#b27a40" stroke-width="1.5"/>
-    <path d="M0 0 C 1.3 2.6, 3.0 6.2, 3.1 9.4 L 3.1 11 L 4.9 13.6 L 4.9 26.6 L 4.0 27.6 L 5.2 28.6 L 5.2 30.4 L -5.2 30.4 L -5.2 28.6 L -4.0 27.6 L -4.9 26.6 L -4.9 13.6 L -3.1 11 L -3.1 9.4 C -3.0 6.2, -1.3 2.6, 0 0 Z" stroke="#e8bf8a" stroke-width="0.45"/>
+    <path d="M0 0 C 1.3 2.6, 3.0 6.2, 3.1 9.4 L 3.1 11 L 4.9 13.6 L 4.9 26.6 L 4.0 27.6 L 5.2 28.6 L 5.2 30.4 L -5.2 30.4 L -5.2 28.6 L -4.0 27.6 L -4.9 26.6 L -4.9 13.6 L -3.1 11 L -3.1 9.4 C -3.0 6.2, -1.3 2.6, 0 0 Z" fill="rgba(20, 40, 10, 0.25)" stroke="rgba(10, 18, 6, 0.85)" stroke-width="3.6"/>
+    <path d="M0 0 C 1.3 2.6, 3.0 6.2, 3.1 9.4 L 3.1 11 L 4.9 13.6 L 4.9 26.6 L 4.0 27.6 L 5.2 28.6 L 5.2 30.4 L -5.2 30.4 L -5.2 28.6 L -4.0 27.6 L -4.9 26.6 L -4.9 13.6 L -3.1 11 L -3.1 9.4 C -3.0 6.2, -1.3 2.6, 0 0 Z M -3.1 9.4 L 3.1 9.4" stroke="#a0ff6e" stroke-width="2.2"/>
+    <path d="M0 0 C 1.3 2.6, 3.0 6.2, 3.1 9.4 L 3.1 11 L 4.9 13.6 L 4.9 26.6 L 4.0 27.6 L 5.2 28.6 L 5.2 30.4 L -5.2 30.4 L -5.2 28.6 L -4.0 27.6 L -4.9 26.6 L -4.9 13.6 L -3.1 11 L -3.1 9.4 C -3.0 6.2, -1.3 2.6, 0 0 Z M -3.1 9.4 L 3.1 9.4" stroke="#a0ff6e" stroke-width="1.5"/>
+    <path d="M0 0 C 1.3 2.6, 3.0 6.2, 3.1 9.4 L 3.1 11 L 4.9 13.6 L 4.9 26.6 L 4.0 27.6 L 5.2 28.6 L 5.2 30.4 L -5.2 30.4 L -5.2 28.6 L -4.0 27.6 L -4.9 26.6 L -4.9 13.6 L -3.1 11 L -3.1 9.4 C -3.0 6.2, -1.3 2.6, 0 0 Z" stroke="#d6ffbe" stroke-width="0.4"/>
   </g>
 </svg>
