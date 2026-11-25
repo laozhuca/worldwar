@@ -1134,7 +1134,7 @@ function checkVictory(state) {
   const { map } = state;
   for (const team of [PLAYER, ENEMY]) {
     const hq = map.hq[1 - team];
-    if (hq.hidden || (hq.byLevel && team === PLAYER)) continue; // (or a level decides when its headquarters are taken) // (a level without one: nothing to take)
+    if (hq.hidden || hq.byLevel) continue; // (or a level decides when its headquarters are taken) // (a level without one: nothing to take)
     // a side may hold several command posts (hq.posts): all of them must be taken
     const posts = [hq, ...(hq.posts || [])];
     // headquarters taken must be held for HQ_HOLD seconds: a counter-attack retaking it in time saves the day

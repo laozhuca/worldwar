@@ -112,7 +112,7 @@ test('Brusilov\'s Storm: riflemen against riflemen, saps, reserves on day 1 and 
   s.map.tiles[hq.y * s.map.w + hq.x].owner = PLAYER;
   for (const p of hq.posts) s.map.tiles[p.y * s.map.w + p.x].owner = PLAYER;
   update(s, 1 / 30); stepCampaign(s);
-  assert.ok(s.campaign.scene && s.campaign.scene.img.includes('galicia-hq'), 'a picture as each headquarters falls');
+  assert.ok(s.campaign.scene && s.campaign.scene.img.includes('galicia-victory'), 'the victory pictured as the last headquarters falls');
   assert.equal(s.campaign.result, null, 'the last picture is seen first');
   s.time += 10; stepCampaign(s);
   assert.equal(s.campaign.result, 'won');
@@ -121,7 +121,18 @@ test('Brusilov\'s Storm: riflemen against riflemen, saps, reserves on day 1 and 
 
   const l = createLevelGame('brusilov');
   l.time = ((72 - 4) / 24) * 420 + 1; stepCampaign(l);
+  assert.ok(l.campaign.scene && l.campaign.scene.img.includes('galicia-defeat') && !l.campaign.result, 'the defeat pictured first');
+  l.time += 10; stepCampaign(l);
   assert.equal(l.campaign.result, 'lost');
+  // our headquarters overrun: held by the enemy five seconds, pictured, then lost
+  const o = createLevelGame('brusilov'), oq = o.map.hq[PLAYER];
+  o.map.tiles[oq.y * o.map.w + oq.x].owner = ENEMY;
+  update(o, 1 / 30); stepCampaign(o);
+  assert.equal(o.winner, -1, 'not at once');
+  o.time += 6; stepCampaign(o);
+  assert.ok(o.campaign.scene && o.campaign.scene.img.includes('galicia-defeat'), 'overrun, pictured');
+  o.time += 10; stepCampaign(o);
+  assert.equal(o.campaign.result, 'lost');
   createGame();
 });
 

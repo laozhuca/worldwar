@@ -612,7 +612,7 @@ export const LEVELS = [
     id: 'brusilov', n: 3, title: 'Brusilov\'s Storm', place: 'Galicia', date: 'June 1916',
     nations: ['russia', 'austria'], season: 'summer', start: 'west', startHour: 4,
     radius: 51, // a wider battlefield: half as long again each way
-    pictures: ['assets/art/church-galicia.webp', 'assets/art/story-galicia.webp', 'assets/art/scene-galicia-hq.webp', 'assets/art/scene-galicia-hq-lost.webp', 'assets/art/story-ivanov.webp', 'assets/art/story-sokolov.webp'],
+    pictures: ['assets/art/church-galicia.webp', 'assets/art/story-galicia.webp', 'assets/art/scene-galicia-hq.webp', 'assets/art/scene-galicia-hq-lost.webp', 'assets/art/story-ivanov.webp', 'assets/art/story-sokolov.webp', 'assets/art/scene-galicia-victory.webp', 'assets/art/scene-galicia-defeat.webp'],
     // the opening scene, like the tutorial's: two Russian soldiers in their trench before the bombardment
     opening: [
       { who: 'Galicia — June 4, 1916', text: 'Before dawn. Two Russian soldiers wait in a trench.', img: 'assets/art/story-galicia.webp', wide: true, hold: 2.5 },
@@ -769,6 +769,7 @@ export const LEVELS = [
       // ---- three headquarters: the centre one and one on each flank, behind the support line
       const hq = map.hq[ENEMY];
       hq.posts = []; hq.byLevel = true; // (the level's check decides the win, after the last picture)
+      map.hq[PLAYER].byLevel = true; // (and the defeat, after its picture)
       for (const dy of [-20, 20]) {
         const y = M + dy;
         const t = trenchNear(ENEMY, ef2[y] + d * 9, y) || trenchNear(ENEMY, ef2[y] + d * 6, y);
@@ -810,7 +811,7 @@ export const LEVELS = [
           if (!c.taken.includes(i)) c.taken.push(i);
           const text = n < posts.length ? `The ${name} Austrian headquarters is ours! ${posts.length - n} still to take.` : 'The last Austrian headquarters has fallen! The line is broken.';
           pushMessage(state, text, 'good');
-          c.scene = { at: state.time, img: 'assets/art/scene-galicia-hq.webp', who: 'Galicia, June 1916', text };
+          c.scene = { at: state.time, img: n < posts.length ? 'assets/art/scene-galicia-hq.webp' : 'assets/art/scene-galicia-victory.webp', who: 'Galicia, June 1916', text }; // (the last: the victory)
           state.events.push({ type: 'cheer' });
         } else { // lost again to a counter-attack
           const text = `The Austrians have retaken the ${name} headquarters!`;
@@ -827,7 +828,22 @@ export const LEVELS = [
         return null;
       }
       c.wonAt = undefined; meter[PLAYER] = null;
-      if (clockHours(state) >= 72) return { result: 'lost', reason: 'Three days have passed and the enemy line still holds.' };
+      // defeat - our headquarters held by the enemy (HQ_HOLD seconds, as everywhere), or three days gone: the moment
+      // pictured, then the battle ends (the level decides it: map.hq[PLAYER].byLevel)
+      if (c.lostAt === undefined) {
+        const ours = state.map.hq[PLAYER], inOurs = tileAt(state.map, ours.x, ours.y).owner === ENEMY;
+        if (inOurs && c.oursAt === undefined) { c.oursAt = state.time; pushMessage(state, `The enemy is in our headquarters! Retake it within ${HQ_HOLD} seconds!`, 'warn'); }
+        else if (!inOurs && c.oursAt !== undefined) { c.oursAt = undefined; pushMessage(state, 'Our headquarters is ours again!', 'good'); }
+        meter[ENEMY] = c.oursAt ?? null;
+        const overrun = c.oursAt !== undefined && state.time - c.oursAt >= HQ_HOLD, out = clockHours(state) >= 72;
+        if (overrun || out) {
+          c.lostAt = state.time; meter[ENEMY] = null;
+          c.lostReason = overrun ? 'Our headquarters has been overrun.' : 'Three days have passed and the enemy line still holds.';
+          pushMessage(state, overrun ? 'Our headquarters has been overrun!' : 'The offensive has failed!', 'loss');
+          c.scene = { at: state.time, img: 'assets/art/scene-galicia-defeat.webp', who: 'Galicia, June 1916', text: overrun ? 'The Austrians and the Germans have broken into our lines. The colours lie in the mud.' : 'The offensive has spent itself. The Austrian line still holds, and the Germans are coming up to counter-attack.' };
+        }
+      }
+      if (c.lostAt !== undefined) return state.time - c.lostAt > 9 ? { result: 'lost', reason: c.lostReason } : null;
       return null;
     },
     // after the opening the camera points out the three headquarters (main.js)
