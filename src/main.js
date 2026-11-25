@@ -883,7 +883,7 @@ function playOpening(state, lines, done, scene = null) {
     const l = lines[i];
     show(l);
     t = 0; until = (l.hold || 2.2) + l.text.split(' ').length * 0.3;
-    if (l.sound) sound.play(l.sound, 1);
+    for (const snd of [].concat(l.sound || [])) sound.play(snd, 1); // (a line may have more than one: the guns and the whistles)
     play({ i, t: 0, dt: 0, start: true });
   };
   const onKey = (e) => {

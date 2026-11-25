@@ -1103,6 +1103,21 @@ export const LEVELS = [
     id: 'amiens', n: 5, title: 'The Black Day', place: 'Amiens, France', date: 'August 1918',
     nations: ['usa', 'germany'], allies: ['uk', 'france'], season: 'mud', start: 'east', startHour: 4.33,
     radius: 59, // a broad front: three times the usual battlefield
+    // the opening scene: two American soldiers in the fog before zero hour (no pictures yet: the words alone)
+    opening: [
+      { who: 'The Black Day — Amiens, August 1918', text: 'Early morning. A thick fog hangs over the battlefield. American infantry assemble between British troops on their left and French troops on their right. A British Mark V tank crawls forward beside them, its engine roaring and tracks grinding against the muddy ground.', sound: 'tank', hold: 3 },
+      { who: 'Miller', text: 'British on our left, French on our right. Where does that leave us?' },
+      { who: 'Sullivan', text: 'In the middle of somebody else\'s war.' },
+      { who: 'Miller', text: 'At least we\'ve got a tank.' },
+      { who: '', text: 'The enormous steel machine rattles past them.', sound: 'tank' },
+      { who: 'Sullivan', text: 'Ever seen one of those things get stuck?' },
+      { who: 'Miller', text: 'No.', hold: 1.2 },
+      { who: 'Sullivan', text: 'Well, don\'t stand behind it.' },
+      { who: '', text: 'The artillery barrage intensifies. British officers blow their whistles. The French infantry begin moving forward.', sound: ['boom', 'whistle'] },
+      { who: 'Miller', text: 'You think the Germans know what\'s coming?' },
+      { who: 'Sullivan', text: 'They\'re about to.', hold: 1.6 },
+      { who: '', text: 'The Americans rise and advance alongside the tank into the morning fog.', hold: 2.5 },
+    ],
     history: 'August 1918. Four years of war have taught the Allied armies how to win. Your American division holds the centre of a great line, with the British on one flank and the French on the other. At zero hour, in thick fog, more than two thousand guns open fire at once and the whole line goes forward behind the barrage - with you or without you. The German line is deep, three trench lines bristling with machine guns, and he will counter-attack whatever is taken. Break through and take his headquarters before the day is out.',
     objectives: ['Take the enemy headquarters before midnight.', 'Go forward with the British and French at zero hour.', 'Do not let the enemy take your headquarters.'],
     rules: ['You command the Americans in the centre. The British and French on your flanks are under their own command: at zero hour they attack whatever you do.', 'Zero hour comes after a short countdown. Be ready to go forward with them, or they will be fighting alone.', 'Tanks can be built at headquarters, at great cost: they crush wire and cross trenches, but may ditch or break down, and only carry so much ammunition.', 'The enemy defends in depth, and every few hours his reserves counter-attack what has been taken. A long summer day: the clock runs slower than in other battles.'],
