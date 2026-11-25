@@ -1145,7 +1145,7 @@ export const LEVELS = [
     id: 'amiens', n: 5, title: 'The Black Day', place: 'Amiens, France', date: 'August 1918',
     nations: ['usa', 'germany'], allies: ['uk', 'france'], season: 'mud', start: 'east', startHour: 4.33,
     radius: 59, // a broad front: three times the usual battlefield
-    pictures: ['assets/art/story-amiens.webp', 'assets/art/story-miller.webp', 'assets/art/story-sullivan.webp', 'assets/art/scene-amiens-victory.webp'],
+    pictures: ['assets/art/story-amiens.webp', 'assets/art/story-miller.webp', 'assets/art/story-sullivan.webp', 'assets/art/scene-amiens-victory.webp', 'assets/art/scene-amiens-defeat.webp'],
     // the opening scene: two American soldiers in the fog before zero hour
     opening: [
       { who: 'The Black Day — Amiens, August 1918', text: 'Early morning. A thick fog hangs over the battlefield. American infantry assemble between British troops on their left and French troops on their right. A British Mark V tank crawls forward beside them, its engine roaring and tracks grinding against the muddy ground.', img: 'assets/art/story-amiens.webp', wide: true, sound: 'tank', hold: 3 },
@@ -1233,6 +1233,7 @@ export const LEVELS = [
       ai.offensive = 3600;
       state.special = { tank: true }; // tanks can be built at headquarters in this battle
       map.hq[ENEMY].byLevel = true; // (the level's check ends it when his headquarters falls, after the picture of the moment)
+      map.hq[PLAYER].byLevel = true; // (and ours: the defeat, after its picture)
       state.campaign.zero = 120; // zero hour, in seconds of battle time
       // ---- the British and French each have their own headquarters, in the middle of their sector, as far
       // behind their front as ours: their fresh squads come up from there (they count for nothing in the victory)
@@ -1329,7 +1330,22 @@ export const LEVELS = [
         if (state.time - c.wonAt > 9) return { result: 'won', reason: 'The enemy headquarters has fallen.' };
         return null;
       }
-      if (clockHours(state) >= 24) return { result: 'lost', reason: 'Midnight came with the enemy headquarters still in his hands.' };
+      // defeat - our headquarters held by the enemy (HQ_HOLD seconds), or midnight: the moment pictured, then the
+      // battle ends (the level decides it: map.hq[PLAYER].byLevel)
+      if (c.lostAt === undefined) {
+        const ours = state.map.hq[PLAYER], inOurs = tileAt(state.map, ours.x, ours.y).owner === ENEMY, meter = state.hqHold || (state.hqHold = [null, null]);
+        if (inOurs && c.oursAt === undefined) { c.oursAt = state.time; pushMessage(state, `The enemy is in our headquarters! Retake it within ${HQ_HOLD} seconds!`, 'warn'); }
+        else if (!inOurs && c.oursAt !== undefined) { c.oursAt = undefined; pushMessage(state, 'Our headquarters is ours again!', 'good'); }
+        meter[ENEMY] = c.oursAt ?? null;
+        const overrun = c.oursAt !== undefined && state.time - c.oursAt >= HQ_HOLD, out = clockHours(state) >= 24;
+        if (overrun || out) {
+          c.lostAt = state.time; meter[ENEMY] = null;
+          c.lostReason = overrun ? 'Our headquarters has been overrun.' : 'Midnight came with the enemy headquarters still in his hands.';
+          pushMessage(state, overrun ? 'Our headquarters has been overrun!' : 'The attack has failed!', 'loss');
+          c.scene = { at: state.time, img: 'assets/art/scene-amiens-defeat.webp', who: 'Amiens, August 1918', text: overrun ? 'The Germans have broken into our lines. The wounded stream back through the ruins.' : 'Night falls on a failed attack. The wounded stream back through the burning ruins, and the German line still holds.' };
+        }
+      }
+      if (c.lostAt !== undefined) return state.time - c.lostAt > 9 ? { result: 'lost', reason: c.lostReason } : null;
       return null;
     },
     tracker(state) {

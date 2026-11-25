@@ -207,9 +207,20 @@ test('The Black Day: a broad front, Americans in the centre, British and French 
   assert.ok(c.scene && c.scene.img.includes('amiens-victory') && !c.result, 'the moment of victory, pictured, before the battle ends');
   s.time += 10; stepCampaign(s);
   assert.equal(c.result, 'won');
+  // our headquarters overrun: held by the enemy five seconds, pictured, then lost
+  const o = createLevelGame('amiens'), oq = o.map.hq[PLAYER];
+  o.map.tiles[oq.y * o.map.w + oq.x].owner = ENEMY;
+  update(o, 1 / 30); stepCampaign(o);
+  assert.equal(o.winner, -1, 'not at once');
+  o.time += 6; stepCampaign(o);
+  assert.ok(o.campaign.scene && o.campaign.scene.img.includes('amiens-defeat'), 'overrun, pictured');
+  o.time += 10; stepCampaign(o);
+  assert.equal(o.campaign.result, 'lost');
 
   const l = createLevelGame('amiens');
   l.time = ((24 - 4.33) / 24) * 1260 + 1; stepCampaign(l);
+  assert.ok(l.campaign.scene && l.campaign.scene.img.includes('amiens-defeat') && !l.campaign.result, 'midnight: the defeat pictured first');
+  l.time += 10; stepCampaign(l);
   assert.equal(l.campaign.result, 'lost');
   createGame();
 });
