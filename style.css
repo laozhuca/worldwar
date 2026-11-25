@@ -943,3 +943,7 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
   background: linear-gradient(rgba(8, 9, 11, 0.62), rgba(8, 9, 11, 0.42) 30%, rgba(8, 9, 11, 0.5) 70%, rgba(8, 9, 11, 0.82)),
     #0b0c0e var(--setup-bg, url('assets/art/menu-mortar-grey.webp')) right center / cover no-repeat;
 }
+
+/* the tutorial's pictures at the campaign's size: the trench whole (4:3), the letter large */
+#story.opening .pic.wide.natural { aspect-ratio: 4 / 3; width: min(760px, 92vw, calc((100vh - 300px) * 4 / 3)); }
+#story.opening .pic.letter { width: min(560px, 80vw, calc((100vh - 300px) * 1.46)); height: auto; aspect-ratio: auto; }

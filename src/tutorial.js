@@ -71,12 +71,34 @@ export function runTutorial(state, ctx) {
   const company = state.units.filter((u) => u.story === 'company');
   const batteries = state.units.filter((u) => u.story === 'guns');
   let holding = false; // the battle waits for the player's order
+  // the conversation as in the campaign's openings: Archer on the left (turned to face him), Hale on the right, each
+  // line in a speech bubble beside its speaker; the lieutenant's orders and the narration between them; the scene
+  // pictures (the trench, the letter) large in the middle of the screen
+  const duo = document.getElementById('duo'), sides = [...duo.querySelectorAll('.side')], bubble = duo.querySelector('.bubble'), narr = duo.querySelector('.narr'), duoHint = duo.querySelector('.hint');
+  const PAIR = [ARCHER, HALE];
+  sides.forEach((sd, k) => { sd.classList.remove('away'); const im = sd.querySelector('img'); im.src = FACES[PAIR[k]]; im.classList.toggle('flip', k === 0); sd.querySelector('.name').textContent = PAIR[k]; });
+  const showDuo = (speaker, text) => {
+    box.classList.add('hidden');
+    duo.classList.remove('hidden');
+    duo.style.bottom = (document.getElementById('bottom')?.offsetHeight || 0) + 'px'; // (above the command panel)
+    const k = PAIR.indexOf(speaker);
+    sides.forEach((sd, j) => sd.classList.toggle('quiet', j !== k));
+    bubble.classList.toggle('hidden', k < 0); narr.classList.toggle('hidden', k >= 0);
+    if (k >= 0) { bubble.className = 'bubble from-' + (k ? 'right' : 'left'); bubble.textContent = text; bubble.style.animation = 'none'; void bubble.offsetWidth; bubble.style.animation = ''; }
+    else narr.textContent = speaker ? `${speaker}: \u201c${text}\u201d` : text;
+    duoHint.classList.add('hidden');
+  };
   const show = (speaker, text, instruction = '', image = null) => {
+    // a line of the conversation (no picture of its own): the two of them, a bubble
+    if (text && !instruction && !image) { showDuo(speaker, text); return; } // (every line of dialogue or narration with no picture of its own)
+    duo.classList.add('hidden');
     box.classList.remove('hidden');
+    box.classList.toggle('opening', !!image); // (scene pictures sized as the campaign's)
     const src = image || (text ? FACES[speaker] : null);
     pic.classList.toggle('hidden', !src);
     pic.classList.toggle('letter', src === LETTER);
     pic.classList.toggle('wide', src === TRENCH);
+    pic.classList.toggle('natural', src === TRENCH); // (a 4:3 picture: shown whole)
     if (src && pic.getAttribute('src') !== src) pic.setAttribute('src', src);
     who.textContent = speaker || '';
     line.textContent = text || '';
@@ -89,7 +111,7 @@ export function runTutorial(state, ctx) {
   // highlights: a ring on the map (a unit or a place) and a glow on a command button
   const glow = (sel) => { document.querySelectorAll('.tut-glow').forEach((e) => e.classList.remove('tut-glow')); if (sel) document.querySelectorAll(sel).forEach((e) => e.classList.add('tut-glow')); };
   const clear = () => { state.marker = null; glow(null); };
-  const stop = () => { stopped = true; holding = false; box.classList.add('hidden'); clear(); for (const w of waits) w.reject(new Error('stopped')); waits.length = 0; };
+  const stop = () => { stopped = true; holding = false; box.classList.add('hidden'); box.classList.remove('opening'); duo.classList.add('hidden'); duo.onclick = null; clear(); for (const w of waits) w.reject(new Error('stopped')); waits.length = 0; };
   const waitFor = (test) => new Promise((resolve, reject) => { if (stopped) return reject(new Error('stopped')); waits.push({ test, resolve, reject }); });
   // one line of dialogue: shown for a time that suits its length; a click or Space moves on
   const say = (speaker, text, image = null) => {
@@ -102,6 +124,7 @@ export function runTutorial(state, ctx) {
   };
   const skip = () => { if (speech) speech.until = 0; };
   box.onclick = skip;
+  duo.onclick = skip;
   // during the scene Space / Enter only move the dialogue on (not 'jump to the front')
   const onKey = (e) => { if (!stopped && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); e.stopImmediatePropagation(); skip(); } };
   window.addEventListener('keydown', onKey, true);
