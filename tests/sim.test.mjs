@@ -277,3 +277,19 @@ test('difficulty sets how the computer fights and what it is supplied', () => {
   assert.equal(easy.resources[PLAYER].ammo, hard.resources[PLAYER].ammo, 'the player is not');
   createGame();
 });
+
+test('a machine gun sees men in the open, and men in a trench only from close by or straight along it', async () => {
+  const { mgCanSee } = await import('../src/game.js');
+  // a 12 x 6 field: a straight trench along row 2 (x 0-9), a dog-leg to row 4 at x 6 (row 4: x 6-11)
+  const W = 12, H = 6, tiles = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) tiles.push({ x, y, trench: (y === 2 && x <= 6) || (x === 6 && y >= 2 && y <= 4) || (y === 4 && x >= 6) ? 1 : 0, off: false });
+  const map = { w: W, h: H, tiles };
+  const gun = { x: 0.5, y: 2.5, inTrench: true };
+  assert.ok(mgCanSee(map, gun, { x: 5.5, y: 0.5, inTrench: false }), 'a man in the open');
+  assert.ok(mgCanSee(map, gun, { x: 5.5, y: 2.5, inTrench: true }), 'down the same straight trench (enfilade)');
+  assert.ok(!mgCanSee(map, gun, { x: 9.5, y: 4.5, inTrench: true }), 'not round the traverse');
+  assert.ok(mgCanSee(map, gun, { x: 9.5, y: 4.5, inTrench: true, climb: {} }), 'but a man climbing out shows himself');
+  assert.ok(!mgCanSee(map, { x: 3.5, y: 0.5, inTrench: false }, { x: 9.5, y: 4.5, inTrench: true }), 'from the open ground beside it, not down into it from afar');
+  assert.ok(mgCanSee(map, { x: 9.5, y: 3.4, inTrench: false }, { x: 9.5, y: 4.5, inTrench: true }), 'but from close by, yes');
+  assert.ok(mgCanSee(map, { x: 0.5, y: 0.5, deck: 80 }, { x: 9.5, y: 4.5, inTrench: true }), 'and from high up on a ship\'s deck');
+});

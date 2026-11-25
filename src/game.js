@@ -737,13 +737,27 @@ function updateUnit(state, u, dt) {
   } else u.digging = false;
 }
 
+/**
+ * Can a machine gun see this man to shoot him? Anyone out of a trench, yes (in the open, or climbing out over the
+ * parapet). A man down in a trench only from close by (looking down into it), along the trench itself (the gun in
+ * a straight run of trench with him, no traverse between: enfilade), or from high up (a ship's deck).
+ */
+export function mgCanSee(map, u, e) {
+  if (!e.inTrench || e.climb || e.overTop) return true;
+  if (u.deck || Math.hypot(e.x - u.x, e.y - u.y) <= 1.5) return true;
+  if (!u.inTrench) return false;
+  const d = Math.hypot(e.x - u.x, e.y - u.y), n = Math.ceil(d * 4);
+  for (let i = 1; i < n; i++) { const t = tileAt(map, u.x + ((e.x - u.x) * i) / n, u.y + ((e.y - u.y) * i) / n); if (!t || !t.trench) return false; }
+  return true;
+}
+
 function findTargets(state, u, t) {
   let best = null, bestScore = Infinity, closest = null, cd = Infinity;
   for (const e of state.units) {
     if (e.dead || e.team === u.team) continue;
     const d = dist(u, e);
     if (d < cd) { cd = d; closest = e; }
-    if (t.range && d <= (u.range || t.range)) {
+    if (t.range && d <= (u.range || t.range) && !(u.type === 'mg' && !mgCanSee(state.map, u, e))) { // (a machine gun only at what it can see)
       const score = d * (e.inTrench ? 1.4 : 1) * (e.type === 'artillery' ? 1.3 : 1);
       if (score < bestScore) { bestScore = score; best = e; }
     }
