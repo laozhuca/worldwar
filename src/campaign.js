@@ -805,12 +805,15 @@ export const LEVELS = [
           c.scene = { at: state.time, img: 'assets/art/scene-galicia-hq-lost.webp', who: 'Galicia, June 1916', text };
         }
       });
+      const meter = state.hqHold || (state.hqHold = [null, null]);
+      state.hqHoldFor = [9, 5]; // (all three held for 9 s: the meter over them shows it)
       if (held.every(Boolean)) {
         c.wonAt = c.wonAt ?? state.time;
+        meter[PLAYER] = c.wonAt;
         if (state.time - c.wonAt > 9) return { result: 'won', reason: 'All three enemy headquarters have fallen.' };
         return null;
       }
-      c.wonAt = undefined;
+      c.wonAt = undefined; meter[PLAYER] = null;
       if (clockHours(state) >= 72) return { result: 'lost', reason: 'Three days have passed and the enemy line still holds.' };
       return null;
     },
@@ -1280,6 +1283,7 @@ export const LEVELS = [
         if (inHq && c.hqAt === undefined) { c.hqAt = state.time; pushMessage(state, `The German headquarters is ours! Hold it for ${HQ_HOLD} seconds.`, 'good'); }
         else if (!inHq && c.hqAt !== undefined) { c.hqAt = undefined; pushMessage(state, 'The Germans have retaken their headquarters!', 'warn'); }
       }
+      (state.hqHold || (state.hqHold = [null, null]))[PLAYER] = c.wonAt === undefined && c.hqAt !== undefined ? c.hqAt : null; // (the meter over it: render)
       if ((inHq && c.hqAt !== undefined && state.time - c.hqAt >= HQ_HOLD) || c.wonAt !== undefined) {
         if (c.wonAt === undefined) {
           c.wonAt = state.time; c.endHour = clockHours(state);

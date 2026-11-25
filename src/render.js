@@ -1043,6 +1043,7 @@ export class Renderer {
     this.drawBarrageMarkers(ctx, state);
     if (state.marker && state.marker.x !== undefined) this.drawStoryMarker(ctx, state.marker, performance.now() / 1000);
     if (state.markers) for (const m of state.markers) this.drawStoryMarker(ctx, m, performance.now() / 1000);
+    this.drawHqHold(ctx, state);
     this.drawShells(ctx, state);
     this.drawThrownBodies(ctx, state, false); // jolted bodies stay low, under the smoke
     this.drawEffects(ctx, state);
@@ -1592,6 +1593,41 @@ export class Renderer {
       }
     }
     ctx.restore();
+  }
+
+  /**
+   * A headquarters being held for the victory (state.hqHold: since when, per side; hqHoldFor: how long it must be
+   * held): the headquarters picked out by a pulsing ring, and above it a meter filling up with the seconds to go -
+   * gold when it is the enemy's we hold, red when he holds ours.
+   */
+  drawHqHold(ctx, state) {
+    const hold = state.hqHold;
+    if (!hold) return;
+    const now = performance.now() / 1000;
+    for (const team of [PLAYER, ENEMY]) {
+      if (hold[team] === null || hold[team] === undefined) continue;
+      const need = (state.hqHoldFor && state.hqHoldFor[team]) || 5, k = Math.max(0, Math.min(1, (state.time - hold[team]) / need));
+      const hq = state.map.hq[1 - team], col = team === PLAYER ? [240, 200, 96] : [235, 80, 60];
+      const rgba = (a) => `rgba(${col[0]},${col[1]},${col[2]},${a})`;
+      for (const q of [hq, ...(hq.posts || [])]) {
+        if (q.hidden) continue;
+        const c = iso(q.x + 0.5, q.y + 0.5), pulse = 0.5 + 0.5 * Math.sin(now * 6);
+        // the ring on the ground round it
+        ctx.lineWidth = 3; ctx.strokeStyle = rgba(0.55 + 0.35 * pulse);
+        ctx.beginPath(); ctx.ellipse(c.x, c.y, 62 + pulse * 6, 31 + pulse * 3, 0, 0, TAU); ctx.stroke();
+        ctx.lineWidth = 1.2; ctx.strokeStyle = rgba(0.3);
+        ctx.beginPath(); ctx.ellipse(c.x, c.y, 74, 37, 0, 0, TAU); ctx.stroke();
+        // the meter above it: a dial filling clockwise, the seconds left in the middle
+        const mx = c.x, my = c.y - 96, R = 17;
+        ctx.fillStyle = 'rgba(12,10,8,0.78)'; ctx.beginPath(); ctx.arc(mx, my, R + 5, 0, TAU); ctx.fill();
+        ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.beginPath(); ctx.arc(mx, my, R, 0, TAU); ctx.stroke();
+        ctx.strokeStyle = rgba(0.95); ctx.beginPath(); ctx.arc(mx, my, R, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+        ctx.font = 'bold 15px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#f4ead2';
+        this.wtext(ctx, String(Math.max(0, Math.ceil(need * (1 - k)))), mx, my + 1);
+        ctx.font = 'bold 9px sans-serif'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = rgba(1);
+        this.wtext(ctx, team === PLAYER ? 'HOLD THE HQ' : 'RETAKE OUR HQ', mx, my - R - 9);
+      }
+    }
   }
 
   drawHQ(ctx, state, q, team) {
