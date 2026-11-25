@@ -920,3 +920,8 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 #hq-alert.ours b { color: #ff6a50; }
 @keyframes hq-alarm { from { box-shadow: 0 0 6px rgba(230, 70, 50, 0.4); } to { box-shadow: 0 0 22px rgba(230, 70, 50, 0.9); } }
 @media (max-width: 700px) { #hq-alert { top: 92px; font-size: 13px; } }
+
+/* the campaign tracker: a number running low (amber), critically low (red, pulsing) */
+#objectives .ob-low { color: #f0b84a; font-weight: bold; }
+#objectives .ob-critical { color: #ff5a44; font-weight: bold; font-size: 1.15em; text-shadow: 0 0 6px rgba(255, 70, 50, 0.6); animation: ob-pulse 0.9s ease-in-out infinite alternate; }
+@keyframes ob-pulse { from { opacity: 1; } to { opacity: 0.45; } }

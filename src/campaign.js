@@ -25,6 +25,19 @@ function frontTiles(state) {
   return out;
 }
 const frontHeld = (state) => state.campaign.front.filter((i) => state.map.tiles[i].owner === PLAYER).length;
+/**
+ * The tracker's line for a level lost when too much of our line falls: the number held picked out as it runs low -
+ * amber below three-quarters, red and pulsing within a tenth of the line (at least two) of the limit, with a
+ * warning the first time it gets there.
+ */
+function frontHeldLine(state) {
+  const c = state.campaign, n = c.front.length, held = frontHeld(state), min = Math.ceil(n / 2);
+  const critical = held <= min + Math.max(2, Math.round(n * 0.1)), low = held < n * 0.75;
+  if (critical && !c.warnedLine) { c.warnedLine = true; pushMessage(state, 'Our line is close to breaking! Retake the trenches we have lost.', 'warn'); }
+  if (!critical && held >= min + Math.max(2, Math.round(n * 0.1)) + 3) c.warnedLine = false; // (warned again if it comes to that again)
+  const cls = critical ? 'ob-critical' : low ? 'ob-low' : '';
+  return `Front line held: <span class="${cls}">${held}</span> / ${n} (no fewer than ${min})`;
+}
 
 /**
  * V Beach: the first wave comes out of the River Clyde. The moment the warships' first salvo has fallen her sally
@@ -502,7 +515,7 @@ export const LEVELS = [
       return [
         'Hold until relieved',
         c.relievedAt !== undefined ? 'The relief has arrived.' : `Relief: dawn of day 4, in ${left(Math.max(0, 78 - h))}`,
-        `Front line held: ${frontHeld(state)} / ${c.front.length} (no fewer than ${Math.ceil(c.front.length / 2)})`,
+        frontHeldLine(state),
       ];
     },
     medalsEarned(state) {
@@ -1097,7 +1110,7 @@ export const LEVELS = [
       const h = clockHours(state), c = state.campaign;
       return [
         'Hold the beach',
-        `Front line held: ${frontHeld(state)} / ${c.front.length} (no fewer than ${Math.ceil(c.front.length / 2)})`,
+        frontHeldLine(state),
         `Nightfall in ${left(Math.max(0, 20 - h))}`,
       ];
     },
