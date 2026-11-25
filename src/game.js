@@ -590,7 +590,7 @@ function updateUnit(state, u, dt) {
   if (u.shock > 0) { u.shock -= dt; u.suppression = Math.max(u.suppression, 75); }
   if (u.type === 'tank') { u.suppression = 0; u.shock = 0; } // (armour: the crew are neither suppressed nor pinned)
   const charging = !!(u.order && u.order.kind === 'charge');
-  if (charging || u.inTrench || u.type === 'tank') u.pinned = false;
+  if (charging || u.type === 'tank') u.pinned = false; // (heavy fire pins men down in a trench too: heads down, hardly able to fire back)
   else if (u.suppression > 60) u.pinned = true;
   else if (u.suppression < 30) u.pinned = false;
   u.cooldown = Math.max(0, u.cooldown - dt);
@@ -738,9 +738,10 @@ function updateUnit(state, u, dt) {
 }
 
 /**
- * Can a machine gun see this man to shoot him? Anyone out of a trench, yes (in the open, or climbing out over the
+ * Can a machine gun see this man to hit him? Anyone out of a trench, yes (in the open, or climbing out over the
  * parapet). A man down in a trench only from close by (looking down into it), along the trench itself (the gun in
- * a straight run of trench with him, no traverse between: enfilade), or from high up (a ship's deck).
+ * a straight run of trench with him, no traverse between: enfilade), or from high up (a ship's deck). Out of its
+ * sight in his trench, its fire only pins him down (fire).
  */
 export function mgCanSee(map, u, e) {
   if (!e.inTrench || e.climb || e.overTop) return true;
@@ -757,8 +758,9 @@ function findTargets(state, u, t) {
     if (e.dead || e.team === u.team) continue;
     const d = dist(u, e);
     if (d < cd) { cd = d; closest = e; }
-    if (t.range && d <= (u.range || t.range) && !(u.type === 'mg' && !mgCanSee(state.map, u, e))) { // (a machine gun only at what it can see)
-      const score = d * (e.inTrench ? 1.4 : 1) * (e.type === 'artillery' ? 1.3 : 1);
+    if (t.range && d <= (u.range || t.range)) {
+      // (a machine gun would rather fire at men it can see: at men down in a trench out of its sight it can only keep their heads down)
+      const score = d * (e.inTrench ? 1.4 : 1) * (e.type === 'artillery' ? 1.3 : 1) * (u.type === 'mg' && !mgCanSee(state.map, u, e) ? 3 : 1);
       if (score < bestScore) { bestScore = score; best = e; }
     }
   }
@@ -799,7 +801,9 @@ function fire(state, u, target, t) {
   for (let i = 0; i < shots; i++) if (rand() < acc) hits++;
   const tt = tileAt(state.map, target.x, target.y);
   const cover = target.inTrench && tt && tt.trench ? trenchCover(TRENCH_COVER, tt) : 1;
-  damageUnit(state, target, hits * t.damage * cover, null, { x: u.x, y: u.y, kind: t.burst ? 'mg' : 'rifle' });
+  // a machine gun firing on men down in a trench it cannot see into pins them down, but its bullets go over their heads
+  const seen = u.type !== 'mg' || mgCanSee(state.map, u, target);
+  if (seen) damageUnit(state, target, hits * t.damage * cover, null, { x: u.x, y: u.y, kind: t.burst ? 'mg' : 'rifle' });
 
   let sup = shots * t.suppressPerShot;
   if (target.order && target.order.kind === 'charge') sup *= 0.5;

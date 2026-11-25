@@ -293,3 +293,28 @@ test('a machine gun sees men in the open, and men in a trench only from close by
   assert.ok(mgCanSee(map, { x: 9.5, y: 3.4, inTrench: false }, { x: 9.5, y: 4.5, inTrench: true }), 'but from close by, yes');
   assert.ok(mgCanSee(map, { x: 0.5, y: 0.5, deck: 80 }, { x: 9.5, y: 4.5, inTrench: true }), 'and from high up on a ship\'s deck');
 });
+
+test('machine-gun fire on men down in a trench it cannot see into pins them down but kills none', () => {
+  const s = createGame({ aiTeams: [] });
+  const map = s.map;
+  // an enemy trench tile, and open ground of our own 6 tiles in front of it with no straight trench between
+  const t = map.tiles.find((q) => q.trench && q.owner === ENEMY && !q.off && Math.abs(q.y - map.h / 2) < 6);
+  const dir = teamDir(ENEMY);
+  let g = null;
+  for (let k = 5; k <= 7 && !g; k++) { const q = tileAt(map, t.x + 0.5 - dir * k, t.y + 0.5); if (q && !q.trench && !q.wire && !q.rock) g = q; }
+  assert.ok(g, 'a spot in front of the trench');
+  s.units = [];
+  const foe = s.units[s.units.push({ ...createGame({ aiTeams: [] }).units.find((u) => u.type === 'rifle') }) - 1];
+  Object.assign(foe, { id: 9001, team: ENEMY, x: t.x + 0.5, y: t.y + 0.5, inTrench: true, holdFire: true, order: null, path: null, target: null, suppression: 0 });
+  const gun = s.units[s.units.push({ ...createGame({ aiTeams: [] }).units.find((u) => u.type === 'mg') }) - 1];
+  Object.assign(gun, { id: 9002, team: PLAYER, x: g.x + 0.5, y: g.y + 0.5, inTrench: false, setup: 0, order: null, path: null, target: null });
+  const men = foe.men;
+  let peak = 0;
+  for (let i = 0; i < 30 * 12; i++) { update(s, 1 / 30); peak = Math.max(peak, foe.suppression); }
+  assert.equal(foe.men, men, 'none killed');
+  assert.ok(peak > 40, `kept down (suppression ${peak.toFixed(0)})`);
+  // the same men out in the open are another matter
+  Object.assign(foe, { x: g.x + 0.5 + dir * 3, y: g.y + 0.5, inTrench: false });
+  for (let i = 0; i < 30 * 12; i++) update(s, 1 / 30);
+  assert.ok(foe.men < men || foe.dead, 'in the open they are cut down');
+});
