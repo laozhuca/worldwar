@@ -525,7 +525,7 @@ async function boot() {
   const fill = document.getElementById('boot-fill'), item = document.getElementById('boot-item');
   const img = (src) => new Promise((r) => { const i = new Image(); i.onload = i.onerror = r; i.src = src; });
   const jobs = [
-    ['Photographs', Promise.all(['assets/art/menu-truce-clear.webp', ...SETUP_BACKDROPS].map(img))],
+    ['Photographs', Promise.all(['assets/art/menu-truce-snow.webp', ...SETUP_BACKDROPS].map(img))],
     ['Soldiers', fetch('assets/models/manifest.json').then((r) => r.json()).then((m) => Promise.all(app.nations.filter((n) => m[n]).map((n) => fetch('assets/models/' + m[n]).then((r) => r.arrayBuffer()))))],
     ['Portraits', Promise.all(Object.keys(NATIONS).map((n) => img(portraitOf(n))))],
     ['Music', new Promise((r) => { const a = new Audio('assets/music/ombra-di-guerra.mp3'); a.preload = 'auto'; a.oncanplaythrough = a.onerror = r; a.load(); })],
