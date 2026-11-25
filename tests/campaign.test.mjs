@@ -158,7 +158,9 @@ test('The Beach at Sedd el Bahr: hold the slopes above V Beach until nightfall a
   s.time = ((20.1 - 5.5) / 24) * s.dayLength;
   for (const u of s.units) if (u.team === ENEMY) u.dead = true;
   for (const i of c.front) s.map.tiles[i].owner = PLAYER;
-  stepCampaign(s); s.time += 5; stepCampaign(s);
+  stepCampaign(s);
+  assert.ok(c.scene && c.scene.img.includes('helles-victory') && !c.result, 'the moment of victory, pictured, before the battle ends');
+  s.time += 10; stepCampaign(s);
   assert.equal(c.result, 'won');
 
   const l = createLevelGame('helles');
