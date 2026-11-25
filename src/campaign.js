@@ -399,7 +399,7 @@ export const LEVELS = [
   {
     id: 'ypres', n: 1, title: 'The Sailors of Dixmude', place: 'Dixmude, Belgium', date: 'October 1914',
     nations: ['marins', 'germany'], allies: ['france'], season: 'mud', start: 'west', startHour: 6.5,
-    pictures: ['assets/art/scene-dixmude-relief.webp', 'assets/art/story-dixmude-dawn.webp', 'assets/art/story-leguen.webp', 'assets/art/story-moreau.webp'],
+    pictures: ['assets/art/scene-dixmude-relief.webp', 'assets/art/scene-dixmude-victory.webp', 'assets/art/scene-dixmude-defeat.webp', 'assets/art/story-dixmude-dawn.webp', 'assets/art/story-leguen.webp', 'assets/art/story-moreau.webp'],
     // the opening scene, like the prologue's: two sailors behind the barricade before the attack
     opening: [
       { who: 'Dixmude, Belgium — October 1914', text: 'Just before dawn. Two French sailors stand behind a makeshift barricade. A cold mist hangs over the empty road.', img: 'assets/art/story-dixmude-dawn.webp', wide: true, hold: 3 },
@@ -435,6 +435,7 @@ export const LEVELS = [
     setup(state) {
       // the town of Dixmude on the battlefield behind our headquarters: its buildings are impassable
       const hq = state.map.hq[PLAYER];
+      hq.byLevel = true; // (the level decides the defeat when our headquarters falls, after its picture)
       const town = { img: 'assets/art/town-dixmude.webp', x: hq.x + 0.5 - teamDir(PLAYER) * 4.7, y: hq.y + 0.5, ax: 440, ay: 444, k: 0.5, hx: 2.1, hy: 4.4 };
       state.backdrop = town;
       // a corner of the town round headquarters: at each end of the church quarter a house carries its line
@@ -504,10 +505,26 @@ export const LEVELS = [
           c.manned = state.time;
           pushMessage(state, 'The reinforcements are in our trenches. Dixmude is held!', 'good');
           state.events.push({ type: 'cheer' });
+          c.scene = { at: state.time, img: 'assets/art/scene-dixmude-victory.webp', who: 'Dixmude, October 1914', text: 'Dixmude is held! The sailors and the fresh French troops shake hands in the ruined square.' };
         }
-        if (c.manned && state.time - c.manned > 4) return { result: 'won', reason: 'Relieved. You held the line.' };
+        if (c.manned && state.time - c.manned > 9) return { result: 'won', reason: 'Relieved. You held the line.' };
       }
-      if (frontHeld(state) < c.front.length / 2) return { result: 'lost', reason: 'More than half of your front line has fallen.' };
+      // defeat - the line broken, or our headquarters held by the enemy (HQ_HOLD seconds): the moment pictured, then
+      // the battle ends (the level decides it: map.hq[PLAYER].byLevel)
+      if (c.lostAt === undefined && !c.manned) {
+        const ours = state.map.hq[PLAYER], inOurs = tileAt(state.map, ours.x, ours.y).owner === ENEMY, meter = state.hqHold || (state.hqHold = [null, null]);
+        if (inOurs && c.oursAt === undefined) { c.oursAt = state.time; pushMessage(state, `The enemy is in our headquarters! Retake it within ${HQ_HOLD} seconds!`, 'warn'); }
+        else if (!inOurs && c.oursAt !== undefined) { c.oursAt = undefined; pushMessage(state, 'Our headquarters is ours again!', 'good'); }
+        meter[ENEMY] = c.oursAt ?? null;
+        const overrun = c.oursAt !== undefined && state.time - c.oursAt >= HQ_HOLD, broken = frontHeld(state) < c.front.length / 2;
+        if (overrun || broken) {
+          c.lostAt = state.time; meter[ENEMY] = null;
+          c.lostReason = overrun ? 'Our headquarters has been overrun.' : 'More than half of your front line has fallen.';
+          pushMessage(state, overrun ? 'Our headquarters has been overrun!' : 'Our line has broken!', 'loss');
+          c.scene = { at: state.time, img: 'assets/art/scene-dixmude-defeat.webp', who: 'Dixmude, October 1914', text: 'Dixmude has fallen. The townspeople flee through the burning streets, and the colours lie in the mud.' };
+        }
+      }
+      if (c.lostAt !== undefined) return state.time - c.lostAt > 9 ? { result: 'lost', reason: c.lostReason } : null;
       return null;
     },
     tracker(state) {

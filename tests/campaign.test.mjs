@@ -36,7 +36,8 @@ test('The Sailors of Dixmude: the relief at dawn on day 4 wins; losing half the 
   for (const u of relief) { u.x = u.reliefTo.x; u.y = u.reliefTo.y; }
   stepCampaign(s);
   assert.ok(s.campaign.manned, 'the relief is in the line');
-  s.time += 5; stepCampaign(s);
+  assert.ok(s.campaign.scene && s.campaign.scene.img.includes('dixmude-victory'), 'the victory pictured');
+  s.time += 10; stepCampaign(s);
   assert.equal(s.campaign.result, 'won');
   assert.equal(s.winner, PLAYER);
   assert.ok(levelById('ypres').medalsEarned(s)[0]);
@@ -44,6 +45,8 @@ test('The Sailors of Dixmude: the relief at dawn on day 4 wins; losing half the 
   const l = createLevelGame('ypres');
   for (const i of l.campaign.front.slice(0, Math.ceil(l.campaign.front.length / 2) + 1)) l.map.tiles[i].owner = ENEMY;
   stepCampaign(l);
+  assert.ok(l.campaign.scene && l.campaign.scene.img.includes('dixmude-defeat') && !l.campaign.result, 'the defeat pictured first');
+  l.time += 10; stepCampaign(l);
   assert.equal(l.campaign.result, 'lost');
   assert.equal(l.winner, ENEMY);
   createGame();
