@@ -2244,6 +2244,12 @@ export class Renderer {
       ctx.fillStyle = u.suppression > 60 ? '#ff7a2a' : '#d9a441';
       ctx.fillRect(p.x - 12, by + 5, 24 * (u.suppression / 100), 1.5);
     }
+    if (u.type === 'rifle' && (u.stamina ?? 100) < 99) { // its wind, under the others (blue; pale when blown)
+      const yy = by + (u.suppression > 5 ? 7 : 4), st = u.stamina ?? 100;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(p.x - 13, yy, 26, 3);
+      ctx.fillStyle = st < 35 ? '#9ab8d8' : '#5aa0e6';
+      ctx.fillRect(p.x - 12, yy + 1, 24 * (st / 100), 1.5);
+    }
     if (u.type === 'artillery' && u.team === PLAYER && u.cooldown > 0) {
       ctx.fillStyle = '#ddd'; ctx.font = '8px sans-serif'; ctx.textAlign = 'center';
       this.wtext(ctx, `reload ${Math.ceil(u.cooldown)}s`, p.x, by - 2);

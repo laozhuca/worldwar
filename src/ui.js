@@ -560,6 +560,7 @@ export class UI {
       for (const u of sel.slice(0, 12)) {
         const t = UNIT_TYPES[u.type];
         let status = u.pinned ? 'PINNED' : u.order ? (u.order.kind === 'charge' ? 'charging' : 'moving') : u.barrage ? 'firing barrage' : u.digging ? 'digging' : u.inTrench ? 'in trench' : 'in the open';
+        if (u.type === 'rifle' && (u.stamina ?? 100) < 35) status += ' · winded'; // (charging slowly and fighting weakly until it gets its breath back)
         if (u.type === 'artillery' && u.cooldown > 0 && !u.barrage) status = `reloading ${Math.ceil(u.cooldown)}s`;
         if (u.type === 'mg' && u.packing > 0) status = 'packing up';
         else if (u.type === 'mg' && u.setup > 0 && !u.order) status = 'setting up';

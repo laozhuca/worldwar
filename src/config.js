@@ -155,6 +155,9 @@ export const DIFFICULTY = {
 
 export const SUPPRESSION_DECAY = 12; // per second
 export const CHARGE_SPEED = 2.0; // a run is much faster than the walk
+// A rifle squad's wind (0-100): a charge uses it up (about 11 s of running flat out); it comes back standing or
+// lying still, and slowly on the walk. Below WINDED the run slows towards a walk and the bayonet fight weakens.
+export const STAMINA = { charge: 9, melee: 4.5, rest: 12, walk: 4, winded: 35 };
 export const MELEE_RANGE = 0.9;
 export const WIRE_SLOW = 0.25;
 

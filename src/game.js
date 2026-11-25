@@ -1,7 +1,7 @@
 // Core simulation. No DOM access here so it can run headless (tests, AI-vs-AI).
 import {
   PLAYER, ENEMY, UNIT_TYPES, HQ_THREAT_RADIUS, TRENCH_COVER, TRENCH_ARTY, BUILD, SUPPLY_INTERVAL, TRENCH_HIT, TRENCH_NEAR, TRENCH_TOUGH, TRENCH_NEAR_MISS, TRENCH_WRECK_LOSS, trenchCover,
-  BASE_INCOME, CAPTURE_BONUS, START_RES, SUPPRESSION_DECAY, CHARGE_SPEED, MELEE_RANGE,
+  BASE_INCOME, CAPTURE_BONUS, START_RES, SUPPRESSION_DECAY, CHARGE_SPEED, STAMINA, MELEE_RANGE,
   WIRE_SLOW, BUILD_RADIUS_FRIENDLY, BUILD_RADIUS_ENEMY, DIG_RADIUS, DIG_RATE,
 } from './config.js';
 import { createMap, tileAt, frontLine, teamDir, clampToMap, rockAt, offRock, makesSquare } from './map.js';
@@ -89,6 +89,7 @@ export function spawnUnit(state, type, team, x, y) {
     fireTimer: rand() * (t.fireInterval || 1),
     setup: type === 'mg' || type === 'artillery' ? t.setup : 0, // a new MG team or battery arrives packed / limbered: it must set up before it can fire
     suppression: 0,
+    stamina: 100, // (a rifle squad's wind)
     pinned: false,
     target: null,
     closest: null,
@@ -641,7 +642,9 @@ function updateUnit(state, u, dt) {
         return;
       }
     }
-    let speed = t.speed * (u.type === 'artillery' && tile && tile.trench ? 1 : terrainFactor(tile)) * (u.order.kind === 'charge' ? CHARGE_SPEED : 1);
+    // a charge at the run, as fast as the men's wind allows: winded, it slows towards a walk
+    const run = u.order.kind !== 'charge' ? 1 : u.type !== 'rifle' ? CHARGE_SPEED : 1 + (CHARGE_SPEED - 1) * Math.min(1, (u.stamina ?? 100) / STAMINA.winded);
+    let speed = t.speed * (u.type === 'artillery' && tile && tile.trench ? 1 : terrainFactor(tile)) * run;
     // the computer's riflemen cross open ground at the double (not through wire), and keep to a walk in the trenches
     if (u.type === 'rifle' && u.order.kind !== 'charge' && !u.inTrench && !(tile && tile.wire > 0) && aiTeam(state, u.team)) speed *= AI_DOUBLE;
     if (u.climb) speed *= 0.25; // over the parapet, or down into the trench
@@ -676,6 +679,13 @@ function updateUnit(state, u, dt) {
     u.setup = Math.max(0, u.setup - dt);
   }
 
+  // --- the men's wind: the charge uses it up, hand-to-hand fighting too; it comes back at rest, slowly on the walk
+  if (u.type === 'rifle') {
+    const melee = !!(u.closest && closeD < MELEE_RANGE);
+    const rate = melee ? -STAMINA.melee : u.moving ? (charging ? -STAMINA.charge : STAMINA.walk) : STAMINA.rest;
+    u.stamina = Math.max(0, Math.min(100, (u.stamina ?? 100) + rate * dt));
+  }
+
   // --- artillery barrage: never on the move, and only once the guns are unlimbered
   if (u.barrage && !u.order && !(u.setup > 0)) {
     const b = u.barrage;
@@ -703,6 +713,7 @@ function updateUnit(state, u, dt) {
   if (u.closest && closeD < MELEE_RANGE && u.type !== 'tank') {
     let dmg = u.men * t.melee * dt * 1.5;
     if (u.chargeBonus > 0) dmg *= 2.0; // the shock of a bayonet charge
+    if (u.type === 'rifle') dmg *= 0.6 + 0.4 * Math.min(1, (u.stamina ?? 100) / STAMINA.winded); // (blown men fight weakly)
     if (u.suppression > 50) dmg *= 0.5;
     damageUnit(state, u.closest, dmg, null, { x: u.x, y: u.y, kind: 'melee' });
     u.closest.suppression = Math.min(100, u.closest.suppression + dt * 10);

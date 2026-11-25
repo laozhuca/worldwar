@@ -318,3 +318,28 @@ test('machine-gun fire on men down in a trench it cannot see into pins them down
   for (let i = 0; i < 30 * 12; i++) update(s, 1 / 30);
   assert.ok(foe.men < men || foe.dead, 'in the open they are cut down');
 });
+
+test('a charge uses up a rifle squad\'s wind: it slows when winded and gets its breath back at rest', () => {
+  const s = createGame({ aiTeams: [] });
+  const u = s.units.find((q) => q.type === 'rifle' && q.team === PLAYER);
+  s.units = [u];
+  const dir = teamDir(PLAYER);
+  // a long run over open ground behind our lines
+  let at = null;
+  for (const t of s.map.tiles) { if (t.off || t.trench || t.wire || t.rock) continue; let ok = true; for (let k = 1; k <= 14; k++) { const q = tileAt(s.map, t.x + 0.5 - dir * k, t.y + 0.5); if (!q || q.off || q.trench || q.wire || q.rock) { ok = false; break; } } if (ok) { at = t; break; } }
+  Object.assign(u, { x: at.x + 0.5, y: at.y + 0.5, inTrench: false, stamina: 100 });
+  orderMove(s, [u], at.x + 0.5 - dir * 14, at.y + 0.5, 'charge');
+  const x0 = u.x;
+  for (let i = 0; i < 30 * 2; i++) update(s, 1 / 30);
+  const fresh = Math.abs(u.x - x0) / 2;
+  for (let i = 0; i < 30 * 8; i++) update(s, 1 / 30);
+  assert.ok(u.stamina < 35, `winded after a long charge (${u.stamina.toFixed(0)})`);
+  const x1 = u.x;
+  for (let i = 0; i < 30; i++) update(s, 1 / 30);
+  const tired = Math.abs(u.x - x1);
+  assert.ok(u.order === null || tired < fresh * 0.85, `slower when winded (${tired.toFixed(2)} vs ${fresh.toFixed(2)} tiles a second)`);
+  u.order = null; u.path = null;
+  const low = u.stamina;
+  for (let i = 0; i < 30 * 3; i++) update(s, 1 / 30);
+  assert.ok(u.stamina > low + 25, 'its breath back at rest');
+});
