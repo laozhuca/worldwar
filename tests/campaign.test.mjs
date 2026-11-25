@@ -187,6 +187,8 @@ test('The Black Day: a broad front, Americans in the centre, British and French 
   const hq = s.map.hq[ENEMY];
   s.map.tiles[hq.y * s.map.w + hq.x].owner = PLAYER;
   update(s, 1 / 30); stepCampaign(s);
+  assert.ok(c.scene && c.scene.img.includes('amiens-victory') && !c.result, 'the moment of victory, pictured, before the battle ends');
+  s.time += 10; stepCampaign(s);
   assert.equal(c.result, 'won');
 
   const l = createLevelGame('amiens');

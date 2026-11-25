@@ -1103,7 +1103,7 @@ export const LEVELS = [
     id: 'amiens', n: 5, title: 'The Black Day', place: 'Amiens, France', date: 'August 1918',
     nations: ['usa', 'germany'], allies: ['uk', 'france'], season: 'mud', start: 'east', startHour: 4.33,
     radius: 59, // a broad front: three times the usual battlefield
-    pictures: ['assets/art/story-amiens.webp', 'assets/art/story-miller.webp', 'assets/art/story-sullivan.webp'],
+    pictures: ['assets/art/story-amiens.webp', 'assets/art/story-miller.webp', 'assets/art/story-sullivan.webp', 'assets/art/scene-amiens-victory.webp'],
     // the opening scene: two American soldiers in the fog before zero hour
     opening: [
       { who: 'The Black Day — Amiens, August 1918', text: 'Early morning. A thick fog hangs over the battlefield. American infantry assemble between British troops on their left and French troops on their right. A British Mark V tank crawls forward beside them, its engine roaring and tracks grinding against the muddy ground.', img: 'assets/art/story-amiens.webp', wide: true, sound: 'tank', hold: 3 },
@@ -1168,6 +1168,7 @@ export const LEVELS = [
       ai.level = { ...DIFFICULTY.medium, firstAttack: 3600, attackGap: [1200, 1500], income: 0.7 };
       ai.offensive = 3600;
       state.special = { tank: true }; // tanks can be built at headquarters in this battle
+      map.hq[ENEMY].byLevel = true; // (the level's check ends it when his headquarters falls, after the picture of the moment)
       state.campaign.zero = 120; // zero hour, in seconds of battle time
       // ---- the British and French each have their own headquarters, in the middle of their sector, as far
       // behind their front as ours: their fresh squads come up from there (they count for nothing in the victory)
@@ -1244,6 +1245,19 @@ export const LEVELS = [
           if (best) orderMove(state, [u], best.x + 0.5, best.y + 0.5, 'charge');
           else u.allyDone = true;
         }
+      }
+      // his headquarters taken: the moment (a picture with the announcement, main.js), then the victory - the level
+      // decides it (hq.byLevel), so the picture is seen before the battle ends
+      const hqE = state.map.hq[ENEMY];
+      if (tileAt(state.map, hqE.x, hqE.y).owner === PLAYER || c.wonAt !== undefined) {
+        if (c.wonAt === undefined) {
+          c.wonAt = state.time; c.endHour = clockHours(state);
+          c.scene = { at: state.time, img: 'assets/art/scene-amiens-victory.webp', who: 'Amiens, 8 August 1918', text: 'The German headquarters has fallen! The Stars and Stripes fly over the broken line, and whole German battalions are marching into captivity.' };
+          pushMessage(state, 'The enemy headquarters has fallen!', 'good');
+          state.events.push({ type: 'cheer' });
+        }
+        if (state.time - c.wonAt > 9) return { result: 'won', reason: 'The enemy headquarters has fallen.' };
+        return null;
       }
       if (clockHours(state) >= 24) return { result: 'lost', reason: 'Midnight came with the enemy headquarters still in his hands.' };
       return null;
