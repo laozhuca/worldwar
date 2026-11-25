@@ -822,6 +822,7 @@ const LOOKS = {
   'story-leguen': { dir: 1, lettering: true }, 'story-moreau': { dir: 1, lettering: true }, // (FUSILIERS MARINS on their caps)
   'story-rossi': { dir: 1 }, 'story-bianchi': { dir: 1 },
   'story-mehmet': { dir: -1 }, 'story-hasan': { dir: -1 },
+  'story-miller': { dir: 1 }, 'story-sullivan': { dir: 1 }, // (cropped close: no lettering in the pictures)
   // (Ivanov and Sokolov look straight out of the picture)
 };
 function playOpening(state, lines, done, scene = null) {
