@@ -1056,8 +1056,9 @@ function explode(state, s) {
   }
   const center = tileAt(map, s.x, s.y);
   if (center && center.sea) { // a shell in the sea: a column of white water, no crater, no earth
-    state.effects.push({ type: 'impact', water: true, x: s.x, y: s.y, age: 0, life: 3.2, flip: rand() < 0.5, scale: (0.8 + rand() * 0.3) * K }); // (pre-rendered frames, graded as water)
-    state.effects.push({ type: 'splash', x: s.x, y: s.y, age: 0, life: 3.4, scale: (0.85 + rand() * 0.35) * K, seed: rand() });
+    const mud = !!center.pond; // (a pool of the broken river: brown with mud, not white)
+    state.effects.push({ type: 'impact', water: true, mud, x: s.x, y: s.y, age: 0, life: 3.2, flip: rand() < 0.5, scale: (0.8 + rand() * 0.3) * K }); // (pre-rendered frames, graded as water)
+    state.effects.push({ type: 'splash', mud, x: s.x, y: s.y, age: 0, life: 3.4, scale: (0.85 + rand() * 0.35) * K, seed: rand() });
     state.events.push({ type: 'splash', x: s.x, y: s.y }); // (its own sound: a burst under water)
     return;
   }

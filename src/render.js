@@ -17,6 +17,8 @@ function supersample(ctx) {
 
 const TAU = Math.PI * 2;
 
+/** A shell bursting in a muddy pool: its water thrown up brown (a canvas filter over the water effects). */
+const MUDDY = 'sepia(1) saturate(1.05) hue-rotate(-6deg) brightness(0.5) contrast(1.15)';
 export function iso(x, y) {
   return { x: ((x - y) * TW) / 2, y: ((x + y) * TH) / 2 };
 }
@@ -481,7 +483,7 @@ export class Renderer {
     g.restore();
   }
 
-  /** Standing water (a broken river's pools): a murky green-grey tint over the water lying in their basins (relief). */
+  /** Standing water (a broken river's pools): muddy brown, over the water lying in their basins (relief). */
   drawPonds(g, map, tb) {
     const W = map.w, H = map.h;
     const cv = this._ponds || (this._ponds = document.createElement('canvas'));
@@ -490,7 +492,7 @@ export class Renderer {
     for (const t of map.tiles) {
       if (!t.pond) continue;
       const i = (t.y * W + t.x) * 4, v = hash(t.x * 0.61, t.y * 0.37) * 18;
-      d[i] = 62 + v; d[i + 1] = 80 + v; d[i + 2] = 78 + v; d[i + 3] = 255;
+      d[i] = 70 + v * 0.7; d[i + 1] = 60 + v * 0.6; d[i + 2] = 44 + v * 0.4; d[i + 3] = 255;
     }
     c.putImageData(img, 0, 0);
     const TWh = TW / 2, THh = TH / 2;
@@ -498,8 +500,8 @@ export class Renderer {
     g.setTransform(TWh, THh, -TWh, THh, this.OX, this.OY);
     if (tb) { g.beginPath(); g.rect(tb.x0, tb.y0, tb.x1 - tb.x0 + 1, tb.y1 - tb.y0 + 1); g.clip(); }
     g.imageSmoothingEnabled = true;
-    g.globalAlpha = 0.55; g.drawImage(cv, 0, 0);
-    g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.3; g.drawImage(cv, 0, 0);
+    g.globalCompositeOperation = 'color'; g.globalAlpha = 0.7; g.drawImage(cv, 0, 0); // (the water's reflection of the sky taken out: brown)
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 0.55; g.drawImage(cv, 0, 0);
     g.restore();
   }
 
@@ -2359,7 +2361,7 @@ export class Renderer {
 
   drawEffects(ctx, state) {
     const anim = !!this.fx; // once loaded, impacts replace the older code-drawn blast visuals
-    if (anim) { const base = ctx.getTransform(); for (const e of state.effects.filter((q) => q.type === 'impact').sort((a, b) => a.x + a.y - (b.x + b.y))) this.drawImpact(ctx, e, base); }
+    if (anim) { const base = ctx.getTransform(); for (const e of state.effects.filter((q) => q.type === 'impact').sort((a, b) => a.x + a.y - (b.x + b.y))) { if (e.mud) { ctx.save(); ctx.filter = MUDDY; } this.drawImpact(ctx, e, base); if (e.mud) ctx.restore(); } }
     const wind = this.atmo.wind;
     for (const e of state.effects) {
       const k = e.age / e.life;
@@ -2397,7 +2399,9 @@ export class Renderer {
         }
         ctx.globalAlpha = 1;
       } else if (e.type === 'splash') {
+        if (e.mud) { ctx.save(); ctx.filter = MUDDY; }
         this.drawSplash(ctx, e, k, anim && !!this.fxWater); // (with the water frames: only the rings and foam on the surface)
+        if (e.mud) ctx.restore();
       } else if (e.type === 'boom') {
         if (anim) continue; // the impact animation has its own flash and earth column
         const p = iso(e.x, e.y);
