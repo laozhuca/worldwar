@@ -2,7 +2,7 @@
 // DOM-free (driven from main.js, and headlessly from the tests). A level's progress lives in
 // state.campaign as plain data, so a campaign battle saves and loads like any other.
 import { PLAYER, ENEMY, DIFFICULTY } from './config.js';
-import { createGame, spawnUnit, pushMessage, orderMove, orderBarrage } from './game.js';
+import { createGame, spawnUnit, pushMessage, orderMove, orderBarrage, HQ_HOLD } from './game.js';
 import { frontLine, teamDir, tileAt, noSquares, makesSquare } from './map.js';
 
 const DAY_LENGTH = 420; // seconds of game time per 24 hours (as atmosphere.js)
@@ -1274,8 +1274,13 @@ export const LEVELS = [
       }
       // his headquarters taken: the moment (a picture with the announcement, main.js), then the victory - the level
       // decides it (hq.byLevel), so the picture is seen before the battle ends
-      const hqE = state.map.hq[ENEMY];
-      if (tileAt(state.map, hqE.x, hqE.y).owner === PLAYER || c.wonAt !== undefined) {
+      const hqE = state.map.hq[ENEMY], inHq = tileAt(state.map, hqE.x, hqE.y).owner === PLAYER;
+      // (held for HQ_HOLD seconds first: a German counter-attack retaking it in time saves him)
+      if (c.wonAt === undefined) {
+        if (inHq && c.hqAt === undefined) { c.hqAt = state.time; pushMessage(state, `The German headquarters is ours! Hold it for ${HQ_HOLD} seconds.`, 'good'); }
+        else if (!inHq && c.hqAt !== undefined) { c.hqAt = undefined; pushMessage(state, 'The Germans have retaken their headquarters!', 'warn'); }
+      }
+      if ((inHq && c.hqAt !== undefined && state.time - c.hqAt >= HQ_HOLD) || c.wonAt !== undefined) {
         if (c.wonAt === undefined) {
           c.wonAt = state.time; c.endHour = clockHours(state);
           c.scene = { at: state.time, img: 'assets/art/scene-amiens-victory.webp', who: 'Amiens, 8 August 1918', text: 'The German headquarters has fallen! The Stars and Stripes fly over the broken line, and whole German battalions are marching into captivity.' };

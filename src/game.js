@@ -422,6 +422,7 @@ function steer(map, u, mx, my) {
 // them, and lifts a barrage when they come within FRIENDLY_LIFT of where it falls (shells scatter ~2 tiles)
 export const FRIENDLY_CLEAR = 3, FRIENDLY_LIFT = 2.6;
 const aiTeam = (state, team) => state.ais.some((a) => a.team === team && !a.legacy); // (legacy: an experiment's old-style commander)
+export const HQ_HOLD = 5; // seconds a captured headquarters must be held for the victory
 const AI_DOUBLE = 1.35; // the computer's riflemen at the double across open ground
 /** True if any of the team's men (not its guns) are within r tiles of (x, y). */
 export function friendsNear(state, team, x, y, r) {
@@ -1136,10 +1137,21 @@ function checkVictory(state) {
     if (hq.hidden || (hq.byLevel && team === PLAYER)) continue; // (or a level decides when its headquarters are taken) // (a level without one: nothing to take)
     // a side may hold several command posts (hq.posts): all of them must be taken
     const posts = [hq, ...(hq.posts || [])];
+    // headquarters taken must be held for HQ_HOLD seconds: a counter-attack retaking it in time saves the day
+    const hold = state.hqHold || (state.hqHold = [null, null]);
     if (posts.every((q) => tileAt(map, q.x, q.y).owner === team)) {
-      state.winner = team;
-      pushMessage(state, team === PLAYER ? (posts.length > 1 ? 'The last enemy headquarters has fallen. Victory!' : 'The enemy headquarters has fallen. Victory!') : 'Our headquarters has been overrun.', team === PLAYER ? 'good' : 'loss');
-      return;
+      if (hold[team] === null) {
+        hold[team] = state.time;
+        pushMessage(state, team === PLAYER ? `The enemy headquarters is ours! Hold it for ${HQ_HOLD} seconds.` : `The enemy is in our headquarters! Retake it within ${HQ_HOLD} seconds!`, team === PLAYER ? 'good' : 'warn');
+      }
+      if (state.time - hold[team] >= HQ_HOLD) {
+        state.winner = team;
+        pushMessage(state, team === PLAYER ? (posts.length > 1 ? 'The last enemy headquarters has fallen. Victory!' : 'The enemy headquarters has fallen. Victory!') : 'Our headquarters has been overrun.', team === PLAYER ? 'good' : 'loss');
+        return;
+      }
+    } else if (hold[team] !== null) {
+      hold[team] = null;
+      pushMessage(state, team === PLAYER ? 'The enemy has retaken his headquarters!' : 'Our headquarters is ours again!', team === PLAYER ? 'warn' : 'good');
     }
   }
   for (const team of [PLAYER, ENEMY]) {

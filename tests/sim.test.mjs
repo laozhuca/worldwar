@@ -360,3 +360,19 @@ test('pinned down in a trench, men shoot badly but move along it as usual', () =
   assert.ok(under.pinned, 'pinned');
   assert.ok(Math.abs(under.moved - calm.moved) < 0.05, `as fast along the trench (${under.moved.toFixed(2)} vs ${calm.moved.toFixed(2)})`);
 });
+
+test('a headquarters taken must be held for five seconds to win; retaken in time, the battle goes on', () => {
+  const s = createGame({ aiTeams: [] });
+  s.units = s.units.filter((u) => u.team === PLAYER).slice(0, 1); // (an army left on each side: no 'broken' ending)
+  s.units.push({ ...s.units[0], id: 9100, team: ENEMY, x: 1, y: 1 });
+  const hq = s.map.hq[ENEMY], tile = s.map.tiles[hq.y * s.map.w + hq.x];
+  tile.owner = PLAYER;
+  for (let i = 0; i < 30 * 3; i++) update(s, 1 / 30);
+  assert.equal(s.winner, -1, 'not yet, after three seconds');
+  tile.owner = ENEMY; update(s, 1 / 30); // (retaken)
+  tile.owner = PLAYER;
+  for (let i = 0; i < 30 * 3; i++) update(s, 1 / 30);
+  assert.equal(s.winner, -1, 'the count starts again when it is taken again');
+  for (let i = 0; i < 30 * 3; i++) update(s, 1 / 30);
+  assert.equal(s.winner, PLAYER, 'held five seconds: victory');
+});
