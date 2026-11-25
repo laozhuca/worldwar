@@ -648,7 +648,9 @@ function updateUnit(state, u, dt) {
     // the computer's riflemen cross open ground at the double (not through wire), and keep to a walk in the trenches
     if (u.type === 'rifle' && u.order.kind !== 'charge' && !u.inTrench && !(tile && tile.wire > 0) && aiTeam(state, u.team)) speed *= AI_DOUBLE;
     if (u.climb) speed *= 0.25; // over the parapet, or down into the trench
-    if (u.pinned) speed *= 0.3;
+    // (down in a trench, fire overhead only spoils their aim: they move along it as usual; in the open they crawl)
+    if (u.inTrench && !u.climb) { /* full pace */ }
+    else if (u.pinned) speed *= 0.3;
     else if (u.order.kind !== 'charge' && u.suppression > 40) speed *= 0.6;
     const step = speed * dt;
     if (wp && (d <= step || d < 0.02)) {

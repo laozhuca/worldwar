@@ -343,3 +343,20 @@ test('a charge uses up a rifle squad\'s wind: it slows when winded and gets its 
   for (let i = 0; i < 30 * 3; i++) update(s, 1 / 30);
   assert.ok(u.stamina > low + 25, 'its breath back at rest');
 });
+
+test('pinned down in a trench, men shoot badly but move along it as usual', () => {
+  const pace = (pinned) => {
+    const s = createGame({ aiTeams: [] });
+    const u = s.units.find((q) => q.type === 'rifle' && q.team === PLAYER);
+    s.units = [u];
+    // a straight run of our trench, five tiles along a row
+    const t = s.map.tiles.find((q) => { for (let k = 0; k < 6; k++) { const r = tileAt(s.map, q.x + k + 0.5, q.y + 0.5); if (!r || !r.trench || r.owner !== PLAYER) return false; } return true; });
+    Object.assign(u, { x: t.x + 0.5, y: t.y + 0.5, inTrench: true, order: null, path: null });
+    orderMove(s, [u], t.x + 5.5, t.y + 0.5);
+    for (let i = 0; i < 30 * 2; i++) { if (pinned) { u.suppression = 90; } update(s, 1 / 30); }
+    return { moved: u.x - (t.x + 0.5), pinned: u.pinned };
+  };
+  const calm = pace(false), under = pace(true);
+  assert.ok(under.pinned, 'pinned');
+  assert.ok(Math.abs(under.moved - calm.moved) < 0.05, `as fast along the trench (${under.moved.toFixed(2)} vs ${calm.moved.toFixed(2)})`);
+});
