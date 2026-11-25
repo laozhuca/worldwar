@@ -543,7 +543,7 @@ export const LEVELS = [
   {
     id: 'isonzo', n: 2, title: 'The Nests of San Michele', place: 'The Isonzo, Italy', date: 'August 1916',
     nations: ['italy', 'austria'], season: 'thaw', start: 'west', startHour: 5,
-    pictures: ['assets/art/scene-san-michele-victory.webp', 'assets/art/story-san-michele.webp', 'assets/art/story-bianchi.webp', 'assets/art/story-rossi.webp'],
+    pictures: ['assets/art/scene-san-michele-victory.webp', 'assets/art/scene-san-michele-defeat.webp', 'assets/art/story-san-michele.webp', 'assets/art/story-bianchi.webp', 'assets/art/story-rossi.webp'],
     // the opening scene, like the prologue's: two Italian soldiers in a rocky trench before the assault
     opening: [
       { who: 'Monte San Michele, Isonzo Front — August 6, 1916', text: 'Early morning. Two Italian soldiers crouch in a rocky trench. The smell of coffee mingles with damp earth. Above them, Austrian machine-gun positions overlook the valley.', img: 'assets/art/story-san-michele.webp', wide: true, hold: 3 },
@@ -575,6 +575,7 @@ export const LEVELS = [
       lost: 'The nests were still firing when night fell on the second day, and the attack was called off. Eleven times the Italians attacked on the Isonzo; most of those battles ended like this, with a few hundred yards gained at a terrible price.',
     },
     setup(state) {
+      state.map.hq[PLAYER].byLevel = true; // (the level decides the defeat when our headquarters falls, after its picture)
       buildValley(state);
     },
     events: [
@@ -604,7 +605,22 @@ export const LEVELS = [
         if (state.time - c.wonAt > 9) return { result: 'won', reason: 'The guns are silenced.' };
         return null;
       }
-      if (clockHours(state) >= 24 + 19) return { result: 'lost', reason: 'Night fell on the second day with the nests still firing.' };
+      // defeat - our headquarters held by the enemy (HQ_HOLD seconds), or night on the second day: the moment
+      // pictured, then the battle ends (the level decides it: map.hq[PLAYER].byLevel)
+      if (c.lostAt === undefined) {
+        const ours = state.map.hq[PLAYER], inOurs = tileAt(state.map, ours.x, ours.y).owner === ENEMY, meter = state.hqHold || (state.hqHold = [null, null]);
+        if (inOurs && c.oursAt === undefined) { c.oursAt = state.time; pushMessage(state, `The enemy is in our headquarters! Retake it within ${HQ_HOLD} seconds!`, 'warn'); }
+        else if (!inOurs && c.oursAt !== undefined) { c.oursAt = undefined; pushMessage(state, 'Our headquarters is ours again!', 'good'); }
+        meter[ENEMY] = c.oursAt ?? null;
+        const overrun = c.oursAt !== undefined && state.time - c.oursAt >= HQ_HOLD, out = clockHours(state) >= 24 + 19;
+        if (overrun || out) {
+          c.lostAt = state.time; meter[ENEMY] = null;
+          c.lostReason = overrun ? 'Our headquarters has been overrun.' : 'Night fell on the second day with the nests still firing.';
+          pushMessage(state, overrun ? 'Our headquarters has been overrun!' : 'The attack on San Michele has failed!', 'loss');
+          c.scene = { at: state.time, img: 'assets/art/scene-san-michele-defeat.webp', who: 'Monte San Michele, August 1916', text: 'The attack has failed. On the heights the Austrians raise their colours over the helmets of our fallen.' };
+        }
+      }
+      if (c.lostAt !== undefined) return state.time - c.lostAt > 9 ? { result: 'lost', reason: c.lostReason } : null;
       return null;
     },
     // after the opening the camera visits each nest in turn, marking it for a moment (main.js); no rings after

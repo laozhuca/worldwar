@@ -87,6 +87,8 @@ test('The Nests of San Michele: three concrete nests, rationed barrages, win on 
   const l = createLevelGame('isonzo');
   l.time = ((43 - 5) / 24) * 420 + 1;
   stepCampaign(l);
+  assert.ok(l.campaign.scene && l.campaign.scene.img.includes('san-michele-defeat') && !l.campaign.result, 'the defeat pictured first');
+  l.time += 10; stepCampaign(l);
   assert.equal(l.campaign.result, 'lost');
   createGame();
 });
