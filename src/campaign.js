@@ -859,7 +859,7 @@ export const LEVELS = [
     id: 'helles', n: 4, title: 'The Beach at Sedd el Bahr', place: 'Cape Helles, Gallipoli', date: '25 April 1915',
     nations: ['ottoman', 'uk'], season: 'summer', start: 'west', startHour: 5.5,
     advance: { [PLAYER]: 4 }, // our trenches on the slopes, well back above a wide beach
-    pictures: ['assets/art/story-helles-fleet.webp', 'assets/art/story-helles-clyde.webp', 'assets/art/story-mehmet.webp', 'assets/art/story-hasan.webp', 'assets/art/scene-helles-victory.webp'],
+    pictures: ['assets/art/story-helles-fleet.webp', 'assets/art/story-helles-clyde.webp', 'assets/art/story-mehmet.webp', 'assets/art/story-hasan.webp', 'assets/art/scene-helles-victory.webp', 'assets/art/scene-helles-defeat.webp'],
     // the opening scene: two Ottoman soldiers above the beach watch the British fleet come in
     opening: [
       { who: 'V Beach, Gallipoli — April 25, 1915', text: 'Before dawn. From the cliffs above the beach, two Ottoman soldiers watch the British fleet coming in out of the mist.', img: 'assets/art/story-helles-fleet.webp', wide: true, hold: 3 },
@@ -1095,7 +1095,13 @@ export const LEVELS = [
           for (let ax = 1; ax <= 20; ax++) { const t = map.tiles[Math.floor(g.y) * W + Math.floor(g.x) + up * ax]; if (t && t.trench && t.owner === ENEMY && t.origOwner === PLAYER) { orderMove(state, [g], t.x + 0.5, t.y + 0.5); break; } if (t && t.trench && t.owner === PLAYER) break; }
         }
       }
-      if (frontHeld(state) < c.front.length / 2) return { result: 'lost', reason: 'More than half of our line above the beach has fallen.' };
+      // the line broken: the moment, pictured (main.js shows it with the announcement), then the defeat
+      if (c.lostAt === undefined && frontHeld(state) < c.front.length / 2) {
+        c.lostAt = state.time;
+        pushMessage(state, 'Our line above the beach has broken!', 'loss');
+        c.scene = { at: state.time, img: 'assets/art/scene-helles-defeat.webp', who: 'V Beach, 25 April 1915', text: 'Our line above the beach has broken. The British are ashore in strength, and their flags fly over the sand.' };
+      }
+      if (c.lostAt !== undefined) return state.time - c.lostAt > 9 ? { result: 'lost', reason: 'More than half of our line above the beach has fallen.' } : null;
       if (clockHours(state) >= 20) {
         if (!c.cheered) {
           c.cheered = true; pushMessage(state, 'Night falls. The enemy is still pinned on the beach!', 'good'); state.events.push({ type: 'cheer' }); c.nightAt = state.time;

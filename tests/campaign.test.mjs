@@ -166,6 +166,8 @@ test('The Beach at Sedd el Bahr: hold the slopes above V Beach until nightfall a
   const l = createLevelGame('helles');
   for (const i of l.campaign.front) l.map.tiles[i].owner = ENEMY;
   stepCampaign(l);
+  assert.ok(l.campaign.scene && l.campaign.scene.img.includes('helles-defeat') && !l.campaign.result, 'the line broken, pictured, before the battle ends');
+  l.time += 10; stepCampaign(l);
   assert.equal(l.campaign.result, 'lost');
   createGame();
 });
