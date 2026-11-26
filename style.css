@@ -1061,3 +1061,29 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
   #story.opening .pic.wide, #story.opening .pic.wide.natural { max-height: 58vh; }
   #story.opening .line { font-size: 15px; }
 }
+
+/* the tutorial's illustrations under an instruction: the map keys and the mouse, drawn in the menu's colours */
+.tut-illus { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 8px; pointer-events: none; }
+.tut-illus.hidden { display: none; }
+.tut-illus .cap-s { fill: #120e0a; }
+.tut-illus .cap-t { fill: #3a3024; stroke: #8a7550; stroke-width: 1.2; }
+.tut-illus .cap-in { transition: transform 0.06s; }
+.tut-illus .cap-l { fill: #efe4cb; font: 16px Georgia, serif; }
+.tut-illus .or { fill: #b9ad94; font: italic 14px Georgia, serif; }
+.tut-illus .cap { transition: filter 0.15s; }
+.tut-illus .cap.held .cap-in { transform: translateY(3px); }
+.tut-illus .cap.held .cap-t { fill: #6a5630; stroke: #f0d79a; }
+.tut-illus .cap.done .cap-t { stroke: #a0ff6e; stroke-width: 2; }
+.tut-illus .cap.done .cap-l { fill: #c8ff9e; }
+/* before any key is pressed, the four ways light in turn as a hint (W A S D, and the arrows with them) */
+.tut-illus.keys .cap:not(.done):not(.held) .cap-t { animation: cap-hint 2.4s infinite; }
+.tut-illus.keys .cap[data-k="left"] .cap-t { animation-delay: 0.6s; } .tut-illus.keys .cap[data-k="down"] .cap-t { animation-delay: 1.2s; } .tut-illus.keys .cap[data-k="right"] .cap-t { animation-delay: 1.8s; }
+@keyframes cap-hint { 0%, 30%, 100% { fill: #3a3024; } 10% { fill: #7a6436; } }
+.tut-illus .m-body { fill: #2a221a; stroke: #8a7550; stroke-width: 1.5; }
+.tut-illus .m-btn { fill: #3a3024; stroke: #8a7550; stroke-width: 1; }
+.tut-illus .m-btn.want { animation: m-want 1s ease-in-out infinite; }
+@keyframes m-want { 0%, 100% { fill: #3a3024; } 50% { fill: #c9a35e; } }
+.tut-illus .m-btn.hit { animation: m-hit 0.5s ease-out; }
+@keyframes m-hit { 0% { fill: #a0ff6e; } 100% { fill: #3a3024; } }
+.tut-illus .m-wheel { fill: #120e0a; stroke: #8a7550; }
+.tut-illus .m-say { font: italic 14px Georgia, serif; color: #e8c98a; }

@@ -61,6 +61,37 @@ export function runTutorial(state, ctx) {
   for (const src of [TRENCH, LETTER, ...Object.values(FACES)]) new Image().src = src; // the scene's pictures, ready when needed
   const box = document.getElementById('story');
   const who = box.querySelector('.who'), line = box.querySelector('.line'), hint = box.querySelector('.hint'), pic = box.querySelector('.pic');
+  // the instruction's illustration (keyboard or mouse), drawn as vector art under the words; desktop only
+  const illus = box.querySelector('.tut-illus') || box.appendChild(Object.assign(document.createElement('div'), { className: 'tut-illus hidden' }));
+  const cap = (x, y, w, label, key, arrow = false) => `<g class="cap" data-k="${key}" transform="translate(${x} ${y})"><rect class="cap-s" x="0" y="3" width="${w}" height="34" rx="6"/><g class="cap-in"><rect class="cap-t" x="0" y="0" width="${w}" height="32" rx="6"/>${arrow
+    ? `<path class="cap-l" d="${{ up: 'M0 5 L-6 -3 L6 -3 Z', down: 'M0 -5 L-6 3 L6 3 Z', left: 'M-5 0 L3 -6 L3 6 Z', right: 'M5 0 L-3 -6 L-3 6 Z' }[label]}" transform="translate(${w / 2} 16)${label === 'up' ? ' rotate(180)' : label === 'down' ? ' rotate(180)' : ''}"/>`
+    : `<text class="cap-l" x="${w / 2}" y="22" text-anchor="middle">${label}</text>`}</g></g>`; // (the key top and its label go down together)
+  const KEYS_SVG = `<svg viewBox="0 0 300 92" width="300" height="92" aria-hidden="true">
+      ${cap(46, 4, 36, 'W', 'up')}${cap(6, 46, 36, 'A', 'left')}${cap(46, 46, 36, 'S', 'down')}${cap(86, 46, 36, 'D', 'right')}
+      <text class="or" x="150" y="60" text-anchor="middle">or</text>
+      ${cap(218, 4, 36, 'up', 'up', true)}${cap(178, 46, 36, 'left', 'left', true)}${cap(218, 46, 36, 'down', 'down', true)}${cap(258, 46, 36, 'right', 'right', true)}
+    </svg>`;
+  const MOUSE_SVG = `<svg viewBox="0 0 80 112" width="64" height="90" aria-hidden="true">
+      <path class="m-body" d="M40 4 C 18 4, 8 22, 8 44 L 8 72 C 8 94, 22 108, 40 108 C 58 108, 72 94, 72 72 L 72 44 C 72 22, 62 4, 40 4 Z"/>
+      <path class="m-btn" data-b="0" d="M38 6 C 20 7, 10 22, 10 44 L 38 44 Z"/>
+      <path class="m-btn" data-b="2" d="M42 6 C 60 7, 70 22, 70 44 L 42 44 Z"/>
+      <rect class="m-wheel" x="36" y="16" width="8" height="16" rx="4"/>
+    </svg>`;
+  const showIllus = (kind, btn = 0) => {
+    if (touch || !kind) { illus.classList.add('hidden'); illus.innerHTML = ''; return; }
+    illus.className = 'tut-illus ' + kind;
+    illus.innerHTML = kind === 'keys' ? KEYS_SVG : MOUSE_SVG + `<span class="m-say">${btn === 2 ? 'Right button' : 'Left button'}</span>`;
+    if (kind === 'mouse') illus.querySelector(`.m-btn[data-b="${btn}"]`).classList.add('want');
+  };
+  // the mouse buttons actually pressed flash on the drawing
+  const onDown = (e) => { const b = illus.querySelector(`.m-btn[data-b="${e.button}"]`); if (b) { b.classList.remove('hit'); void b.getBBox(); b.classList.add('hit'); } };
+  window.addEventListener('mousedown', onDown, true);
+  // the map keys: which of the four ways have been pressed, and which are held now
+  const DIRS = { w: 'up', arrowup: 'up', a: 'left', arrowleft: 'left', s: 'down', arrowdown: 'down', d: 'right', arrowright: 'right' };
+  const pressed = new Set(), held = new Set();
+  const paintKeys = () => illus.querySelectorAll('.cap').forEach((g) => { g.classList.toggle('done', pressed.has(g.dataset.k)); g.classList.toggle('held', held.has(g.dataset.k)); });
+  const onKeyDir = (e) => { const d = DIRS[(e.key || '').toLowerCase()]; if (!d) return; if (e.type === 'keydown') { held.add(d); pressed.add(d); } else held.delete(d); paintKeys(); };
+  window.addEventListener('keydown', onKeyDir, true); window.addEventListener('keyup', onKeyDir, true);
   const find = (tag) => state.units.find((u) => u.story === tag);
   const pair = find('pair'), gun = find('gun'), mg = find('mg');
   let stopped = false, follow = null;
@@ -111,7 +142,7 @@ export function runTutorial(state, ctx) {
   // highlights: a ring on the map (a unit or a place) and a glow on a command button
   const glow = (sel) => { document.querySelectorAll('.tut-glow').forEach((e) => e.classList.remove('tut-glow')); if (sel) document.querySelectorAll(sel).forEach((e) => e.classList.add('tut-glow')); };
   const clear = () => { state.marker = null; glow(null); };
-  const stop = () => { stopped = true; holding = false; box.classList.add('hidden'); box.classList.remove('opening'); duo.classList.add('hidden'); duo.onclick = null; clear(); for (const w of waits) w.reject(new Error('stopped')); waits.length = 0; };
+  const stop = () => { window.removeEventListener('mousedown', onDown, true); window.removeEventListener('keydown', onKeyDir, true); window.removeEventListener('keyup', onKeyDir, true); illus.classList.add('hidden'); stopped = true; holding = false; box.classList.add('hidden'); box.classList.remove('opening'); duo.classList.add('hidden'); duo.onclick = null; clear(); for (const w of waits) w.reject(new Error('stopped')); waits.length = 0; };
   const waitFor = (test) => new Promise((resolve, reject) => { if (stopped) return reject(new Error('stopped')); waits.push({ test, resolve, reject }); });
   // one line of dialogue: shown for a time that suits its length; a click or Space moves on
   const say = (speaker, text, image = null) => {
@@ -129,11 +160,13 @@ export function runTutorial(state, ctx) {
   const onKey = (e) => { if (!stopped && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); e.stopImmediatePropagation(); skip(); } };
   window.addEventListener('keydown', onKey, true);
   /** One step of instruction: the battle holds until the player has done it. */
-  const step = async (text, test) => {
+  const step = async (text, test, art = null) => {
     show('', '', `${text}  (The battle waits for you.)`);
+    showIllus(art && art.kind, art && art.button);
     holding = true;
     await waitFor(test);
     holding = false;
+    showIllus(null);
     clear();
   };
   const look = (x, y, zoom) => { if (zoom) renderer.cam.zoom = renderer.fitZoom(zoom); renderer.centerOn(x, y); }; // (zoom fitted to the screen: a phone shows less)
@@ -143,7 +176,7 @@ export function runTutorial(state, ctx) {
 
   const out = { x: pair.x + 7, y: pair.y }; // a shell hole out in no man's land
   const objective = { x: mg.x, y: mg.y };
-  const selectPair = () => step(`${click} Hale and Archer to select them.`, () => ui.selected.has(pair.id));
+  const selectPair = () => step(`${click} Hale and Archer to select them.`, () => ui.selected.has(pair.id), { kind: 'mouse', button: 0 });
 
   async function script() {
     ui.selected.clear();
@@ -159,8 +192,9 @@ export function runTutorial(state, ctx) {
 
     // 0. moving the map: look around the line, then back
     const cam0 = { x: renderer.cam.x, y: renderer.cam.y };
-    await step(touch ? 'Move the map: drag it with one finger to look along the line.' : 'Move the map: hold W A S D (or the arrow keys) to look along the line.',
-      () => Math.hypot(renderer.cam.x - cam0.x, renderer.cam.y - cam0.y) > 220);
+    pressed.clear();
+    await step(touch ? 'Move the map: drag it with one finger to look along the line.' : 'Move the map: press each of W A S D (or the arrow keys) to look around.',
+      touch ? () => Math.hypot(renderer.cam.x - cam0.x, renderer.cam.y - cam0.y) > 220 : () => pressed.size >= 4, { kind: 'keys' });
     await say('', touch ? 'Good. Drag the map whenever you need to see more of the battlefield.' : 'Good. W A S D (or the arrow keys, or dragging with the middle mouse button) move the map at any time.');
     look(pair.x + 2, pair.y, 2.4);
     await after(0.6);
@@ -168,12 +202,12 @@ export function runTutorial(state, ctx) {
     // 1. the guns first: select the battery, press Bombard, mark the target
     state.marker = { unit: gun.id, label: 'Field battery' };
     look(gun.x + 3, gun.y, 1.8);
-    await step(`${click} the field battery behind your trench to select it.`, () => ui.selected.has(gun.id));
+    await step(`${click} the field battery behind your trench to select it.`, () => ui.selected.has(gun.id), { kind: 'mouse', button: 0 });
     glow('[data-cmd="bombard"]');
     await step(touch ? 'Press the glowing Bombard button.' : 'Press the glowing Bombard button (or B).', () => ui.mode === 'bombard');
     state.marker = { ...objective, label: 'Enemy trench' };
     look(pair.x + (objective.x - pair.x) * 0.6, objective.y, 1.05); // both our trench and theirs well inside the view
-    await step(`${click} the marked enemy trench to shell it. The other batteries will fire along the rest of the line.`, () => gun.barrage || gun.cooldown > 0);
+    await step(`${click} the marked enemy trench to shell it. The other batteries will fire along the rest of the line.`, () => gun.barrage || gun.cooldown > 0, { kind: 'mouse', button: 0 });
     if (gun.barrage) Object.assign(gun.barrage, { x: objective.x, y: objective.y, remaining: Math.min(gun.barrage.remaining, 3) });
     // the other batteries open up with ours, all along the enemy line
     batteries.forEach((g, i) => {
@@ -200,7 +234,7 @@ export function runTutorial(state, ctx) {
     await selectPair();
     state.marker = { ...out, label: 'Shell hole' };
     look(pair.x + 3.5, pair.y, 2.1);
-    await step(`${rclick} the marked shell hole to lead them out into no man's land.`, () => pair.order && pair.order.kind === 'move');
+    await step(`${rclick} the marked shell hole to lead them out into no man's land.`, () => pair.order && pair.order.kind === 'move', { kind: 'mouse', button: 2 });
     orderMove(state, [pair], out.x, out.y); // to the shell hole, wherever the click landed
     for (const u of company) orderMove(state, [u], u.x + 7, u.y);
     follow = pair;
@@ -215,7 +249,7 @@ export function runTutorial(state, ctx) {
     await say(LT, 'Line\'s dressed. Forward!');
     if (!ui.selected.has(pair.id)) { ui.selected.clear(); ui.selected.add(pair.id); }
     state.marker = { ...out, label: 'Shell hole' };
-    await step(`${rclick} the shell hole again to go on.`, () => pair.order && pair.order.kind === 'move');
+    await step(`${rclick} the shell hole again to go on.`, () => pair.order && pair.order.kind === 'move', { kind: 'mouse', button: 2 });
     orderMove(state, [pair], out.x, out.y);
     await waitFor(() => !pair.order || near(pair, out, 1.2));
 
@@ -231,7 +265,7 @@ export function runTutorial(state, ctx) {
     await step(touch ? 'Press the glowing Charge button.' : 'Press the glowing Charge button (or C).', () => ui.mode === 'charge');
     state.marker = { ...objective, label: 'Enemy trench' };
     look(pair.x + (objective.x - pair.x) * 0.6, objective.y, 1.05); // both the men and the trench well inside the view
-    await step(`${click} the marked enemy trench to charge it.`, () => pair.order && pair.order.kind === 'charge');
+    await step(`${click} the marked enemy trench to charge it.`, () => pair.order && pair.order.kind === 'charge', { kind: 'mouse', button: 0 });
     orderMove(state, [pair], objective.x, objective.y, 'charge');
     for (const u of company) { const t = state.map.tiles.find((q) => q.y === u.row && q.trench && q.owner === ENEMY); orderMove(state, [u], t ? t.x + 0.5 : u.x + 20, u.row + 0.5, 'charge'); }
     sound.charge();
