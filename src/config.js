@@ -95,7 +95,7 @@ export const UNIT_TYPES = {
     shells: 20, // rounds for its side guns
     cannonRange: 11,
     cannonInterval: 4.5,
-    cost: { men: 24, ammo: 900, supplies: 600 },
+    cost: { men: 24, ammo: 500, supplies: 600 },
     hotkey: '4',
     special: true, // (only where a level provides it)
     desc: 'A landship: rolls over wire and trenches, its machine guns fire every way and its side guns hit what lies abeam. Bullets glance off and it is never pinned; a direct shell hit costs it a third of its strength, a near miss less. It may ditch in a trench or break down, and its ammunition runs out.',
