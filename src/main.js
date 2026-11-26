@@ -726,6 +726,7 @@ function showBriefing(id) {
   briefed = id;
   const P = document.getElementById('briefing-panel');
   P.querySelector('.brief-num').textContent = L.n ? `Battle ${L.n} of ${LEVELS.length}` : 'Tutorial';
+  P.querySelector('.brief-diff').classList.toggle('hidden', id === 'prologue'); // (the tutorial is a scripted scene: no difficulty)
   P.querySelector('.brief-title').textContent = L.title;
   // the two armies of the battle, in 3D (fixed: a historical battle)
   [['mine', L.nations[0]], ['foe', L.nations[1]]].forEach(([k, n]) => {
