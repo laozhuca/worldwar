@@ -995,6 +995,7 @@ export class Renderer {
     this.drawSurf(ctx, state.map);
     this.drawBridges(ctx, state.map, state.units);
 
+    this.groupOf = ui && ui.groupOf ? (id) => ui.groupOf(id) : null; // (group badges)
     this.updateTracks(state);
     this.drawTracks(ctx, state);
     this.drawDecals(ctx, state);
@@ -1949,6 +1950,17 @@ export class Renderer {
     return (this._puff = c);
   }
 
+  /** The number of the group a unit of ours belongs to (keys 1-9), in a small plate beside its bars. */
+  drawGroupBadge(ctx, u, x, y) {
+    const n = this.groupOf ? this.groupOf(u.id) : 0;
+    if (!n) return;
+    ctx.fillStyle = 'rgba(12,10,8,0.85)'; ctx.fillRect(x - 3, y - 1, 9, 10);
+    ctx.strokeStyle = 'rgba(224,194,122,0.8)'; ctx.lineWidth = 0.8; ctx.strokeRect(x - 3, y - 1, 9, 10);
+    ctx.font = 'bold 8px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#f0d79a';
+    this.wtext(ctx, String(n), x + 1.5, y + 4.2);
+    ctx.textBaseline = 'alphabetic';
+  }
+
   drawHulk(ctx, h, time) {
     const p = iso(h.x, h.y), dir = ((Math.round(Math.atan2(h.hy, h.hx) / (Math.PI / 4)) % 8) + 8) % 8;
     ctx.save();
@@ -2040,6 +2052,7 @@ export class Renderer {
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(p.x - 18, by, 36, 7);
     ctx.fillStyle = '#e8c35a'; ctx.fillRect(p.x - 17, by + 1, 34 * Math.max(0, (u.shells || 0) / t.shells), 2);
     ctx.fillStyle = '#c9c4b2'; ctx.fillRect(p.x - 17, by + 4, 34 * Math.max(0, (u.mgRounds || 0) / t.mgRounds), 2);
+    this.drawGroupBadge(ctx, u, p.x - 26, by - 1);
     const label = u.stuck === 'ditched' ? 'DITCHED' : u.stuck === 'broken' ? 'BROKEN DOWN' : !(u.shells > 0) && !(u.mgRounds > 0) ? 'NO AMMUNITION' : '';
     if (label) { ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffb060'; this.wtext(ctx, label, p.x, by - 2); }
   }
@@ -2403,6 +2416,7 @@ export class Renderer {
     // status bars
     const maxHp = t.men * t.hpPerMan;
     const by = p.y - 30;
+    this.drawGroupBadge(ctx, u, p.x - 21, by - 1);
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(p.x - 13, by, 26, 4);
     const f = u.hp / maxHp;
     ctx.fillStyle = u.team === PLAYER ? (f > 0.5 ? '#8fd16a' : f > 0.25 ? '#e0c050' : '#e06040') : '#c97a6a';

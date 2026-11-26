@@ -85,6 +85,35 @@ export class UI {
     this.speak('charge', units);
   }
 
+  /** Zoom by a factor about the middle of the open screen (the + and - keys). */
+  zoomBy(f) {
+    const r = this.r, cx = r.vw / 2, cy = (r.vh + r.insets.top - r.insets.bottom) / 2;
+    const before = r.screenToWorld(cx, cy);
+    r.cam.zoom *= f; r.clampCam();
+    const after = r.screenToWorld(cx, cy);
+    r.cam.x += r.M * (before.x - after.x); r.cam.y += before.y - after.y; r.clampCam();
+  }
+
+  /** Unit groups 1-9: keep the selection as group n (set), or select group n - pressed twice quickly, look at it. */
+  group(n, set) {
+    const g = this.groups || (this.groups = {});
+    if (set) {
+      const ids = [...this.selected].filter((id) => this.playerUnits().some((u) => u.id === id));
+      for (const k in g) g[k] = g[k].filter((id) => !ids.includes(id)); // (a unit belongs to one group)
+      g[n] = ids;
+      pushMessage(this.state, ids.length ? `Group ${n}: ${ids.length} unit${ids.length > 1 ? 's' : ''}` : `Group ${n} cleared`, 'info');
+      return;
+    }
+    const units = (g[n] || []).map((id) => this.playerUnits().find((u) => u.id === id)).filter(Boolean);
+    if (!units.length) return;
+    const now = performance.now(), again = this.lastGroup === n && now - this.lastGroupAt < 400;
+    this.lastGroup = n; this.lastGroupAt = now;
+    this.selected = new Set(units.map((u) => u.id)); this.setMode(null);
+    if (again) { const x = units.reduce((a, u) => a + u.x, 0) / units.length, y = units.reduce((a, u) => a + u.y, 0) / units.length; this.r.centerOn(x, y); }
+  }
+  /** The group a unit belongs to (for its badge), or 0. */
+  groupOf(id) { const g = this.groups; if (g) for (const k in g) if (g[k].includes(id)) return +k; return 0; }
+
   /** One of the units answers the order (voice + speech bubble). */
   speak(kind, units) {
     if (!units || !units.length) return;
@@ -406,7 +435,13 @@ export class UI {
       this.keys.add(k);
       if (k === 'f1' || k === '?') { e.preventDefault(); this.app.toggleHelp(); return; }
       if (!this.app.overlayOpen() || k === 'p') {
+        // groups: Ctrl (or Shift) + 1-9 keeps the selection as that group; the number alone selects it, twice in a row
+        // brings the camera to it
+        const dig = /^Digit([1-9])$/.exec(e.code || '') || /^Numpad([1-9])$/.exec(e.code || '');
+        if (dig) { e.preventDefault(); this.group(+dig[1], e.ctrlKey || e.metaKey || e.shiftKey); return; }
         switch (k) {
+          case '+': case '=': case 'pageup': e.preventDefault(); this.zoomBy(1.18); break;
+          case '-': case '_': case 'pagedown': e.preventDefault(); this.zoomBy(1 / 1.18); break;
           case 'p': this.app.togglePause(); break;
           case 'escape': if (this.mode) this.setMode(null); else this.selected.clear(); break;
           case 'c': if (this.selectedUnits().some((u) => u.type === 'rifle')) this.setMode('charge'); else pushMessage(this.state, 'Select rifle squads to charge', 'warn'); break;
@@ -416,10 +451,10 @@ export class UI {
           case 'x': this.setMode('build:wire'); break;
           case 'h': this.halt(); break;
           case 'q': this.selected = new Set(this.playerUnits().filter((u) => u.type === 'rifle').map((u) => u.id)); break;
-          case '1': this.doRecruit('rifle'); break;
-          case '2': this.doRecruit('mg'); break;
-          case '3': this.doRecruit('artillery'); break;
-          case '4': if (this.state.special && this.state.special.tank) this.doRecruit('tank'); break;
+          case 'r': this.doRecruit('rifle'); break;
+          case 'm': this.doRecruit('mg'); break;
+          case 'f': this.doRecruit('artillery'); break;
+          case 'v': if (this.state.special && this.state.special.tank) this.doRecruit('tank'); break;
           case ' ': e.preventDefault(); this.centerOnFront(); break;
         }
       }

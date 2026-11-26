@@ -31,7 +31,7 @@ export const UNIT_TYPES = {
     melee: 3.2, // fixed bayonets: rifle squads are deadly at close quarters
     canDig: true,
     cost: { men: 6, ammo: 0, supplies: 6 },
-    hotkey: '1',
+    hotkey: 'R',
     desc: 'Riflemen. Hold trenches, dig works, and go over the top with fixed bayonets.',
   },
   mg: {
@@ -52,7 +52,7 @@ export const UNIT_TYPES = {
     setup: 3,
     melee: 0.8,
     cost: { men: 4, ammo: 30, supplies: 25 },
-    hotkey: '2',
+    hotkey: 'M',
     desc: 'Heavy machine gun. Murderous against troops in the open. Needs 3s to set up.',
   },
   artillery: {
@@ -72,7 +72,7 @@ export const UNIT_TYPES = {
     cooldown: 14,
     shellAmmo: 4,
     cost: { men: 6, ammo: 0, supplies: 60 },
-    hotkey: '3',
+    hotkey: 'F',
     desc: 'Field guns. Bombard a target area: kills, suppresses, cuts wire and wrecks trenches.',
   },
   tank: {
@@ -96,7 +96,7 @@ export const UNIT_TYPES = {
     cannonRange: 11,
     cannonInterval: 4.5,
     cost: { men: 24, ammo: 500, supplies: 500 },
-    hotkey: '4',
+    hotkey: 'V',
     special: true, // (only where a level provides it)
     desc: 'A landship: rolls over wire and trenches, its machine guns fire every way and its side guns hit what lies abeam. Bullets glance off and it is never pinned; a direct shell hit costs it a third of its strength, a near miss less. It may ditch in a trench or break down, and its ammunition runs out.',
   },
