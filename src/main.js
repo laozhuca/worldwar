@@ -135,7 +135,7 @@ byId('btn-swap').addEventListener('click', () => {
 });
 // difficulty: remembered between visits
 const DIFF_NOTE = { easy: 'A green commander: poor shots, slow to react, careless with wire and his guns.', medium: 'A seasoned commander: prepares his attacks, hunts your guns, falls back and repairs.', hard: 'A veteran: well supplied, quick, accurate - concentrated fire and relentless attacks.' };
-const showDiff = () => { document.querySelectorAll('[data-diff]').forEach((x) => x.classList.toggle('active', x.dataset.diff === app.difficulty)); const n = document.getElementById('diff-note'); if (n) n.textContent = DIFF_NOTE[app.difficulty] || ''; };
+const showDiff = () => { document.querySelectorAll('[data-diff]').forEach((x) => x.classList.toggle('active', x.dataset.diff === app.difficulty)); const n = document.getElementById('diff-note'); if (n) { n.textContent = DIFF_NOTE[app.difficulty] || ''; n.className = 'diff-note d-' + app.difficulty; } };
 document.querySelectorAll('[data-diff]').forEach((b) => b.addEventListener('click', () => {
   app.difficulty = b.dataset.diff;
   try { localStorage.setItem('ww-diff', app.difficulty); } catch {}
@@ -959,7 +959,7 @@ byId('m-campaign').addEventListener('click', () => (loadProgress().tutorial ? sh
 let campDiff = (() => { try { return localStorage.getItem('ww-camp-diff') || 'medium'; } catch { return 'medium'; } })();
 const showCampDiff = () => {
   document.querySelectorAll('[data-cdiff]').forEach((x) => x.classList.toggle('active', x.dataset.cdiff === campDiff));
-  const n = document.getElementById('camp-diff-note'); if (n) n.textContent = CAMPAIGN_DIFFICULTY[campDiff].note;
+  const n = document.getElementById('camp-diff-note'); if (n) { n.textContent = CAMPAIGN_DIFFICULTY[campDiff].note; n.className = 'diff-note d-' + campDiff; }
 };
 document.querySelectorAll('[data-cdiff]').forEach((b) => b.addEventListener('click', () => { campDiff = b.dataset.cdiff; try { localStorage.setItem('ww-camp-diff', campDiff); } catch {} showCampDiff(); }));
 showCampDiff();
