@@ -41,6 +41,8 @@ export function createGame(opts = {}) {
     captureMsgCooldown: 0,
     stats: { lost: [0, 0] },
   };
+  // the computer's starting stock, by level (campaign levels set their own afterwards)
+  for (const ai of state.ais) { const k = (ai.level && ai.level.start) || 1; const r = state.resources[ai.team]; r.men = Math.round(r.men * k); r.ammo = Math.round(r.ammo * k); r.supplies = Math.round(r.supplies * k); }
   deployInitialForces(state);
   refreshVisibility(state);
   return state;
@@ -435,6 +437,8 @@ function steer(map, u, mx, my) {
 // them, and lifts a barrage when they come within FRIENDLY_LIFT of where it falls (shells scatter ~2 tiles)
 export const FRIENDLY_CLEAR = 3, FRIENDLY_LIFT = 2.6;
 const aiTeam = (state, team) => state.ais.some((a) => a.team === team && !a.legacy); // (legacy: an experiment's old-style commander)
+/** A setting of the computer's level for a side it commands (undefined for a side a person commands). */
+const aiLevel = (state, team, k) => { const a = state.ais.find((q) => q.team === team && !q.legacy); return a && a.level ? a.level[k] : undefined; };
 export const HQ_HOLD = 5; // seconds a captured headquarters must be held for the victory
 const AI_DOUBLE = 1.35; // the computer's riflemen at the double across open ground
 /** True if any of the team's men (not its guns) are within r tiles of (x, y). */
@@ -485,7 +489,7 @@ export function planRoute(state, u, x, y) {
   const climb = (out) => (out ? C.out : C.in) * (1 + CLIMB_GAP * (C.groups - 1)) * 0.75 * sp;
   // the computer's men weigh danger as well as time: they keep to the trenches where a trench goes their way,
   // cross open ground only where they must, and go round wire wherever there is a way round
-  if (aiTeam(state, u.team)) return findPath(state.map, u.x, u.y, x, y, safeAt, climb);
+  if (aiTeam(state, u.team) && aiLevel(state, u.team, 'routes') !== false) return findPath(state.map, u.x, u.y, x, y, safeAt, climb);
   return findPath(state.map, u.x, u.y, x, y, speedAt, climb);
 }
 const AI_OPEN = 0.7, AI_WIRE = 0.12; // (how much worse than its walking time open ground and wire count, to the computer)
@@ -660,7 +664,7 @@ function updateUnit(state, u, dt) {
     const run = u.order.kind !== 'charge' ? 1 : u.type !== 'rifle' ? CHARGE_SPEED : 1 + (CHARGE_SPEED - 1) * Math.min(1, (u.stamina ?? 100) / STAMINA.winded);
     let speed = t.speed * (u.type === 'artillery' && tile && tile.trench ? 1 : terrainFactor(tile)) * run;
     // the computer's riflemen cross open ground at the double (not through wire), and keep to a walk in the trenches
-    if (u.type === 'rifle' && u.order.kind !== 'charge' && !u.inTrench && !(tile && tile.wire > 0) && aiTeam(state, u.team)) speed *= AI_DOUBLE;
+    if (u.type === 'rifle' && u.order.kind !== 'charge' && !u.inTrench && !(tile && tile.wire > 0) && aiTeam(state, u.team) && aiLevel(state, u.team, 'double') !== false) speed *= AI_DOUBLE;
     if (u.climb) speed *= 0.25; // over the parapet, or down into the trench
     // (down in a trench, fire overhead only spoils their aim: they move along it as usual; in the open they crawl)
     if (u.inTrench && !u.climb) { /* full pace */ }
@@ -822,6 +826,7 @@ function fire(state, u, target, t) {
   else if (u.suppression > 25) acc *= 0.7;
   if (u.moving) acc *= 0.6;
   if (target.pinned && !target.inTrench) acc *= 0.6;
+  acc *= aiLevel(state, u.team, 'aim') ?? 1; // (the computer's marksmanship, by level)
   if (target.order && target.order.kind === 'charge') acc *= 1.1;
 
   let hits = 0;

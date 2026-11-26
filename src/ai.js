@@ -4,6 +4,8 @@ import { tileAt, frontLine, clampToMap } from './map.js';
 import { buyUnit, orderMove, orderBarrage, orderHalt, placeBuild, teamDir } from './game.js';
 
 const rand = Math.random;
+/** A tactic the commander's level allows (a level without the flag: allowed - campaign levels built on the old table). */
+const can = (ai, k) => ((ai.level || DIFFICULTY.medium)[k] ?? true) !== false;
 
 /**
  * The commander's version, shown in the game (top bar) and on the campaign screen, so a report of how the enemy
@@ -13,8 +15,10 @@ const rand = Math.random;
  * 2.1: minds the men's wind (no charge until they have it back); batteries in pairs on the
  * high-value targets (machine guns, guns), above all in support of an attack and while it goes in; more batteries;
  * batteries kept behind our own trench line unless a target deep in the enemy's ground calls them forward.
+ * 2.2: the difficulty levels differ in how he fights, not only in what he has (config.js DIFFICULTY: reactions,
+ * marksmanship, routes, the double, preparation, counter-battery and concentrated fire, falling back, repairs).
  */
-export const AI_VERSION = '2.1';
+export const AI_VERSION = '2.2';
 
 export function createAI(team, difficulty = 'medium') {
   const level = DIFFICULTY[difficulty] || DIFFICULTY.medium;
@@ -83,7 +87,7 @@ export function updateAI(state, ai, dt) {
   if (ai.op) updateOp(state, ai, dt);
   ai.think -= dt; ai.harass -= dt; ai.defensive -= dt; ai.offensive -= dt; ai.wireTimer -= dt;
   if (ai.think > 0) return;
-  ai.think = 1;
+  ai.think = (ai.level || DIFFICULTY.medium).think || 1; // (how fast he reacts)
 
   const me = ai.team, foe = 1 - me, dir = teamDir(me);
   const { map } = state;
@@ -191,7 +195,7 @@ export function updateAI(state, ai, dt) {
     if (threats.length) {
       // two batteries on the attackers out in the open if two can be spared
       const tgt = densest(threats);
-      const n = Math.min(ready.length - (ai.op ? 1 : 0), 2);
+      const n = Math.min(ready.length - (ai.op ? 1 : 0), can(ai, 'concentrate') ? 2 : 1);
       let fired = false;
       for (let k = 0; k < n; k++) if (orderBarrage(state, [ready[k]], tgt.x + (k ? (rand() - 0.5) * 2 : 0), tgt.y + (k ? (rand() - 0.5) * 2 : 0))) fired = true;
       if (fired) ai.defensive = L.defensiveGap;
@@ -203,9 +207,9 @@ export function updateAI(state, ai, dt) {
     // their batteries first (counter-battery fire), then their machine guns, then wherever their men are thickest
     const A = UNIT_TYPES.artillery, reach = (f) => { const d = Math.hypot(f.x - ready[0].x, f.y - ready[0].y); return d <= A.artyRange && d >= A.artyMinRange; };
     const guns = foes.filter((f) => f.type === 'artillery' && reach(f)), mgs = foes.filter((f) => f.type === 'mg' && reach(f));
-    const tgt = guns[0] || densest(mgs) || densest(foes.filter((f) => f.type !== 'artillery'));
+    const tgt = (can(ai, 'counterBattery') ? guns[0] || densest(mgs) : null) || densest(foes.filter((f) => f.type !== 'artillery'));
     // two batteries together on a high-value target (a gun or a machine gun), to be sure of it
-    const pair = tgt && tgt.type !== 'rifle' ? ready.slice(0, 2) : ready.slice(0, 1);
+    const pair = tgt && tgt.type !== 'rifle' && can(ai, 'concentrate') ? ready.slice(0, 2) : ready.slice(0, 1);
     let fired = false;
     for (const g of pair) if (tgt && orderBarrage(state, [g], tgt.x, tgt.y)) fired = true;
     if (fired) ai.harass = 30 + rand() * 25;
@@ -269,7 +273,7 @@ export function updateAI(state, ai, dt) {
 
   // --- survival: a squad cut down to a couple of men leaves the attack for the nearest trench of ours behind it;
   // and squads holding ground or waiting in reserve out in the open get down into a trench nearby
-  for (const u of mine) {
+  if (can(ai, 'fallBack')) for (const u of mine) {
     if (u.type !== 'rifle' || u.dead) continue;
     const t = tileAt(map, u.x, u.y);
     if (u.ai.role === 'op' && u.men <= 3 && !(u.order && u.order.kind === 'charge' && u.closest && Math.hypot(u.closest.x - u.x, u.closest.y - u.y) < 2)) {
@@ -283,7 +287,7 @@ export function updateAI(state, ai, dt) {
   }
 
   // --- repair our wire belts
-  if (ai.wireTimer <= 0) {
+  if (ai.wireTimer <= 0 && can(ai, 'repair')) {
     ai.wireTimer = 6;
     let placed = 0;
     for (const t of map.tiles) {
@@ -366,7 +370,7 @@ function updateOp(state, ai, dt) {
 
   const Lv = ai.level || DIFFICULTY.medium;
   if (op.stage === 'assemble') {
-    if ((units.every((u) => !u.order) && rested(units)) || op.timer <= 0) {
+    if ((units.every((u) => !u.order) && (!can(ai, 'rested') || rested(units))) || op.timer <= 0) {
       if (Lv.rush) { orderMove(state, units, T.x, T.y, 'charge'); op.stage = 'charge'; op.timer = 40; op.guns = []; } // straight in with the bayonet
       else { op.stage = 'prep'; op.timer = 25; op.guns = []; }
     }
@@ -374,7 +378,8 @@ function updateOp(state, ai, dt) {
     // every ready battery in range (at least three), concentrated: two at a time on the high-value targets covering
     // the objective - its machine guns, nearest first, and a battery of theirs within reach - and the rest on the
     // objective itself, which always has two; the trench is shelled before the men go
-    const ready = readyBatteries(mine).filter((g) => inRange(g, T.x, T.y)).slice(0, Math.max(3, (ai.level || DIFFICULTY.medium).guns));
+    const light = (ai.level || DIFFICULTY.medium).prep === 'light';
+    const ready = readyBatteries(mine).filter((g) => inRange(g, T.x, T.y)).slice(0, light ? 1 : Math.max(3, (ai.level || DIFFICULTY.medium).guns));
     if (ready.length) {
       const near = (f, r) => Math.hypot(f.x - T.x, f.y - T.y) < r;
       const mgs = foes.filter((f) => f.type === 'mg' && near(f, 8) && !near(f, 2.5)).sort((a, b) => Math.hypot(a.x - T.x, a.y - T.y) - Math.hypot(b.x - T.x, b.y - T.y));
@@ -382,8 +387,8 @@ function updateOp(state, ai, dt) {
       const high = [...mgs.slice(0, 2), ...guns.slice(0, 1)];
       const free = [...ready], plan = [];
       const take = (tg, n) => { for (let k = 0; k < n; k++) { const i = free.findIndex((g) => inRange(g, tg.x, tg.y)); if (i < 0) break; plan.push([free.splice(i, 1)[0], tg]); } };
-      take(T, 2);
-      for (const h of high) take(h, 2);
+      take(T, light ? 1 : 2);
+      if (!light) for (const h of high) take(h, can(ai, 'concentrate') ? 2 : 1);
       for (const g of free) plan.push([g, T]);
       for (const [g, tg] of plan) if (orderBarrage(state, [g], tg.x, tg.y)) op.guns.push({ id: g.id, x: tg.x, y: tg.y });
       op.stage = 'wait'; op.timer = 60;
@@ -395,7 +400,7 @@ function updateOp(state, ai, dt) {
     const onTarget = op.guns.map((g) => state.units.find((u) => u.id === g.id)).filter((g) => g && g.barrage && Math.hypot(g.barrage.x - T.x, g.barrage.y - T.y) < 1);
     const left = onTarget.reduce((a, g) => Math.max(a, g.barrage.remaining * A.shellInterval), 0);
     // ...with their wind: a charge by blown men stalls short of the trench (a little grace, then they go anyway)
-    if ((left <= travel + 2 || op.timer <= 0) && (rested(units) || op.timer <= -20)) {
+    if ((left <= travel + 2 || op.timer <= 0) && (!can(ai, 'rested') || rested(units) || op.timer <= -20)) {
       orderMove(state, units, T.x, T.y, 'charge');
       op.stage = 'charge'; op.timer = 40; op.support = 0;
     }
@@ -403,7 +408,7 @@ function updateOp(state, ai, dt) {
     // while the men go in, the batteries that are free go for the machine guns firing on them, two at a time
     // (not one our men are already on top of)
     op.support = (op.support || 0) - dt;
-    if (op.support <= 0) {
+    if (op.support <= 0 && can(ai, 'support')) {
       op.support = 2;
       const free = readyBatteries(mine);
       const mg = foes.filter((f) => f.type === 'mg' && f.target && Math.hypot(f.x - T.x, f.y - T.y) < 10 && !units.some((u) => Math.hypot(u.x - f.x, u.y - f.y) < 3.5))
@@ -430,12 +435,12 @@ function updateOp(state, ai, dt) {
       // the charge stalled short of the trench: go to ground and try again with the guns
       if (units.every((u) => !u.order) && !taken && (op.retries = (op.retries || 0) + 1) <= (Lv.retries || 2)) {
         if (Lv.rush) { orderMove(state, units, T.x, T.y, 'charge'); op.stage = 'charge'; op.timer = 40; }
-        else { // back to the shelter of our nearest trench while the guns are got ready again, then once more
+        else if (can(ai, 'fallBack')) { // back to the shelter of our nearest trench while the guns are got ready again, then once more
           for (const u of units) { const b = ownTrenchNear(state, me, u.x - dir * 3, u.y, 9); if (b) orderMove(state, [u], b.x + 0.5, b.y + 0.5); }
           op.stage = 'assemble'; op.timer = 30;
-        }
+        } else { op.stage = 'prep'; op.timer = 25; op.guns = []; } // (lies where it is and tries again)
       } else { // given up: back into our trenches, not left lying out in front of theirs
-        for (const u of units) { const b = ownTrenchNear(state, me, u.x - dir * 3, u.y, 9); if (b) orderMove(state, [u], b.x + 0.5, b.y + 0.5); }
+        if (can(ai, 'fallBack')) for (const u of units) { const b = ownTrenchNear(state, me, u.x - dir * 3, u.y, 9); if (b) orderMove(state, [u], b.x + 0.5, b.y + 0.5); }
         return end();
       }
     }

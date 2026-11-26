@@ -9,18 +9,18 @@
   <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="assets/icon/apple-touch-icon.png">
   <meta name="theme-color" content="#15120d">
-  <link rel="stylesheet" href="style.css?v=ae63fc0b" />
+  <link rel="stylesheet" href="style.css?v=85307174" />
   <!-- stamp:begin (scripts/stamp.mjs) -->
   <script type="importmap">
   {
     "imports": {
-      "./src/ai.js": "./src/ai.js?v=69791574",
+      "./src/ai.js": "./src/ai.js?v=c50f2598",
       "./src/atmosphere.js": "./src/atmosphere.js?v=e3ff2b7a",
       "./src/audio.js": "./src/audio.js?v=d87f9739",
       "./src/campaign.js": "./src/campaign.js?v=24e4dcd5",
-      "./src/config.js": "./src/config.js?v=6dada4df",
-      "./src/game.js": "./src/game.js?v=fa60766f",
-      "./src/main.js": "./src/main.js?v=37b85a72",
+      "./src/config.js": "./src/config.js?v=c631f1c4",
+      "./src/game.js": "./src/game.js?v=265eef50",
+      "./src/main.js": "./src/main.js?v=85b86dc0",
       "./src/map.js": "./src/map.js?v=3ed5bbdb",
       "./src/model-view.js": "./src/model-view.js?v=214a5b12",
       "./src/path.js": "./src/path.js?v=23c490f7",
@@ -142,10 +142,11 @@
             <button id="btn-random-side" class="rand-side" title="Side and nations drawn when the battle starts">🎲 Random side</button>
             <div class="diff-label">Difficulty</div>
             <div id="diff-btns" class="start-seg">
-              <button data-diff="easy" title="The enemy attacks rarely, with small forces and one battery, and gets less supply">Easy</button>
-              <button data-diff="medium" class="active" title="A steady opponent">Medium</button>
-              <button data-diff="hard" title="Frequent, heavy, relentless offensives with every gun, and more supply">Hard</button>
+              <button data-diff="easy" title="A green commander: less supply, slow to react, poor shots. His men walk straight through wire and charge out of breath after a few shells; no counter-battery fire, no falling back, no repairs. He attacks rarely and not deep.">Easy</button>
+              <button data-diff="medium" class="active" title="A seasoned commander: keeps to the trenches and goes round wire, shells the objective and the guns covering it before his men go, waits for their wind, hunts your batteries, falls back and repairs his works.">Medium</button>
+              <button data-diff="hard" title="A veteran: more supply, quick reactions, good shots. Everything Medium does, and his men cross the open at the double, two batteries at a time on your machine guns and guns, covering fire while his attack goes in - frequent, deep, heavy offensives.">Hard</button>
             </div>
+            <div id="diff-note" class="diff-note"></div>
           </div>
           <div class="army" id="army-foe">
             <div class="ribbon" id="ribbon-foe">Central Powers</div>
@@ -356,6 +357,6 @@
       document.getElementById('boot-reload').onclick = function () { location.reload(); };
     }, 20000);
   </script>
-  <script type="module" src="src/main.js?v=37b85a72"></script>
+  <script type="module" src="src/main.js?v=85b86dc0"></script>
 </body>
 </html>

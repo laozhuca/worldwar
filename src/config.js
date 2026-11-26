@@ -147,10 +147,27 @@ export const START_RES = { men: 30, ammo: 350, supplies: 200 };
 //   force       most squads it commits to an offensive; guns: batteries that prepare each objective
 //   topUp       whether it feeds reserves into a weakening attack; steps: objectives per offensive
 //   rifleCap    the infantry it keeps; defensiveGap: seconds between its defensive barrages
+// The computer's commander at each level. Not only how much he has and how often he comes, but how well he fights:
+// how fast he reacts, how well his men shoot, how he moves them, how he uses his guns and how he copes with failure.
+//   income / start: his share of the supply convoys, and of the starting stock
+//   think: seconds between his decisions          aim: his men's marksmanship (x their hit chance)
+//   routes: keeps to the trenches and goes round wire (else straight across, wire and all)
+//   double: his riflemen cross open ground at the double
+//   rested: waits for the men's wind before a charge
+//   prep: 'full' - every battery on the objective and the machine guns covering it, the men going in as the last
+//         shells fall; 'light' - one battery on the objective, then go
+//   counterBattery: his idle guns hunt our batteries and machine guns (in pairs, with concentrate)
+//   concentrate: two batteries together on one machine gun or battery; support: covering fire on the machine
+//         guns firing on his attack while it goes in
+//   fallBack: mauled squads, stalled or failed attacks go back to a trench; repair: re-wires and re-digs his works
+//   force / firstAttack / attackGap / steps / rifleCap / topUp / defensiveGap: the size, rhythm and depth of his attacks
 export const DIFFICULTY = {
-  easy: { name: 'Easy', income: 0.75, firstAttack: 360, attackGap: [300, 380], force: 5, guns: 1, topUp: false, steps: 2, rifleCap: 13, defensiveGap: 20 },
-  medium: { name: 'Medium', income: 1, firstAttack: 240, attackGap: [190, 260], force: 6, guns: 2, topUp: true, steps: 4, rifleCap: 18, defensiveGap: 12 },
-  hard: { name: 'Hard', income: 1.25, firstAttack: 170, attackGap: [120, 180], force: 8, guns: 9, topUp: true, steps: 7, rifleCap: 22, defensiveGap: 9 },
+  easy: { name: 'Easy', income: 0.75, start: 0.8, think: 2, aim: 0.85, routes: false, double: false, rested: false, prep: 'light', counterBattery: false, concentrate: false, support: false, fallBack: false, repair: false,
+    firstAttack: 360, attackGap: [300, 380], force: 5, guns: 1, topUp: false, steps: 2, rifleCap: 13, defensiveGap: 20 },
+  medium: { name: 'Medium', income: 1, start: 1, think: 1, aim: 1, routes: true, double: false, rested: true, prep: 'full', counterBattery: true, concentrate: false, support: false, fallBack: true, repair: true,
+    firstAttack: 240, attackGap: [190, 260], force: 6, guns: 3, topUp: true, steps: 4, rifleCap: 18, defensiveGap: 12 },
+  hard: { name: 'Hard', income: 1.25, start: 1.25, think: 0.5, aim: 1.12, routes: true, double: true, rested: true, prep: 'full', counterBattery: true, concentrate: true, support: true, fallBack: true, repair: true,
+    firstAttack: 170, attackGap: [120, 180], force: 8, guns: 9, topUp: true, steps: 7, rifleCap: 22, defensiveGap: 9 },
 };
 
 export const SUPPRESSION_DECAY = 12; // per second

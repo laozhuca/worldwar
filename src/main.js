@@ -134,7 +134,8 @@ byId('btn-swap').addEventListener('click', () => {
   sound.init(); voices.speakFor(app.nations[0]);
 });
 // difficulty: remembered between visits
-const showDiff = () => document.querySelectorAll('[data-diff]').forEach((x) => x.classList.toggle('active', x.dataset.diff === app.difficulty));
+const DIFF_NOTE = { easy: 'A green commander: poor shots, slow to react, careless with wire and his guns.', medium: 'A seasoned commander: prepares his attacks, hunts your guns, falls back and repairs.', hard: 'A veteran: well supplied, quick, accurate - concentrated fire and relentless attacks.' };
+const showDiff = () => { document.querySelectorAll('[data-diff]').forEach((x) => x.classList.toggle('active', x.dataset.diff === app.difficulty)); const n = document.getElementById('diff-note'); if (n) n.textContent = DIFF_NOTE[app.difficulty] || ''; };
 document.querySelectorAll('[data-diff]').forEach((b) => b.addEventListener('click', () => {
   app.difficulty = b.dataset.diff;
   try { localStorage.setItem('ww-diff', app.difficulty); } catch {}
