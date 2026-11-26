@@ -77,12 +77,13 @@ export function runTutorial(state, ctx) {
       <path class="m-btn" data-b="2" d="M42 6 C 60 7, 70 22, 70 44 L 42 44 Z"/>
       <rect class="m-wheel" x="36" y="16" width="8" height="16" rx="4"/>
     </svg>`;
+  const KEY_SVG = (label) => `<svg viewBox="0 0 48 44" width="58" height="53" aria-hidden="true">${cap(6, 4, 36, label, 'one')}</svg>`;
   const WHEEL_SVG = MOUSE_SVG.replace('<rect class="m-wheel"', '<path class="w-arrow" data-w="in" d="M40 -14 L29 1 L51 1 Z"/><path class="w-arrow" data-w="out" d="M40 64 L29 49 L51 49 Z"/><rect class="m-wheel want"')
     .replace('viewBox="0 0 80 112" width="64" height="90"', 'viewBox="0 -16 80 128" width="84" height="134"');
   const showIllus = (kind, btn = 0) => {
     if (touch || !kind) { illus.classList.add('hidden'); illus.innerHTML = ''; return; }
     illus.className = 'tut-illus ' + kind;
-    illus.innerHTML = kind === 'keys' ? KEYS_SVG : kind === 'wheel' ? WHEEL_SVG + '<span class="m-say">Roll the wheel:<br>up to zoom in, down to zoom out</span>' : MOUSE_SVG + `<span class="m-say">${btn === 2 ? 'Right button' : 'Left button'}</span>`;
+    illus.innerHTML = kind === 'key' ? KEY_SVG(btn) + `<span class="m-say">Press ${btn}</span>` : kind === 'keys' ? KEYS_SVG : kind === 'wheel' ? WHEEL_SVG + '<span class="m-say">Roll the wheel:<br>up to zoom in, down to zoom out</span>' : MOUSE_SVG + `<span class="m-say">${btn === 2 ? 'Right button' : 'Left button'}</span>`;
     if (kind === 'mouse') illus.querySelector(`.m-btn[data-b="${btn}"]`).classList.add('want');
   };
   // the mouse buttons actually pressed flash on the drawing
@@ -92,7 +93,10 @@ export function runTutorial(state, ctx) {
   const DIRS = { w: 'up', arrowup: 'up', a: 'left', arrowleft: 'left', s: 'down', arrowdown: 'down', d: 'right', arrowright: 'right' };
   const pressed = new Set(), held = new Set();
   const paintKeys = () => illus.querySelectorAll('.cap').forEach((g) => { g.classList.toggle('done', pressed.has(g.dataset.k)); g.classList.toggle('held', held.has(g.dataset.k)); });
-  const onKeyDir = (e) => { const d = DIRS[(e.key || '').toLowerCase()]; if (!d) return; if (e.type === 'keydown') { held.add(d); pressed.add(d); } else held.delete(d); paintKeys(); };
+  const onKeyDir = (e) => {
+    const one = illus.querySelector('.cap[data-k="one"]');
+    if (one && (e.key || '').toUpperCase() === one.textContent.trim()) { one.classList.toggle('held', e.type === 'keydown'); if (e.type === 'keydown') one.classList.add('done'); }
+    const d = DIRS[(e.key || '').toLowerCase()]; if (!d) return; if (e.type === 'keydown') { held.add(d); pressed.add(d); } else held.delete(d); paintKeys(); };
   window.addEventListener('keydown', onKeyDir, true); window.addEventListener('keyup', onKeyDir, true);
   const find = (tag) => state.units.find((u) => u.story === tag);
   const pair = find('pair'), gun = find('gun'), mg = find('mg');
@@ -164,7 +168,7 @@ export function runTutorial(state, ctx) {
   /** One step of instruction: the battle holds until the player has done it. */
   const step = async (text, test, art = null) => {
     show('', '', `${text}  (The battle waits for you.)`);
-    showIllus(art && art.kind, art && art.button);
+    showIllus(art && art.kind, art && (art.button ?? art.key));
     holding = true;
     await waitFor(test);
     holding = false;
@@ -224,18 +228,28 @@ export function runTutorial(state, ctx) {
     state.marker = { ...objective, label: 'Enemy trench' };
     look(pair.x + (objective.x - pair.x) * 0.6, objective.y, 1.05); // both our trench and theirs well inside the view
     await step(`${click} the marked enemy trench to shell it. The other batteries will fire along the rest of the line.`, () => gun.barrage || gun.cooldown > 0, { kind: 'mouse', button: 0 });
-    if (gun.barrage) Object.assign(gun.barrage, { x: objective.x, y: objective.y, remaining: Math.min(gun.barrage.remaining, 3) });
+    if (gun.barrage) Object.assign(gun.barrage, { x: objective.x, y: objective.y, remaining: 99 }); // (it fires until it is told to stop)
     // the other batteries open up with ours, all along the enemy line
     batteries.forEach((g, i) => {
       orderBarrage(state, [g], g.storyTarget.x, g.storyTarget.y);
-      if (g.barrage) Object.assign(g.barrage, { remaining: 3, timer: 0.4 + i * 0.7 });
+      if (g.barrage) Object.assign(g.barrage, { remaining: 99, timer: 0.4 + i * 0.7 });
     });
     // the men wait in the trench while the shells fall
     follow = { get x() { return pair.x + (objective.x - pair.x) * 0.4; }, get y() { return pair.y; } };
     await say(ARCHER, 'Go on, give it to \'em!');
     await say(HALE, 'Nothing could live through that.');
     await say(LT, 'Two minutes, lads. Fix bayonets.');
-    // the barrage lifts as the talk ends: no more shells are fired, and those in the air land
+    // the barrage must be lifted before the men go: the player halts the battery (H), and the rest of the guns with it
+    await say(LT, 'Cease fire! Lift the barrage!');
+    if (gun.barrage) {
+      if (!ui.selected.has(gun.id)) {
+        state.marker = { unit: gun.id, label: 'Field battery' };
+        await step(`${click} the field battery to select it.`, () => ui.selected.has(gun.id) || !gun.barrage, { kind: 'mouse', button: 0 });
+      }
+      glow('[data-cmd="halt"]');
+      await step(touch ? 'Press the glowing Halt button to stop the battery firing.' : 'Press H (or the glowing Halt button) to stop the battery firing.', () => !gun.barrage, { kind: 'key', key: 'H' });
+    }
+    // the rest of the guns cease fire with ours: no more shells are fired, and those in the air land
     for (const g of [gun, ...batteries]) if (g.barrage) { g.barrage = null; g.cooldown = 4; }
     await waitFor(() => state.shells.length === 0);
     follow = null;

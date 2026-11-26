@@ -1093,3 +1093,4 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 .tut-illus .m-wheel.want { animation: wheel-roll 1s ease-in-out infinite; }
 @keyframes wheel-roll { 0%, 100% { fill: #120e0a; } 50% { fill: #c9a35e; } }
 .tut-illus.wheel .m-say { text-align: left; line-height: 1.3; }
+.tut-illus.key .cap:not(.held) .cap-t { animation: cap-hint 1.2s infinite; }
