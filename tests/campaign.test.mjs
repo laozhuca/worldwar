@@ -480,3 +480,15 @@ test('Brusilov\'s Storm: every Austrian headquarters raises units, until it is t
   assert.equal(at(s.units.filter((u) => !before.has(u)))[1], 0, 'one taken raises no more');
   createGame();
 });
+
+test('Campaign difficulty: Easy and Hard change the enemy\'s skill, his supply and ours; Medium is the battle as designed', async () => {
+  const { DIFFICULTY } = await import('../src/config.js');
+  const m = createLevelGame('amiens'), e = createLevelGame('amiens', { difficulty: 'easy' }), h = createLevelGame('amiens', { difficulty: 'hard' });
+  assert.equal(e.ais[0].level.aim, DIFFICULTY.easy.aim); assert.equal(h.ais[0].level.aim, DIFFICULTY.hard.aim);
+  assert.equal(e.ais[0].level.routes, false, 'the green commander walks through wire');
+  assert.ok(e.resources[ENEMY].men < m.resources[ENEMY].men && m.resources[ENEMY].men < h.resources[ENEMY].men, 'his stock scaled');
+  assert.ok(e.resources[PLAYER].ammo > m.resources[PLAYER].ammo && m.resources[PLAYER].ammo > h.resources[PLAYER].ammo, 'ours the other way');
+  assert.ok(e.ais[0].level.attackGap[0] > m.ais[0].level.attackGap[0] && h.ais[0].level.attackGap[0] < m.ais[0].level.attackGap[0], 'attacks less or more often');
+  assert.equal(m.campaign.difficulty, 'medium');
+  createGame();
+});

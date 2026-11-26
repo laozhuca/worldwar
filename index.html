@@ -9,7 +9,7 @@
   <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="assets/icon/apple-touch-icon.png">
   <meta name="theme-color" content="#15120d">
-  <link rel="stylesheet" href="style.css?v=85307174" />
+  <link rel="stylesheet" href="style.css?v=e284929e" />
   <!-- stamp:begin (scripts/stamp.mjs) -->
   <script type="importmap">
   {
@@ -17,10 +17,10 @@
       "./src/ai.js": "./src/ai.js?v=c50f2598",
       "./src/atmosphere.js": "./src/atmosphere.js?v=e3ff2b7a",
       "./src/audio.js": "./src/audio.js?v=d87f9739",
-      "./src/campaign.js": "./src/campaign.js?v=24e4dcd5",
+      "./src/campaign.js": "./src/campaign.js?v=9352d9a0",
       "./src/config.js": "./src/config.js?v=c631f1c4",
       "./src/game.js": "./src/game.js?v=265eef50",
-      "./src/main.js": "./src/main.js?v=85b86dc0",
+      "./src/main.js": "./src/main.js?v=b3af25da",
       "./src/map.js": "./src/map.js?v=3ed5bbdb",
       "./src/model-view.js": "./src/model-view.js?v=214a5b12",
       "./src/path.js": "./src/path.js?v=23c490f7",
@@ -255,6 +255,9 @@
         <h1>Campaign</h1>
         <p class="lead">Five battles of the Great War, on four fronts. Each is won by a different kind of soldiering.</p>
         <div id="level-list"></div>
+        <div class="camp-diff"><span class="diff-label">Difficulty</span>
+          <div id="camp-diff-btns" class="start-seg"><button data-cdiff="easy">Easy</button><button data-cdiff="medium">Medium</button><button data-cdiff="hard">Hard</button></div>
+          <div id="camp-diff-note" class="diff-note"></div></div>
         <p class="ai-ver camp-ai" title="Version of the enemy's commander (AI)"></p>
         <button class="big back" data-back>Back</button>
       </div>
@@ -357,6 +360,6 @@
       document.getElementById('boot-reload').onclick = function () { location.reload(); };
     }, 20000);
   </script>
-  <script type="module" src="src/main.js?v=85b86dc0"></script>
+  <script type="module" src="src/main.js?v=b3af25da"></script>
 </body>
 </html>

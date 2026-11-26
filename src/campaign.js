@@ -1441,9 +1441,42 @@ export function createLevelGame(id, opts = {}) {
   const L = levelById(id);
   const state = createGame({ seed: opts.seed ?? 1915 + L.n, season: L.season, nations: L.nations, start: L.start, difficulty: 'hard', aiTeams: opts.aiTeams, advance: L.advance, works: L.works, radius: L.radius });
   state.startHour = L.startHour;
-  state.campaign = { id, fired: [], result: null, reason: '' };
+  state.campaign = { id, fired: [], result: null, reason: '', difficulty: opts.difficulty || 'medium' };
   L.setup(state);
+  applyCampaignDifficulty(state, state.campaign.difficulty);
   return state;
+}
+
+/**
+ * The campaign's difficulty. Medium is each battle as designed; Easy and Hard change it: the enemy commander fights
+ * with that level's skill (reactions, marksmanship, routes, preparation, use of his guns, falling back - config.js
+ * DIFFICULTY), his supply and stock are scaled, ours the other way, and his attacks come less or more often.
+ */
+const SKILL = ['think', 'aim', 'routes', 'double', 'rested', 'prep', 'counterBattery', 'concentrate', 'support', 'fallBack', 'repair'];
+export const CAMPAIGN_DIFFICULTY = {
+  easy: { name: 'Easy', foe: 0.75, us: 1.25, gap: 1.4, note: 'The enemy is a green commander, short of supplies; you are better supplied.' },
+  medium: { name: 'Medium', note: 'Each battle as it was fought.' },
+  hard: { name: 'Hard', foe: 1.25, us: 0.85, gap: 0.8, note: 'The enemy is a veteran, well supplied and quick to attack; you are short of everything.' },
+};
+function applyCampaignDifficulty(state, d) {
+  const D = CAMPAIGN_DIFFICULTY[d];
+  if (!D || d === 'medium') return;
+  const skill = DIFFICULTY[d];
+  for (const ai of state.ais) {
+    const L = { ...(ai.level || DIFFICULTY.medium) };
+    for (const k of SKILL) L[k] = skill[k];
+    L.income = (L.income ?? 1) * D.foe;
+    if (L.firstAttack) L.firstAttack *= D.gap;
+    if (L.attackGap) L.attackGap = L.attackGap.map((g) => g * D.gap);
+    ai.level = L;
+    if (ai.offensive) ai.offensive *= D.gap;
+    const r = state.resources[ai.team];
+    for (const k of ['men', 'ammo', 'supplies']) r[k] = Math.round(r[k] * D.foe);
+  }
+  const r = state.resources[PLAYER];
+  for (const k of ['men', 'ammo', 'supplies']) r[k] = Math.round(r[k] * D.us);
+  state.playerIncome = (state.playerIncome ?? 1) * D.us;
+  if (state.barrageLimit && state.barrageLimit[PLAYER]) state.barrageLimit[PLAYER] = Math.max(1, Math.round(state.barrageLimit[PLAYER] * D.us)); // (San Michele's rationed barrages)
 }
 
 /**

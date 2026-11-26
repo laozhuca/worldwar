@@ -5,7 +5,7 @@ import { Voices } from './voice.js';
 import { serialize, deserialize, describe } from './save.js';
 import { ModelView } from './model-view.js';
 import { createTutorialGame, runTutorial } from './tutorial.js';
-import { LEVELS, PROLOGUE, levelById, createLevelGame, stepCampaign, loadProgress, recordResult, markTutorialDone, clockHours, dayTime } from './campaign.js';
+import { LEVELS, PROLOGUE, levelById, createLevelGame, CAMPAIGN_DIFFICULTY, stepCampaign, loadProgress, recordResult, markTutorialDone, clockHours, dayTime } from './campaign.js';
 import { Sound } from './audio.js';
 import { PLAYER, ENEMY, NATIONS } from './config.js';
 import { AI_VERSION } from './ai.js';
@@ -736,7 +736,7 @@ function showBriefing(id) {
     if (img.getAttribute('src') !== portraitOf(n)) img.setAttribute('src', portraitOf(n));
     showModel('b' + k, n);
   });
-  P.querySelector('.brief-where').textContent = `${L.place} · ${L.date} · ${NATIONS[L.nations[0]].name} against ${NATIONS[L.nations[1]].name}`;
+  P.querySelector('.brief-where').textContent = `${L.place} · ${L.date} · ${NATIONS[L.nations[0]].name} against ${NATIONS[L.nations[1]].name} · ${CAMPAIGN_DIFFICULTY[campDiff].name}`;
   P.querySelector('.brief-history').textContent = L.history;
   P.querySelector('.brief-objectives').innerHTML = L.objectives.map((t) => `<li>${t}</li>`).join('');
   P.querySelector('.brief-rules').innerHTML = L.rules.map((t) => `<li>${t}</li>`).join('');
@@ -774,7 +774,7 @@ async function startLevel(id) {
   endTutorial();
   // the loading screen goes up at once, before anything heavy is done (a large battlefield takes a moment)
   await showLoading();
-  const state = createLevelGame(id);
+  const state = createLevelGame(id, { difficulty: campDiff });
   app.state = state;
   app.season = state.season;
   useArmies(state);
@@ -955,6 +955,14 @@ function showDebrief(s) {
 // first time: the Campaign entry is the tutorial; afterwards the campaign, with the tutorial as its prologue
 byId('btn-epitaph-campaign').addEventListener('click', () => showCampaign());
 byId('m-campaign').addEventListener('click', () => (loadProgress().tutorial ? showCampaign() : showBriefing('prologue')));
+// the campaign's difficulty: remembered between visits, shown on the campaign screen and in each briefing
+let campDiff = (() => { try { return localStorage.getItem('ww-camp-diff') || 'medium'; } catch { return 'medium'; } })();
+const showCampDiff = () => {
+  document.querySelectorAll('[data-cdiff]').forEach((x) => x.classList.toggle('active', x.dataset.cdiff === campDiff));
+  const n = document.getElementById('camp-diff-note'); if (n) n.textContent = CAMPAIGN_DIFFICULTY[campDiff].note;
+};
+document.querySelectorAll('[data-cdiff]').forEach((b) => b.addEventListener('click', () => { campDiff = b.dataset.cdiff; try { localStorage.setItem('ww-camp-diff', campDiff); } catch {} showCampDiff(); }));
+showCampDiff();
 function labelCampaign() { document.getElementById('m-campaign').textContent = loadProgress().tutorial ? 'Campaign' : 'Tutorial'; }
 labelCampaign();
 // the enemy commander's version, wherever it plays: the battle's top bar and the campaign screen (and the console)
