@@ -47,7 +47,7 @@ function frontHeldLine(state) {
  */
 function firstWaveFromClyde(s) {
   const fw = s.campaign.firstWave ||= { ids: [], mgs: [], at: s.time };
-  fw.toCome = 12; fw.mgToCome = 2; fw.next = s.time;
+  fw.toCome = waveOf(s, 12); fw.mgToCome = 2; fw.next = s.time;
   pushMessage(s, 'The River Clyde\'s sally ports are open - her men are pouring out onto the beach!', 'warn');
 }
 /** Her men out onto the sand: the tiles of beach beside her bow (found once). */
@@ -155,6 +155,7 @@ function blockBuilding(state, b) {
 /** A wave of squads coming up from a team's HQ. */
 function reinforce(state, team, n, kind = 'rifle') {
   // shared out among the headquarters the side still holds (its command posts as well, where it has several)
+  n = waveOf(state, n, team);
   const main = state.map.hq[team], dir = teamDir(team), out = [];
   const held = [main, ...(main.posts || [])].filter((q) => q === main || tileAt(state.map, q.x + 0.5, q.y + 0.5).owner === team);
   for (let h = 0; h < held.length; h++) {
@@ -404,6 +405,7 @@ function trenchBehind(map, team, y, off) {
 export const LEVELS = [
   {
     id: 'ypres', n: 1, title: 'The Sailors of Dixmude', place: 'Dixmude, Belgium', date: 'October 1914',
+    designed: 'hard', // (the battle as designed is its Hard: Medium and Easy are a step and two easier)
     nations: ['marins', 'germany'], allies: ['france'], season: 'mud', start: 'west', startHour: 6.5,
     pictures: ['assets/art/scene-dixmude-relief.webp', 'assets/art/scene-dixmude-victory.webp', 'assets/art/scene-dixmude-defeat.webp', 'assets/art/story-dixmude-dawn.webp', 'assets/art/story-leguen.webp', 'assets/art/story-moreau.webp'],
     // the opening scene, like the prologue's: two sailors behind the barricade before the attack
@@ -671,6 +673,7 @@ export const LEVELS = [
   },
   {
     id: 'brusilov', n: 3, title: 'Brusilov\'s Storm', place: 'Galicia', date: 'June 1916',
+    designed: 'hard', // (the battle as designed is its Hard: Medium and Easy are a step and two easier)
     nations: ['russia', 'austria'], season: 'summer', start: 'west', startHour: 4,
     radius: 51, // a wider battlefield: half as long again each way
     pictures: ['assets/art/church-galicia.webp', 'assets/art/story-galicia.webp', 'assets/art/scene-galicia-hq.webp', 'assets/art/scene-galicia-hq-lost.webp', 'assets/art/story-ivanov.webp', 'assets/art/story-sokolov.webp', 'assets/art/scene-galicia-victory.webp', 'assets/art/scene-galicia-defeat.webp'],
@@ -934,6 +937,7 @@ export const LEVELS = [
   },
   {
     id: 'helles', n: 4, title: 'The Beach at Sedd el Bahr', place: 'Cape Helles, Gallipoli', date: '25 April 1915',
+    designed: 'hard', // (the battle as designed is its Hard: Medium and Easy are a step and two easier)
     nations: ['ottoman', 'uk'], season: 'summer', start: 'west', startHour: 5.5,
     advance: { [PLAYER]: 4 }, // our trenches on the slopes, well back above a wide beach
     pictures: ['assets/art/story-helles-fleet.webp', 'assets/art/story-helles-clyde.webp', 'assets/art/story-mehmet.webp', 'assets/art/story-hasan.webp', 'assets/art/scene-helles-victory.webp', 'assets/art/scene-helles-defeat.webp'],
@@ -1100,7 +1104,7 @@ export const LEVELS = [
       // sixty men), the moment the warships' first salvo has fallen
       ...[5.6, 6.1, 6.6, 7.6, 9.0, 11.0, 13.0, 15.0, 17.0].map((at, k) => ({ at, run: (s) => {
         const { map } = s, W = map.w, M = Math.floor(map.h / 2), d = teamDir(PLAYER), c = s.campaign.coast;
-        const n = k === 0 ? 10 : k === 1 ? 5 : 3;
+        const n = waveOf(s, k === 0 ? 10 : k === 1 ? 5 : 3);
         if (k === 0) return; // (the first wave comes out of the River Clyde, not in boats)
         for (let i = 0; i < n; i++) {
           let y = M - 10 + Math.floor(((i + 0.5) / n) * 20) + Math.floor(Math.random() * 2);
@@ -1443,7 +1447,7 @@ export function createLevelGame(id, opts = {}) {
   state.startHour = L.startHour;
   state.campaign = { id, fired: [], result: null, reason: '', difficulty: opts.difficulty || 'medium' };
   L.setup(state);
-  applyCampaignDifficulty(state, state.campaign.difficulty);
+  applyCampaignDifficulty(state, state.campaign.difficulty, L.designed || 'medium');
   return state;
 }
 
@@ -1454,30 +1458,42 @@ export function createLevelGame(id, opts = {}) {
  */
 const SKILL = ['think', 'aim', 'routes', 'double', 'rested', 'prep', 'counterBattery', 'concentrate', 'support', 'fallBack', 'repair'];
 export const CAMPAIGN_DIFFICULTY = {
-  easy: { name: 'Easy', foe: 0.75, us: 1.25, gap: 1.4, note: 'The enemy is a green commander, short of supplies; you are better supplied.' },
-  medium: { name: 'Medium', note: 'Each battle as it was fought.' },
-  hard: { name: 'Hard', foe: 1.25, us: 0.85, gap: 0.8, note: 'The enemy is a veteran, well supplied and quick to attack; you are short of everything.' },
+  easy: { name: 'Easy', note: 'The enemy is a green commander, short of men and supplies; you are better supplied.' },
+  medium: { name: 'Medium', note: 'A steady enemy, fairly matched.' },
+  hard: { name: 'Hard', note: 'The enemy is a veteran, well supplied, quick to attack and strong in numbers; you are short of everything.' },
 };
-function applyCampaignDifficulty(state, d) {
-  const D = CAMPAIGN_DIFFICULTY[d];
-  if (!D || d === 'medium') return;
+const ORDER = ['easy', 'medium', 'hard'];
+/**
+ * The campaign's difficulty, step by step from the battle as designed (its 'designed' level: Medium unless it says
+ * otherwise). Each step easier: the enemy's supply, stock and scripted waves x0.8, ours x1.2, his attacks 1.25x
+ * further apart; each step harder the other way (x1.25, x0.85, x0.8). Away from the designed level his commander
+ * also fights with that level's skill (reactions, marksmanship, routes, preparation, use of his guns, falling back).
+ */
+function applyCampaignDifficulty(state, d, base = 'medium') {
+  const steps = ORDER.indexOf(d) - ORDER.indexOf(base);
+  state.campaign.waveScale = 1;
+  if (!steps || ORDER.indexOf(d) < 0) return;
+  const foe = steps > 0 ? 1.25 ** steps : 0.8 ** -steps, us = steps > 0 ? 0.85 ** steps : 1.2 ** -steps, gap = steps > 0 ? 0.8 ** steps : 1.25 ** -steps;
   const skill = DIFFICULTY[d];
   for (const ai of state.ais) {
     const L = { ...(ai.level || DIFFICULTY.medium) };
     for (const k of SKILL) L[k] = skill[k];
-    L.income = (L.income ?? 1) * D.foe;
-    if (L.firstAttack) L.firstAttack *= D.gap;
-    if (L.attackGap) L.attackGap = L.attackGap.map((g) => g * D.gap);
+    L.income = (L.income ?? 1) * foe;
+    if (L.firstAttack) L.firstAttack *= gap;
+    if (L.attackGap) L.attackGap = L.attackGap.map((g) => g * gap);
     ai.level = L;
-    if (ai.offensive) ai.offensive *= D.gap;
+    if (ai.offensive) ai.offensive *= gap;
     const r = state.resources[ai.team];
-    for (const k of ['men', 'ammo', 'supplies']) r[k] = Math.round(r[k] * D.foe);
+    for (const k of ['men', 'ammo', 'supplies']) r[k] = Math.round(r[k] * foe);
   }
   const r = state.resources[PLAYER];
-  for (const k of ['men', 'ammo', 'supplies']) r[k] = Math.round(r[k] * D.us);
-  state.playerIncome = (state.playerIncome ?? 1) * D.us;
-  if (state.barrageLimit && state.barrageLimit[PLAYER]) state.barrageLimit[PLAYER] = Math.max(1, Math.round(state.barrageLimit[PLAYER] * D.us)); // (San Michele's rationed barrages)
+  for (const k of ['men', 'ammo', 'supplies']) r[k] = Math.round(r[k] * us);
+  state.playerIncome = (state.playerIncome ?? 1) * us;
+  if (state.barrageLimit && state.barrageLimit[PLAYER]) state.barrageLimit[PLAYER] = Math.max(1, Math.round(state.barrageLimit[PLAYER] * us)); // (San Michele's rationed barrages)
+  state.campaign.waveScale = foe; // (the scripted waves: reserves, boats, the River Clyde's men)
 }
+/** A scripted wave of the enemy's, scaled by the difficulty (at least one). */
+const waveOf = (state, n, team = ENEMY) => (team === ENEMY ? Math.max(1, Math.round(n * ((state.campaign && state.campaign.waveScale) || 1))) : n);
 
 /**
  * Run a campaign level: timed events, then its win / loss check. A result ends the battle (it sets

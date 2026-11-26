@@ -439,6 +439,7 @@ export const FRIENDLY_CLEAR = 3, FRIENDLY_LIFT = 2.6;
 const aiTeam = (state, team) => state.ais.some((a) => a.team === team && !a.legacy); // (legacy: an experiment's old-style commander)
 /** A setting of the computer's level for a side it commands (undefined for a side a person commands). */
 const aiLevel = (state, team, k) => { const a = state.ais.find((q) => q.team === team && !q.legacy); return a && a.level ? a.level[k] : undefined; };
+export const NEST_MELEE = 0.2, NEST_FIRE = 0.5; // (damage a pillbox's crew takes, hand to hand and from small arms)
 export const HQ_HOLD = 5; // seconds a captured headquarters must be held for the victory
 const AI_DOUBLE = 1.35; // the computer's riflemen at the double across open ground
 /** True if any of the team's men (not its guns) are within r tiles of (x, y). */
@@ -734,6 +735,8 @@ function updateUnit(state, u, dt) {
     let dmg = u.men * t.melee * dt * 1.5;
     if (u.chargeBonus > 0) dmg *= 2.0; // the shock of a bayonet charge
     if (u.type === 'rifle') dmg *= 0.6 + 0.4 * Math.min(1, (u.stamina ?? 100) / STAMINA.winded); // (blown men fight weakly)
+    // a pillbox has one way in: one squad at a time fights its way through it, the others wait their turn outside
+    if (u.closest.nest) { const n = u.closest; if (n.doorBy !== u.id && n.doorAt >= state.time - 0.25 && state.units.some((q) => q.id === n.doorBy && !q.dead)) dmg = 0; else { n.doorBy = u.id; n.doorAt = state.time; } }
     if (u.suppression > 50) dmg *= 0.5;
     damageUnit(state, u.closest, dmg, null, { x: u.x, y: u.y, kind: 'melee' });
     u.closest.suppression = Math.min(100, u.closest.suppression + dt * 10);
@@ -871,6 +874,9 @@ export function damageUnit(state, u, amount, blast = null, shooter = null) {
       if (u.team === PLAYER) pushMessage(state, 'A tank has been hit by a shell!', 'warn');
     }
   }
+  // a crew in a concrete pillbox (a nest): bullets mostly strike the concrete about the loophole, and the men who rush
+  // it must fight their way in through its one entrance
+  if (u.nest && shooter) amount *= shooter.kind === 'melee' ? NEST_MELEE : NEST_FIRE;
   const t = UNIT_TYPES[u.type];
   const before = u.men;
   if (u.afloat) amount *= blast ? 0.5 : 1.4; // men packed in an open boat: exposed to rifle and machine-gun fire, but low in the water, shell splinters mostly spent on the sea

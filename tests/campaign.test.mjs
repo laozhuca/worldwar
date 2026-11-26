@@ -7,7 +7,7 @@ import { createLevelGame, stepCampaign, clockHours, levelById } from '../src/cam
 const run = (s, seconds) => { for (let t = 0; t < seconds && s.winner < 0; t += 0.1) { update(s, 0.1); stepCampaign(s); } };
 
 test('The Sailors of Dixmude: strong works, short supply, a hard enemy, waves of reinforcements', () => {
-  const s = createLevelGame('ypres');
+  const s = createLevelGame('ypres', { difficulty: 'hard' });
   assert.equal(s.campaign.id, 'ypres');
   assert.ok(s.campaign.front.length > 30, 'the front line is recorded');
   assert.ok(s.campaign.front.every((i) => s.map.tiles[i].trench >= 2), 'sandbagged');
@@ -22,7 +22,7 @@ test('The Sailors of Dixmude: strong works, short supply, a hard enemy, waves of
 });
 
 test('The Sailors of Dixmude: the relief at dawn on day 4 wins; losing half the front loses', () => {
-  const s = createLevelGame('ypres');
+  const s = createLevelGame('ypres', { difficulty: 'hard' });
   s.time = ((78 - 6.5) / 24) * 420 - 1; // just before 06:00 on day 4
   stepCampaign(s);
   assert.equal(s.campaign.relievedAt, undefined);
@@ -42,7 +42,7 @@ test('The Sailors of Dixmude: the relief at dawn on day 4 wins; losing half the 
   assert.equal(s.winner, PLAYER);
   assert.ok(levelById('ypres').medalsEarned(s)[0]);
 
-  const l = createLevelGame('ypres');
+  const l = createLevelGame('ypres', { difficulty: 'hard' });
   for (const i of l.campaign.front.slice(0, Math.ceil(l.campaign.front.length / 2) + 1)) l.map.tiles[i].owner = ENEMY;
   stepCampaign(l);
   assert.ok(l.campaign.scene && l.campaign.scene.img.includes('dixmude-defeat') && !l.campaign.result, 'the defeat pictured first');
@@ -94,7 +94,7 @@ test('The Nests of San Michele: three concrete nests, rationed barrages, win on 
 });
 
 test('Brusilov\'s Storm: riflemen against riflemen, saps, reserves on day 1 and 2, win by taking all three HQs, lose after 3 days', () => {
-  const s = createLevelGame('brusilov');
+  const s = createLevelGame('brusilov', { difficulty: 'hard' });
   const foes = () => s.units.filter((u) => !u.dead && u.team === ENEMY && u.type !== 'artillery').length;
   const mine = s.units.filter((u) => u.team === PLAYER).length;
   const start = foes();
@@ -124,13 +124,13 @@ test('Brusilov\'s Storm: riflemen against riflemen, saps, reserves on day 1 and 
   assert.equal(s.campaign.reason, 'All three enemy headquarters have fallen.');
   assert.ok(levelById('brusilov').medalsEarned(s)[0]);
 
-  const l = createLevelGame('brusilov');
+  const l = createLevelGame('brusilov', { difficulty: 'hard' });
   l.time = ((72 - 4) / 24) * 420 + 1; stepCampaign(l);
   assert.ok(l.campaign.scene && l.campaign.scene.img.includes('galicia-defeat') && !l.campaign.result, 'the defeat pictured first');
   l.time += 10; stepCampaign(l);
   assert.equal(l.campaign.result, 'lost');
   // our headquarters overrun: held by the enemy five seconds, pictured, then lost
-  const o = createLevelGame('brusilov'), oq = o.map.hq[PLAYER];
+  const o = createLevelGame('brusilov', { difficulty: 'hard' }), oq = o.map.hq[PLAYER];
   o.map.tiles[oq.y * o.map.w + oq.x].owner = ENEMY;
   update(o, 1 / 30); stepCampaign(o);
   assert.equal(o.winner, -1, 'not at once');
@@ -142,7 +142,7 @@ test('Brusilov\'s Storm: riflemen against riflemen, saps, reserves on day 1 and 
 });
 
 test('The Beach at Sedd el Bahr: hold the slopes above V Beach until nightfall against boats and the River Clyde', () => {
-  const s = createLevelGame('helles'), c = s.campaign;
+  const s = createLevelGame('helles', { difficulty: 'hard' }), c = s.campaign;
   assert.ok(c.front.length > 20, 'our line above the beach');
   assert.ok(s.map.tiles.filter((t) => t.sea).length > 200, 'the sea');
   const gun = s.units.find((u) => u.id === c.shipGun);
@@ -179,7 +179,7 @@ test('The Beach at Sedd el Bahr: hold the slopes above V Beach until nightfall a
   s.time += 10; stepCampaign(s);
   assert.equal(c.result, 'won');
 
-  const l = createLevelGame('helles');
+  const l = createLevelGame('helles', { difficulty: 'hard' });
   for (const i of l.campaign.front) l.map.tiles[i].owner = ENEMY;
   stepCampaign(l);
   assert.ok(l.campaign.scene && l.campaign.scene.img.includes('helles-defeat') && !l.campaign.result, 'the line broken, pictured, before the battle ends');
@@ -468,7 +468,7 @@ test('The Nests of San Michele: each nest still firing brings up fresh squads, u
 
 test('Brusilov\'s Storm: every Austrian headquarters raises units, until it is taken', async () => {
   const { buyUnit } = await import('../src/game.js');
-  const s = createLevelGame('brusilov'), hq = s.map.hq[ENEMY], posts = [hq, ...hq.posts];
+  const s = createLevelGame('brusilov', { difficulty: 'hard' }), hq = s.map.hq[ENEMY], posts = [hq, ...hq.posts];
   s.resources[ENEMY] = { men: 200, ammo: 2000, supplies: 2000 };
   const at = (fresh) => posts.map((q) => fresh.filter((u) => Math.hypot(u.x - q.x, u.y - q.y) < 9).length);
   let before = new Set(s.units);
@@ -490,5 +490,15 @@ test('Campaign difficulty: Easy and Hard change the enemy\'s skill, his supply a
   assert.ok(e.resources[PLAYER].ammo > m.resources[PLAYER].ammo && m.resources[PLAYER].ammo > h.resources[PLAYER].ammo, 'ours the other way');
   assert.ok(e.ais[0].level.attackGap[0] > m.ais[0].level.attackGap[0] && h.ais[0].level.attackGap[0] < m.ais[0].level.attackGap[0], 'attacks less or more often');
   assert.equal(m.campaign.difficulty, 'medium');
+  createGame();
+});
+
+test('Levels 1, 3 and 4 as designed are their Hard: Medium and Easy step down, waves included', () => {
+  for (const id of ['ypres', 'brusilov', 'helles']) {
+    const h = createLevelGame(id, { difficulty: 'hard' }), m = createLevelGame(id), e = createLevelGame(id, { difficulty: 'easy' });
+    assert.equal(h.campaign.waveScale, 1, `${id}: hard is as designed`);
+    assert.ok(m.campaign.waveScale < 1 && e.campaign.waveScale < m.campaign.waveScale, `${id}: smaller waves on Medium, smaller still on Easy`);
+    assert.ok(m.resources[PLAYER].ammo > h.resources[PLAYER].ammo, `${id}: better supplied on Medium`);
+  }
   createGame();
 });
