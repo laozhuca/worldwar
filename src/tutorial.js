@@ -77,10 +77,12 @@ export function runTutorial(state, ctx) {
       <path class="m-btn" data-b="2" d="M42 6 C 60 7, 70 22, 70 44 L 42 44 Z"/>
       <rect class="m-wheel" x="36" y="16" width="8" height="16" rx="4"/>
     </svg>`;
+  const WHEEL_SVG = MOUSE_SVG.replace('<rect class="m-wheel"', '<path class="w-arrow" data-w="in" d="M40 -14 L29 1 L51 1 Z"/><path class="w-arrow" data-w="out" d="M40 64 L29 49 L51 49 Z"/><rect class="m-wheel want"')
+    .replace('viewBox="0 0 80 112" width="64" height="90"', 'viewBox="0 -16 80 128" width="84" height="134"');
   const showIllus = (kind, btn = 0) => {
     if (touch || !kind) { illus.classList.add('hidden'); illus.innerHTML = ''; return; }
     illus.className = 'tut-illus ' + kind;
-    illus.innerHTML = kind === 'keys' ? KEYS_SVG : MOUSE_SVG + `<span class="m-say">${btn === 2 ? 'Right button' : 'Left button'}</span>`;
+    illus.innerHTML = kind === 'keys' ? KEYS_SVG : kind === 'wheel' ? WHEEL_SVG + '<span class="m-say">Roll the wheel:<br>up to zoom in, down to zoom out</span>' : MOUSE_SVG + `<span class="m-say">${btn === 2 ? 'Right button' : 'Left button'}</span>`;
     if (kind === 'mouse') illus.querySelector(`.m-btn[data-b="${btn}"]`).classList.add('want');
   };
   // the mouse buttons actually pressed flash on the drawing
@@ -196,6 +198,20 @@ export function runTutorial(state, ctx) {
     await step(touch ? 'Move the map: drag it with one finger to look along the line.' : 'Move the map: press each of W A S D (or the arrow keys) to look around.',
       touch ? () => Math.hypot(renderer.cam.x - cam0.x, renderer.cam.y - cam0.y) > 220 : () => pressed.size >= 4, { kind: 'keys' });
     await say('', touch ? 'Good. Drag the map whenever you need to see more of the battlefield.' : 'Good. W A S D (or the arrow keys, or dragging with the middle mouse button) move the map at any time.');
+    // zooming: in and out again (the wheel, or a pinch)
+    look(pair.x + 2, pair.y, 1.6); // (from a middle zoom: room to go both ways)
+    const z0 = renderer.cam.zoom, zoomed = { in: false, out: false };
+    let zmax = z0;
+    const paintZoom = () => illus.querySelectorAll('.w-arrow').forEach((a) => a.classList.toggle('done', zoomed[a.dataset.w]));
+    await step(touch ? 'Zoom: spread two fingers apart to zoom in, then pinch them together to zoom out.' : 'Zoom: roll the mouse wheel up to zoom in, then down to zoom out.',
+      () => {
+        const z = renderer.cam.zoom; zmax = Math.max(zmax, z);
+        if (z > z0 * 1.12) zoomed.in = true;
+        if (z < (zoomed.in ? zmax : z0) * 0.85) zoomed.out = true; // (out again from wherever it got to, or out from the start)
+        paintZoom();
+        return zoomed.in && zoomed.out;
+      }, { kind: 'wheel' });
+    await say('', touch ? 'Good. Pinch to zoom whenever you need a closer look, or to see more of the field.' : 'Good. The mouse wheel zooms at any time: close in to see your men, out to see the whole field.');
     look(pair.x + 2, pair.y, 2.4);
     await after(0.6);
 

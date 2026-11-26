@@ -1087,3 +1087,9 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 @keyframes m-hit { 0% { fill: #a0ff6e; } 100% { fill: #3a3024; } }
 .tut-illus .m-wheel { fill: #120e0a; stroke: #8a7550; }
 .tut-illus .m-say { font: italic 14px Georgia, serif; color: #e8c98a; }
+.tut-illus .w-arrow { fill: #8a7550; animation: m-want 1s ease-in-out infinite; }
+.tut-illus .w-arrow[data-w="out"] { animation-delay: 0.5s; }
+.tut-illus .w-arrow.done { fill: #a0ff6e; animation: none; }
+.tut-illus .m-wheel.want { animation: wheel-roll 1s ease-in-out infinite; }
+@keyframes wheel-roll { 0%, 100% { fill: #120e0a; } 50% { fill: #c9a35e; } }
+.tut-illus.wheel .m-say { text-align: left; line-height: 1.3; }
