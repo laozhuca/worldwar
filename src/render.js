@@ -1016,6 +1016,7 @@ export class Renderer {
     if (state.bunkers) for (const b of state.bunkers) objs.push({ k: b.x + b.y + 0.3, kind: 'bunker', b, u: state.units.find((u) => u.id === b.id) });
     for (const u of state.units) if (u.visible && !u.nest) objs.push({ k: u.onShip ? 1e6 : u.x + u.y, kind: 'unit', u }); // (a gun on a ship's deck stands on top of her)
     if (state.wrecks) for (const w of state.wrecks) objs.push({ k: w.x + w.y - 0.5, kind: 'wreck', w });
+    if (state.hulks) for (const h of state.hulks) objs.push({ k: h.x + h.y, kind: 'hulk', h });
     if (state.returning) for (const b of state.returning) objs.push({ k: b.x + b.y, kind: 'back', b });
     if (state.floaters) for (const f of state.floaters) objs.push({ k: f.x + f.y - 0.8, kind: 'float', f });
     objs.sort((a, b) => a.k - b.k);
@@ -1034,6 +1035,7 @@ export class Renderer {
         ctx.globalAlpha = 1;
       }
       else if (o.kind === 'back') { const c = iso(o.b.x, o.b.y), f = Math.floor((state.time * 1.6 + o.b.t) % 4); this.drawFrame(ctx, this.propGroup(), `boat_back_r${f}`, c.x, c.y + Math.sin(state.time * 1.7 + o.b.t) * 1.2, 1); }
+      else if (o.kind === 'hulk') this.drawHulk(ctx, o.h, state.time);
       else if (o.kind === 'wreck') { const c = iso(o.w.x, o.w.y); this.drawFrame(ctx, this.propGroup(), o.w.v === 'empty' ? 'boat_empty' : `boat${o.w.v}`, c.x, c.y, 1, o.w.v === 'empty'); }
       else if (o.kind === 'bunker') this.drawBunker(ctx, o.b, o.u, state.time, ui.selected.has(o.b.id));
       else if (o.u.deck) { ctx.save(); ctx.translate(0, -o.u.deck); this.drawUnit(ctx, o.u, ui.selected.has(o.u.id), state.time); ctx.restore(); } // up on a ship's deck
@@ -1908,6 +1910,36 @@ export class Renderer {
   }
 
   /** A tank (pre-rendered from its 3D model, 8 headings), rocking a little on the move; nose-down when ditched. */
+  /**
+   * A tank knocked out: its hull left where it died, scorched dark, smoke rising from it (thick at first, a thin
+   * wisp after a few minutes), and DESTROYED over it.
+   */
+  drawHulk(ctx, h, time) {
+    const p = iso(h.x, h.y), dir = ((Math.round(Math.atan2(h.hy, h.hx) / (Math.PI / 4)) % 8) + 8) % 8;
+    ctx.save();
+    // its shadow on the ground, as when it was running
+    ctx.save(); ctx.translate(p.x, p.y + (h.ditched ? 7 : 0)); ctx.transform(TW / 2, TH / 2, -TW / 2, TH / 2, 0, 0); ctx.rotate(dir * Math.PI / 4); ctx.scale(1.25, 0.72);
+    ctx.fillStyle = 'rgba(8,6,4,0.5)'; ctx.beginPath(); ctx.arc(0, 0, 1, 0, TAU); ctx.fill(); ctx.restore();
+    if (h.ditched) { ctx.translate(p.x, p.y); ctx.rotate(0.1 * (dir < 4 ? 1 : -1)); ctx.translate(-p.x, -p.y); }
+    ctx.filter = 'brightness(0.42) sepia(0.5) saturate(0.6) contrast(1.1)'; // (burnt out)
+    const ok = this.drawFrame(ctx, 'units', `tank_d${dir}_f0`, p.x, p.y + 3 + (h.ditched ? 7 : 0), 1);
+    ctx.filter = 'none';
+    if (!ok) { ctx.fillStyle = '#2a2620'; ctx.beginPath(); ctx.ellipse(p.x, p.y - 12, 40, 20, 0, 0, TAU); ctx.fill(); }
+    ctx.restore();
+    // smoke: a column drifting up from the hull, thinning over the minutes
+    const age = Math.max(0, time - h.t), thick = Math.max(0.25, 1 - age / 240), wind = this.atmo.wind ? this.atmo.wind.x || 0 : 0;
+    for (let i = 0; i < 7; i++) {
+      const k = (time * 0.18 + i / 7 + (h.x * 0.13) % 1) % 1;
+      const x = p.x + 4 + Math.sin(k * 5 + i) * 4 + (wind + 0.4) * k * 26, y = p.y - 30 - k * 70, r = 6 + k * 18;
+      ctx.fillStyle = `rgba(${40 + k * 40},${38 + k * 38},${36 + k * 36},${0.5 * thick * (1 - k)})`;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+    }
+    if (age < 20 && Math.floor(time * 8) % 3) { ctx.fillStyle = `rgba(255,140,40,${0.5 * (1 - age / 20)})`; ctx.beginPath(); ctx.ellipse(p.x + 2, p.y - 26, 7, 4, 0, 0, TAU); ctx.fill(); } // (still burning)
+    ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = 'rgba(0,0,0,0.75)'; this.wtext(ctx, 'DESTROYED', p.x + 0.5, p.y - 59.5);
+    ctx.fillStyle = h.team === PLAYER ? '#ff8a6a' : '#d9ccb2'; this.wtext(ctx, 'DESTROYED', p.x, p.y - 60);
+  }
+
   drawTank(ctx, p, u, t, selected, time) {
     // its weight on the ground: a dark soft shadow right under the hull, the shape of its footprint (laid flat
     // in map space along its heading), so it sits on the earth rather than hovering over it

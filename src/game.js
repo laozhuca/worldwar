@@ -886,6 +886,8 @@ export function damageUnit(state, u, amount, blast = null, shooter = null) {
     u.dead = true;
     u.men = 0;
     if (u.afloat && state.wrecks && !smashed) state.wrecks.push({ x: u.x, y: u.y, v: 'empty', t: state.time }); // the boat drifts, empty (a shell leaves only pieces)
+    // a tank knocked out stays where it died, a burnt-out hulk smoking on the battlefield
+    if (u.type === 'tank') (state.hulks || (state.hulks = [])).push({ x: u.x, y: u.y, hx: u.hx, hy: u.hy, team: u.team, ditched: u.stuck === 'ditched', t: state.time });
     if (u.team === PLAYER) pushMessage(state, `${t.name} wiped out`, 'loss');
     state.effects.push({ type: 'smoke', x: u.x, y: u.y, age: 0, life: 2.5 });
   }
