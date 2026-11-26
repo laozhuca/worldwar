@@ -736,7 +736,7 @@ function showBriefing(id) {
     if (img.getAttribute('src') !== portraitOf(n)) img.setAttribute('src', portraitOf(n));
     showModel('b' + k, n);
   });
-  P.querySelector('.brief-where').textContent = `${L.place} · ${L.date} · ${NATIONS[L.nations[0]].name} against ${NATIONS[L.nations[1]].name} · ${CAMPAIGN_DIFFICULTY[campDiff].name}`;
+  P.querySelector('.brief-where').textContent = `${L.place} · ${L.date} · ${NATIONS[L.nations[0]].name} against ${NATIONS[L.nations[1]].name}`;
   P.querySelector('.brief-history').textContent = L.history;
   P.querySelector('.brief-objectives').innerHTML = L.objectives.map((t) => `<li>${t}</li>`).join('');
   P.querySelector('.brief-rules').innerHTML = L.rules.map((t) => `<li>${t}</li>`).join('');
