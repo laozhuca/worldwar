@@ -213,8 +213,19 @@ function pay(res, cost) {
 
 /** Is an enemy unit close enough to this team's HQ to stop it raising new units? */
 export function hqThreatened(state, team) {
-  const q = state.map.hq[team];
-  return state.units.some((u) => u.team !== team && !u.dead && Math.hypot(u.x - q.x - 0.5, u.y - q.y - 0.5) <= HQ_THREAT_RADIUS);
+  return !workingHqs(state, team).length; // (every headquarters it has lost, or with the enemy at its door)
+}
+/**
+ * The headquarters a side can raise units at: its own (unless the enemy holds it), and each of its further command
+ * posts (hq.posts) it still holds - any of them with no enemy at its door.
+ */
+function workingHqs(state, team) {
+  const hq = state.map.hq[team], foe = 1 - team;
+  return [hq, ...(hq.posts || [])].filter((q) => {
+    const t = tileAt(state.map, q.x + 0.5, q.y + 0.5);
+    if (!t || (q === hq ? t.owner === foe : t.owner !== team)) return false;
+    return !state.units.some((u) => u.team !== team && !u.dead && Math.hypot(u.x - q.x - 0.5, u.y - q.y - 0.5) <= HQ_THREAT_RADIUS);
+  });
 }
 
 export function buyUnit(state, team, type) {
@@ -224,12 +235,14 @@ export function buyUnit(state, team, type) {
   if (t.special && !(state.special && state.special[type])) return 'Not available in this battle';
   if (!canAfford(res, t.cost)) return 'Not enough resources';
   pay(res, t.cost);
-  const hq = state.map.hq[team];
+  // at whichever working headquarters has fewest of our men round it (each command post raises units, where a side has several)
+  const hqs = workingHqs(state, team), around = (q) => state.units.filter((u) => u.team === team && !u.dead && Math.hypot(u.x - q.x - 0.5, u.y - q.y - 0.5) < 8).length;
+  const hq = hqs.reduce((a, q) => (around(q) + rand() * 0.5 < around(a) ? q : a), hqs[0]);
   const dir = teamDir(team);
   if (type !== 'artillery' && type !== 'tank') {
     // infantry and machine guns muster in the trenches near headquarters (not on the open ground beside
     // them, to climb in again at once): the least crowded spot of our own trench within a few tiles
-    const spot = musterSpot(state, team);
+    const spot = musterSpot(state, team, hq);
     if (spot) return spawnUnit(state, type, team, spot.x + 0.5, spot.y + 0.5);
   }
   // a battery is placed on firm ground beside headquarters and waits there (it never goes down into a trench):
@@ -246,8 +259,8 @@ export function buyUnit(state, team, type) {
 }
 
 /** Where new infantry gather: a tile of the team's own trench 2-8 tiles from its HQ, the least crowded. */
-function musterSpot(state, team) {
-  const { map } = state, hq = map.hq[team];
+function musterSpot(state, team, hq = state.map.hq[team]) {
+  const { map } = state;
   let best = null, bs = Infinity;
   for (let dy = -8; dy <= 8; dy++) for (let dx = -8; dx <= 8; dx++) {
     const t = tileAt(map, hq.x + dx + 0.5, hq.y + dy + 0.5);

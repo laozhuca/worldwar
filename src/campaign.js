@@ -154,11 +154,16 @@ function blockBuilding(state, b) {
 
 /** A wave of squads coming up from a team's HQ. */
 function reinforce(state, team, n, kind = 'rifle') {
-  const q = state.map.hq[team], dir = teamDir(team), out = [];
-  for (let i = 0; i < n; i++) {
-    const u = spawnUnit(state, kind, team, q.x + 0.5 + dir * (1 + (i % 3) * 0.6), q.y + 0.5 + (i - (n - 1) / 2) * 1.4);
-    orderMove(state, [u], q.x + 0.5 + dir * 4, q.y + 0.5 + (i - (n - 1) / 2) * 2);
-    out.push(u);
+  // shared out among the headquarters the side still holds (its command posts as well, where it has several)
+  const main = state.map.hq[team], dir = teamDir(team), out = [];
+  const held = [main, ...(main.posts || [])].filter((q) => q === main || tileAt(state.map, q.x + 0.5, q.y + 0.5).owner === team);
+  for (let h = 0; h < held.length; h++) {
+    const q = held[h], m = Math.floor(n / held.length) + (h < n % held.length ? 1 : 0);
+    for (let i = 0; i < m; i++) {
+      const u = spawnUnit(state, kind, team, q.x + 0.5 + dir * (1 + (i % 3) * 0.6), q.y + 0.5 + (i - (m - 1) / 2) * 1.4);
+      orderMove(state, [u], q.x + 0.5 + dir * 4, q.y + 0.5 + (i - (m - 1) / 2) * 2);
+      out.push(u);
+    }
   }
   return out;
 }
