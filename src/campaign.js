@@ -6,6 +6,7 @@ import { createGame, spawnUnit, pushMessage, orderMove, orderBarrage, HQ_HOLD } 
 import { frontLine, teamDir, tileAt, noSquares, makesSquare } from './map.js';
 
 const DAY_LENGTH = 420; // seconds of game time per 24 hours (as atmosphere.js)
+const NEST_MUSTER = 75; // San Michele: seconds between fresh squads coming up to each nest still firing (its strongpoint's headquarters)
 
 /** Hours since midnight of day 1 at the battle's current time. */
 export function clockHours(state) {
@@ -568,7 +569,7 @@ export const LEVELS = [
     },
     history: 'The Sixth Battle of the Isonzo. Five times the Italian army has thrown itself at the Austro-Hungarian line above the river, and five times it has been cut down by machine guns firing from concrete emplacements in the rock. This time the guns must be found and silenced first. Three nests command the whole sector; until they fall, no attack can cross the open ground. Your batteries have been given shells for only a handful of barrages: make every one count.',
     objectives: ['Silence all three machine-gun nests, one after another along the valley.', 'Do it before nightfall on day 2.', 'Do not let the enemy take your headquarters.'],
-    rules: ['The valley is narrow and strewn with great boulders: your men must work along the narrow lanes between them.', 'Each nest is a concrete pillbox at the heart of its own strongpoint, behind wire. Shells only keep its crew\'s heads down: the infantry must take it.', 'Ammunition is short: 8 battery barrages for the whole battle. Bring the guns forward to reach the farther nests.'],
+    rules: ['The valley is narrow and strewn with great boulders: your men must work along the narrow lanes between them.', 'Each nest is a concrete pillbox at the heart of its own strongpoint, behind wire. Shells only keep its crew\'s heads down: the infantry must take it.', 'Each nest is also its strongpoint\'s headquarters: while it fires, fresh squads keep coming up to it. Silence it, or keep men at its door.', 'Ammunition is short: 8 battery barrages for the whole battle. Bring the guns forward to reach the farther nests.'],
     medals: ['The guns are silenced', 'Swift work: all three silenced before nightfall on day 1', 'Shells to spare: 3 or more barrages unused'],
     debrief: {
       won: 'With the machine guns silent, the Italian infantry crossed the open ground at last. In August 1916 the Sixth Battle of the Isonzo took Monte Sabotino and San Michele, and Gorizia fell: the greatest Italian victory of the war until its final year.',
@@ -585,6 +586,28 @@ export const LEVELS = [
     ],
     check(state) {
       const c = state.campaign;
+      // each nest still firing is also its strongpoint's headquarters: every so often a fresh squad comes up into its
+      // trenches from the rear, while it has fewer than four round it and none of ours is at its door
+      c.musterAt = c.musterAt || {};
+      for (const id of c.nests) {
+        const n = state.units.find((q) => q.id === id);
+        if (!n || n.dead) continue;
+        if (c.musterAt[id] === undefined) { c.musterAt[id] = state.time + NEST_MUSTER * (0.5 + c.nests.indexOf(id) * 0.25); continue; }
+        if (state.time < c.musterAt[id]) continue;
+        c.musterAt[id] = state.time + NEST_MUSTER;
+        const near = (u, r) => Math.hypot(u.x - n.x, u.y - n.y) < r;
+        if (state.units.some((u) => u.team === PLAYER && !u.dead && near(u, 3.5))) continue; // (ours at its door: no one can come up)
+        if (state.units.filter((u) => u.team === ENEMY && !u.dead && u.type === 'rifle' && near(u, 7)).length >= 4) continue;
+        let spot = null, bd = Infinity;
+        for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+          const t = tileAt(state.map, n.x + dx, n.y + dy);
+          if (!t || !t.trench || t.owner !== ENEMY || state.units.some((u) => !u.dead && Math.floor(u.x) === t.x && Math.floor(u.y) === t.y)) continue;
+          const d = Math.hypot(dx, dy); if (d >= 1 && d < bd) { bd = d; spot = t; }
+        }
+        if (!spot) continue;
+        const g = spawnUnit(state, 'rifle', ENEMY, spot.x + 0.5, spot.y + 0.5);
+        g.ai.role = 'hold'; g.inTrench = true;
+      }
       for (const id of c.nests) {
         if (c.silenced.includes(id)) continue;
         const u = state.units.find((q) => q.id === id);

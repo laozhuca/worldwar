@@ -455,3 +455,13 @@ test('The enemy never bombards its own men: no barrage on them, and a barrage li
   assert.equal(orderBarrage(s, [pg], px, pg.y), 1, 'the player decides for himself');
   createGame();
 });
+
+test('The Nests of San Michele: each nest still firing brings up fresh squads, up to four round it', () => {
+  const s = createLevelGame('isonzo');
+  const near = (id) => { const n = s.units.find((u) => u.id === id); return s.units.filter((u) => u.team === ENEMY && !u.dead && u.type === 'rifle' && Math.hypot(u.x - n.x, u.y - n.y) < 7).length; };
+  const before = s.campaign.nests.map(near);
+  for (let k = 0; k < 8; k++) { s.time += 80; stepCampaign(s); }
+  const after = s.campaign.nests.map(near);
+  assert.ok(after.every((n, i) => n > before[i] && n <= 4), `reinforced, never past four (${before} -> ${after})`);
+  createGame();
+});
