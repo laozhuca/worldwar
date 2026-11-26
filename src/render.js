@@ -1914,6 +1914,15 @@ export class Renderer {
    * A tank knocked out: its hull left where it died, scorched dark, smoke rising from it (thick at first, a thin
    * wisp after a few minutes), and DESTROYED over it.
    */
+  /** The animated column of smoke from the reference (a sheet of frames and its layout; null until loaded). */
+  smokeColumn() {
+    if (this._col !== undefined) return this._col;
+    this._col = null;
+    Promise.all([fetch('assets/fx/smoke-column.json').then((r) => r.json()), loadImage('assets/fx/smoke-column.webp')])
+      .then(([meta, img]) => { this._col = { meta, img }; }).catch(() => {});
+    return null;
+  }
+
   /** A soft, ragged billow of smoke (made once): mid-grey, its edges broken up with noise, for tinting and stacking. */
   smokePuff() {
     if (this._puff) return this._puff;
@@ -1944,25 +1953,38 @@ export class Renderer {
     ctx.filter = 'none';
     if (!ok) { ctx.fillStyle = '#2a2620'; ctx.beginPath(); ctx.ellipse(p.x, p.y - 12, 40, 20, 0, 0, TAU); ctx.fill(); }
     ctx.restore();
-    // smoke: a column of soft, ragged billows - oily black at the hull, greying and spreading as it rises and leans
-    // with the wind, thinning over the minutes
+    // smoke: the column of black smoke (assets/fx/smoke-column.webp, from the reference) rising from the hull and leaning
+    // downwind, flowing - two copies of it sliding upward and crossfading - with fresh billows boiling up at its foot;
+    // it thins over the minutes
     const age = Math.max(0, time - h.t), thick = Math.max(0.3, 1 - age / 240), wind = (this.atmo.wind && this.atmo.wind.x) || 0.3;
     const puff = this.smokePuff(), seed = h.x * 7.31 + h.y * 3.17;
-    ctx.save();
-    for (let i = 0; i < 30; i++) {
-      const r1 = hash(seed + i * 1.7, i * 3.9), r2 = hash(i * 5.3, seed + 2.1), life = 5.5 + r1 * 3;
-      const k = ((time + r2 * life) / life) % 1; // 0 at the hull, 1 dissipated
-      const rise = k * (85 + r1 * 30), drift = (wind * 1.4 + 0.25) * k * k * 70;
-      const curl = Math.sin(k * 6 + r2 * 9 + time * 0.35) * (3 + k * 10);
-      const x = p.x + 2 + (r2 - 0.5) * 10 + drift + curl, y = p.y - 24 - rise;
-      const size = (7 + k * 34) * (0.75 + r1 * 0.5);
-      const a = thick * (k < 0.1 ? k / 0.1 : 1) * (1 - k) ** 1.6 * 0.8;
-      const g = Math.round(30 + k * 80 + r1 * 16); // (from near-black to a dirty grey)
-      if (a < 0.01) continue;
+    const col = this.smokeColumn();
+    if (col) {
+      // the reference animation (30 frames at 10 a second), each frame blended into the next so it flows, and the
+      // last back into the first
+      const M = col.meta, S = 0.5, fw = M.frameW, fh = M.frameH, lean = Math.max(-0.4, Math.min(0.6, wind * 0.5));
+      const flip = lean < -0.05 ? -1 : 1, sway = Math.sin(time * 0.4 + seed) * 0.04;
+      const t = ((time + seed) * M.fps) % M.frames, f0 = Math.floor(t), f1 = (f0 + 1) % M.frames, mix = t - f0;
       ctx.save();
-      ctx.globalAlpha = a;
-      ctx.filter = `brightness(${(g / 128).toFixed(2)})`;
-      ctx.translate(x, y); ctx.rotate(r2 * 6.28 + k * (r1 - 0.5) * 2);
+      ctx.translate(p.x + 4, p.y - 22);
+      ctx.transform(1, 0, (sway + (flip < 0 ? lean + 0.15 : lean - 0.15)) * 0.5, 1, 0, 0); // (leaning with the wind)
+      ctx.scale(flip, 1);
+      ctx.filter = 'saturate(0.15) sepia(0.25) brightness(0.62) contrast(1.35)'; // (cut out against a bright sky: darkened to oily smoke over the mud)
+      for (const [f, w] of [[f0, 1], [f1, mix]]) {
+        ctx.globalAlpha = Math.min(1, thick * 1.1) * w;
+        ctx.drawImage(col.img, (f % M.columns) * fw, Math.floor(f / M.columns) * fh, fw, fh, -M.footX * S, -M.footY * S, fw * S, fh * S);
+      }
+      ctx.restore();
+    }
+    ctx.save();
+    for (let i = 0; i < 12; i++) { // fresh billows at its foot
+      const r1 = hash(seed + i * 1.7, i * 3.9), r2 = hash(i * 5.3, seed + 2.1), life = 3 + r1 * 2;
+      const k = ((time + r2 * life) / life) % 1;
+      const x = p.x + 2 + (r2 - 0.5) * 10 + Math.sin(k * 6 + r2 * 9) * 3 + wind * k * 8, y = p.y - 22 - k * 34;
+      const size = (6 + k * 16) * (0.75 + r1 * 0.5), a = thick * (k < 0.15 ? k / 0.15 : 1) * (1 - k) * 0.7;
+      if (a < 0.01) continue;
+      ctx.save(); ctx.globalAlpha = a; ctx.filter = 'brightness(0.32)';
+      ctx.translate(x, y); ctx.rotate(r2 * 6.28);
       ctx.drawImage(puff, -size, -size * 0.85, size * 2, size * 1.7);
       ctx.restore();
     }
