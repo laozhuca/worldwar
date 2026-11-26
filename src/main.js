@@ -204,6 +204,14 @@ byId('btn-restart').addEventListener('click', async () => {
 });
 const FILM = ['', 'sepia(0.55) contrast(1.08) saturate(0.85)', 'grayscale(1) contrast(1.15)'];
 let film = 0;
+// the top bar's height (it may wrap on a narrow screen): what sits under it follows (--top-h)
+{ const tb = document.getElementById('topbar'), set = () => document.documentElement.style.setProperty('--top-h', tb.offsetHeight + 'px');
+  if (window.ResizeObserver) new ResizeObserver(set).observe(tb); window.addEventListener('resize', set); set(); }
+// small screens: the less used switches in a drop-down behind ⚙ (closed again by a tap anywhere else)
+byId('btn-more').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('topbar-extra').classList.toggle('open'); });
+document.addEventListener('pointerdown', (e) => { const x = document.getElementById('topbar-extra'); if (x.classList.contains('open') && !x.contains(e.target) && e.target.id !== 'btn-more') x.classList.remove('open'); });
+// the campaign tracker folds to its heading at a tap (on a phone it takes much of the screen)
+byId('objectives').addEventListener('click', (e) => e.currentTarget.classList.toggle('folded'));
 byId('btn-film').addEventListener('click', () => {
   film = (film + 1) % FILM.length;
   canvas.style.filter = FILM[film];

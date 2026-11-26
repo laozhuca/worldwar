@@ -982,3 +982,48 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 .ucard .n { color: #efe4cb; }
 .ucard .st { color: var(--ink-dim); }
 .ucard .bar { background: rgba(0, 0, 0, 0.6); }
+
+/* ---------- touch screens and small screens ---------- */
+#topbar-extra { display: contents; }
+#btn-more { display: none; }
+/* everything that sits just under the top bar follows its real height (it can wrap on a narrow screen) */
+#messages { top: calc(var(--top-h, 40px) + 8px); }
+#modehint { top: calc(var(--top-h, 40px) + 10px); }
+#objectives { top: calc(var(--top-h, 40px) + 10px); }
+#hq-alert { top: calc(var(--top-h, 40px) + 8px); }
+@media (max-width: 900px), (max-height: 500px) {
+  /* one row: the less used switches go into a drop-down behind ⚙ */
+  #topbar { flex-wrap: nowrap !important; height: auto; min-height: 44px; overflow: visible !important; gap: 4px !important; padding: 2px 4px !important; }
+  #topbar .spacer { display: block !important; flex: 1; }
+  #topbar .res { gap: 2px; font-size: 12px; }
+  #topbar .res b { font-size: 11px; }
+  #btn-more { display: block; }
+  #topbar-extra { display: none; position: absolute; top: 100%; right: 4px; z-index: 20; flex-direction: column; padding: 4px;
+    background: rgba(14, 12, 10, 0.97); border: 1px solid rgba(201, 178, 122, 0.4); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7); }
+  #topbar-extra.open { display: flex; }
+  #topbar-extra button { border-left: 0 !important; min-width: 48px; min-height: 44px; font-size: 18px; }
+  #topbar button + button { border-left: 0; }
+}
+@media (max-width: 480px) {
+  /* a narrow phone: the controls on one row, the figures on a second beneath them */
+  #topbar { flex-wrap: wrap !important; row-gap: 0 !important; }
+  #topbar > button, #btn-more { order: 1; }
+  #topbar > button:first-of-type { margin-left: auto; }
+  #topbar .spacer { display: none !important; }
+  #topbar .res { order: 2; flex: 1 1 auto; justify-content: center; padding: 2px 0 4px; }
+  #topbar .res span { min-width: 0; }
+}
+@media (pointer: coarse) {
+  /* fingers: every control at least 44 px */
+  #topbar button { min-width: 42px; min-height: 42px; font-size: 16px; }
+  .group button { min-height: 44px; }
+  #duo .hint, #story .hint { font-size: 15px; }
+  /* the hint under the minimap: one line, never cut in half */
+  #selection-info > .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+}
+/* the campaign tracker on a phone: smaller, and a tap folds it to its heading */
+@media (max-width: 700px), (max-height: 500px) {
+  #objectives { pointer-events: auto; cursor: pointer; width: min(240px, 62vw); padding: 6px 10px; }
+  #objectives.folded > div:not(.ob-head) { display: none; }
+  #objectives.folded .ob-head { margin: 0; }
+}

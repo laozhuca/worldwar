@@ -9,7 +9,7 @@
   <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="assets/icon/apple-touch-icon.png">
   <meta name="theme-color" content="#15120d">
-  <link rel="stylesheet" href="style.css?v=a50c76d1" />
+  <link rel="stylesheet" href="style.css?v=ae63fc0b" />
   <!-- stamp:begin (scripts/stamp.mjs) -->
   <script type="importmap">
   {
@@ -20,7 +20,7 @@
       "./src/campaign.js": "./src/campaign.js?v=24e4dcd5",
       "./src/config.js": "./src/config.js?v=6dada4df",
       "./src/game.js": "./src/game.js?v=fa60766f",
-      "./src/main.js": "./src/main.js?v=6cc66d79",
+      "./src/main.js": "./src/main.js?v=37b85a72",
       "./src/map.js": "./src/map.js?v=3ed5bbdb",
       "./src/model-view.js": "./src/model-view.js?v=214a5b12",
       "./src/path.js": "./src/path.js?v=23c490f7",
@@ -52,10 +52,14 @@
       <button id="btn-save" title="Save or load a battle (5 slots; it also saves itself every minute)">💾</button>
       <button id="btn-pause" title="Pause (P)">❚❚</button>
       <button id="btn-speed" title="Game speed">1×</button>
+      <!-- the less used switches: in a drop-down behind ⚙ on small screens -->
+      <button id="btn-more" title="More settings">⚙</button>
+      <span id="topbar-extra">
       <button id="btn-film" title="Film look: colour / sepia / black and white">🎞</button>
       <button id="btn-voice" title="Soldier voices on/off">🗣</button>
       <button id="btn-music" title="Music on/off">🎵</button>
       <button id="btn-sound" title="Sound on/off">🔊</button>
+      </span>
       <button id="btn-help" title="Instructions (F1)">?</button>
       <button id="btn-menu" title="Main menu">☰</button>
     </div>
@@ -352,6 +356,6 @@
       document.getElementById('boot-reload').onclick = function () { location.reload(); };
     }, 20000);
   </script>
-  <script type="module" src="src/main.js?v=6cc66d79"></script>
+  <script type="module" src="src/main.js?v=37b85a72"></script>
 </body>
 </html>
