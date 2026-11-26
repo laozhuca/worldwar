@@ -88,9 +88,25 @@ export class ModelView {
     this.stand = this.makeStand();
     this.rest = -0.45; // three-quarter view at rest
     this.yaw = this.rest; this.spin = false; this.mesh = null; this.want = null;
-    const on = () => { this.spin = true; this.kick(); }, off = () => { this.spin = false; this.kick(); };
+    // a mouse over it: it turns; a finger (or a mouse button held) on it: it turns with the finger, keeps a little of
+    // the swing when let go, holds there a moment and then eases back to the three-quarter view
+    const on = (e) => { if (e.pointerType === 'mouse') { this.spin = true; this.kick(); } }, off = (e) => { if (e.pointerType === 'mouse') { this.spin = false; this.kick(); } };
     canvas.addEventListener('pointerenter', on); canvas.addEventListener('pointerleave', off);
-    canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') { this.spin = !this.spin; this.kick(); } });
+    canvas.style.touchAction = 'pan-y'; // (a sideways drag turns the figure; an upright one still scrolls the page)
+    this.vel = 0; this.holdUntil = 0;
+    canvas.addEventListener('pointerdown', (e) => {
+      this.drag = { id: e.pointerId, x: e.clientX, t: performance.now() }; this.vel = 0; this.spin = false;
+      try { canvas.setPointerCapture(e.pointerId); } catch {}
+      this.kick();
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      const d = this.drag; if (!d || d.id !== e.pointerId) return;
+      const now = performance.now(), dx = e.clientX - d.x, turn = (dx / Math.max(120, canvas.clientWidth)) * Math.PI * 1.6;
+      this.yaw += turn; this.vel = turn / Math.max(0.008, (now - d.t) / 1000);
+      d.x = e.clientX; d.t = now; this.kick();
+    });
+    const up = (e) => { if (!this.drag || this.drag.id !== e.pointerId) return; this.drag = null; this.holdUntil = performance.now() + 2500; if (e.pointerType === 'mouse' && e.type === 'pointerup') this.spin = canvas.matches(':hover'); this.kick(); };
+    canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
     this.last = 0;
     // drawn at zero size while the screen is hidden: redraw whenever the canvas gets (or changes) its size
     if (window.ResizeObserver) new ResizeObserver(() => this.kick()).observe(canvas);
@@ -173,7 +189,10 @@ export class ModelView {
     this.last = t;
     let moving = false;
     if (!this.canvas.offsetParent) { this.last = 0; return; } // hidden: rest until shown again (the resize observer wakes it)
-    if (this.spin) { this.yaw += dt * 1.6; moving = true; } else if (this.auto) { this.yaw += dt * 0.3; moving = true; } else { // auto: a slow, endless turn
+    if (this.drag) { moving = true; } // (turned by the finger)
+    else if (Math.abs(this.vel) > 0.05) { this.yaw += this.vel * dt; this.vel *= Math.pow(0.04, dt); moving = true; } // (the swing it was let go with, dying away)
+    else if (performance.now() < this.holdUntil) { this.vel = 0; moving = true; } // (held where it was left, for a moment)
+    else if (this.spin) { this.yaw += dt * 1.6; moving = true; } else if (this.auto) { this.yaw += dt * 0.3; moving = true; } else { // auto: a slow, endless turn
       // ease back to the rest angle by the shortest way round
       let d = ((this.rest - this.yaw) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
       if (Math.abs(d) > 0.002) { this.yaw += d * Math.min(1, dt * 5); moving = true; } else this.yaw = this.rest;
