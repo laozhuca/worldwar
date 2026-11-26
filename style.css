@@ -1107,3 +1107,17 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 .group button[data-cmd]:hover .cmd-ico, .group button[data-cmd].active .cmd-ico { stroke: #fff3d6; }
 .group button[data-cmd]:hover .cmd-ico .fill, .group button[data-cmd].active .cmd-ico .fill { fill: #fff3d6; }
 @media (max-width: 700px), (max-height: 500px) { .cmd-ico { width: 20px; height: 20px; } }
+
+/* the Orders: square tiles with their icon; the key and the name (and what it does) in a tooltip on hover - on a
+   touch screen, with no hover, the name in small type under the icon */
+.group .btns:has(> button.sq) { grid-template-columns: repeat(3, 48px); gap: 5px; }
+.group button.sq { width: 48px; height: 48px; min-height: 48px; padding: 0; justify-content: center; align-items: center; position: relative; flex-direction: column; gap: 1px; }
+.group button.sq .cmd-ico { width: 26px; height: 26px; }
+.group button.sq .cmd-name { display: none; font-size: 9px; letter-spacing: 0.5px; line-height: 1; color: #cdbfa3; }
+@media (pointer: coarse) { .group button.sq { width: 54px; height: 54px; } .group .btns:has(> button.sq) { grid-template-columns: repeat(3, 54px); } .group button.sq .cmd-name { display: block; } .group button.sq .cmd-ico { width: 22px; height: 22px; } }
+.group button.sq::after, .group button.sq::before { position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); pointer-events: none; opacity: 0; transition: opacity 0.12s 0.15s; z-index: 30; }
+.group button.sq::after { content: attr(data-tip) "\A" attr(data-desc); white-space: pre-line; width: max-content; max-width: 220px; padding: 6px 10px; text-align: left;
+  font: 12px/1.35 Georgia, serif; color: #e6dbc3; background: rgba(14, 12, 10, 0.96); border: 1px solid rgba(201, 178, 122, 0.45); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7); }
+.group button.sq::first-line { color: inherit; }
+.group button.sq::before { content: ''; bottom: calc(100% + 3px); border: 5px solid transparent; border-top-color: rgba(201, 178, 122, 0.6); border-bottom: 0; }
+@media (hover: hover) { .group button.sq:hover::after, .group button.sq:hover::before { opacity: 1; } }
