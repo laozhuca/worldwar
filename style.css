@@ -1121,3 +1121,13 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 .group button.sq::first-line { color: inherit; }
 .group button.sq::before { content: ''; bottom: calc(100% + 3px); border: 5px solid transparent; border-top-color: rgba(201, 178, 122, 0.6); border-bottom: 0; }
 @media (hover: hover) { .group button.sq:hover::after, .group button.sq:hover::before { opacity: 1; } }
+
+/* the Orders icons (redrawn): solid gilt shapes and bold rounded lines on a 24 grid */
+.cmd-ico { fill: none; stroke: none; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.75)); }
+.cmd-ico .s { fill: none; stroke: #e2c88e; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.cmd-ico .f { fill: #e2c88e; stroke: none; }
+.cmd-ico .m { fill: none; stroke: rgba(226, 200, 142, 0.55); stroke-width: 1.5; stroke-linecap: round; }
+.cmd-ico .d { opacity: 0.6; }
+.cmd-ico .thick { stroke-width: 2.4; } .cmd-ico .stock { stroke-width: 4.2; }
+.group button[data-cmd]:hover .cmd-ico .s, .group button[data-cmd].active .cmd-ico .s { stroke: #fff3d6; }
+.group button[data-cmd]:hover .cmd-ico .f, .group button[data-cmd].active .cmd-ico .f { fill: #fff3d6; }
