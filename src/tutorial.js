@@ -136,7 +136,7 @@ export function runTutorial(state, ctx) {
     holding = false;
     clear();
   };
-  const look = (x, y, zoom) => { if (zoom) renderer.cam.zoom = zoom; renderer.centerOn(x, y); };
+  const look = (x, y, zoom) => { if (zoom) renderer.cam.zoom = renderer.fitZoom(zoom); renderer.centerOn(x, y); }; // (zoom fitted to the screen: a phone shows less)
   const after = (s) => { const t = clock + s; return waitFor(() => clock >= t); };
   const near = (u, p, d) => Math.hypot(u.x - p.x, u.y - p.y) <= d;
   const click = touch ? 'Tap' : 'Click', rclick = touch ? 'Tap' : 'Right-click';

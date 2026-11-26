@@ -826,7 +826,7 @@ function stopOpening() {
 function playTour(state, points, done) {
   stopOpening();
   if (!points.length) { done(); return; }
-  const r = renderer, home = { x: r.cam.x, y: r.cam.y, z: r.cam.zoom }, GLIDE = 1.1, HOLD = 2.4, ZOOM = Math.max(home.z, 1.5);
+  const r = renderer, home = { x: r.cam.x, y: r.cam.y, z: r.cam.zoom }, GLIDE = 1.1, HOLD = 2.4, ZOOM = Math.max(home.z, r.fitZoom(1.5));
   const stops = [...points.map((p) => { const w = iso(p.x, p.y); return { ...p, w: { x: r.M * w.x, y: w.y - 20 } }; }), { home: true, w: home }]; // (camera space: mirrored on a mirrored level)
   let i = 0, t = 0, from = { ...home };
   const finish = () => { if (opening !== self) return; cleanup(); opening = null; r.cam.zoom = home.z; r.cam.x = home.x; r.cam.y = home.y; r.clampCam(); done(); };
@@ -863,7 +863,7 @@ function playOpening(state, lines, done, scene = null) {
   // a level may play its own scene on the map under the dialogue: told which line is up, how long it has been
   // shown, and the frame time; it can steer the camera (look) and shake it
   const r = renderer;
-  const look = (x, y, z) => { const w = iso(x, y); const tx = r.M * w.x, ty = w.y, k = 0.08; r.cam.x += (tx - r.cam.x) * k; r.cam.y += (ty - r.cam.y) * k; r.cam.zoom += (z - r.cam.zoom) * k; r.clampCam(); };
+  const look = (x, y, z) => { z = r.fitZoom(z); const w = iso(x, y); const tx = r.M * w.x, ty = w.y, k = 0.08; r.cam.x += (tx - r.cam.x) * k; r.cam.y += (ty - r.cam.y) * k; r.cam.zoom += (z - r.cam.zoom) * k; r.clampCam(); };
   const shake = (v) => { r.atmo.shake = Math.max(r.atmo.shake, v); };
   const play = (o) => { if (scene) scene(state, { look, shake, sound: (n) => sound.play(n, 1), ...o }); };
   const home = { x: r.cam.x, y: r.cam.y, z: r.cam.zoom }; // (where the camera goes back to when the scene is over)

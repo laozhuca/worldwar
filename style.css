@@ -1051,3 +1051,13 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 #overlay.plain-mode #camp-diff-btns button:hover, #overlay.setup-mode #diff-btns button:hover { color: var(--dshade); }
 #overlay.plain-mode #camp-diff-btns button.active, #overlay.setup-mode #diff-btns button.active { color: var(--dshade); box-shadow: inset 0 -1px 0 var(--dshade); text-shadow: 0 0 8px color-mix(in srgb, var(--dshade) 35%, transparent), 0 1px 2px rgba(0, 0, 0, 0.8); }
 .diff-note.d-easy { color: #c4c99a; } .diff-note.d-medium { color: #d6c49a; } .diff-note.d-hard { color: #d9ad94; }
+/* the scene pictures (openings, the tutorial) on small screens: within the box, and never shrunk to a thumbnail */
+@media (max-width: 700px), (max-height: 500px) {
+  #story.opening { padding: 10px 12px 12px; width: 96vw; }
+  #story.opening .pic.wide, #story.opening .pic.wide.natural { width: auto; max-width: 100%; height: auto; max-height: calc(100vh - 230px); min-height: 0; }
+  #story.opening .pic.wide.natural { aspect-ratio: 4 / 3; }
+}
+@media (max-height: 500px) {
+  #story.opening .pic.wide, #story.opening .pic.wide.natural { max-height: 58vh; }
+  #story.opening .line { font-size: 15px; }
+}

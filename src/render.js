@@ -150,6 +150,14 @@ export class Renderer {
     const p = iso(x, y);
     return this.worldToScreen(p.x, p.y - z);
   }
+  /**
+   * A zoom chosen for a full-sized screen, fitted to this one: on a small screen (a phone) the same close-up would
+   * show only a few tiles, so it is scaled down with the open part of the screen (never below 0.5 of it).
+   */
+  fitZoom(z) {
+    const w = this.vw, h = this.vh - this.insets.top - this.insets.bottom;
+    return z * Math.max(0.5, Math.min(1, w / 1100, h / 560));
+  }
   centerOn(x, y) {
     const p = iso(x, y);
     // centre it in the open part of the screen, between the top bar and the command panel
