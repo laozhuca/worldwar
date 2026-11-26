@@ -1914,6 +1914,24 @@ export class Renderer {
    * A tank knocked out: its hull left where it died, scorched dark, smoke rising from it (thick at first, a thin
    * wisp after a few minutes), and DESTROYED over it.
    */
+  /** A soft, ragged billow of smoke (made once): mid-grey, its edges broken up with noise, for tinting and stacking. */
+  smokePuff() {
+    if (this._puff) return this._puff;
+    // a billow: a cluster of soft lumps (each a radial gradient), lit from above so it has some body
+    const N = 128, c = document.createElement('canvas'); c.width = c.height = N;
+    const g = c.getContext('2d');
+    for (let k = 0; k < 14; k++) {
+      const a = hash(k * 1.3, 4.1) * Math.PI * 2, r = hash(k * 2.7, 1.9) * N * 0.22;
+      const x = N / 2 + Math.cos(a) * r, y = N / 2 + Math.sin(a) * r * 0.8, rr = N * (0.13 + hash(k * 0.9, 7.7) * 0.13);
+      const lit = 0.75 + 0.25 * Math.max(0, -Math.sin(a)); // (the upper lumps catch the light)
+      const gr = g.createRadialGradient(x - rr * 0.25, y - rr * 0.3, rr * 0.1, x, y, rr);
+      const v = Math.round(150 * lit);
+      gr.addColorStop(0, `rgba(${v},${v - 4},${v - 10},0.55)`); gr.addColorStop(0.6, `rgba(${v - 25},${v - 28},${v - 32},0.32)`); gr.addColorStop(1, `rgba(${v - 40},${v - 42},${v - 45},0)`);
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, rr, 0, TAU); g.fill();
+    }
+    return (this._puff = c);
+  }
+
   drawHulk(ctx, h, time) {
     const p = iso(h.x, h.y), dir = ((Math.round(Math.atan2(h.hy, h.hx) / (Math.PI / 4)) % 8) + 8) % 8;
     ctx.save();
@@ -1926,15 +1944,35 @@ export class Renderer {
     ctx.filter = 'none';
     if (!ok) { ctx.fillStyle = '#2a2620'; ctx.beginPath(); ctx.ellipse(p.x, p.y - 12, 40, 20, 0, 0, TAU); ctx.fill(); }
     ctx.restore();
-    // smoke: a column drifting up from the hull, thinning over the minutes
-    const age = Math.max(0, time - h.t), thick = Math.max(0.25, 1 - age / 240), wind = this.atmo.wind ? this.atmo.wind.x || 0 : 0;
-    for (let i = 0; i < 7; i++) {
-      const k = (time * 0.18 + i / 7 + (h.x * 0.13) % 1) % 1;
-      const x = p.x + 4 + Math.sin(k * 5 + i) * 4 + (wind + 0.4) * k * 26, y = p.y - 30 - k * 70, r = 6 + k * 18;
-      ctx.fillStyle = `rgba(${40 + k * 40},${38 + k * 38},${36 + k * 36},${0.5 * thick * (1 - k)})`;
-      ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+    // smoke: a column of soft, ragged billows - oily black at the hull, greying and spreading as it rises and leans
+    // with the wind, thinning over the minutes
+    const age = Math.max(0, time - h.t), thick = Math.max(0.3, 1 - age / 240), wind = (this.atmo.wind && this.atmo.wind.x) || 0.3;
+    const puff = this.smokePuff(), seed = h.x * 7.31 + h.y * 3.17;
+    ctx.save();
+    for (let i = 0; i < 30; i++) {
+      const r1 = hash(seed + i * 1.7, i * 3.9), r2 = hash(i * 5.3, seed + 2.1), life = 5.5 + r1 * 3;
+      const k = ((time + r2 * life) / life) % 1; // 0 at the hull, 1 dissipated
+      const rise = k * (85 + r1 * 30), drift = (wind * 1.4 + 0.25) * k * k * 70;
+      const curl = Math.sin(k * 6 + r2 * 9 + time * 0.35) * (3 + k * 10);
+      const x = p.x + 2 + (r2 - 0.5) * 10 + drift + curl, y = p.y - 24 - rise;
+      const size = (7 + k * 34) * (0.75 + r1 * 0.5);
+      const a = thick * (k < 0.1 ? k / 0.1 : 1) * (1 - k) ** 1.6 * 0.8;
+      const g = Math.round(30 + k * 80 + r1 * 16); // (from near-black to a dirty grey)
+      if (a < 0.01) continue;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.filter = `brightness(${(g / 128).toFixed(2)})`;
+      ctx.translate(x, y); ctx.rotate(r2 * 6.28 + k * (r1 - 0.5) * 2);
+      ctx.drawImage(puff, -size, -size * 0.85, size * 2, size * 1.7);
+      ctx.restore();
     }
-    if (age < 20 && Math.floor(time * 8) % 3) { ctx.fillStyle = `rgba(255,140,40,${0.5 * (1 - age / 20)})`; ctx.beginPath(); ctx.ellipse(p.x + 2, p.y - 26, 7, 4, 0, 0, TAU); ctx.fill(); } // (still burning)
+    ctx.restore();
+    if (age < 25) { // still burning: a soft, flickering glow in the hull, under the smoke
+      const f = (1 - age / 25) * (0.55 + 0.45 * hash(Math.floor(time * 12), seed));
+      const fg = ctx.createRadialGradient(p.x + 2, p.y - 24, 0, p.x + 2, p.y - 24, 16);
+      fg.addColorStop(0, `rgba(255,190,90,${0.7 * f})`); fg.addColorStop(0.45, `rgba(240,110,30,${0.35 * f})`); fg.addColorStop(1, 'rgba(200,60,10,0)');
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = fg; ctx.beginPath(); ctx.ellipse(p.x + 2, p.y - 24, 16, 10, 0, 0, TAU); ctx.fill(); ctx.restore();
+    }
     ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = 'rgba(0,0,0,0.75)'; this.wtext(ctx, 'DESTROYED', p.x + 0.5, p.y - 59.5);
     ctx.fillStyle = h.team === PLAYER ? '#ff8a6a' : '#d9ccb2'; this.wtext(ctx, 'DESTROYED', p.x, p.y - 60);
