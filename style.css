@@ -1094,3 +1094,16 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 @keyframes wheel-roll { 0%, 100% { fill: #120e0a; } 50% { fill: #c9a35e; } }
 .tut-illus.wheel .m-say { text-align: left; line-height: 1.3; }
 .tut-illus.key .cap:not(.held) .cap-t { animation: cap-hint 1.2s infinite; }
+
+/* the Orders buttons' icons: fine gilt line drawings (a bayonet charge, a shell bursting, a raised hand, the infantry's
+   helmets, a selection struck out) */
+.group button[data-cmd] { display: flex; align-items: center; gap: 7px; }
+.cmd-ico { flex: none; width: 22px; height: 22px; fill: none; stroke: #d9c08a; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); }
+.cmd-ico .fill { fill: #d9c08a; }
+.cmd-ico .faint { stroke: rgba(217, 192, 138, 0.5); stroke-width: 1.1; }
+.cmd-ico .burst { stroke: #e6b276; }
+.cmd-ico .lead { stroke: #f0d79a; }
+.cmd-ico .fill.dim { fill: rgba(217, 192, 138, 0.55); stroke: none; }
+.group button[data-cmd]:hover .cmd-ico, .group button[data-cmd].active .cmd-ico { stroke: #fff3d6; }
+.group button[data-cmd]:hover .cmd-ico .fill, .group button[data-cmd].active .cmd-ico .fill { fill: #fff3d6; }
+@media (max-width: 700px), (max-height: 500px) { .cmd-ico { width: 20px; height: 20px; } }
