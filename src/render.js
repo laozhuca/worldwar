@@ -267,7 +267,7 @@ export class Renderer {
    * 2:1 rectangle on screen. The ground canvas covers exactly that rectangle (plus a margin above for tall
    * props). Called again when a battle on a field of another size is drawn.
    */
-  setGeometry(R) {
+  setGeometry(R, crop = null) {
     if (this.M === undefined) this.M = 1;
     this.R = R; this._gustExt = null;
     const RR = R + 0.5, C = (2 * R + 1) / 2;
@@ -278,6 +278,11 @@ export class Renderer {
     this.OY = TH * 6 - ((2 * C - RR) * TH) / 2; // (room above the map for a strip of ground beyond its top edge: map.extraTop)
     this.gw = RR * TW;
     this.gh = RR * TH + TH * 8;
+    if (crop) { // a battlefield cut to its own rectangle: the ground image covers only that (and a margin)
+      const pad = TH * 2;
+      this.OX = -crop.x0 + pad; this.OY = -crop.y0 + pad;
+      this.gw = crop.x1 - crop.x0 + pad * 2; this.gh = crop.y1 - crop.y0 + pad * 2;
+    }
     this.ground.width = Math.round(this.gw * GS);
     this.ground.height = Math.round(this.gh * GS);
   }
@@ -285,8 +290,11 @@ export class Renderer {
   /** Size the ground and the camera's limits for this battle's field (a level may have a larger one). */
   fitMap(map) {
     this.M = map.mirror ? -1 : 1; // a level may be shown mirrored left to right (the battle is the same; only the picture flips)
-    if ((map.r ?? MAP_R) === this.R) return;
-    this.setGeometry(map.r ?? MAP_R);
+    const key = `${map.r ?? MAP_R}|${map.bandW || 0}|${map.band || 0}|${map.bandBack || 0}`;
+    if (key === this.geoKey) return;
+    this.geoKey = key;
+    this.R = map.r ?? MAP_R;
+    this.setGeometry(map.r ?? MAP_R, map.bandW ? this.bandRect(map) : null);
     this.relief = null; this.rcv = null; this.groundDrawn = false; this._rocks = null;
   }
 
@@ -445,6 +453,7 @@ export class Renderer {
     fc.putImageData(img, 0, 0);
     if (map.summer) this.drawSummer(g, map, tb, cover);
     if (map.tiles.some((t) => t.pond)) this.drawPonds(g, map, tb);
+    if (map.tiles.some((t) => t.road)) this.drawRoads(g, map, tb, cover);
     g.save();
     g.globalCompositeOperation = 'multiply';
     isoT(g, 1);
@@ -476,6 +485,8 @@ export class Renderer {
         const dry = Math.max(0, Math.sin(t.x * 0.31 + 1.3) * Math.cos(t.y * 0.27 - 0.8) + (hash(t.y * 0.9, t.x * 1.7) - 0.5) * 0.9);
         col = [100 + v * 30 + dry * 46, 112 + v * 24 + dry * 22, 64 + dry * 18]; a = 0.5;
       }
+      else if (t.hard) { col = [190 + v * 30, 186 + v * 28, 170 + v * 20]; a = 0.7; } // bare limestone (the karst)
+      else if (t.wadi || (map.dry && map.battlefield === 'sinai')) { col = t.wadi ? [168 + v * 30, 150 + v * 26, 116] : [204 + v * 36, 182 + v * 30, 134]; a = 0.8; } // a desert: sand, the wadi beds darker gravel
       else { col = [110, 112, 70]; a = 0.35; } // rough grass
       d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = Math.round(255 * a * (1 - torn * 0.85));
     }
@@ -500,7 +511,8 @@ export class Renderer {
     for (const t of map.tiles) {
       if (!t.pond) continue;
       const i = (t.y * W + t.x) * 4, v = hash(t.x * 0.61, t.y * 0.37) * 18;
-      d[i] = 70 + v * 0.7; d[i + 1] = 60 + v * 0.6; d[i + 2] = 44 + v * 0.4; d[i + 3] = 255;
+      const c0 = map.frozen ? (t.block ? [150, 168, 182] : [196, 208, 216]) : map.waterTint || [70, 60, 44]; // (frozen: grey ice, paler and snow-dusted in the shallows)
+      d[i] = c0[0] + v * 0.7; d[i + 1] = c0[1] + v * 0.6; d[i + 2] = c0[2] + v * 0.4; d[i + 3] = 255;
     }
     c.putImageData(img, 0, 0);
     const TWh = TW / 2, THh = TH / 2;
@@ -510,6 +522,64 @@ export class Renderer {
     g.imageSmoothingEnabled = true;
     g.globalCompositeOperation = 'color'; g.globalAlpha = 0.7; g.drawImage(cv, 0, 0); // (the water's reflection of the sky taken out: brown)
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 0.55; g.drawImage(cv, 0, 0);
+    g.restore();
+  }
+
+  /**
+   * Roads (a skirmish battlefield): dirt roads and cart tracks as a smooth band of packed earth (rutted,
+   * pale where snow lies on them), duckboards as planks laid across the way, a railway as ballast with its
+   * two rails, paving as grey setts.
+   */
+  drawRoads(g, map, tb, cover) {
+    const W = map.w, H = map.h;
+    const cv = this._roads || (this._roads = document.createElement('canvas'));
+    cv.width = W; cv.height = H;
+    const c = cv.getContext('2d'), img = c.createImageData(W, H), d = img.data;
+    for (const t of map.tiles) {
+      if (!t.road || t.road >= 2 || t.trench) continue; // (planks, rails and setts are laid tile by tile below)
+      const i = (t.y * W + t.x) * 4, v = hash(t.x * 0.61, t.y * 0.37) * 16, sn = cover[t.y * W + t.x] * 0.6;
+      const col = t.road === 3 ? [104, 98, 90] : t.road === 4 ? [128, 124, 116] : [118, 96, 70];
+      for (let k = 0; k < 3; k++) d[i + k] = col[k] + v + (226 - col[k]) * sn;
+      d[i + 3] = t.crater ? 90 : 235;
+    }
+    c.putImageData(img, 0, 0);
+    const TWh = TW / 2, THh = TH / 2;
+    g.save();
+    g.setTransform(TWh, THh, -TWh, THh, this.OX, this.OY);
+    if (tb) { g.beginPath(); g.rect(tb.x0, tb.y0, tb.x1 - tb.x0 + 1, tb.y1 - tb.y0 + 1); g.clip(); }
+    g.imageSmoothingEnabled = true;
+    g.globalAlpha = 0.85; g.drawImage(cv, 0, 0);
+    g.restore();
+    // planks, rails and setts, tile by tile, along the way the road runs
+    g.save();
+    g.setTransform(1, 0, 0, 1, this.OX, this.OY);
+    const R = (x, y, k) => { const n = x >= 0 && y >= 0 && x < W && y < H ? map.tiles[y * W + x] : null; return n && n.road === k; };
+    for (const t of map.tiles) {
+      if (!t.road || t.trench || t.off || (tb && (t.x < tb.x0 - 1 || t.x > tb.x1 + 1 || t.y < tb.y0 - 1 || t.y > tb.y1 + 1))) continue;
+      const alongX = R(t.x - 1, t.y, t.road) || R(t.x + 1, t.y, t.road), alongY = R(t.x, t.y - 1, t.road) || R(t.x, t.y + 1, t.road);
+      const dirs = alongX && alongY ? [[1, 0], [0, 1]] : alongY ? [[0, 1]] : [[1, 0]];
+      for (const [ax, ay] of dirs) {
+        const p = (u, w) => iso(t.x + 0.5 + ax * u - ay * w, t.y + 0.5 + ay * u + ax * w); // u along the road, w across it
+        if (t.road === 2) { // duckboards: slats across a pair of runners
+          g.fillStyle = 'rgba(0,0,0,0.3)';
+          for (let k = -0.45; k < 0.5; k += 0.16) { const a = p(k, -0.22), b = p(k, 0.22), a2 = p(k + 0.1, 0.22), b2 = p(k + 0.1, -0.22); g.beginPath(); g.moveTo(a.x, a.y + 1.5); g.lineTo(b.x, b.y + 1.5); g.lineTo(a2.x, a2.y + 1.5); g.lineTo(b2.x, b2.y + 1.5); g.fill(); }
+          for (let k = -0.45; k < 0.5; k += 0.16) { const v = hash(t.x * 3 + k, t.y), a = p(k, -0.22), b = p(k, 0.22), a2 = p(k + 0.1, 0.22), b2 = p(k + 0.1, -0.22); g.fillStyle = `rgb(${112 + v * 30},${88 + v * 24},${60 + v * 16})`; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.lineTo(a2.x, a2.y); g.lineTo(b2.x, b2.y); g.fill(); }
+        } else if (t.road === 3) { // the railway: ballast, sleepers and two rails
+          if (ax === dirs[0][0] && ay === dirs[0][1]) { const q = [p(-0.5, -0.4), p(0.5, -0.4), p(0.5, 0.4), p(-0.5, 0.4)]; g.fillStyle = 'rgba(96,90,84,0.9)'; g.beginPath(); g.moveTo(q[0].x, q[0].y); for (const r of q) g.lineTo(r.x, r.y); g.fill(); }
+          g.fillStyle = '#3e342b';
+          for (let k = -0.45; k < 0.5; k += 0.2) { const a = p(k, -0.28), b = p(k, 0.28), a2 = p(k + 0.07, 0.28), b2 = p(k + 0.07, -0.28); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.lineTo(a2.x, a2.y); g.lineTo(b2.x, b2.y); g.fill(); }
+          g.strokeStyle = '#8f8d88'; g.lineWidth = 1.6;
+          for (const w of [-0.15, 0.15]) { const a = p(-0.5, w), b = p(0.5, w); g.beginPath(); g.moveTo(a.x, a.y - 1); g.lineTo(b.x, b.y - 1); g.stroke(); }
+        } else if (t.road === 4) { // setts: the paved tile, its stones in rows
+          if (ax === dirs[0][0] && ay === dirs[0][1]) { const v = hash(t.x * 1.3, t.y * 0.7) * 14, q = [iso(t.x, t.y), iso(t.x + 1, t.y), iso(t.x + 1, t.y + 1), iso(t.x, t.y + 1)]; g.fillStyle = `rgb(${92 + v},${88 + v},${82 + v})`; g.beginPath(); g.moveTo(q[0].x, q[0].y); for (const r of q) g.lineTo(r.x, r.y); g.fill(); }
+          g.strokeStyle = 'rgba(60,56,50,0.35)'; g.lineWidth = 0.8;
+          for (let k = -0.4; k < 0.5; k += 0.2) { const a = p(k, -0.5), b = p(k, 0.5); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+        } else { // ruts
+          g.strokeStyle = 'rgba(60,44,30,0.3)'; g.lineWidth = 1.4;
+          for (const w of [-0.18, 0.18]) { const a = p(-0.5, w), b = p(0.5, w); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+        }
+      }
+    }
     g.restore();
   }
 
@@ -998,6 +1068,7 @@ export class Renderer {
     this.groupOf = ui && ui.groupOf ? (id) => ui.groupOf(id) : null; // (group badges)
     this.updateTracks(state);
     this.drawTracks(ctx, state);
+    if (state.objectives && state.objectives.length) this.drawObjectives(ctx, state);
     this.drawDecals(ctx, state);
     this.drawBuildSites(ctx, state);
     this.drawHover(ctx, state, ui);
@@ -1323,6 +1394,7 @@ export class Renderer {
   }
 
   drawDecor(ctx, t) {
+    if (VECTOR_DECOR[t.decor]) { VECTOR_DECOR[t.decor](ctx, t, this.S ?? 1); return; }
     if (this.props && t.decor !== 'ruin') {
       const snow = (this.S ?? 1) > 0.7 ? '_s' : '';
       const h = hash(t.x * 2.3, t.y * 5.1);
@@ -1455,10 +1527,25 @@ export class Renderer {
     return this.backdrops[bd.img];
   }
 
+  /** Water points (a desert battlefield's objectives): a ring on the ground in the colour of whoever holds it. */
+  drawObjectives(ctx, state) {
+    const t = performance.now() / 1000;
+    for (const o of state.objectives) {
+      const p = iso(o.x, o.y), col = o.owner === PLAYER ? '232,210,122' : o.owner === ENEMY ? '255,106,90' : '220,214,196';
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = `rgba(${col},${0.55 + 0.2 * Math.sin(t * 2)})`;
+      ctx.setLineDash([10, 7]); ctx.beginPath(); ctx.ellipse(p.x, p.y, 2.5 * TW / 2 * 1.41, 2.5 * TH / 2 * 1.41, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      ctx.font = '600 12px Georgia, serif'; ctx.textAlign = 'center'; ctx.fillStyle = `rgba(${col},0.9)`; ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 3;
+      this.wtext(ctx, '💧 ' + o.name.replace(/^the /, ''), p.x, p.y - 2.5 * TH - 4);
+      ctx.shadowBlur = 0;
+    }
+  }
+
   /** The outline of a valley level's ground: the band, out to the back of its rock wall. */
   bandPath(g, map) {
     const y0 = (map.w - (map.bandBack || map.band)) * TH / 2, y1 = (map.w + map.band) * TH / 2;
-    g.beginPath(); g.rect(-1e4, y0, 2e4, y1 - y0);
+    const x0 = map.bandW ? -map.bandW * TW / 2 : -1e4, x1 = map.bandW ? map.bandW * TW / 2 : 1e4;
+    g.beginPath(); g.rect(x0, y0, x1 - x0, y1 - y0);
   }
 
   /** A town standing on the battlefield (pre-rendered through the game's camera and light). */
@@ -2871,7 +2958,7 @@ export class Renderer {
 
   /** A valley level's own rectangle in world coordinates (its ends, the back of its rock wall, its front edge). */
   bandRect(map) {
-    const hw = (this.R + 0.5) * TW / 2 - 2;
+    const hw = map.bandW ? map.bandW * TW / 2 - 2 : (this.R + 0.5) * TW / 2 - 2; // (a skirmish map: its own width too)
     return { x0: -hw, x1: hw, y0: (map.w - (map.bandBack || map.band)) * TH / 2 + 2, y1: (map.w + map.band) * TH / 2 - 2 };
   }
 
@@ -2890,9 +2977,11 @@ export class Renderer {
       const r = this.bandRect(state.map), sc = Math.min(w / (r.x1 - r.x0), h / (r.y1 - r.y0));
       m = { x0: r.x0, y0: r.y0, sx: sc, sy: sc, ox: 0, oy: 0 };
       // the minimap box takes the valley's own proportions (long and low), so there is no empty margin
-      const want = Math.round((r.y1 - r.y0) * (w / (r.x1 - r.x0)));
+      // (a tall map: no taller than about square, the picture centred in it)
+      const want = Math.min(Math.round(w * 1.05), Math.round((r.y1 - r.y0) * (w / (r.x1 - r.x0))));
       if (this.mmCanvas && Math.abs(this.mmCanvas.height - want) > 1) { this.mmCanvas.height = want; this.mmCanvas.style.height = (this.mmCanvas.clientWidth * want / w) + 'px'; return; }
-      m.sx = m.sy = w / (r.x1 - r.x0);
+      m.sx = m.sy = Math.min(w / (r.x1 - r.x0), h / (r.y1 - r.y0));
+      m.ox = (w - (r.x1 - r.x0) * m.sx) / 2;
     } else {
       const s = Math.min(w / this.gw, h / this.gh);
       m = { x0: -this.OX, y0: -this.OY, sx: s, sy: s, ox: (w - this.gw * s) / 2, oy: (h - this.gh * s) / 2 };
@@ -2900,7 +2989,7 @@ export class Renderer {
     this.mini = m;
     const k = this.ground.width / this.gw; // the ground image's pixels per world unit
     const vw = w / m.sx, vh = h / m.sy; // the world area that fits the box
-    if (state.map.band) mctx.drawImage(this.ground, (m.x0 + this.OX) * k, (m.y0 + this.OY) * k, vw * k, vh * k, 0, 0, w, h);
+    if (state.map.band) { const rw = (w - 2 * m.ox) / m.sx, rh = Math.min(vh, this.gh - (m.y0 + this.OY)); mctx.drawImage(this.ground, (m.x0 + this.OX) * k, (m.y0 + this.OY) * k, rw * k, rh * k, m.ox, 0, rw * m.sx, rh * m.sy); }
     else mctx.drawImage(this.ground, m.ox, m.oy, this.gw * m.sx, this.gh * m.sy);
     const P = (x, y) => [m.ox + (x - m.x0) * m.sx, m.oy + (y - m.y0) * m.sy];
     for (const u of state.units) {
@@ -2922,6 +3011,93 @@ export class Renderer {
     return { x: (mx - m.ox) / m.sx + m.x0, y: (my - m.oy) / m.sy + m.y0 };
   }
 }
+
+/**
+ * Scenery drawn in vector (the skirmish battlefields): dry-stone walls, hedgerows, thorn scrub, reed beds,
+ * date palms and telegraph poles. Each takes the tile's own hash so no two look alike. S: snow cover 0-1.
+ */
+const VECTOR_DECOR = {
+  wall(ctx, t, S) { // a dry-stone wall along the tile, its stones in two courses
+    const h = hash(t.x * 1.9, t.y * 3.1), a = iso(t.x, t.y + 0.5), b = iso(t.x + 1, t.y + 0.5), alongY = t.wallY;
+    const p0 = alongY ? iso(t.x + 0.5, t.y) : a, p1 = alongY ? iso(t.x + 0.5, t.y + 1) : b;
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.moveTo(p0.x, p0.y + 3); ctx.lineTo(p1.x, p1.y + 3); ctx.lineTo(p1.x + 6, p1.y + 5); ctx.lineTo(p0.x + 6, p0.y + 5); ctx.closePath(); ctx.fill();
+    for (let i = 0; i < 6; i++) for (let row = 0; row < 2; row++) {
+      const k = (i + (row ? 0.5 : 0) + 0.5) / 6.5, x = p0.x + (p1.x - p0.x) * k, y = p0.y + (p1.y - p0.y) * k - row * 4.5;
+      const v = frac(h * (i + 3) * (row + 2) * 7.3), w = 3.6 + v * 1.6;
+      ctx.fillStyle = `rgb(${128 + v * 40},${124 + v * 36},${112 + v * 30})`;
+      ctx.beginPath(); ctx.ellipse(x, y - 2.5, w, 2.8, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(40,36,30,0.35)'; ctx.fillRect(x - w * 0.8, y - 0.6, w * 1.6, 0.9);
+      if (S > 0.3 && row) { ctx.fillStyle = `rgba(232,236,240,${S * 0.85})`; ctx.beginPath(); ctx.ellipse(x, y - 4.6, w * 0.9, 1.2, 0, 0, TAU); ctx.fill(); }
+    }
+  },
+  hedge(ctx, t, S) { // a thick hedgerow: rounded masses of leaf
+    const h = hash(t.x * 2.7, t.y * 1.3), c = iso(t.x + 0.5, t.y + 0.5);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(c.x + 7, c.y + 3, 22, 7, 0, 0, TAU); ctx.fill();
+    for (let i = 0; i < 5; i++) {
+      const v = frac(h * (i + 1) * 5.3), x = c.x - 16 + i * 8 + v * 3, y = c.y - 6 - frac(h * (i + 2) * 3.1) * 6, r = 7 + v * 4;
+      ctx.fillStyle = S > 0.6 ? `rgb(${70 + v * 20},${80 + v * 20},${66 + v * 15})` : `rgb(${50 + v * 22},${70 + v * 26},${34 + v * 12})`;
+      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.8, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = S > 0.6 ? `rgba(235,238,242,${0.7 * S})` : 'rgba(150,170,90,0.35)';
+      ctx.beginPath(); ctx.ellipse(x - 2, y - r * 0.45, r * 0.6, r * 0.3, 0, 0, TAU); ctx.fill();
+    }
+  },
+  scrub(ctx, t, S) { // low thorn scrub: a tangle of dark twigs over a grey-green bush
+    const h = hash(t.x * 3.3, t.y * 2.2), c = iso(t.x + 0.3 + h * 0.4, t.y + 0.3 + frac(h * 7) * 0.4);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(c.x + 4, c.y + 1, 12, 4, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = S > 0.6 ? '#7f8578' : '#5c6141'; ctx.beginPath(); ctx.ellipse(c.x, c.y - 4, 11, 5.5, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#3a3226'; ctx.lineWidth = 1;
+    for (let i = 0; i < 7; i++) { const a = -Math.PI * (0.1 + 0.8 * frac(h * (i + 1) * 4.7)), l = 7 + frac(h * (i + 3) * 2.9) * 7; ctx.beginPath(); ctx.moveTo(c.x, c.y - 2); ctx.lineTo(c.x + Math.cos(a) * l * 1.3, c.y - 2 + Math.sin(a) * l); ctx.stroke(); }
+    if (S > 0.5) { ctx.fillStyle = `rgba(232,236,240,${S * 0.7})`; ctx.beginPath(); ctx.ellipse(c.x - 2, c.y - 8, 7, 2, 0, 0, TAU); ctx.fill(); }
+  },
+  reeds(ctx, t, S) { // a reed bed at the water's edge
+    const h = hash(t.x * 1.7, t.y * 4.1), c = iso(t.x + 0.5, t.y + 0.5);
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 14; i++) {
+      const v = frac(h * (i + 1) * 3.7), x = c.x - 18 + v * 36, y = c.y - 5 + frac(h * (i + 2) * 6.1) * 10, l = 10 + frac(h * i * 2.3) * 10;
+      ctx.strokeStyle = S > 0.6 ? '#b9b39c' : v > 0.5 ? '#9a8a52' : '#6f7440'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + 1, y - l * 0.6, x + 3 * (v - 0.3), y - l); ctx.stroke();
+      if (i % 3 === 0) { ctx.fillStyle = '#5a4630'; ctx.beginPath(); ctx.ellipse(x + 3 * (v - 0.3), y - l, 1.2, 3, 0, 0, TAU); ctx.fill(); }
+    }
+  },
+  palm(ctx, t) { // a date palm: a leaning ringed trunk under a crown of fronds
+    const h = hash(t.x * 2.1, t.y * 2.9), c = iso(t.x + 0.3 + h * 0.4, t.y + 0.3 + frac(h * 5) * 0.4);
+    const tall = 46 + h * 22, lean = (frac(h * 9) - 0.5) * 16, tx = c.x + lean, ty = c.y - tall;
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.moveTo(c.x - 3, c.y); ctx.lineTo(c.x + 3, c.y); ctx.lineTo(c.x + tall * 0.8, c.y + tall * 0.3); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(c.x + tall * 0.8, c.y + tall * 0.3, 16, 6, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#6b5236'; ctx.lineWidth = 4.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.quadraticCurveTo(c.x + lean * 0.2, c.y - tall * 0.5, tx, ty); ctx.stroke();
+    ctx.strokeStyle = '#4a3826'; ctx.lineWidth = 1;
+    for (let k = 0.1; k < 0.95; k += 0.09) { const x = c.x + lean * k * k, y = c.y - tall * k; ctx.beginPath(); ctx.moveTo(x - 2.2, y); ctx.lineTo(x + 2.2, y - 1); ctx.stroke(); }
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * TAU + h * 3, l = 20 + frac(h * (i + 2) * 3.3) * 10, ex = tx + Math.cos(a) * l, ey = ty + Math.sin(a) * l * 0.45 + 8;
+      ctx.strokeStyle = i % 2 ? '#4d6a2c' : '#62803a'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo((tx + ex) / 2, ty - 8, ex, ey); ctx.stroke();
+    }
+    ctx.fillStyle = '#7a4a22'; ctx.beginPath(); ctx.arc(tx - 2, ty + 4, 2.5, 0, TAU); ctx.arc(tx + 3, ty + 5, 2.2, 0, TAU); ctx.fill();
+  },
+  tower(ctx, t) { // a railhead water tower: an iron tank on four braced legs
+    const c = iso(t.x + 0.5, t.y + 0.5), H = 58;
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.moveTo(c.x - 10, c.y); ctx.lineTo(c.x + 10, c.y); ctx.lineTo(c.x + H, c.y + H * 0.35); ctx.lineTo(c.x + H - 22, c.y + H * 0.38); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#4a3e33'; ctx.lineWidth = 2.4;
+    for (const [a, b] of [[-11, 2], [11, 2], [-7, -3], [7, -3]]) { ctx.beginPath(); ctx.moveTo(c.x + a, c.y + b); ctx.lineTo(c.x + a * 0.7, c.y - H + 14); ctx.stroke(); }
+    ctx.lineWidth = 1; for (const k of [0.3, 0.6]) { ctx.beginPath(); ctx.moveTo(c.x - 11 + 3.3 * k, c.y + 2 - (H - 12) * k); ctx.lineTo(c.x + 11 - 3.3 * k, c.y + 2 - (H - 12) * k * 0.6); ctx.stroke(); }
+    ctx.fillStyle = '#6b5a48'; ctx.fillRect(c.x - 12, c.y - H, 24, 15);
+    ctx.fillStyle = '#857058'; ctx.beginPath(); ctx.ellipse(c.x, c.y - H, 12, 4, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(c.x + 4, c.y - H, 8, 15);
+  },
+  pole(ctx, t, S) { // a telegraph pole, its wires slung to the next one along the road
+    const c = iso(t.x + 0.5, t.y + 0.5), tall = 42;
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.moveTo(c.x - 1.5, c.y); ctx.lineTo(c.x + 1.5, c.y); ctx.lineTo(c.x + tall * 0.8, c.y + tall * 0.3); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#3d3026'; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x, c.y - tall); ctx.stroke();
+    ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(c.x - 8, c.y - tall + 5); ctx.lineTo(c.x + 8, c.y - tall + 5); ctx.stroke();
+    if (t.wireTo) { // the wires sag to the next pole
+      const n = iso(t.wireTo[0] + 0.5, t.wireTo[1] + 0.5);
+      ctx.strokeStyle = 'rgba(30,26,22,0.6)'; ctx.lineWidth = 0.8;
+      for (const o of [-6, 6]) { ctx.beginPath(); ctx.moveTo(c.x + o, c.y - tall + 4); ctx.quadraticCurveTo((c.x + n.x) / 2 + o, (c.y + n.y) / 2 - tall + 14, n.x + o, n.y - tall + 4); ctx.stroke(); }
+    }
+    if (S > 0.6) { ctx.fillStyle = `rgba(232,236,240,${S})`; ctx.fillRect(c.x - 8, c.y - tall + 3.5, 16, 1.2); }
+  },
+};
 
 /** Blood colour (r,g,b) by age in seconds: bright red when fresh, dark brown within about 2.5 s. */
 function bloodColour(age) {

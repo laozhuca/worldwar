@@ -10,6 +10,7 @@ import { Sound } from './audio.js';
 import { PLAYER, ENEMY, NATIONS } from './config.js';
 import { AI_VERSION } from './ai.js';
 import { hourOf } from './atmosphere.js';
+import { BATTLEFIELDS, battlefieldOf, createBattlefieldGame, buildBattlefieldMap, useGeometry } from './battlefields.js';
 
 // An element by id, or a detached stand-in, so one missing element (an old cached page) cannot stop the rest of the wiring.
 const byId = (id) => document.getElementById(id) || document.createElement('div');
@@ -22,6 +23,7 @@ const app = {
   speed: 1,
   helpOpen: true,
   season: 'winter',
+  battlefield: (() => { try { const k = localStorage.getItem('ww-field'); return BATTLEFIELDS.some((b) => b.id === k) ? k : 'flanders'; } catch { return 'flanders'; } })(),
   nations: ['uk', 'germany'],
   side: 'entente', // 'entente' | 'central' | 'random'
   start: 'west', // 'west' | 'east' | 'random'
@@ -164,18 +166,79 @@ let lastTouchEnd = 0;
 document.addEventListener('touchend', (e) => { const now = Date.now(); if (now - lastTouchEnd < 320 && !e.target.closest('#view')) e.preventDefault(); lastTouchEnd = now; }, { passive: false });
 document.addEventListener('dblclick', (e) => { if (!e.target.closest('#view')) e.preventDefault(); }); // handy for debugging in the console
 
-document.querySelectorAll('[data-season]').forEach((b) => b.addEventListener('click', () => {
-  app.season = b.dataset.season;
-  document.querySelectorAll('[data-season]').forEach((x) => x.classList.toggle('active', x === b));
-}));
+// ---- the battlefield: ten fields, each with a preview drawn from the map itself
+const FIELD_COL = { grass: [96, 104, 62], snow: [222, 226, 230], scree: [170, 166, 154], wheat: [196, 166, 92], sand: [206, 186, 140], mud: [78, 64, 48], earth: [112, 96, 74] };
+function drawFieldPreview(cv, bf) {
+  const map = buildBattlefieldMap(bf, 1916, PLAYER), extra = map._extra;
+  const W = cv.width = 220, H = cv.height = 130, g = cv.getContext('2d');
+  const sw = bf.A * 64, sh = bf.B * 32, k = Math.min(W / sw, H / sh), ox = W / 2, oy = H / 2, R = map.r;
+  const snow = bf.season === 'winter' ? 0.85 : bf.season === 'thaw' ? 0.45 : 0;
+  g.clearRect(0, 0, W, H);
+  g.save(); g.translate(ox, oy); if (bf.mirror) g.scale(-1, 1);
+  for (const t of map.tiles) {
+    if (t.off) continue;
+    const px = (t.x - t.y) * 32 * k, py = (t.x + t.y - 2 * R) * 16 * k;
+    let c = t.ground === 2 ? FIELD_COL.snow : t.ground === 3 ? FIELD_COL.scree : t.ground === 4 ? FIELD_COL.wheat : t.ground === 5 ? FIELD_COL.sand : t.ground === 1 ? FIELD_COL.grass : t.mud ? FIELD_COL.mud : FIELD_COL.earth;
+    if (snow && t.ground !== 1 && !t.pond) c = c.map((v, i) => v + (FIELD_COL.snow[i] - v) * snow * (t.mud ? 0.6 : 1));
+    if (t.crater) c = c.map((v) => v * 0.8);
+    if (t.road) c = t.road === 2 ? [128, 100, 66] : t.road === 3 ? [70, 66, 62] : [150, 128, 96];
+    if (t.sea) c = map.frozen && !t.block ? [200, 212, 220] : t.pond ? (map.frozen ? [150, 168, 182] : map.waterTint || [70, 60, 44]) : [56, 98, 118];
+    else if (t.pond) c = [196, 208, 216];
+    if (t.rock) c = t.knoll ? [44, 62, 44] : [120, 116, 108];
+    if (t.decor === 'birch' || t.decor === 'palm') c = [74, 96, 46]; else if (t.decor === 'hedge') c = [56, 78, 40]; else if (t.decor === 'tree' || t.decor === 'stump') c = c.map((v) => v * 0.7);
+    if (t.wire) c = [60, 52, 46];
+    if (t.trench) c = t.owner === PLAYER ? [228, 204, 120] : [214, 96, 80];
+    g.fillStyle = `rgb(${c.map(Math.round).join(',')})`;
+    g.fillRect(px - 32 * k, py - 16 * k, 64 * k + 0.6, 32 * k + 0.6);
+  }
+  g.fillStyle = '#2a2420';
+  for (const b of extra.buildings) { const px = (b.x - b.y) * 32 * k - R * 0, py = (b.x + b.y - 2 * R - 1) * 16 * k; g.fillRect(px - 3, py - 3, 6, 6); }
+  for (const o of extra.objectives) { const px = (o.x - o.y) * 32 * k, py = (o.x + o.y - 2 * R - 1) * 16 * k; g.strokeStyle = '#7fd3ff'; g.lineWidth = 1.5; g.beginPath(); g.arc(px, py, 4, 0, Math.PI * 2); g.stroke(); }
+  g.restore();
+  g.strokeStyle = 'rgba(240,200,120,0.6)'; g.lineWidth = 1; g.strokeRect(ox - sw * k / 2 + 0.5, oy - sh * k / 2 + 0.5, sw * k - 1, sh * k - 1);
+}
+/** Which way each starting position lies on screen for this field (its shape and mirroring). */
+function startLabels(bf) {
+  const h = bf.front + Math.max(6, Math.min(13, Math.floor((bf.A + bf.B - 8) / 2) - bf.front)), kk = (2 * h) / (bf.A + bf.B - 8);
+  const sx = -(bf.A - 4) * kk * 32 * (bf.mirror ? -1 : 1), sy = -(bf.B - 4) * kk * 16;
+  const ang = Math.atan2(sy, sx), names = [['→', 'Right'], ['↘', 'Lower right'], ['↓', 'Bottom'], ['↙', 'Lower left'], ['←', 'Left'], ['↖', 'Upper left'], ['↑', 'Top'], ['↗', 'Upper right']];
+  const at = (a) => names[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8];
+  const [wa, wn] = at(ang), [ea, en] = at(ang + Math.PI);
+  return { west: `${wa} ${wn}`, east: `${ea} ${en}` };
+}
+let previewsDrawn = false;
+function renderFields() {
+  const box = document.getElementById('field-btns');
+  if (!box) return;
+  if (!box.children.length) {
+    for (const bf of BATTLEFIELDS) {
+      const b = document.createElement('button');
+      b.dataset.field = bf.id;
+      b.innerHTML = `<canvas></canvas><span class="f-name">${bf.name}</span><small>${bf.format}</small>`;
+      b.addEventListener('click', () => { app.battlefield = bf.id; try { localStorage.setItem('ww-field', bf.id); } catch {} renderFields(); });
+      box.appendChild(b);
+    }
+  }
+  if (!previewsDrawn) {
+    previewsDrawn = true;
+    try { for (const b of box.children) drawFieldPreview(b.querySelector('canvas'), battlefieldOf(b.dataset.field)); } finally { useGeometry(app.state.map); } // (building a preview moves the map geometry: put the battle's back)
+  }
+  const bf = battlefieldOf(app.battlefield);
+  for (const b of box.children) b.classList.toggle('active', b.dataset.field === bf.id);
+  const W = bf.weather, wx = [W.rainy ? (W.rainy > 0.6 ? 'heavy rain' : 'showers') : '', W.snowy ? (W.snowy > 0.8 ? 'drifting snow' : 'snow') : '', W.dusty ? 'dust storms' : '', W.windK > 1.5 ? 'strong wind' : W.windK > 1.05 ? 'brisk wind' : ''].filter(Boolean).join(', ') || 'dry, light wind';
+  const info = document.getElementById('field-info');
+  if (info) info.innerHTML = `<b>${bf.name}</b> <i>${bf.place} · ${bf.format} · ${wx}</i><span>${bf.about}</span><em>${bf.features.join(' · ')}</em>`;
+  const L = startLabels(bf);
+  for (const b of document.querySelectorAll('[data-start]')) if (b.dataset.start !== 'random') { b.textContent = L[b.dataset.start]; b.title = 'Start: ' + L[b.dataset.start].slice(2).toLowerCase(); }
+}
 byId('btn-start').addEventListener('click', async () => {
   sound.init();
   voices.prepare();
   sound.startMusic();
   const sameNations = app.side !== 'random' && app.state.nations.join() === app.nations.join();
   const sameStart = app.start !== 'random' && app.state.start === app.start;
-  if (app.state.time >= 1 || app.state.season !== app.season || !sameNations || !sameStart || app.state.difficulty !== app.difficulty) {
-    app.state = createGame({ season: app.season, nations: chosenNations(), start: chosenStart(), difficulty: app.difficulty });
+  if (app.state.time >= 1 || app.state.battlefield !== app.battlefield || !sameNations || !sameStart || app.state.difficulty !== app.difficulty) {
+    app.state = createBattlefieldGame(app.battlefield, { nations: chosenNations(), start: chosenStart(), difficulty: app.difficulty });
     useArmies(app.state);
     renderer.groundDrawn = false;
     ui.selected.clear();
@@ -190,7 +253,7 @@ byId('btn-start').addEventListener('click', async () => {
   resumeBattle();
 });
 byId('btn-restart').addEventListener('click', async () => {
-  app.state = createGame({ seed: Math.floor(Math.random() * 1e6), season: app.season, nations: chosenNations(), start: chosenStart(), difficulty: app.state.difficulty || app.difficulty });
+  app.state = createBattlefieldGame(app.state.battlefield || app.battlefield, { seed: Math.floor(Math.random() * 1e6), nations: chosenNations(), start: chosenStart(), difficulty: app.state.difficulty || app.difficulty });
   useArmies(app.state);
   ui.selected.clear();
   ui.setMode(null);
@@ -393,7 +456,7 @@ async function loadGame(slot) {
 const summary = (info) => {
   const [a, e] = info.nations.map((n) => (NATIONS[n] ? NATIONS[n].name : n));
   const m = Math.floor(info.time / 60), sec = Math.floor(info.time % 60);
-  const season = info.season ? info.season[0].toUpperCase() + info.season.slice(1) : '';
+  const season = info.battlefield ? battlefieldOf(info.battlefield).name : info.season ? info.season[0].toUpperCase() + info.season.slice(1) : '';
   const when = new Date(info.savedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   if (info.level && levelById(info.level)) { const L = levelById(info.level), mm = Math.floor(info.time / 60); return { title: `Campaign ${L.n}: ${L.title} · ${mm}m in`, when: `saved ${new Date(info.savedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}` }; }
   const diff = info.difficulty ? ` · ${info.difficulty[0].toUpperCase()}${info.difficulty.slice(1)}` : '';
@@ -476,6 +539,7 @@ function showPanel(id, back = 'menu') {
   document.getElementById('overlay').classList.toggle('menu-mode', id === 'menu-panel');
   document.getElementById('overlay').classList.toggle('loading-mode', id === 'loading-panel' || id === 'boot-panel');
   document.getElementById('overlay').classList.toggle('setup-mode', id === 'setup-panel');
+  if (id === 'setup-panel') renderFields();
   document.getElementById('overlay').classList.toggle('save-mode', id === 'save-panel');
   // leaving the game: one of the two photographs of a quiet trench (German, British) at random
   if (id === 'exit-panel' && lastExit !== id) document.getElementById('overlay').style.setProperty('--exit-bg', `url('assets/art/${Math.random() < 0.5 ? 'exit-german' : 'exit-british'}.webp')`);

@@ -9,24 +9,25 @@
   <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="assets/icon/apple-touch-icon.png">
   <meta name="theme-color" content="#15120d">
-  <link rel="stylesheet" href="style.css?v=062f2353" />
+  <link rel="stylesheet" href="style.css?v=665f3fbe" />
   <!-- stamp:begin (scripts/stamp.mjs) -->
   <script type="importmap">
   {
     "imports": {
       "./src/ai.js": "./src/ai.js?v=c50f2598",
-      "./src/atmosphere.js": "./src/atmosphere.js?v=e3ff2b7a",
+      "./src/atmosphere.js": "./src/atmosphere.js?v=b9ff73fb",
       "./src/audio.js": "./src/audio.js?v=d87f9739",
-      "./src/campaign.js": "./src/campaign.js?v=5abfadb2",
+      "./src/battlefields.js": "./src/battlefields.js?v=59ac1bd7",
+      "./src/campaign.js": "./src/campaign.js?v=9c076c22",
       "./src/config.js": "./src/config.js?v=fea29c56",
-      "./src/game.js": "./src/game.js?v=8f38029c",
-      "./src/main.js": "./src/main.js?v=598a2373",
-      "./src/map.js": "./src/map.js?v=3ed5bbdb",
+      "./src/game.js": "./src/game.js?v=a7e055dd",
+      "./src/main.js": "./src/main.js?v=35a182c0",
+      "./src/map.js": "./src/map.js?v=99de9315",
       "./src/model-view.js": "./src/model-view.js?v=50bbd868",
       "./src/path.js": "./src/path.js?v=23c490f7",
       "./src/relief.js": "./src/relief.js?v=74f1dfb1",
-      "./src/render.js": "./src/render.js?v=b4be20f0",
-      "./src/save.js": "./src/save.js?v=3b1f91d9",
+      "./src/render.js": "./src/render.js?v=8026e7cc",
+      "./src/save.js": "./src/save.js?v=a1d5bf24",
       "./src/tutorial.js": "./src/tutorial.js?v=cc3640bf",
       "./src/ui.js": "./src/ui.js?v=cd73c05d",
       "./src/voice.js": "./src/voice.js?v=a581782b"
@@ -168,12 +169,9 @@
             </div>
           </div>
           <div class="camp-group">
-          <div class="weather-label"><span>Weather</span></div>
-          <div id="season-btns">
-            <button data-season="winter" class="active" title="Snow-covered fields, frozen shell holes"><img src="assets/art/season-winter.webp" alt=""><span>❄ Winter</span></button>
-            <button data-season="thaw" title="Patchy snow over churned mud"><img src="assets/art/season-thaw.webp" alt=""><span>🌨 Thaw</span></button>
-            <button data-season="mud" title="Black mud, flooded craters, passing rain showers"><img src="assets/art/season-mud.webp" alt=""><span>🌧 Mud</span></button>
-          </div>
+          <div class="weather-label"><span>Battlefield</span></div>
+          <div id="field-btns"></div>
+          <div id="field-info"></div>
           </div>
         </div>
         <div class="camp-foot">
@@ -364,6 +362,6 @@
       document.getElementById('boot-reload').onclick = function () { location.reload(); };
     }, 20000);
   </script>
-  <script type="module" src="src/main.js?v=598a2373"></script>
+  <script type="module" src="src/main.js?v=35a182c0"></script>
 </body>
 </html>

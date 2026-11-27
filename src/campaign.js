@@ -104,7 +104,7 @@ function firstWaveCharge(state) {
  * round it instead (each stretch it cut is joined up again by the shortest way round), units standing
  * there step out to the nearest open ground.
  */
-function blockBuilding(state, b) {
+export function blockBuilding(state, b) {
   const { map } = state, W = map.w;
   const inside = (t) => Math.abs(t.x + 0.5 - b.x) <= b.hx && Math.abs(t.y + 0.5 - b.y) <= b.hy;
   // a clear tile all round every building: no trench right against a wall

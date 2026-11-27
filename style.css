@@ -1158,3 +1158,28 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 /* the recruiting queue: how many of each kind are waiting, in a small gilt badge on its button (right-click: remove one) */
 .group button[data-recruit].queued::before { content: '+' attr(data-queued); position: absolute; top: 3px; right: 4px; z-index: 2; padding: 0 5px; border-radius: 8px;
   font: bold 10px/15px Georgia, serif; color: #1a140c; background: #e0c27a; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+/* ---- New Game: the battlefield picker (ten fields, each a preview drawn from its map) */
+#field-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: min(1500px, 96vw); }
+#field-btns button {
+  width: clamp(104px, 9.2vw, 142px); padding: 4px 4px 5px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: rgba(14, 15, 17, 0.55); border: 1px solid rgba(239, 228, 203, 0.25); border-radius: 0; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+#field-btns button canvas { width: 100%; aspect-ratio: 220 / 130; display: block; filter: saturate(0.85) brightness(0.8); }
+#field-btns button .f-name { font-size: 12px; letter-spacing: 1px; color: #d9ccb2; line-height: 1.15; text-align: center; min-height: 2.3em; display: flex; align-items: center; }
+#field-btns button small { font-size: 10px; color: #a99c82; letter-spacing: 1px; }
+#field-btns button:hover { background: rgba(30, 31, 34, 0.7); }
+#field-btns button:hover canvas { filter: none; }
+#field-btns button.active { border-color: rgba(255, 246, 225, 0.85); background: rgba(40, 36, 28, 0.75); }
+#field-btns button.active canvas { filter: none; }
+#field-btns button.active .f-name { color: #fff3d6; text-decoration: underline; text-underline-offset: 3px; }
+#field-info { max-width: min(900px, 94vw); text-align: center; color: #d9ccb2; font-size: 13px; line-height: 1.4; text-shadow: 0 1px 3px #000; min-height: 4.2em; }
+#field-info b { color: #fff3d6; letter-spacing: 1px; margin-right: 6px; }
+#field-info i { color: #bfb194; }
+#field-info span { display: block; margin-top: 2px; }
+#field-info em { display: block; font-style: normal; font-size: 11px; letter-spacing: 1px; color: #a99c82; text-transform: uppercase; margin-top: 2px; }
+@media (max-width: 860px), (max-height: 600px) {
+  #field-btns { gap: 4px; }
+  #field-btns button { width: clamp(76px, 18vw, 110px); }
+  #field-btns button .f-name { font-size: 10px; }
+  #field-info { font-size: 11px; }
+}

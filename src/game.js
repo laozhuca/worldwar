@@ -18,7 +18,8 @@ export { teamDir };
 
 export function createGame(opts = {}) {
   const { seed = 1916, aiTeams = [ENEMY], season = 'winter', nations = ['uk', 'germany'], start = 'west', difficulty = 'medium', advance = {}, works = 'full', radius } = opts;
-  const map = createMap(seed, start === 'east' ? ENEMY : PLAYER, advance, works, radius);
+  // (a skirmish battlefield brings its own map, and deploys the armies on it itself)
+  const map = opts.map || createMap(seed, start === 'east' ? ENEMY : PLAYER, advance, works, radius);
   const state = {
     season,
     start,
@@ -43,7 +44,8 @@ export function createGame(opts = {}) {
   };
   // the computer's starting stock, by level (campaign levels set their own afterwards)
   for (const ai of state.ais) { const k = (ai.level && ai.level.start) || 1; const r = state.resources[ai.team]; r.men = Math.round(r.men * k); r.ammo = Math.round(r.ammo * k); r.supplies = Math.round(r.supplies * k); }
-  deployInitialForces(state);
+  if (opts.prepare) opts.prepare(state);
+  (opts.deploy || deployInitialForces)(state);
   refreshVisibility(state);
   return state;
 }
@@ -291,6 +293,8 @@ export function canBuild(state, team, type, x, y) {
   if (t.build) return { ok: false, reason: 'Works already in progress' };
   const isHq = map.hq.some((q) => q.x === t.x && q.y === t.y);
   if (isHq) return { ok: false, reason: 'Cannot build on HQ' };
+  if ((type === 'trench' || type === 'wire') && (t.block || t.rock || t.pond || t.sea)) return { ok: false, reason: 'Tile not clear' };
+  if (type === 'trench' && !t.trench && t.hard) return { ok: false, reason: 'Solid limestone: dig in the softer ground' };
   if (type === 'trench' && t.trench) {
     // T on a shell-damaged trench digs it out again
     if (!((t.dmg || 0) >= 5)) return { ok: false, reason: 'This trench is not damaged' };
@@ -360,6 +364,7 @@ export function update(state, dt) {
   updateEffects(state, dt);
   if (state.winner >= 0) return;
   state.time += dt;
+  updateWeather(state);
 
   // Supply convoys from the rear.
   state.supplyTimer -= dt;
@@ -384,7 +389,7 @@ export function update(state, dt) {
 
   state.captureTimer -= dt;
   state.captureMsgCooldown -= dt;
-  if (state.captureTimer <= 0) { state.captureTimer = 0.5; updateCapture(state); }
+  if (state.captureTimer <= 0) { state.captureTimer = 0.5; updateCapture(state); updateObjectives(state); }
 
   state.visTimer -= dt;
   if (state.visTimer <= 0) { state.visTimer = 0.25; refreshVisibility(state); }
@@ -400,16 +405,33 @@ export function territory(state, team) {
   return { captured, owned };
 }
 
+/** What each water point a side holds adds to its supply convoys (a desert battlefield's objectives). */
+export const WATER_BONUS = { men: 2, supplies: 12 };
+
+/** Objectives (water points): held by the side with men beside one and no enemy there. */
+function updateObjectives(state) {
+  for (const o of state.objectives || []) {
+    const near = [0, 0];
+    for (const u of state.units) if (!u.dead && u.type !== 'artillery' && Math.hypot(u.x - o.x, u.y - o.y) <= 2.5) near[u.team]++;
+    const team = near[0] && !near[1] ? 0 : near[1] && !near[0] ? 1 : -1;
+    if (team >= 0 && o.owner !== team) {
+      o.owner = team;
+      pushMessage(state, team === PLAYER ? `We hold ${o.name}.` : `The enemy has taken ${o.name}.`, team === PLAYER ? 'good' : 'warn');
+    }
+  }
+}
+
 function deliverSupplies(state) {
   const ramp = 1 + Math.min(1, state.time / 900) * 0.3; // the war effort mobilises over time
   for (const team of [PLAYER, ENEMY]) {
     const { captured } = territory(state, team);
+    const held = (state.objectives || []).filter((o) => o.owner === team).length; // (water points held)
     const res = state.resources[team];
     const gain = {};
     const ai = state.ais.find((a) => a.team === team);
     const share = ai && ai.level ? ai.level.income : (state.playerIncome ?? 1); // difficulty / campaign level: the supply share
     for (const k of ['men', 'ammo', 'supplies']) {
-      gain[k] = Math.round((BASE_INCOME[k] * ramp + CAPTURE_BONUS[k] * captured) * share);
+      gain[k] = Math.round((BASE_INCOME[k] * ramp + CAPTURE_BONUS[k] * captured + (WATER_BONUS[k] || 0) * held) * share);
       res[k] += gain[k];
     }
     if (team === PLAYER) {
@@ -558,9 +580,19 @@ function tankTick(state, u, tile, dt) {
   if (u.shells === 0 && u.team === PLAYER) pushMessage(state, 'A tank has fired its last shell.', 'warn');
 }
 
+// The weather's hold on the ground (set from state.weather each tick): rain turns open ground to mud,
+// deep snow drags at the men's legs; roads and duckboards keep their footing.
+let WX = { rain: 0, snow: 0 };
 function terrainFactor(tile) {
   if (!tile) return 1;
+  if (tile.road && !tile.crater && !tile.wire && !tile.trench) return ROAD_SPEED[tile.road] * (tile.road === 1 ? 1 - 0.12 * WX.rain : 1);
   let f = 1;
+  if (tile.decor && DECOR_SLOW[tile.decor]) f *= DECOR_SLOW[tile.decor];
+  if (tile.pond) f *= 0.8; // (frozen over: slippery ice)
+  if (!tile.trench) {
+    if (WX.rain) f *= tile.mud || tile.crater ? 1 - 0.3 * WX.rain : 1 - 0.12 * WX.rain;
+    if (WX.snow && tile.ground === 2) f *= 1 - 0.2 * WX.snow;
+  }
   if (tile.wire > 0) f *= tile.wire > 50 ? WIRE_SLOW : WIRE_SLOW * 2;
   if (tile.crater) f *= 0.85;
   if (tile.mud) f *= 0.88;
@@ -568,6 +600,32 @@ function terrainFactor(tile) {
   if (tile.ground === 3) f *= 0.82; // scree: loose stones underfoot
   if (tile.trench) f *= 0.8;
   return f;
+}
+
+/** Roads: 1 a dirt road or cart track, 2 duckboards, 3 a railway embankment (a climb), 4 paving. */
+export const ROAD_SPEED = [1, 1.25, 1.2, 0.7, 1.3];
+/** Scenery men must clamber over or push through. */
+export const DECOR_SLOW = { wall: 0.55, hedge: 0.6, scrub: 0.65, reeds: 0.8 };
+
+/**
+ * A skirmish battlefield's weather (state.weather): rain coming in showers, snow in heavier and lighter
+ * spells, a wind that shifts slowly, dust storms in the desert. Deterministic from the battle's clock, so
+ * the simulation (and the computer) sees the same weather as the screen.
+ */
+function updateWeather(state) {
+  const W = state.weather;
+  if (!W) { WX = { rain: 0, snow: 0 }; return; }
+  const t = state.time, ph = W.phase || 0;
+  const wave = (p, a, b) => Math.max(0, Math.min(1, (Math.sin(t / p + ph) + Math.sin(t / (p * 0.43) + ph * 2.1) * 0.5 - a) / (b - a)));
+  W.rain = W.rainy ? W.rainy * wave(70, 0.15, 1.1) : 0;
+  W.snow = W.snowy ? W.snowy * (0.35 + 0.65 * wave(90, -0.3, 1.2)) : 0;
+  W.dust = W.dusty ? W.dusty * wave(110, 0.4, 1.3) : 0;
+  const gust = 1 + 0.35 * Math.sin(t / 23 + ph) + 0.2 * Math.sin(t / 7.3 + ph * 3);
+  const ang = (W.windDir || 0.3) + 0.25 * Math.sin(t / 140 + ph);
+  W.wind = { x: Math.cos(ang) * (W.windK || 0.8) * gust, y: Math.sin(ang) * (W.windK || 0.8) * gust * 0.5 };
+  // how far the men can see: rain, snowfall and blowing dust close the view in
+  W.sight = (W.sightK || 1) * (1 - 0.25 * W.rain - 0.2 * Math.max(0, W.snow - 0.5) - 0.3 * W.dust);
+  WX = { rain: W.rain, snow: W.snow };
 }
 
 function updateUnit(state, u, dt) {
@@ -1152,11 +1210,20 @@ function updateCapture(state) {
   }
 }
 
+/** Is the unit among trees (two or more standing round it)? */
+function inWoods(map, u) {
+  let n = 0;
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const t = tileAt(map, u.x + dx, u.y + dy); if (t && (t.decor === 'tree' || t.decor === 'birch' || t.decor === 'pine' || t.decor === 'palm')) n++; }
+  return n >= 2;
+}
+
 function refreshVisibility(state) {
   const mine = state.units.filter((u) => u.team === PLAYER && !u.dead);
   for (const e of state.units) {
     if (e.team === PLAYER) { e.visible = true; continue; }
-    e.visible = !!e.afloat || !!e.onShip || mine.some((u) => Math.hypot(u.x - e.x, u.y - e.y) <= UNIT_TYPES[u.type].sight);
+    // (a skirmish battlefield: the weather closes the view in, and men among the trees are seen only close to)
+    const k = !state.weather ? 1 : state.weather.sight * (inWoods(state.map, e) ? 0.6 : 1);
+    e.visible = !!e.afloat || !!e.onShip || mine.some((u) => Math.hypot(u.x - e.x, u.y - e.y) <= UNIT_TYPES[u.type].sight * k);
   }
 }
 

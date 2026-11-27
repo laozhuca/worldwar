@@ -21,22 +21,34 @@ export function setWestTeam(team) { WEST_TEAM = team; }
 // Initial front-line columns for the west and east lines (14 tiles either side of the middle, more on a
 // larger field).
 let R = MAP_R, MID = (MAP_W - 1) / 2, WEST_FRONT = MID - 14, EAST_FRONT = MAP_W - 1 - WEST_FRONT;
+// A battlefield cut to its own rectangle on screen (a skirmish map's format): |u| <= A, |v| <= B round the
+// centre, u = dx - dy running across the screen, v = dx + dy down it (null: the whole diamond)
+let FRAME = null;
 /** Map centre in continuous coordinates. */
 export let MAP_C = MAP_W / 2;
-/** Set the battlefield's radius (createMap, and loading a saved battle). */
-export function setMapRadius(r = MAP_R) {
+/** Set the battlefield's radius (createMap, and loading a saved battle), and the screen rectangle it is cut to, if any. */
+export function setMapRadius(r = MAP_R, frame = null) {
   R = r; const w = 2 * r + 1;
   MID = (w - 1) / 2; MAP_C = w / 2;
   WEST_FRONT = MID - Math.round(14 * Math.sqrt(r / MAP_R)); EAST_FRONT = w - 1 - WEST_FRONT;
+  FRAME = frame && frame.A ? { A: frame.A, B: frame.B } : null;
 }
 
 /** Is the point (continuous map coordinates) on the battlefield, at least `margin` tiles inside its edge? */
 export function inMap(x, y, margin = 0) {
-  return Math.abs(x - MAP_C) + Math.abs(y - MAP_C) <= R + 0.5 - margin;
+  const dx = x - MAP_C, dy = y - MAP_C;
+  if (FRAME) return Math.abs(dx - dy) <= FRAME.A + 0.5 - margin && Math.abs(dx + dy) <= FRAME.B + 0.5 - margin;
+  return Math.abs(dx) + Math.abs(dy) <= R + 0.5 - margin;
 }
 /** The point pulled back onto the battlefield (towards the centre) if it lies outside. */
 export function clampToMap(x, y, margin = 0.35) {
-  const dx = x - MAP_C, dy = y - MAP_C, d = Math.abs(dx) + Math.abs(dy), lim = R + 0.5 - margin;
+  const dx = x - MAP_C, dy = y - MAP_C;
+  if (FRAME) {
+    const lu = FRAME.A + 0.5 - margin, lv = FRAME.B + 0.5 - margin;
+    const u = Math.max(-lu, Math.min(lu, dx - dy)), v = Math.max(-lv, Math.min(lv, dx + dy));
+    return { x: MAP_C + (u + v) / 2, y: MAP_C + (v - u) / 2 };
+  }
+  const d = Math.abs(dx) + Math.abs(dy), lim = R + 0.5 - margin;
   if (d <= lim) return { x, y };
   const k = lim / d;
   return { x: MAP_C + dx * k, y: MAP_C + dy * k };
@@ -44,7 +56,11 @@ export function clampToMap(x, y, margin = 0.35) {
 /** Rows of tile column x that lie on the battlefield, inset by `inset` rows from the edge. */
 export function rowsOf(x, inset = 0) {
   const half = R - Math.abs(x - MID) - inset;
-  return half < 0 ? null : [MID - half, MID + half];
+  if (half < 0) return null;
+  if (!FRAME) return [MID - half, MID + half];
+  // cut to the frame: y - x within A (u), x + y within B (v) of the centre
+  const dx = x - MID, a = Math.max(MID - half, MID + dx - FRAME.A + inset, MID - dx - FRAME.B + inset), b = Math.min(MID + half, MID + dx + FRAME.A - inset, MID - dx + FRAME.B - inset);
+  return a > b ? null : [Math.ceil(a), Math.floor(b)];
 }
 
 /** True if a trench at (x, y) would complete a 2x2 block of trench (trenches may not form squares or wider areas). */
@@ -95,7 +111,7 @@ export function noSquares(map) {
 /** True where nobody can walk: a rock outcrop, or the buildings of a town. */
 export function rockAt(map, x, y) {
   const ix = Math.floor(x), iy = Math.floor(y);
-  if (ix >= 0 && iy >= 0 && ix < map.w && iy < map.h && map.tiles[iy * map.w + ix].off && map.band) return true; // a level's own shape: no way out of it
+  if (ix >= 0 && iy >= 0 && ix < map.w && iy < map.h && map.tiles[iy * map.w + ix].off && (map.band || map.bandW)) return true; // a level's own shape: no way out of it
   const t = tileAt(map, x, y);
   return !!(t && (t.rock || t.block));
 }

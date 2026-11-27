@@ -95,6 +95,7 @@ export class Atmosphere {
   rain(state) {
     const season = SEASONS[state.season] || SEASONS.winter;
     if (state.tutorial) return 0; // a dry summer morning
+    if (state.weather) return state.weather.rain || 0; // (a skirmish battlefield's own weather)
     return season.precip === 'showers' ? this.shower.level : 0;
   }
   /** Winter snowfall strength: heavier and lighter spells. */
@@ -157,13 +158,19 @@ export class Atmosphere {
     sh.level += ((sh.raining ? sh.peak : 0) - sh.level) * Math.min(1, simDt / 6); // fades in and out over a few seconds
     if (sh.level < 0.002) sh.level = 0;
     const rainAmt = this.rain(state);
-    const snowAmt = season.precip === 'snow' ? 0.3 + this.snowfall(state) * 0.7 : 0;
+    const W = state.weather;
+    if (W && W.wind) { this.wind.x = W.wind.x; this.wind.y = W.wind.y; }
+    // snow (or, in the desert, blowing dust: the same specks, tawny and driven flat by the wind)
+    this.dust = !!(W && W.dust > 0.02);
+    const snowAmt = W ? (this.dust ? W.dust * 0.8 : W.snow || 0) : season.precip === 'snow' ? 0.3 + this.snowfall(state) * 0.7 : 0;
     const wantFlakes = Math.floor(snowAmt * 360);
     while (this.flakes.length < wantFlakes) this.flakes.push(this.newFlake(r, true));
     if (this.flakes.length > wantFlakes) this.flakes.length = wantFlakes;
     for (const k of this.flakes) {
       k.y += k.v * simDt * 60;
-      k.x += (this.wind.x * 0.6 + Math.sin(k.ph + k.y * 0.02) * 0.5) * simDt * 60;
+      k.x += (this.wind.x * (this.dust ? 5 : 0.6) + Math.sin(k.ph + k.y * 0.02) * 0.5) * simDt * 60;
+      if (this.dust) k.y -= k.v * simDt * 50; // (dust drives along, hardly falling)
+      if (this.dust && (k.x > r.vw + 10 || k.y < -20)) { Object.assign(k, this.newFlake(r, true)); k.x = -10; continue; }
       if (k.y > r.vh + 10 || k.x > r.vw + 10) Object.assign(k, this.newFlake(r, false));
     }
     const want = Math.floor(rainAmt * 420);
@@ -374,8 +381,9 @@ export class Atmosphere {
     }
 
     // snowflakes
+    if (this.dust && state.weather) { ctx.fillStyle = `rgba(170,140,96,${0.22 * state.weather.dust})`; ctx.fillRect(0, 0, r.vw, r.vh); } // a dust haze
     if (this.flakes.length) {
-      ctx.fillStyle = 'rgba(235,240,246,0.75)';
+      ctx.fillStyle = this.dust ? 'rgba(196,168,120,0.6)' : 'rgba(235,240,246,0.75)';
       for (const k of this.flakes) { ctx.beginPath(); ctx.arc(k.x, k.y, k.s, 0, TAU); ctx.fill(); }
     }
 

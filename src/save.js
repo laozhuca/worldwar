@@ -5,7 +5,7 @@ import { setWestTeam, setMapRadius } from './map.js';
 import { setNextId } from './game.js';
 
 export const SAVE_VERSION = 1;
-const TILE_KEYS = ['mud', 'shade', 'crater', 'trench', 'owner', 'origOwner', 'wire', 'origWire', 'build', 'decor', 'dmg', 'decorHp', 'splinters', 'rock', 'block', 'bridge', 'bridgeHp', 'ground', 'hidden', 'knoll', 'sea', 'pond'];
+const TILE_KEYS = ['mud', 'shade', 'crater', 'trench', 'owner', 'origOwner', 'wire', 'origWire', 'build', 'decor', 'dmg', 'decorHp', 'splinters', 'rock', 'block', 'bridge', 'bridgeHp', 'ground', 'hidden', 'knoll', 'sea', 'pond', 'road', 'hard', 'wallY', 'wireTo', 'wadi'];
 
 /** The battle as a JSON string. */
 export function serialize(state) {
@@ -19,7 +19,7 @@ export function serialize(state) {
   const data = {
     version: SAVE_VERSION,
     savedAt: Date.now(),
-    map: { w: map.w, h: map.h, west: map.west, hq: map.hq, band: map.band, bandBack: map.bandBack, extraTop: map.extraTop, summer: map.summer, forest: map.forest, dry: map.dry, mirror: map.mirror, rocks: map.rocks, startView: map.startView, giants: map.giants, tiles: map.tiles.map((t) => TILE_KEYS.map((k) => t[k])) },
+    map: { w: map.w, h: map.h, west: map.west, hq: map.hq, band: map.band, bandBack: map.bandBack, bandW: map.bandW, field: map.field, waterTint: map.waterTint, frozen: map.frozen, extraTop: map.extraTop, summer: map.summer, forest: map.forest, dry: map.dry, mirror: map.mirror, rocks: map.rocks, startView: map.startView, giants: map.giants, tiles: map.tiles.map((t) => TILE_KEYS.map((k) => t[k])) },
     units,
     rest: { ...state, map: undefined, units: undefined, effects: [], events: [] },
   };
@@ -31,7 +31,7 @@ export function describe(json) {
   try {
     const d = JSON.parse(json);
     if (d.version !== SAVE_VERSION || d.map.w !== d.map.h || d.map.w % 2 !== 1) return null;
-    return { savedAt: d.savedAt, time: d.rest.time, nations: d.rest.nations, season: d.rest.season, start: d.rest.start, difficulty: d.rest.difficulty || 'medium', level: d.rest.campaign ? d.rest.campaign.id : null };
+    return { savedAt: d.savedAt, time: d.rest.time, nations: d.rest.nations, season: d.rest.season, start: d.rest.start, difficulty: d.rest.difficulty || 'medium', level: d.rest.campaign ? d.rest.campaign.id : null, battlefield: d.rest.battlefield || null };
   } catch { return null; }
 }
 
@@ -41,16 +41,17 @@ export function deserialize(json) {
   if (d.version !== SAVE_VERSION) throw new Error('Saved with an older version of the game');
   if (d.map.w !== d.map.h || d.map.w % 2 !== 1) throw new Error('Saved on a different map');
   const R = (d.map.w - 1) / 2; // the battlefield's radius (a level may have a larger one)
-  setMapRadius(R);
+  setMapRadius(R, d.map.bandW ? { A: d.map.bandW, B: d.map.band } : null);
   const tiles = d.map.tiles.map((a, i) => {
     const t = { x: i % d.map.w, y: Math.floor(i / d.map.w) };
     TILE_KEYS.forEach((k, j) => { t[k] = a[j]; });
     t.off = Math.abs(t.x + 0.5 - d.map.w / 2) + Math.abs(t.y + 0.5 - d.map.h / 2) > R + 0.5;
+    if (d.map.bandW && Math.abs(t.x - t.y) > d.map.bandW) t.off = true; // a skirmish map's own format
     if (d.map.band && (t.x + t.y - (d.map.w - 1) > d.map.band || t.x + t.y - (d.map.w - 1) < -(d.map.bandBack || d.map.band))) t.off = true; // a valley level
     return t;
   });
   const map = { w: d.map.w, h: d.map.h, r: R, tiles, dirty: true, hq: d.map.hq, changes: [], west: d.map.west };
-  for (const k of ['band', 'bandBack', 'extraTop', 'summer', 'forest', 'dry', 'mirror', 'rocks', 'startView', 'giants']) if (d.map[k] != null) map[k] = d.map[k];
+  for (const k of ['band', 'bandBack', 'bandW', 'field', 'waterTint', 'frozen', 'extraTop', 'summer', 'forest', 'dry', 'mirror', 'rocks', 'startView', 'giants']) if (d.map[k] != null) map[k] = d.map[k];
   setWestTeam(map.west);
   const byId = new Map(d.units.map((u) => [u.id, u]));
   for (const u of d.units) {
