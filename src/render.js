@@ -2059,8 +2059,8 @@ export class Renderer {
   }
 
   /**
-   * A selected unit's kind, in a very small mark over its head: rifles a green diamond, machine guns a red
-   * circle, batteries a yellow triangle, tanks a pink heart.
+   * A selected unit's kind, in a very small mark just left of its health bar: rifles a green diamond,
+   * machine guns a red circle, batteries a yellow triangle, tanks a pink heart.
    */
   drawTypeMark(ctx, type, x, y) {
     const r = 3.4;
@@ -2181,10 +2181,10 @@ export class Renderer {
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(p.x - 18, by, 36, 7);
     ctx.fillStyle = '#e8c35a'; ctx.fillRect(p.x - 17, by + 1, 34 * Math.max(0, (u.shells || 0) / t.shells), 2);
     ctx.fillStyle = '#c9c4b2'; ctx.fillRect(p.x - 17, by + 4, 34 * Math.max(0, (u.mgRounds || 0) / t.mgRounds), 2);
-    this.drawGroupBadge(ctx, u, p.x - 26, by - 1);
+    this.drawGroupBadge(ctx, u, p.x - 37, by - 1); // (the group number, then the kind mark, then the bars)
     const label = u.stuck === 'ditched' ? 'DITCHED' : u.stuck === 'broken' ? 'BROKEN DOWN' : !(u.shells > 0) && !(u.mgRounds > 0) ? 'NO AMMUNITION' : '';
     if (label) { ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffb060'; this.wtext(ctx, label, p.x, by - 2); }
-    if (selected) this.drawTypeMark(ctx, 'tank', p.x, by - (label ? 15 : 6)); // (over the trouble it is in, if any)
+    if (selected) this.drawTypeMark(ctx, 'tank', p.x - 23, by + 3.5); // (just left of its bars)
   }
 
   /** Howitzer from the supplied art: a faces -x, b faces +y; mirrored for -y / +x. */
@@ -2546,8 +2546,8 @@ export class Renderer {
     // status bars
     const maxHp = t.men * t.hpPerMan;
     const by = p.y - 30;
-    this.drawGroupBadge(ctx, u, p.x - 21, by - 1);
-    if (selected && u.team === PLAYER) this.drawTypeMark(ctx, u.type, p.x, by - 6);
+    this.drawGroupBadge(ctx, u, p.x - 30, by - 3); // (the group number, then the kind mark, then the bar)
+    if (selected && u.team === PLAYER) this.drawTypeMark(ctx, u.type, p.x - 18, by + 2); // (just left of the bar)
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(p.x - 13, by, 26, 4);
     const f = u.hp / maxHp;
     ctx.fillStyle = u.team === PLAYER ? (f > 0.5 ? '#8fd16a' : f > 0.25 ? '#e0c050' : '#e06040') : '#c97a6a';
