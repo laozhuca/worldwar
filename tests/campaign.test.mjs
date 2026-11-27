@@ -420,7 +420,7 @@ test('New infantry and machine guns muster in the trenches by headquarters; batt
   const s = createGame(); s.ais.length = 0;
   s.resources[PLAYER] = { men: 999, ammo: 999, supplies: 999 };
   const made = [];
-  for (const type of ['rifle', 'rifle', 'rifle', 'mg', 'artillery']) made.push(buyUnit(s, PLAYER, type));
+  for (const type of ['rifle', 'rifle', 'rifle', 'mg', 'artillery']) { made.push(buyUnit(s, PLAYER, type)); s.time += 1.1; }
   const tile = (u) => s.map.tiles[Math.floor(u.y) * s.map.w + Math.floor(u.x)];
   for (const u of made.slice(0, 4)) {
     assert.ok(tile(u).trench && tile(u).owner === PLAYER, `${u.type} starts in our trench`);
@@ -472,11 +472,11 @@ test('Brusilov\'s Storm: every Austrian headquarters raises units, until it is t
   s.resources[ENEMY] = { men: 200, ammo: 2000, supplies: 2000 };
   const at = (fresh) => posts.map((q) => fresh.filter((u) => Math.hypot(u.x - q.x, u.y - q.y) < 9).length);
   let before = new Set(s.units);
-  for (let i = 0; i < 9; i++) buyUnit(s, ENEMY, 'rifle');
+  for (let i = 0; i < 9; i++) { buyUnit(s, ENEMY, 'rifle'); s.time += 1.1; }
   assert.ok(at(s.units.filter((u) => !before.has(u))).every((n) => n > 0), 'all three raise units');
   s.map.tiles[hq.posts[0].y * s.map.w + hq.posts[0].x].owner = PLAYER;
   before = new Set(s.units);
-  for (let i = 0; i < 6; i++) buyUnit(s, ENEMY, 'rifle');
+  for (let i = 0; i < 6; i++) { buyUnit(s, ENEMY, 'rifle'); s.time += 1.1; }
   assert.equal(at(s.units.filter((u) => !before.has(u)))[1], 0, 'one taken raises no more');
   createGame();
 });

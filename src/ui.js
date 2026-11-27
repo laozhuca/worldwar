@@ -1,6 +1,6 @@
 // DOM HUD + mouse/keyboard input.
 import { PLAYER, UNIT_TYPES, BUILD, MAP_W, MAP_H } from './config.js';
-import { orderMove, orderBarrage, orderHalt, buyUnit, hqThreatened, placeBuild, cancelBuild, territory, pushMessage } from './game.js';
+import { orderMove, orderBarrage, orderHalt, buyUnit, hqThreatened, placeBuild, cancelBuild, territory, pushMessage, RECRUIT_COOLDOWN } from './game.js';
 import { frontLine, teamDir } from './map.js';
 
 const $ = (id) => document.getElementById(id);
@@ -144,6 +144,7 @@ export class UI {
 
   doRecruit(type) {
     const r = buyUnit(this.state, PLAYER, type);
+    if (r === 'Still raising the last unit') return; // (pressed again within the cool-down: nothing to say)
     if (typeof r === 'string') pushMessage(this.state, `${UNIT_TYPES[type].name}: ${r}`, 'warn');
     else { pushMessage(this.state, `${UNIT_TYPES[type].name} raised at HQ`, 'info'); this.speak('recruit', [r]); }
   }
@@ -544,8 +545,11 @@ export class UI {
     $('casualties').textContent = `${s.stats.lost[0]} : ${s.stats.lost[1]}`;
 
     const threatened = hqThreatened(s, PLAYER);
+    // the recruiting cool-down: each recruit button empties and refills over it
+    const cd = Math.max(0, Math.min(1, 1 - (s.time - ((s.recruitAt && s.recruitAt[PLAYER]) ?? -1e9)) / RECRUIT_COOLDOWN));
     for (const [type, t] of Object.entries(UNIT_TYPES)) {
       const b = document.querySelector(`[data-recruit="${type}"]`);
+      b.style.setProperty('--cd', cd.toFixed(3)); b.classList.toggle('cooling', cd > 0);
       if (t.special) b.classList.toggle('hidden', !(s.special && s.special[type])); // (only in a battle that provides it)
       b.disabled = threatened || !(res.men >= t.cost.men && res.ammo >= t.cost.ammo && res.supplies >= t.cost.supplies);
       b.title = threatened ? 'Enemy troops are at our HQ: no new units can be raised until they are driven off' : t.desc;

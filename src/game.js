@@ -236,6 +236,9 @@ export function buyUnit(state, team, type) {
   if (hqThreatened(state, team)) return 'HQ under attack, no recruiting';
   if (t.special && !(state.special && state.special[type])) return 'Not available in this battle';
   if (!canAfford(res, t.cost)) return 'Not enough resources';
+  const last = (state.recruitAt || (state.recruitAt = [-1e9, -1e9]))[team];
+  if (state.time - last < RECRUIT_COOLDOWN) return 'Still raising the last unit';
+  state.recruitAt[team] = state.time;
   pay(res, t.cost);
   // at whichever working headquarters has fewest of our men round it (each command post raises units, where a side has several)
   const hqs = workingHqs(state, team), around = (q) => state.units.filter((u) => u.team === team && !u.dead && Math.hypot(u.x - q.x - 0.5, u.y - q.y - 0.5) < 8).length;
@@ -440,6 +443,7 @@ const aiTeam = (state, team) => state.ais.some((a) => a.team === team && !a.lega
 /** A setting of the computer's level for a side it commands (undefined for a side a person commands). */
 const aiLevel = (state, team, k) => { const a = state.ais.find((q) => q.team === team && !q.legacy); return a && a.level ? a.level[k] : undefined; };
 export const NEST_MELEE = 0.2, NEST_FIRE = 0.5; // (damage a pillbox's crew takes, hand to hand and from small arms)
+export const RECRUIT_COOLDOWN = 1; // seconds between two units raised by one side
 export const HQ_HOLD = 5; // seconds a captured headquarters must be held for the victory
 const AI_DOUBLE = 1.35; // the computer's riflemen at the double across open ground
 /** True if any of the team's men (not its guns) are within r tiles of (x, y). */

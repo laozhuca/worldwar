@@ -233,7 +233,7 @@ test('an HQ with enemy troops nearby cannot raise new units', async () => {
   assert.equal(typeof buyUnit(s, PLAYER, 'rifle'), 'string', 'refused');
   assert.equal(s.units.length, before);
   assert.equal(s.resources[PLAYER].men, men, 'nothing spent');
-  raider.x = q.x + 0.5 + 12;
+  raider.x = q.x + 0.5 + 12; s.time += 1.1;
   assert.equal(typeof buyUnit(s, PLAYER, 'rifle'), 'object', 'recruits again once they are gone');
 });
 
@@ -375,4 +375,15 @@ test('a headquarters taken must be held for five seconds to win; retaken in time
   assert.equal(s.winner, -1, 'the count starts again when it is taken again');
   for (let i = 0; i < 30 * 3; i++) update(s, 1 / 30);
   assert.equal(s.winner, PLAYER, 'held five seconds: victory');
+});
+
+test('recruiting has a one-second cool-down', () => {
+  const s = createGame({ aiTeams: [] });
+  s.resources[PLAYER] = { men: 999, ammo: 999, supplies: 999 };
+  assert.equal(typeof buyUnit(s, PLAYER, 'rifle'), 'object');
+  const res = { ...s.resources[PLAYER] };
+  assert.equal(typeof buyUnit(s, PLAYER, 'mg'), 'string', 'not again at once');
+  assert.deepEqual(s.resources[PLAYER], res, 'nothing spent');
+  s.time += 0.5; assert.equal(typeof buyUnit(s, PLAYER, 'rifle'), 'string', 'nor half a second later');
+  s.time += 0.6; assert.equal(typeof buyUnit(s, PLAYER, 'rifle'), 'object', 'a second on: yes');
 });
