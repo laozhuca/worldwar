@@ -28,6 +28,25 @@ export class UI {
     this.bindInput();
     this.bindTouch();
     this.bindButtons();
+    this.bindCards();
+  }
+
+  /**
+   * The unit cards of the selection: a click selects that unit alone, a shift-click takes it out of the
+   * selection. (On the press, not the click: the cards are redrawn several times a second.)
+   */
+  bindCards() {
+    const info = document.getElementById('selection-info');
+    if (!info) return;
+    info.addEventListener('pointerdown', (e) => {
+      const card = e.target.closest('.ucard[data-id]');
+      if (!card || e.button > 0) return;
+      e.preventDefault(); e.stopPropagation();
+      const id = +card.dataset.id;
+      if (e.shiftKey) this.selected.delete(id);
+      else { this.selected.clear(); this.selected.add(id); }
+      this.updateHud();
+    });
   }
 
   get state() { return this.app.state; }
@@ -639,6 +658,7 @@ export class UI {
     const sel = this.selectedUnits();
     const info = $('selection-info');
     if (!sel.length) {
+      info.dataset.cards = '';
       info.innerHTML = this.touchMode || matchMedia('(pointer: coarse)').matches
         ? '<div class="muted">Tap a unit to select it, then tap the ground to move. Hold and drag to select a group. ? for help.</div>'
         : '<div class="muted">No units selected. Left-drag to select, right-click to move. Press <kbd>?</kbd> for help.</div>';
@@ -661,12 +681,21 @@ export class UI {
           : this.r.portraitOf && s.nations ? `<img class="portrait" src="${this.r.portraitOf(s.nations[PLAYER])}" alt="">` : '';
         // a portrait card: its name at the top, the unit's picture large with its men in a corner badge, the status,
         // and the strength and suppression bars at the bottom
-        parts.push(`<div class="ucard"><div class="n" title="${t.name}">${t.short || t.name}</div>${por}<div class="umen" title="Men">${u.men}/${t.men}</div><div class="ubody"><div class="st">${status}</div>
-          <div class="bar" title="Strength"><i style="width:${(100 * u.hp) / (t.men * t.hpPerMan)}%"></i></div>
-          <div class="bar sup" title="Suppression"><i style="width:${u.suppression}%"></i></div></div></div>`);
+        parts.push({ id: u.id, html: `<div class="n" title="${t.name}">${t.short || t.name}</div>${por}<div class="umen" title="Men">${u.men}/${t.men}</div><div class="ubody"><div class="st">${status}</div>
+          <div class="bar" title="Strength"><i style="width:${((100 * u.hp) / (t.men * t.hpPerMan)).toFixed(1)}%"></i></div>
+          <div class="bar sup" title="Suppression"><i style="width:${Math.round(u.suppression)}%"></i></div></div>` });
       }
-      if (sel.length > 12) parts.push(`<div class="muted">+${sel.length - 12} more</div>`);
-      info.innerHTML = parts.join('');
+      // the cards are kept and only their contents updated (so a card under the pointer stays the same element:
+      // it can be clicked, and its highlight and tooltip hold); rebuilt only when the units shown change
+      const more = sel.length > 12 ? `+${sel.length - 12} more` : '';
+      const cards = [...info.querySelectorAll(':scope > .ucard')];
+      const same = info.dataset.cards === parts.map((x) => x.id).join(',') + '|' + more && cards.length === parts.length;
+      if (!same) {
+        info.innerHTML = parts.map((x) => `<div class="ucard" data-id="${x.id}" title="Click: select only this unit · Shift-click: take it out of the selection"></div>`).join('') + (more ? `<div class="muted">${more}</div>` : '');
+        info.dataset.cards = parts.map((x) => x.id).join(',') + '|' + more;
+      }
+      const els = info.querySelectorAll(':scope > .ucard');
+      parts.forEach((x, i) => { const el = els[i]; if (el && el._html !== x.html) { el.innerHTML = x.html; el._html = x.html; } });
     }
   }
 }
