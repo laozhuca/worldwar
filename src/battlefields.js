@@ -21,10 +21,15 @@ const BUILDINGS = {
   station: [[0, 0, 191, 190, 1.13, 2.27], [0, 1, 184, 125, 2.01, 2.76], [1, 0, 165, 213, 2.27, 1.13], [1, 1, 223, 206, 2.99, 1.98], [2, 0, 202, 177, 1.13, 2.27], [2, 1, 167, 134, 1.9, 2.79], [3, 0, 181, 157, 2.27, 1.13], [3, 1, 252, 134, 2.88, 1.87], [0, 2, 176, 124, 1.73, 2.63], [1, 2, 228, 212, 2.7, 1.67], [2, 2, 182, 126, 1.74, 2.56], [3, 2, 205, 120, 2.59, 1.83]],
   church: [[0, 0, 219, 356, 2.85, 2.19], [0, 1, 340, 228, 3.46, 3.14], [1, 0, 219, 388, 2.19, 2.85], [1, 1, 307, 210, 3.02, 3.84], [2, 0, 261, 387, 2.85, 2.19], [2, 1, 261, 282, 3.59, 2.97], [3, 0, 261, 355, 2.19, 2.85], [3, 1, 357, 235, 3.08, 3.59], [0, 2, 259, 341, 3.14, 2.53], [1, 2, 236, 274, 2.62, 3.55], [2, 2, 222, 345, 2.85, 2.8], [3, 2, 335, 332, 2.87, 3.27]],
 };
-/** A building's image in a given state (0 standing, 1 ruined, 2 half-destroyed): its file and ground anchor. */
-function buildingImage(base, side, state) {
+/** The buildings also rendered under snow (bld-...-snow.webp, the same anchors): those of the winter fields. */
+const SNOWY = new Set(['dawn', 'home', 'cottage']);
+/**
+ * A building's image in a given state (0 standing, 1 ruined, 2 half-destroyed), under snow on a field where
+ * snow lies: its file and ground anchor.
+ */
+function buildingImage(base, side, state, snow = false) {
   const v = BUILDINGS[base].find((q) => q[0] === side && q[1] === state) || BUILDINGS[base][0];
-  return { img: `assets/art/bld-${base}-${side}${state === 1 ? '-ruin' : state === 2 ? '-half' : ''}.webp`, ax: v[2], ay: v[3] };
+  return { img: `assets/art/bld-${base}-${side}${state === 1 ? '-ruin' : state === 2 ? '-half' : ''}${snow && SNOWY.has(base) ? '-snow' : ''}.webp`, ax: v[2], ay: v[3] };
 }
 const SMALL = ['dawn', 'home', 'cottage', 'home', 'cottage'];
 
@@ -186,7 +191,7 @@ export function buildBattlefieldMap(bf, seed, westTeam = PLAYER) {
   // ---- the ground, by the field's own builder
   const noise = makeNoise(rnd);
   const ctx = {
-    map, rnd, noise, T, R, A, B, w, fx, sx, WT, ET, dir, dF, buildings: [], objectives: [],
+    map, rnd, noise, T, R, A, B, w, fx, sx, WT, ET, dir, dF, buildings: [], objectives: [], snow: bf.season === 'winter', // (snow lying: the buildings under it too)
     uv: (t) => [t.x - t.y, t.x + t.y - 2 * R],
     P: (u, v) => T(Math.round(R + (u + v) / 2), Math.round(R + (v - u) / 2)),
     /** Tiles within r of either headquarters. */
@@ -240,10 +245,10 @@ export function buildBattlefieldMap(bf, seed, westTeam = PLAYER) {
       // its state: ruined, half-destroyed or standing, the nearer the fighting the worse
       const zone = !t0 ? 1 : ctx.nml(t0, -2) ? 2 : ctx.onLines(t0, 7) ? 1 : 0, r0 = rnd();
       const state = r0 < [0.3, 0.6, 0.85][zone] ? 1 : r0 < [0.45, 0.85, 0.97][zone] ? 2 : 0, side = Math.floor(rnd() * 4);
-      const b = { ...buildingImage(base, side, state), k: 0.5, x: x + 0.5, y: y + 0.5 };
+      const b = { ...buildingImage(base, side, state, ctx.snow), k: 0.5, x: x + 0.5, y: y + 0.5 };
       const foot = list.find((q) => q[0] === side && q[1] === 0) || list[0]; // (the footprint of the whole building, whatever is left of it)
       b.hx = Math.min(foot[4], 2.4); b.hy = Math.min(foot[5], 2.4);
-      if (state !== 1) { b.ruin = buildingImage(base, side, 1); b.hp = state === 2 ? BUILDING_HP / 2 : BUILDING_HP; if (state === 0) b.half = buildingImage(base, side, 2); } // (shells can still bring it down)
+      if (state !== 1) { b.ruin = buildingImage(base, side, 1, ctx.snow); b.hp = state === 2 ? BUILDING_HP / 2 : BUILDING_HP; if (state === 0) b.half = buildingImage(base, side, 2, ctx.snow); } // (shells can still bring it down)
       for (let yy = Math.floor(b.y - b.hy - 1); yy <= b.y + b.hy + 1; yy++) for (let xx = Math.floor(b.x - b.hx - 1); xx <= b.x + b.hx + 1; xx++) {
         const t = T(xx, yy); if (!t || t.pond || t.rock || t.sea || t.house || ctx.nearHq(t, 3)) return null;
       }

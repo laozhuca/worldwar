@@ -64,3 +64,7 @@ Sanctuary, `--scale 3`). The anchors and footprints printed go into `BUILDINGS` 
 `bld-<name>-<side>-half.webp`: the stage between, half-destroyed (`--ruin <seed> --half`, the same seed as the
 side's ruin): the walls broken off high, the roof mostly gone, one corner torn down part way, lighter soot and
 less rubble. A building falls to it at half strength in battle, and to its ruin at none.
+
+`bld-<name>-<side>[-half|-ruin]-snow.webp`: the houses (`dawn`, `home`, `cottage`) under snow, for the winter
+battlefields (`--snow`, with the same `--ruin` seeds): snow lying on whatever faces up - roof slopes, wall tops,
+sills, the rubble - in drifts, after the soot. The same anchors as the snowless images.

@@ -10,6 +10,7 @@
 //   --sat    colour saturation, toned to the battlefield's grey light (1 = as rendered)
 //   --cut    boxes in the model's own coordinates to leave out (JSON: [[[x0,y0,z0],[x1,y1,z1]], ...])
 //   --ruin   a seed: the building shelled to a ruin (walls broken off ragged, a corner blown in, soot, rubble)
+//   --snow   snow lying on whatever faces up (roof slopes, wall tops, sills, rubble), in drifts
 //   --half   with --ruin: half-destroyed instead (the roof mostly gone, the walls standing, one corner torn down)
 //
 // Prints the sprite's ground anchor (ax, ay: where the model's centre on the ground falls in the cropped
@@ -25,6 +26,7 @@ if (!glb || !out) { console.error('usage: node render.cjs <model.glb> <out.webp>
 const job = { yaw: opt('yaw', Math.PI), S: opt('scale', 1.6), P: opt('px', 2) }, sat = opt('sat', 0.75);
 { const i = args.indexOf('--cut'); if (i >= 0) job.cut = JSON.parse(args[i + 1]); }
 if (args.includes('--ruin')) job.ruin = opt('ruin', 1); // (a seed: the building shelled to a ruin, rubble about it)
+if (args.includes('--snow')) job.snow = true; // (snow lying on it: roofs, wall tops, the rubble)
 if (args.includes('--half')) job.half = true; // (with --ruin: damaged only - roof mostly gone, walls standing) // boxes of the model to leave out: '[[[x0,y0,z0],[x1,y1,z1]], ...]'
 
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.glb': 'model/gltf-binary' };

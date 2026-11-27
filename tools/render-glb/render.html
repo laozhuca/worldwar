@@ -8,7 +8,7 @@ const L = new THREE.Vector3(-0.38, -0.62, 0.69).normalize(); // the game's sun (
 let model;
 window.load = async (f) => { model = (await new GLTFLoader().loadAsync(f)).scene; window.model = model; return true; };
 // render: yaw (rad), S = tiles per model unit, P = px per tile; returns { url, ax, ay } (ax, ay: where the model's centre on the ground lands)
-window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null, cut = null, ruin = null, half = false }) => {
+window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null, cut = null, ruin = null, half = false, snow = false }) => {
   const scene = new THREE.Scene();
   const root = new THREE.Group(); scene.add(root);
   const m = model.clone(true);
@@ -113,6 +113,21 @@ window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null, cut = null, 
       float rEdge = 1.0 - smoothstep(0.0, uH * 0.16, rTop - vMP.y);
       diffuseColor.rgb *= mix(1.0, 0.22, clamp(rPatch * 0.65 + rEdge * 0.8, 0.0, 1.0) * uSoot) * mix(1.0, 0.82, uSoot);`);
   };
+  // snow: lying on whatever faces up (roof slopes, wall tops, sills, the rubble), in drifts, thinning off steeper
+  // slopes; in the world's own frame (Z up), after the soot, so the snow lies white over the blackened walls
+  const SNOW_GLSL = `
+    varying vec3 vWN, vWP;
+    float sh21(vec2 p) { return fract(sin(dot(p, vec2(41.3, 289.1))) * 15731.7); }
+    float svn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(sh21(i), sh21(i + vec2(1, 0)), f.x), mix(sh21(i + vec2(0, 1)), sh21(i + vec2(1, 1)), f.x), f.y); }
+`;
+  const snowShader = (sh) => {
+    sh.vertexShader = SNOW_GLSL + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vWN = normalize(mat3(modelMatrix) * objectNormal); vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = SNOW_GLSL + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      float sUp = (gl_FrontFacing ? 1.0 : -1.0) * normalize(vWN).z;
+      float sDrift = svn(vWP.xy * 5.0) * 0.6 + svn(vWP.xy * 17.0) * 0.4;
+      float sAmt = smoothstep(0.42, 0.78, sUp + (sDrift - 0.5) * 0.35) * smoothstep(0.18, 0.5, sDrift + 0.25);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.89, 0.94) * (0.92 + 0.08 * sDrift), sAmt * 0.95);`);
+  };
   // cut: boxes in the model's own coordinates ([[x0, y0, z0], [x1, y1, z1]], ...) whose triangles are left out
   // (stray geometry baked into a model, e.g. a slab of ground stuck to a ship's bow)
   if (cut) m.traverse((o) => {
@@ -136,8 +151,8 @@ window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null, cut = null, 
   holder.position.set(-c.x, -c.y, -bb.min.z);
   holder.updateMatrixWorld(true);
   const b2 = new THREE.Box3().setFromObject(holder);
-  m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; const mt = o.material = o.material.clone(); mt.metalness = 0; mt.roughness = 0.9; mt.metalnessMap = null; mt.roughnessMap = null; if (ruinU && !(rubble && rubble.userData.debris && o.parent === rubble)) { // (the building itself: broken in the shader, both faces of its walls drawn, its shadow cut to match)
-    mt.side = THREE.DoubleSide; mt.onBeforeCompile = (sh) => ruinShader(sh, o, true);
+  m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; const mt = o.material = o.material.clone(); mt.metalness = 0; mt.roughness = 0.9; mt.metalnessMap = null; mt.roughnessMap = null; if (snow) mt.onBeforeCompile = (sh) => snowShader(sh); if (ruinU && !(rubble && rubble.userData.debris && o.parent === rubble)) { // (the building itself: broken in the shader, both faces of its walls drawn, its shadow cut to match)
+    mt.side = THREE.DoubleSide; mt.onBeforeCompile = (sh) => { ruinShader(sh, o, true); if (snow) snowShader(sh); };
     const dm = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: THREE.DoubleSide }); dm.onBeforeCompile = (sh) => ruinShader(sh, o, false); o.customDepthMaterial = dm; }
     // tread: { band: [a, b], hw, ax, ay, period, phase } - the track belts (surfaces facing out of the side
     // profile, within the band of the half-width) painted with tread links shifted by phase: a frame of the
