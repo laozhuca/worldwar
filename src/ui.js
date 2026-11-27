@@ -543,8 +543,25 @@ export class UI {
       this.prevPinned = new Set(this.playerUnits().filter((u) => u.pinned).map((u) => u.id));
     }
 
+    this.recruitCooldown();
     this.hudTimer -= dt;
     if (this.hudTimer <= 0) { this.hudTimer = 0.15; this.updateHud(); }
+  }
+
+  /**
+   * Every frame: the recruiting cool-down drawn on the recruit buttons (a veil drawn back from left to right
+   * as the next unit becomes ready), and the next unit waiting in the queue raised the moment it is over.
+   */
+  recruitCooldown() {
+    const s = this.state, q = s.recruitQueue || (s.recruitQueue = []);
+    const since = () => s.time - ((s.recruitAt && s.recruitAt[PLAYER]) ?? -1e9);
+    if (q.length && since() >= RECRUIT_COOLDOWN) this.raise(q.shift());
+    const cd = Math.max(0, Math.min(1, 1 - since() / RECRUIT_COOLDOWN));
+    if (cd === this._cd) return;
+    this._cd = cd;
+    for (const b of this._recruitBtns || (this._recruitBtns = [...document.querySelectorAll('[data-recruit]')])) {
+      b.style.setProperty('--cd', cd.toFixed(4)); b.classList.toggle('cooling', cd > 0);
+    }
   }
 
   updateHud() {
@@ -559,14 +576,9 @@ export class UI {
     $('casualties').textContent = `${s.stats.lost[0]} : ${s.stats.lost[1]}`;
 
     const threatened = hqThreatened(s, PLAYER);
-    // the recruiting cool-down: each recruit button empties and refills over it
-    // the queue: the next waiting unit raised as soon as the cool-down is over
     const q = s.recruitQueue || (s.recruitQueue = []);
-    if (q.length && s.time - ((s.recruitAt && s.recruitAt[PLAYER]) ?? -1e9) >= RECRUIT_COOLDOWN) this.raise(q.shift());
-    const cd = Math.max(0, Math.min(1, 1 - (s.time - ((s.recruitAt && s.recruitAt[PLAYER]) ?? -1e9)) / RECRUIT_COOLDOWN));
     for (const [type, t] of Object.entries(UNIT_TYPES)) {
       const b = document.querySelector(`[data-recruit="${type}"]`);
-      b.style.setProperty('--cd', cd.toFixed(3)); b.classList.toggle('cooling', cd > 0);
       const waiting = q.filter((x) => x === type).length; // (how many of this kind are queued)
       if (b.dataset.queued !== String(waiting)) { b.dataset.queued = String(waiting); b.classList.toggle('queued', waiting > 0); }
       if (t.special) b.classList.toggle('hidden', !(s.special && s.special[type])); // (only in a battle that provides it)
