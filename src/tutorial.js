@@ -224,7 +224,7 @@ export function runTutorial(state, ctx) {
     look(gun.x + 3, gun.y, 1.8);
     await step(`${click} the field battery behind your trench to select it.`, () => ui.selected.has(gun.id), { kind: 'mouse', button: 0 });
     glow('[data-cmd="bombard"]');
-    await step(touch ? 'Press the glowing Bombard button.' : 'Press the glowing Bombard button (or B).', () => ui.mode === 'bombard');
+    await step(touch ? 'Press the glowing Bombard button.' : 'Press B (or the glowing Bombard button).', () => ui.mode === 'bombard', { kind: 'key', key: 'B' });
     state.marker = { ...objective, label: 'Enemy trench' };
     look(pair.x + (objective.x - pair.x) * 0.6, objective.y, 1.05); // both our trench and theirs well inside the view
     await step(`${click} the marked enemy trench to shell it. The other batteries will fire along the rest of the line.`, () => gun.barrage || gun.cooldown > 0, { kind: 'mouse', button: 0 });
@@ -274,7 +274,7 @@ export function runTutorial(state, ctx) {
     if (!ui.selected.has(pair.id)) { ui.selected.clear(); ui.selected.add(pair.id); }
     await say(LT, 'Halt! Wait for the line!');
     glow('[data-cmd="halt"]');
-    await step(touch ? 'Press the glowing Halt button to stop them where they are.' : 'Press H (or the glowing Halt button) to stop them where they are.', () => !pair.order);
+    await step(touch ? 'Press the glowing Halt button to stop them where they are.' : 'Press H (or the glowing Halt button) to stop them where they are.', () => !pair.order, { kind: 'key', key: 'H' });
     await say(ARCHER, 'Quiet as a church out here...');
     await say(LT, 'Line\'s dressed. Forward!');
     if (!ui.selected.has(pair.id)) { ui.selected.clear(); ui.selected.add(pair.id); }
@@ -292,7 +292,7 @@ export function runTutorial(state, ctx) {
       await selectPair();
     }
     glow('[data-cmd="charge"]');
-    await step(touch ? 'Press the glowing Charge button.' : 'Press the glowing Charge button (or C).', () => ui.mode === 'charge');
+    await step(touch ? 'Press the glowing Charge button.' : 'Press C (or the glowing Charge button).', () => ui.mode === 'charge', { kind: 'key', key: 'C' });
     state.marker = { ...objective, label: 'Enemy trench' };
     look(pair.x + (objective.x - pair.x) * 0.6, objective.y, 1.05); // both the men and the trench well inside the view
     await step(`${click} the marked enemy trench to charge it.`, () => pair.order && pair.order.kind === 'charge', { kind: 'mouse', button: 0 });
