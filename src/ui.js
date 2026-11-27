@@ -143,6 +143,16 @@ export class UI {
   }
 
   doRecruit(type) {
+    const s = this.state, q = s.recruitQueue || (s.recruitQueue = []);
+    // within the cool-down (or behind others already waiting): into the queue, raised in turn (up to eight waiting)
+    if (q.length || s.time - ((s.recruitAt && s.recruitAt[PLAYER]) ?? -1e9) < RECRUIT_COOLDOWN) {
+      if (q.length < 8) q.push(type); else pushMessage(s, 'The recruiting queue is full', 'warn');
+      return;
+    }
+    this.raise(type);
+  }
+  /** Raise one unit now (from a button, a key or the queue). */
+  raise(type) {
     const r = buyUnit(this.state, PLAYER, type);
     if (r === 'Still raising the last unit') return; // (pressed again within the cool-down: nothing to say)
     if (typeof r === 'string') pushMessage(this.state, `${UNIT_TYPES[type].name}: ${r}`, 'warn');
@@ -465,7 +475,11 @@ export class UI {
   }
 
   bindButtons() {
-    document.querySelectorAll('[data-recruit]').forEach((b) => b.addEventListener('click', () => this.doRecruit(b.dataset.recruit)));
+    document.querySelectorAll('[data-recruit]').forEach((b) => {
+      b.addEventListener('click', () => this.doRecruit(b.dataset.recruit));
+      // right-click: take one of this kind off the queue
+      b.addEventListener('contextmenu', (e) => { e.preventDefault(); const q = this.state.recruitQueue || []; const i = q.lastIndexOf(b.dataset.recruit); if (i >= 0) q.splice(i, 1); });
+    });
     document.querySelectorAll('[data-build]').forEach((b) => b.addEventListener('click', () => {
       const m = 'build:' + b.dataset.build;
       this.setMode(this.mode === m ? null : m);
@@ -546,10 +560,15 @@ export class UI {
 
     const threatened = hqThreatened(s, PLAYER);
     // the recruiting cool-down: each recruit button empties and refills over it
+    // the queue: the next waiting unit raised as soon as the cool-down is over
+    const q = s.recruitQueue || (s.recruitQueue = []);
+    if (q.length && s.time - ((s.recruitAt && s.recruitAt[PLAYER]) ?? -1e9) >= RECRUIT_COOLDOWN) this.raise(q.shift());
     const cd = Math.max(0, Math.min(1, 1 - (s.time - ((s.recruitAt && s.recruitAt[PLAYER]) ?? -1e9)) / RECRUIT_COOLDOWN));
     for (const [type, t] of Object.entries(UNIT_TYPES)) {
       const b = document.querySelector(`[data-recruit="${type}"]`);
       b.style.setProperty('--cd', cd.toFixed(3)); b.classList.toggle('cooling', cd > 0);
+      const waiting = q.filter((x) => x === type).length; // (how many of this kind are queued)
+      if (b.dataset.queued !== String(waiting)) { b.dataset.queued = String(waiting); b.classList.toggle('queued', waiting > 0); }
       if (t.special) b.classList.toggle('hidden', !(s.special && s.special[type])); // (only in a battle that provides it)
       b.disabled = threatened || !(res.men >= t.cost.men && res.ammo >= t.cost.ammo && res.supplies >= t.cost.supplies);
       b.title = threatened ? 'Enemy troops are at our HQ: no new units can be raised until they are driven off' : t.desc;
