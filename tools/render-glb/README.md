@@ -58,3 +58,7 @@ walls broken off at ragged heights over a grid of columns, a corner blown in nea
 soot-blackened, rubble heaped about the foot). Names and scales: `dawn`, `home`, `cottage` (Ashes of Dawn /
 of Home / Beyond the Cottage, `--scale 1.6`), `station` (Dixmude Station, `--scale 2.4`), `church` (Autumn
 Sanctuary, `--scale 3`). The anchors and footprints printed go into `BUILDINGS` in `src/battlefields.js`.
+
+`bld-<name>-<side>-half.webp`: the stage between, half-destroyed (`--ruin <seed> --half`, the same seed as the
+side's ruin): the walls broken off high, the roof mostly gone, one corner torn down part way, lighter soot and
+less rubble. A building falls to it at half strength in battle, and to its ruin at none.

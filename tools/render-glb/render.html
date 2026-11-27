@@ -8,7 +8,7 @@ const L = new THREE.Vector3(-0.38, -0.62, 0.69).normalize(); // the game's sun (
 let model;
 window.load = async (f) => { model = (await new GLTFLoader().loadAsync(f)).scene; window.model = model; return true; };
 // render: yaw (rad), S = tiles per model unit, P = px per tile; returns { url, ax, ay } (ax, ay: where the model's centre on the ground lands)
-window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null, cut = null, ruin = null }) => {
+window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null, cut = null, ruin = null, half = false }) => {
   const scene = new THREE.Scene();
   const root = new THREE.Group(); scene.add(root);
   const m = model.clone(true);
@@ -25,7 +25,8 @@ window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null, cut = null, 
     const bc = [rnd() < 0.5 ? 0 : G - 1, rnd() < 0.5 ? 0 : G - 1];
     for (let i = 0; i < G; i++) for (let j = 0; j < G; j++) {
       const near = Math.hypot(i - bc[0], j - bc[1]) < 2.2;
-      tops.push(bb0.min.y + h * (near ? 0.04 + rnd() * 0.12 : 0.22 + rnd() * 0.33));
+      // (half: damaged, not ruined - the roof mostly gone, the walls standing high, one corner torn down part way)
+      tops.push(bb0.min.y + h * (half ? (near ? 0.3 + rnd() * 0.15 : 0.55 + rnd() * 0.4) : near ? 0.04 + rnd() * 0.12 : 0.22 + rnd() * 0.33));
     }
     ruinCut = (x, y, z) => {
       const i = Math.max(0, Math.min(G - 1, Math.floor(((x - bb0.min.x) / lx) * G))), j = Math.max(0, Math.min(G - 1, Math.floor(((z - bb0.min.z) / lz) * G)));
@@ -35,7 +36,7 @@ window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null, cut = null, 
     rubble = new THREE.Group();
     const mats = [0x4e4943, 0x57514a, 0x625a51, 0x4a3c34].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 1 })), beam = new THREE.MeshStandardMaterial({ color: 0x2e241c, roughness: 1 });
     const s = Math.max(lx, lz), cx = bb0.min.x + (bc[0] + 0.5) / G * lx, cz = bb0.min.z + (bc[1] + 0.5) / G * lz;
-    for (let k = 0; k < 110; k++) {
+    for (let k = 0; k < (half ? 40 : 110); k++) {
       const breach = rnd() < 0.45;
       const px = breach ? cx + (rnd() - 0.5) * lx * 0.45 : bb0.min.x - lx * 0.05 + rnd() * lx * 1.1, pz = breach ? cz + (rnd() - 0.5) * lz * 0.45 : bb0.min.z - lz * 0.05 + rnd() * lz * 1.1;
       const isBeam = rnd() < 0.08, sz = s * (0.012 + rnd() * 0.02);
@@ -82,7 +83,7 @@ window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null, cut = null, 
   holder.position.set(-c.x, -c.y, -bb.min.z);
   holder.updateMatrixWorld(true);
   const b2 = new THREE.Box3().setFromObject(holder);
-  m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; const mt = o.material = o.material.clone(); mt.metalness = 0; mt.roughness = 0.9; mt.metalnessMap = null; mt.roughnessMap = null; if (ruin !== null && !(rubble && rubble.children.includes(o))) { mt.color.multiply(new THREE.Color(0.62, 0.59, 0.56)); mt.side = THREE.DoubleSide; } // (soot-blackened; the inside of a broken wall shows)
+  m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; const mt = o.material = o.material.clone(); mt.metalness = 0; mt.roughness = 0.9; mt.metalnessMap = null; mt.roughnessMap = null; if (ruin !== null && !(rubble && rubble.children.includes(o))) { mt.color.multiply(half ? new THREE.Color(0.82, 0.8, 0.78) : new THREE.Color(0.62, 0.59, 0.56)); mt.side = THREE.DoubleSide; } // (soot-blackened; the inside of a broken wall shows)
     // tread: { band: [a, b], hw, ax, ay, period, phase } - the track belts (surfaces facing out of the side
     // profile, within the band of the half-width) painted with tread links shifted by phase: a frame of the
     // tracks running (for a model whose tracks are not separate parts)

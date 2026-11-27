@@ -12,15 +12,20 @@ import { createGame, spawnUnit, BUILDING_HP } from './game.js';
 import { blockBuilding } from './campaign.js';
 
 // Buildings, from the 3D models of the Dixmude houses, the station and the Galicia church, each rendered from
-// its four sides, intact and shelled to a ruin (tools/render-glb, --ruin): [side, ruined, ax, ay, hx, hy]
-// (assets/art/bld-<name>-<side>[-ruin].webp; ax, ay the ground anchor, hx, hy the footprint's half-widths)
+// its four sides, intact, half-destroyed and shelled to a ruin (tools/render-glb, --ruin [--half]):
+// [side, state (0 intact, 1 ruined, 2 half-destroyed), ax, ay, hx, hy] (assets/art/bld-<name>-<side>[-half|-ruin].webp; ax, ay the ground anchor, hx, hy the footprint's half-widths)
 const BUILDINGS = {
-  dawn: [[0, 0, 154, 171, 1.29, 1.51], [0, 1, 206, 129, 1.6, 1.86], [1, 0, 152, 188, 1.51, 1.29], [1, 1, 199, 163, 1.88, 1.52], [2, 0, 175, 157, 1.29, 1.51], [2, 1, 204, 121, 1.58, 1.88], [3, 0, 162, 140, 1.51, 1.29], [3, 1, 181, 124, 1.84, 1.67]],
-  home: [[0, 0, 136, 133, 0.82, 1.52], [0, 1, 148, 103, 1.07, 1.87], [1, 0, 135, 136, 1.52, 0.82], [1, 1, 142, 97, 1.87, 1.04], [2, 0, 101, 170, 0.82, 1.52], [2, 1, 154, 118, 1.03, 1.81], [3, 0, 129, 165, 1.52, 0.82], [3, 1, 179, 119, 1.87, 1.07]],
-  cottage: [[0, 0, 118, 146, 0.81, 1.42], [0, 1, 155, 116, 1.02, 1.65], [1, 0, 123, 156, 1.42, 0.81], [1, 1, 155, 135, 1.61, 0.97], [2, 0, 121, 159, 0.81, 1.42], [2, 1, 144, 124, 1.03, 1.68], [3, 0, 115, 150, 1.42, 0.81], [3, 1, 134, 116, 1.76, 1.02]],
-  station: [[0, 0, 191, 190, 1.13, 2.27], [0, 1, 234, 151, 1.38, 2.78], [1, 0, 165, 213, 2.27, 1.13], [1, 1, 222, 178, 2.72, 1.58], [2, 0, 202, 177, 1.13, 2.27], [2, 1, 200, 138, 1.43, 2.83], [3, 0, 181, 157, 2.27, 1.13], [3, 1, 226, 138, 2.72, 1.45]],
-  church: [[0, 0, 219, 356, 2.85, 2.19], [0, 1, 314, 284, 3.47, 2.72], [1, 0, 219, 388, 2.19, 2.85], [1, 1, 311, 250, 2.72, 3.48], [2, 0, 261, 387, 2.85, 2.19], [2, 1, 301, 295, 3.47, 2.75], [3, 0, 261, 355, 2.19, 2.85], [3, 1, 357, 233, 2.67, 3.49]],
+  dawn: [[0, 0, 154, 171, 1.29, 1.51], [0, 1, 206, 129, 1.6, 1.86], [1, 0, 152, 188, 1.51, 1.29], [1, 1, 199, 163, 1.88, 1.52], [2, 0, 175, 157, 1.29, 1.51], [2, 1, 204, 121, 1.58, 1.88], [3, 0, 162, 140, 1.51, 1.29], [3, 1, 181, 124, 1.84, 1.67], [0, 2, 195, 147, 1.46, 1.86], [1, 2, 158, 189, 1.81, 1.45], [2, 2, 170, 129, 1.52, 1.86], [3, 2, 175, 145, 1.79, 1.62]],
+  home: [[0, 0, 136, 133, 0.82, 1.52], [0, 1, 148, 103, 1.07, 1.87], [1, 0, 135, 136, 1.52, 0.82], [1, 1, 142, 97, 1.87, 1.04], [2, 0, 101, 170, 0.82, 1.52], [2, 1, 154, 118, 1.03, 1.81], [3, 0, 129, 165, 1.52, 0.82], [3, 1, 179, 119, 1.87, 1.07], [0, 2, 146, 115, 1, 1.85], [1, 2, 130, 120, 1.84, 1.02], [2, 2, 156, 158, 0.99, 1.75], [3, 2, 179, 144, 1.87, 1.04]],
+  cottage: [[0, 0, 118, 146, 0.81, 1.42], [0, 1, 155, 116, 1.02, 1.65], [1, 0, 123, 156, 1.42, 0.81], [1, 1, 155, 135, 1.61, 0.97], [2, 0, 121, 159, 0.81, 1.42], [2, 1, 144, 124, 1.03, 1.68], [3, 0, 115, 150, 1.42, 0.81], [3, 1, 134, 116, 1.76, 1.02], [0, 2, 115, 147, 0.99, 1.59], [1, 2, 155, 158, 1.61, 0.97], [2, 2, 144, 137, 1.03, 1.67], [3, 2, 123, 149, 1.66, 0.98]],
+  station: [[0, 0, 191, 190, 1.13, 2.27], [0, 1, 234, 151, 1.38, 2.78], [1, 0, 165, 213, 2.27, 1.13], [1, 1, 222, 178, 2.72, 1.58], [2, 0, 202, 177, 1.13, 2.27], [2, 1, 200, 138, 1.43, 2.83], [3, 0, 181, 157, 2.27, 1.13], [3, 1, 226, 138, 2.72, 1.45], [0, 2, 199, 168, 1.35, 2.68], [1, 2, 227, 210, 2.64, 1.38], [2, 2, 211, 168, 1.3, 2.65], [3, 2, 220, 151, 2.64, 1.43]],
+  church: [[0, 0, 219, 356, 2.85, 2.19], [0, 1, 314, 284, 3.47, 2.72], [1, 0, 219, 388, 2.19, 2.85], [1, 1, 311, 250, 2.72, 3.48], [2, 0, 261, 387, 2.85, 2.19], [2, 1, 301, 295, 3.47, 2.75], [3, 0, 261, 355, 2.19, 2.85], [3, 1, 357, 233, 2.67, 3.49], [0, 2, 248, 338, 3.41, 2.62], [1, 2, 263, 325, 2.63, 3.32], [2, 2, 271, 333, 3.45, 2.75], [3, 2, 335, 338, 2.52, 3.3]],
 };
+/** A building's image in a given state (0 standing, 1 ruined, 2 half-destroyed): its file and ground anchor. */
+function buildingImage(base, side, state) {
+  const v = BUILDINGS[base].find((q) => q[0] === side && q[1] === state) || BUILDINGS[base][0];
+  return { img: `assets/art/bld-${base}-${side}${state === 1 ? '-ruin' : state === 2 ? '-half' : ''}.webp`, ax: v[2], ay: v[3] };
+}
 const SMALL = ['dawn', 'home', 'cottage', 'home', 'cottage'];
 
 /**
@@ -232,12 +237,13 @@ export function buildBattlefieldMap(bf, seed, westTeam = PLAYER) {
     house(name, x, y) {
       const base = name.replace(/-[bc]$/, ''), list = BUILDINGS[base] || BUILDINGS.dawn;
       const t0 = T(Math.round(x), Math.round(y));
-      const ruinP = !t0 ? 0.5 : ctx.nml(t0, -2) ? 0.9 : ctx.onLines(t0, 7) ? 0.65 : 0.3;
-      const ruined = rnd() < ruinP ? 1 : 0, side = Math.floor(rnd() * 4);
-      const v = list.find((q) => q[0] === side && q[1] === ruined) || list[0];
-      const [, , ax, ay, hx, hy] = v;
-      const b = { img: `assets/art/bld-${base}-${side}${ruined ? '-ruin' : ''}.webp`, ax, ay, k: 0.5, x: x + 0.5, y: y + 0.5, hx: Math.min(hx, 2.4), hy: Math.min(hy, 2.4) };
-      if (!ruined) { const r = list.find((q) => q[0] === side && q[1] === 1); if (r) { b.ruin = { img: `assets/art/bld-${base}-${side}-ruin.webp`, ax: r[2], ay: r[3] }; b.hp = BUILDING_HP; } } // (shells can still bring it down)
+      // its state: ruined, half-destroyed or standing, the nearer the fighting the worse
+      const zone = !t0 ? 1 : ctx.nml(t0, -2) ? 2 : ctx.onLines(t0, 7) ? 1 : 0, r0 = rnd();
+      const state = r0 < [0.3, 0.6, 0.85][zone] ? 1 : r0 < [0.45, 0.85, 0.97][zone] ? 2 : 0, side = Math.floor(rnd() * 4);
+      const b = { ...buildingImage(base, side, state), k: 0.5, x: x + 0.5, y: y + 0.5 };
+      const foot = list.find((q) => q[0] === side && q[1] === 0) || list[0]; // (the footprint of the whole building, whatever is left of it)
+      b.hx = Math.min(foot[4], 2.4); b.hy = Math.min(foot[5], 2.4);
+      if (state !== 1) { b.ruin = buildingImage(base, side, 1); b.hp = state === 2 ? BUILDING_HP / 2 : BUILDING_HP; if (state === 0) b.half = buildingImage(base, side, 2); } // (shells can still bring it down)
       for (let yy = Math.floor(b.y - b.hy - 1); yy <= b.y + b.hy + 1; yy++) for (let xx = Math.floor(b.x - b.hx - 1); xx <= b.x + b.hx + 1; xx++) {
         const t = T(xx, yy); if (!t || t.pond || t.rock || t.sea || t.house || ctx.nearHq(t, 3)) return null;
       }
@@ -246,10 +252,11 @@ export function buildBattlefieldMap(bf, seed, westTeam = PLAYER) {
       return b;
     },
     church(x, y) {
-      const ruined = rnd() < (ctx.nml(T(Math.round(x), Math.round(y)) || { x, y }, -2) ? 0.8 : 0.35) ? 1 : 0, side = Math.floor(rnd() * 4);
-      const [, , ax, ay, hx, hy] = BUILDINGS.church.find((q) => q[0] === side && q[1] === ruined);
-      const b = { img: `assets/art/bld-church-${side}${ruined ? '-ruin' : ''}.webp`, ax, ay, k: 0.5, x: x + 0.5, y: y + 0.5, hx: Math.min(hx, 2.8), hy: Math.min(hy, 2.8), name: 'The church' };
-      if (!ruined) { const r = BUILDINGS.church.find((q) => q[0] === side && q[1] === 1); b.ruin = { img: `assets/art/bld-church-${side}-ruin.webp`, ax: r[2], ay: r[3] }; b.hp = BUILDING_HP * 2; } // (a stout church takes twice the shelling)
+      const front = ctx.nml(T(Math.round(x), Math.round(y)) || { x, y }, -2), r0 = rnd();
+      const state = r0 < (front ? 0.6 : 0.2) ? 1 : r0 < (front ? 0.9 : 0.4) ? 2 : 0, side = Math.floor(rnd() * 4);
+      const foot = BUILDINGS.church.find((q) => q[0] === side && q[1] === 0);
+      const b = { ...buildingImage('church', side, state), k: 0.5, x: x + 0.5, y: y + 0.5, hx: Math.min(foot[4], 2.8), hy: Math.min(foot[5], 2.8), name: 'The church' };
+      if (state !== 1) { b.ruin = buildingImage('church', side, 1); b.hp = (state === 2 ? 1 : 2) * BUILDING_HP; if (state === 0) b.half = buildingImage('church', side, 2); } // (a stout church takes twice the shelling)
       for (let yy = Math.floor(b.y - 4); yy <= b.y + 4; yy++) for (let xx = Math.floor(b.x - 3); xx <= b.x + 3; xx++) { const t = T(xx, yy); if (!t || t.pond || t.house || ctx.nearHq(t, 3)) return null; }
       for (let yy = Math.floor(b.y - b.hy); yy <= b.y + b.hy; yy++) for (let xx = Math.floor(b.x - b.hx); xx <= b.x + b.hx; xx++) { const t = T(xx, yy); if (t) { t.house = 1; t.decor = null; } }
       ctx.buildings.push(b);

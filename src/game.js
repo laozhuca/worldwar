@@ -1227,8 +1227,8 @@ function explode(state, s) {
 /** A building's strength: a shell bursting on it takes about BUILDING_HIT, one bursting close beside it a quarter. */
 export const BUILDING_HP = 100, BUILDING_HIT = 30;
 /**
- * Shells wreck buildings: an intact one (one that has a ruined version, s.ruin) loses strength to each shell
- * landing on or right beside it, and at none it falls in - drawn from then on as its ruin, in a cloud of dust
+ * Shells wreck buildings: a standing one (one that has a ruined version, b.ruin) loses strength to each shell
+ * landing on or right beside it; at half strength it is half-destroyed (b.half: its roof mostly gone), at none it falls in - drawn from then on as its ruin, in a cloud of dust
  * and flying rubble with a crash. Its ground stays impassable (the rubble of it).
  */
 function shellBuildings(state, s, K) {
@@ -1236,9 +1236,17 @@ function shellBuildings(state, s, K) {
     if (!b.ruin || b.ruined) continue;
     const ox = Math.max(0, Math.abs(s.x - b.x) - b.hx), oy = Math.max(0, Math.abs(s.y - b.y) - b.hy), d = Math.hypot(ox, oy);
     if (d > 1.2 * K) continue;
-    b.hp = (b.hp ?? BUILDING_HP) - (d < 0.15 ? BUILDING_HIT * (0.8 + rand() * 0.4) : BUILDING_HIT * 0.25) * K;
+    const was = b.hp ?? BUILDING_HP, full = b.name === 'The church' ? 2 * BUILDING_HP : BUILDING_HP;
+    b.hp = was - (d < 0.15 ? BUILDING_HIT * (0.8 + rand() * 0.4) : BUILDING_HIT * 0.25) * K;
+    // down to half its strength: half-destroyed (the roof mostly gone), in a smaller cloud of dust
+    if (b.half && b.hp <= full / 2 && b.hp > 0) {
+      b.img = b.half.img; b.ax = b.half.ax; b.ay = b.half.ay; b.half = null;
+      for (let i = 0; i < 2; i++) state.effects.push({ type: 'smoke', x: b.x + (rand() - 0.5) * b.hx, y: b.y + (rand() - 0.5) * b.hy, age: 0, life: 9 + rand() * 5, shell: true, scale: 1.3 });
+      state.effects.push({ type: 'debris', x: b.x, y: b.y, age: 0, life: 1.1 });
+      state.events.push({ type: 'crash', x: b.x, y: b.y });
+    }
     if (b.hp > 0) continue;
-    b.ruined = true; b.img = b.ruin.img; b.ax = b.ruin.ax; b.ay = b.ruin.ay; // (its footprint stays as it was)
+    b.ruined = true; b.half = null; b.img = b.ruin.img; b.ax = b.ruin.ax; b.ay = b.ruin.ay; // (its footprint stays as it was)
     for (let i = 0; i < 5; i++) {
       const x = b.x + (rand() - 0.5) * b.hx * 1.6, y = b.y + (rand() - 0.5) * b.hy * 1.6;
       state.effects.push({ type: 'debris', x, y, age: 0, life: 1.1 + i * 0.1 });
