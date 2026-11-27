@@ -12,6 +12,27 @@ export class Sound {
     this.active = {}; // type -> [{ src, g }] oldest first
     this.guns = new Map(); // MG unit id -> { src, g, last } sustained burst
     this.musicOn = (() => { try { return localStorage.getItem('ww-music') !== 'off'; } catch { return true; } })();
+    // the levels (0-1) of the three channels - effects, music, soldiers' voices - and the switch that mutes them all
+    const saved = (() => { try { return JSON.parse(localStorage.getItem('ww-volume') || '{}'); } catch { return {}; } })();
+    this.sfxVol = saved.sfx ?? 1; this.musicVol = saved.music ?? (this.musicOn ? 1 : 0); this.voiceVol = saved.voice ?? 1; this.muted = !!saved.muted;
+    this.musicOn = true; // (music off is now its level at nothing)
+  }
+
+  /** Set a channel's level (kind: 'sfx', 'music' or 'voice'; 0-1), remembered between visits. */
+  setVolume(kind, v) {
+    this[kind + 'Vol'] = Math.max(0, Math.min(1, v));
+    this.saveLevels(); this.applyLevels();
+  }
+  /** Mute everything (the levels are kept for when it is unmuted). */
+  setMuted(m) { this.muted = !!m; this.saveLevels(); this.applyLevels(); }
+  saveLevels() { try { localStorage.setItem('ww-volume', JSON.stringify({ sfx: this.sfxVol, music: this.musicVol, voice: this.voiceVol, muted: this.muted })); } catch {} }
+  applyLevels() {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.master.gain.setTargetAtTime(this.enabled ? 0.5 * this.sfxVol : 0, t, 0.05);
+    this.musicBus.gain.setTargetAtTime(this.musicVol, t, 0.05);
+    this.voiceBus.gain.setTargetAtTime(this.voiceVol, t, 0.05);
+    this.out.gain.setTargetAtTime(this.muted ? 0 : 1, t, 0.05);
   }
 
   /** Recorded sound effects (assets/sfx), decoded once audio is unlocked. */
@@ -90,13 +111,19 @@ export class Sound {
     try {
       const AC = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AC();
+      // three channels - the effects (this.master, which every effect plays into), the music and the voices - each
+      // at its own level, into one output that the mute silences
       this.master = this.ctx.createGain();
-      this.master.gain.value = 0.5;
+      this.musicBus = this.ctx.createGain();
+      this.voiceBus = this.ctx.createGain();
+      this.out = this.ctx.createGain();
+      for (const b of [this.master, this.musicBus, this.voiceBus]) b.connect(this.out);
       // a gentle limiter, so a heavy barrage stacking several loud bursts doesn't clip
       const comp = this.ctx.createDynamicsCompressor();
       comp.threshold.value = -10; comp.knee.value = 8; comp.ratio.value = 6; comp.attack.value = 0.004; comp.release.value = 0.25;
-      this.master.connect(comp);
+      this.out.connect(comp);
       comp.connect(this.ctx.destination);
+      this.master.gain.value = this.enabled ? 0.5 * this.sfxVol : 0; this.musicBus.gain.value = this.musicVol; this.voiceBus.gain.value = this.voiceVol; this.out.gain.value = this.muted ? 0 : 1;
       const len = this.ctx.sampleRate * 1.5;
       this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
       const d = this.noise.getChannelData(0);
@@ -109,7 +136,7 @@ export class Sound {
 
   setEnabled(on) {
     this.enabled = on;
-    if (this.master) this.master.gain.value = on ? 0.5 : 0;
+    this.applyLevels();
   }
 
   burst({ dur, freq, type = 'lowpass', vol, q = 0.7, delay = 0 }) {
@@ -156,7 +183,7 @@ export class Sound {
     const g = this.ctx.createGain();
     g.gain.value = 0;
     this.ctx.createMediaElementSource(el).connect(g);
-    g.connect(this.master);
+    g.connect(this.musicBus); // (the music's own channel)
     this.music = { el, g, fading: false };
     if (this.musicOn) this.playMusic();
   }
@@ -200,7 +227,7 @@ export class Sound {
     const g = this.ctx.createGain();
     g.gain.value = 0.55;
     this.ctx.createMediaElementSource(el).connect(g);
-    g.connect(this.master);
+    g.connect(this.musicBus); // (the music's own channel)
     this.sting = { el, g };
     if (this.musicOn) setTimeout(() => { if (this.sting && this.sting.el === el) el.play().catch(() => {}); }, 600);
   }

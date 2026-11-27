@@ -359,18 +359,15 @@ const gm = document.getElementById('game-menu');
 let gmWasPaused = false;
 const setFilm = (i) => { film = i; canvas.style.filter = FILM[film]; paintGameMenu(); };
 const setSpeed = (v) => { app.speed = v; paintGameMenu(); };
-const menuMusic = document.getElementById('m-music'); // the same switch on the main menu
-const showMusic = () => { if (menuMusic) { menuMusic.textContent = sound.musicOn ? '♪ Music on' : '♪ Music off'; menuMusic.classList.toggle('off', !sound.musicOn); } paintGameMenu(); };
-const toggleMusic = () => { sound.init(); sound.startMusic(); sound.setMusic(!sound.musicOn); showMusic(); };
-const toggleVoices = () => { voices.setOn(!voices.on); paintGameMenu(); };
-const toggleSound = () => {
-  sound.init();
-  sound.setEnabled(!sound.enabled);
-  voices.enabled = sound.enabled;
-  if (!sound.enabled && voices.synth) voices.synth.cancel();
-  if (!sound.enabled) voices.stopClip();
-  paintGameMenu();
+const menuMute = document.getElementById('m-music'); // the mute switch on the main menu (the same state as the game menu's)
+// the voices follow the levels: none at nothing, and silent (speech too) while everything is muted
+const syncVoices = () => {
+  voices.on = sound.voiceVol > 0.01; voices.enabled = !sound.muted;
+  if (sound.muted || !voices.on) { if (voices.synth) voices.synth.cancel(); voices.stopClip(); }
 };
+const showMute = () => { if (menuMute) { menuMute.textContent = sound.muted ? '🔇 Muted' : '🔊 Mute'; menuMute.title = sound.muted ? 'Sound off: click to hear it again' : 'Mute all sound'; menuMute.classList.toggle('off', sound.muted); } paintGameMenu(); };
+const toggleMute = () => { sound.init(); sound.startMusic(); sound.setMuted(!sound.muted); syncVoices(); showMute(); };
+const setLevel = (kind, v) => { sound.init(); sound.startMusic(); sound.setVolume(kind, v); syncVoices(); paintGameMenu(); };
 function paintGameMenu() {
   if (!gm) return;
   const sp = document.getElementById('gm-speed'); sp.value = app.speed; document.getElementById('gm-speed-v').textContent = `${app.speed}×`;
@@ -378,7 +375,8 @@ function paintGameMenu() {
   gm.querySelectorAll('[data-film]').forEach((b) => b.classList.toggle('active', +b.dataset.film === film));
   // the preview of the battlefield in the chosen look
   const pv = document.getElementById('gm-preview'); if (pv) pv.style.filter = FILM[film] || 'none';
-  for (const [id, on] of [['gm-voice', voices.on], ['gm-music', sound.musicOn], ['gm-sound', sound.enabled]]) { const b = document.getElementById(id); b.textContent = on ? 'On' : 'Off'; b.classList.toggle('off', !on); }
+  for (const el of gm.querySelectorAll('.gm-vol')) { const v = sound[el.dataset.vol + 'Vol']; el.value = v; el.style.setProperty('--fill', `${v * 100}%`); el.nextElementSibling.textContent = `${Math.round(v * 100)}%`; el.classList.toggle('muted', sound.muted); }
+  const mb = document.getElementById('gm-mute'); mb.textContent = sound.muted ? 'On' : 'Off'; mb.classList.toggle('off', !sound.muted);
   const L = app.state.campaign && levelById(app.state.campaign.id);
   document.getElementById('gm-sub').textContent = app.state.tutorial ? 'Tutorial' : L ? `Campaign ${L.n} · ${L.title}` : app.state.battlefield ? battlefieldOf(app.state.battlefield).name : '';
 }
@@ -414,10 +412,9 @@ function closeGameMenu(resume = true) {
 }
 byId('gm-speed').addEventListener('input', (e) => setSpeed(+e.target.value)); // (a slider: half speed to three times)
 gm.querySelectorAll('[data-film]').forEach((b) => b.addEventListener('click', () => setFilm(+b.dataset.film)));
-byId('gm-voice').addEventListener('click', toggleVoices);
-byId('gm-music').addEventListener('click', toggleMusic);
-byId('gm-sound').addEventListener('click', toggleSound);
-byId('m-music').addEventListener('click', toggleMusic);
+gm.querySelectorAll('.gm-vol').forEach((el) => el.addEventListener('input', () => setLevel(el.dataset.vol, +el.value)));
+byId('gm-mute').addEventListener('click', toggleMute);
+byId('m-music').addEventListener('click', toggleMute);
 byId('gm-resume').addEventListener('click', () => closeGameMenu());
 // (a screen opened from the game menu comes back to it: its Back, or saving, returns to the menu over the battle)
 byId('gm-save').addEventListener('click', () => { closeGameMenu(false); openSlots('gamemenu', 'save'); });
@@ -430,7 +427,7 @@ byId('gm-main').addEventListener('click', () => {
 });
 gm.addEventListener('click', (e) => { if (e.target === gm) closeGameMenu(); }); // (a click outside the card)
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !gm.classList.contains('hidden')) { e.preventDefault(); e.stopPropagation(); closeGameMenu(); } }, true);
-showMusic();
+syncVoices(); showMute();
 
 let endShown = false;
 function showEnd(state) {

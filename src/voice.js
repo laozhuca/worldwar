@@ -222,7 +222,7 @@ export class Voices {
       const s = unit.seed || 0.5;
       u.pitch = 0.7 + s * 0.3; // kept low: men's voices
       u.rate = (kind === 'charge' || kind === 'pinned' ? 1.15 : kind === 'select' ? 1.0 : 1.08) + (s - 0.5) * 0.12;
-      u.volume = 0.9;
+      u.volume = 0.9 * (this.sound ? this.sound.voiceVol ?? 1 : 1); // (spoken outside the mixer: the voices' level here)
       this.synth.speak(u);
     }
     return text;
@@ -306,7 +306,7 @@ export class Voices {
     // the same recording sounds a little different from squad to squad
     src.playbackRate.value = 0.96 + (unit.seed || 0.5) * 0.08;
     g.gain.value = 1.1;
-    src.connect(g); g.connect(S.master);
+    src.connect(g); g.connect(S.voiceBus || S.master); // (the voices' own channel)
     src.start();
     this.clip = { src, g, end: performance.now() + (buf.duration / src.playbackRate.value) * 1000 };
   }
