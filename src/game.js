@@ -1232,11 +1232,11 @@ export const BUILDING_HP = 100, BUILDING_HIT = 30;
  * and flying rubble with a crash. Its ground stays impassable (the rubble of it).
  */
 function shellBuildings(state, s, K) {
-  for (const b of state.buildings || []) {
-    if (!b.ruin || b.ruined) continue;
+  for (const b of [state.backdrop, ...(state.buildings || [])]) { // (a level's town behind headquarters too)
+    if (!b || !b.ruin || b.ruined) continue;
     const ox = Math.max(0, Math.abs(s.x - b.x) - b.hx), oy = Math.max(0, Math.abs(s.y - b.y) - b.hy), d = Math.hypot(ox, oy);
     if (d > 1.2 * K) continue;
-    const was = b.hp ?? BUILDING_HP, full = b.name === 'The church' ? 2 * BUILDING_HP : BUILDING_HP;
+    const was = b.hp ?? BUILDING_HP, full = b.full || (b.name === 'The church' ? 2 * BUILDING_HP : BUILDING_HP);
     b.hp = was - (d < 0.15 ? BUILDING_HIT * (0.8 + rand() * 0.4) : BUILDING_HIT * 0.25) * K;
     // down to half its strength: half-destroyed (the roof mostly gone), in a smaller cloud of dust
     if (b.half && b.hp <= full / 2 && b.hp > 0) {

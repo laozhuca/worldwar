@@ -21,6 +21,31 @@ const BUILDINGS = {
   station: [[0, 0, 191, 190, 1.13, 2.27], [0, 1, 184, 125, 2.01, 2.76], [1, 0, 165, 213, 2.27, 1.13], [1, 1, 223, 206, 2.99, 1.98], [2, 0, 202, 177, 1.13, 2.27], [2, 1, 167, 134, 1.9, 2.79], [3, 0, 181, 157, 2.27, 1.13], [3, 1, 252, 134, 2.88, 1.87], [0, 2, 176, 124, 1.73, 2.63], [1, 2, 228, 212, 2.7, 1.67], [2, 2, 182, 126, 1.74, 2.56], [3, 2, 205, 120, 2.59, 1.83]],
   church: [[0, 0, 219, 356, 2.85, 2.19], [0, 1, 340, 228, 3.46, 3.14], [1, 0, 219, 388, 2.19, 2.85], [1, 1, 307, 210, 3.02, 3.84], [2, 0, 261, 387, 2.85, 2.19], [2, 1, 261, 282, 3.59, 2.97], [3, 0, 261, 355, 2.19, 2.85], [3, 1, 357, 235, 3.08, 3.59], [0, 2, 259, 341, 3.14, 2.53], [1, 2, 236, 274, 2.62, 3.55], [2, 2, 222, 345, 2.85, 2.8], [3, 2, 335, 332, 2.87, 3.27]],
 };
+/**
+ * The campaign's buildings, made destructible like the battlefields' (createLevelGame): each found by its image
+ * (the same models, rendered from the same sides: town-dixmude-dawn is Ashes of Dawn from side 2, ...), given
+ * strength and the images of its later states. The church quarter of Dixmude (the town behind headquarters)
+ * has its own half-destroyed and ruined renderings; the River Clyde is a ship, not a building.
+ */
+const CAMPAIGN_BUILDINGS = {
+  'town-dixmude-dawn': ['dawn', 2], 'town-dixmude-dawn-b': ['dawn', 1], 'town-dixmude-dawn-c': ['dawn', 0],
+  'town-dixmude-home': ['home', 2], 'town-dixmude-home-b': ['home', 3], 'town-dixmude-home-c': ['home', 0],
+  'town-dixmude-cottage': ['cottage', 1], 'town-dixmude-station': ['station', 1], 'church-galicia': ['church', 1],
+};
+const TOWN_STATES = { half: { img: 'assets/art/town-dixmude-half.webp', ax: 430, ay: 323 }, ruin: { img: 'assets/art/town-dixmude-ruin.webp', ax: 383, ay: 287 } };
+export function makeDestructible(state) {
+  for (const b of [state.backdrop, ...(state.buildings || [])]) {
+    if (!b || b.ruin || b.ruined) continue;
+    const key = (b.img.match(/([^/]+)\.webp$/) || [])[1];
+    if (key === 'town-dixmude') { b.half = TOWN_STATES.half; b.ruin = TOWN_STATES.ruin; b.hp = b.full = 4 * BUILDING_HP; b.name = b.name || 'The church of Dixmude'; continue; } // (a whole quarter of the town: it takes a long shelling)
+    const m = CAMPAIGN_BUILDINGS[key];
+    if (!m) continue;
+    const [base, side] = m;
+    b.half = buildingImage(base, side, 2); b.ruin = buildingImage(base, side, 1);
+    b.hp = b.full = (base === 'church' ? 2 : 1) * BUILDING_HP;
+  }
+}
+
 /** The buildings also rendered under snow (bld-...-snow.webp, the same anchors): those of the winter fields. */
 const SNOWY = new Set(['dawn', 'home', 'cottage']);
 /**

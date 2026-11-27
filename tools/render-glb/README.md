@@ -68,3 +68,8 @@ less rubble. A building falls to it at half strength in battle, and to its ruin 
 `bld-<name>-<side>[-half|-ruin]-snow.webp`: the houses (`dawn`, `home`, `cottage`) under snow, for the winter
 battlefields (`--snow`, with the same `--ruin` seeds): snow lying on whatever faces up - roof slopes, wall tops,
 sills, the rubble - in drifts, after the soot. The same anchors as the snowless images.
+
+`town-dixmude-half.webp`, `town-dixmude-ruin.webp`: the church quarter of Dixmude (battle 1) half-destroyed and
+ruined (`--yaw 3.1416 --scale 5 --ruin 77 [--half]`). The campaign's other buildings are the same renderings as
+the battlefields' (`town-dixmude-dawn` is `bld-dawn-2`, `church-galicia` is `bld-church-1`, ...), so they take
+those images' later states (`CAMPAIGN_BUILDINGS` in `src/battlefields.js`).

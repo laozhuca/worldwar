@@ -3,6 +3,7 @@
 // state.campaign as plain data, so a campaign battle saves and loads like any other.
 import { PLAYER, ENEMY, DIFFICULTY } from './config.js';
 import { createGame, spawnUnit, pushMessage, orderMove, orderBarrage, HQ_HOLD } from './game.js';
+import { makeDestructible } from './battlefields.js';
 import { frontLine, teamDir, tileAt, noSquares, makesSquare } from './map.js';
 
 const DAY_LENGTH = 420; // seconds of game time per 24 hours (as atmosphere.js)
@@ -1447,6 +1448,7 @@ export function createLevelGame(id, opts = {}) {
   state.startHour = L.startHour;
   state.campaign = { id, fired: [], result: null, reason: '', difficulty: opts.difficulty || 'medium' };
   L.setup(state);
+  makeDestructible(state); // (its buildings can be shelled to ruins, as on the battlefields)
   applyCampaignDifficulty(state, state.campaign.difficulty, L.designed || 'medium');
   return state;
 }
