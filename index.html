@@ -9,7 +9,7 @@
   <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="assets/icon/apple-touch-icon.png">
   <meta name="theme-color" content="#15120d">
-  <link rel="stylesheet" href="style.css?v=b7a91fe2" />
+  <link rel="stylesheet" href="style.css?v=ec9df6d8" />
   <!-- stamp:begin (scripts/stamp.mjs) -->
   <script type="importmap">
   {
@@ -21,7 +21,7 @@
       "./src/campaign.js": "./src/campaign.js?v=1b95cce1",
       "./src/config.js": "./src/config.js?v=fea29c56",
       "./src/game.js": "./src/game.js?v=5cfddb20",
-      "./src/main.js": "./src/main.js?v=5e907b4e",
+      "./src/main.js": "./src/main.js?v=3848ef54",
       "./src/map.js": "./src/map.js?v=99de9315",
       "./src/model-view.js": "./src/model-view.js?v=50bbd868",
       "./src/path.js": "./src/path.js?v=23c490f7",
@@ -76,7 +76,7 @@
     <button id="pause-sign" class="hidden" title="Paused: click or press P to resume" aria-label="Resume"><span>❚❚</span><small>Paused</small></button>
 
     <div id="bottom">
-      <canvas id="minimap" width="220" height="136"></canvas>
+      <div id="mm-box"><h4 id="mm-title"></h4><canvas id="minimap" width="220" height="136"></canvas></div>
       <div id="selection-info"><div class="muted">No units selected. Drag to select, right-click to move.</div></div>
       <div id="commands">
         <div class="group">
@@ -367,6 +367,6 @@
       document.getElementById('boot-reload').onclick = function () { location.reload(); };
     }, 20000);
   </script>
-  <script type="module" src="src/main.js?v=5e907b4e"></script>
+  <script type="module" src="src/main.js?v=3848ef54"></script>
 </body>
 </html>

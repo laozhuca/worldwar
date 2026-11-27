@@ -426,10 +426,26 @@ const mctx = mini.getContext('2d');
 const NOISY = new Set(['rifle', 'mg', 'boom', 'artyfire', 'death', 'incoming', 'splash']);
 const pauseSign = document.getElementById('pause-sign');
 pauseSign.addEventListener('click', () => { if (app.paused) app.togglePause(); });
+/**
+ * The battle's names: over the minimap the field it is fought on (a battlefield's name, the campaign level, the
+ * tutorial), and beside the AI version in the top bar the difficulty it is played at. Set when the battle changes.
+ */
+let labelled = null;
+function battleLabels(s) {
+  if (labelled === s) return;
+  labelled = s;
+  const L = s.campaign && levelById(s.campaign.id);
+  const name = s.tutorial ? 'Tutorial · 1 July 1916' : L ? `Campaign ${L.n} · ${L.title}` : s.battlefield ? battlefieldOf(s.battlefield).name : 'Skirmish';
+  const t = document.getElementById('mm-title'); if (t) { t.textContent = name; t.title = L ? `${L.title} - ${L.place}, ${L.date}` : s.battlefield ? `${battlefieldOf(s.battlefield).name} - ${battlefieldOf(s.battlefield).place}` : name; }
+  const d = (L ? s.campaign.difficulty : s.difficulty) || 'medium', D = d[0].toUpperCase() + d.slice(1);
+  for (const el of document.querySelectorAll('#topbar .ai-ver')) { el.textContent = s.tutorial ? `AI ${AI_VERSION}` : `AI ${AI_VERSION} · ${D}`; el.className = 'ai-ver d-' + d; }
+}
+
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   const s = app.state;
+  battleLabels(s);
   if (loading) { last = now; requestAnimationFrame(frame); return; } // nothing is drawn while the loading screen is up
   const held = (tutorial && tutorial.holding()) || !!opening; // the tutorial's battle waits for the player's order; a level's opening scene holds it too
   if (!app.paused && !held) {

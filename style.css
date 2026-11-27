@@ -1200,3 +1200,12 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 /* the selection's unit cards: click to select that unit alone, shift-click to take it out */
 #selection-info .ucard[data-id] { cursor: pointer; transition: border-color 0.15s, background-color 0.15s; }
 #selection-info .ucard[data-id]:hover { border-color: rgba(240, 215, 154, 0.7); background-color: rgba(60, 52, 36, 0.45); }
+
+/* the minimap's heading: the field the battle is fought on (in the style of the command groups' headings) */
+#mm-box { flex: none; display: flex; flex-direction: column; align-self: flex-start; width: 233px; }
+#mm-box #minimap { margin-top: 0; }
+#mm-box h4 { margin: 0 0 5px; height: 19px; box-sizing: border-box; font-size: 10.5px; letter-spacing: 2px; text-transform: uppercase; font-weight: normal;
+  color: var(--gilt, #d9c08a); border-bottom: 1px solid var(--rule, rgba(217, 192, 138, 0.35)); padding-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 700px), (max-height: 500px) { #mm-box { display: none; } }
+/* the difficulty beside the AI version: a faint tint of green (easy) or red (hard) on the gilt */
+#topbar .title .ai-ver.d-easy { color: #b9c98f; } #topbar .title .ai-ver.d-hard { color: #d9a08a; }
