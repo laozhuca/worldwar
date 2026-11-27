@@ -1386,6 +1386,16 @@ export class Renderer {
 
   drawDecor(ctx, t) {
     if (VECTOR_DECOR[t.decor]) { if (this.drawScenery(ctx, t)) return; VECTOR_DECOR[t.decor](ctx, t, this.S ?? 1); return; } // (drawn in vector only until the sprites are in)
+    if (this.props && t.decor === 'ruin') { // the stump of a tumbled wall: a heap of its stones with broken beams over them (pre-rendered)
+      const h = hash(t.x * 2.3, t.y * 5.1), snow = (this.S ?? 1) > 0.7 ? '_s' : '', stone = this.dryRocks(this.map) ? '_d' : snow;
+      const c = iso(t.x + 0.35 + t.shade * 0.3, t.y + 0.35 + h * 0.3), m = hash(t.y * 3.1, t.x) > 0.5;
+      ctx.save(); ctx.filter = snow ? 'brightness(0.85)' : 'brightness(0.62) sepia(0.35)'; // (brick and mortar, not bare limestone)
+      const ok = this.drawProp(ctx, `scree${Math.floor(h * 4) % 4}${stone}`, c.x, c.y, m);
+      this.drawProp(ctx, `scree${(Math.floor(h * 4) + 2) % 4}${stone}`, c.x + (m ? -9 : 9), c.y + 4, !m);
+      ctx.restore();
+      this.drawProp(ctx, `debris${Math.floor(h * 3) % 3}${snow}`, c.x + (m ? 5 : -5), c.y - 2, m);
+      if (ok) return;
+    }
     if (this.props && t.decor !== 'ruin') {
       const snow = (this.S ?? 1) > 0.7 ? '_s' : '';
       const h = hash(t.x * 2.3, t.y * 5.1);
