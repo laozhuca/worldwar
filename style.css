@@ -1181,7 +1181,9 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 .field-arrow svg { display: block; }
 .field-arrow:hover { background: rgba(60, 52, 36, 0.8); border-color: var(--gold); }
 #field-count { font-size: 11px; letter-spacing: 3px; color: #a99c82; margin-top: -2px; }
-#field-info { max-width: min(900px, 94vw); text-align: center; color: #d9ccb2; font-size: 13px; line-height: 1.4; text-shadow: 0 1px 3px #000; min-height: 4.2em; }
+#field-info { width: min(900px, 94vw); text-align: center; color: #d9ccb2; font-size: 13px; line-height: 1.4; text-shadow: 0 1px 3px #000; height: 4.2em; }
+/* each line of it on one line only (cut short with an ellipsis; the whole text on hover), so the screen never shifts */
+#field-info > div, #field-info span, #field-info em { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #field-info b { color: #fff3d6; letter-spacing: 1px; margin-right: 6px; }
 #field-info i { color: #bfb194; }
 #field-info span { display: block; margin-top: 2px; }

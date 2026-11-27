@@ -286,7 +286,10 @@ function renderFields() {
   byId('field-count').textContent = `${idx + 1} / ${BATTLEFIELDS.length}`;
   const W = bf.weather, wx = [W.rainy ? (W.rainy > 0.6 ? 'heavy rain' : 'showers') : '', W.snowy ? (W.snowy > 0.8 ? 'drifting snow' : 'snow') : '', W.dusty ? 'dust storms' : '', W.windK > 1.5 ? 'strong wind' : W.windK > 1.05 ? 'brisk wind' : ''].filter(Boolean).join(', ') || 'dry, light wind';
   const info = document.getElementById('field-info');
-  if (info) info.innerHTML = `<b>${bf.name}</b> <i>${bf.place} · ${bf.format} · ${wx}</i><span>${bf.about}</span><em>${bf.features.join(' · ')}</em>`;
+  if (info) {
+    info.innerHTML = `<div><b>${bf.name}</b> <i>${bf.place} · ${bf.format} · ${wx}</i></div><span>${bf.about}</span><em>${bf.features.join(' · ')}</em>`;
+    info.title = `${bf.name}: ${bf.place} · ${bf.format} · ${wx}\n${bf.about}\n${bf.features.join(' · ')}`; // (any line cut short, in full)
+  }
   requestAnimationFrame(placeCarousel);
   animateMarks();
 }
