@@ -54,8 +54,10 @@ through f backwards as it rolls forward.
 
 `bld-<name>-<side>.webp` and `bld-<name>-<side>-ruin.webp` (in `assets/art`): each building seen from its four
 sides (side 0-3: `--yaw 0`, `1.5708`, `3.1416`, `-1.5708`), intact and shelled to a ruin (`--ruin <seed>`: the
-walls broken off at ragged heights over a grid of columns, a corner blown in nearly to the ground, the rest
-soot-blackened, rubble heaped about the foot). Names and scales: `dawn`, `home`, `cottage` (Ashes of Dawn /
+walls clipped in the shader along a ragged line of noise - low at a blown-in corner - so the breaks keep the
+model's own brick and plaster, both faces drawn and the shadow clipped to match; soot in patches, worst along
+the breaks; a mound of rubble over the floor and spilling from the breach, and loose lumps, painted with a
+generated texture of broken stone, brick and char). Names and scales: `dawn`, `home`, `cottage` (Ashes of Dawn /
 of Home / Beyond the Cottage, `--scale 1.6`), `station` (Dixmude Station, `--scale 2.4`), `church` (Autumn
 Sanctuary, `--scale 3`). The anchors and footprints printed go into `BUILDINGS` in `src/battlefields.js`.
 

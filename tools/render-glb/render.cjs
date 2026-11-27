@@ -40,6 +40,7 @@ server.listen(0, async () => {
   try {
     const p = await b.newPage();
     p.on('pageerror', (e) => console.error('page error:', e.message));
+    p.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') console.error('console:', m.text().slice(0, 4000)); });
     await p.goto(`http://localhost:${server.address().port}/render.html`);
     await p.waitForFunction(() => window.load);
     await p.evaluate(() => window.load('model.glb'));
