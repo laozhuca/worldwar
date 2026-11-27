@@ -376,6 +376,9 @@ function paintGameMenu() {
   const sp = document.getElementById('gm-speed'); sp.value = app.speed; document.getElementById('gm-speed-v').textContent = `${app.speed}×`;
   sp.style.setProperty('--fill', `${((app.speed - 0.5) / 2.5) * 100}%`);
   gm.querySelectorAll('[data-film]').forEach((b) => b.classList.toggle('active', +b.dataset.film === film));
+  // the menu's photograph in the chosen look: the colour print, toned sepia (the battle's own sepia), or the black-and-white print
+  gm.style.setProperty('--gm-photo', `url('assets/art/${film === 2 ? 'menu-truce-grey' : 'menu-truce-snow'}.webp')`);
+  gm.style.setProperty('--gm-filter', film === 1 ? FILM[1] : 'none');
   for (const [id, on] of [['gm-voice', voices.on], ['gm-music', sound.musicOn], ['gm-sound', sound.enabled]]) { const b = document.getElementById(id); b.textContent = on ? 'On' : 'Off'; b.classList.toggle('off', !on); }
   const L = app.state.campaign && levelById(app.state.campaign.id);
   document.getElementById('gm-sub').textContent = app.state.tutorial ? 'Tutorial' : L ? `Campaign ${L.n} · ${L.title}` : app.state.battlefield ? battlefieldOf(app.state.battlefield).name : '';

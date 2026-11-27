@@ -1207,8 +1207,11 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 /* ---- the game menu (the title or ☰ in a battle): the main menu's look - the same photograph, the menu lettered on
    its darkened left, plain text items with the line that slides in on hover; the settings as text choices, the chosen
    one underlined, as on the New Game screen */
-#game-menu { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center;
-  background: linear-gradient(to right, rgba(10, 8, 6, 0.5), rgba(10, 8, 6, 0.25) 38%, rgba(10, 8, 6, 0) 62%), #0b0c0e url('assets/art/menu-truce-grey.webp') right center / cover no-repeat; }
+#game-menu { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; background: #0b0c0e; isolation: isolate; }
+/* the photograph shows the film look chosen (set from the menu: --gm-photo and --gm-filter): the colour print,
+   the colour print toned sepia, or the black-and-white print; the darkened left over it, under the lettering */
+#game-menu::before { content: ''; position: absolute; inset: 0; z-index: -2; background: var(--gm-photo, url('assets/art/menu-truce-snow.webp')) right center / cover no-repeat; filter: var(--gm-filter, none); transition: filter 0.3s; }
+#game-menu::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to right, rgba(10, 8, 6, 0.5), rgba(10, 8, 6, 0.25) 38%, rgba(10, 8, 6, 0) 62%); }
 #game-menu.hidden { display: none; }
 #game-menu .gm-card { margin-left: clamp(16px, 7vw, 140px); width: min(470px, 90vw); max-height: 94vh; overflow-y: auto; padding: 28px 34px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   background: radial-gradient(ellipse at 40% 50%, rgba(20, 16, 12, 0.42), rgba(20, 16, 12, 0) 70%); color: #eadfc8;
@@ -1230,7 +1233,7 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 #game-menu .gm-seg button:hover, #game-menu .gm-tog:hover { color: #fff8e8; background: none; }
 #game-menu .gm-seg button.active, #game-menu .gm-tog:not(.off) { color: #fff3d6; background: none; text-decoration: underline; text-underline-offset: 4px; }
 #game-menu .gm-tog.off { color: #9a8f79; }
-@media (max-aspect-ratio: 1/1) { #game-menu { justify-content: center; background-position: 88% center; } #game-menu .gm-card { margin-left: 0; } }
+@media (max-aspect-ratio: 1/1) { #game-menu { justify-content: center; } #game-menu::before { background-position: 88% center; } #game-menu .gm-card { margin-left: 0; } }
 @media (max-height: 560px) { #game-menu .gm-card { padding: 12px 18px; } #game-menu h2 { font-size: 22px; } #game-menu .gm-big { font-size: 15px; padding: 1px 0 1px 20px; } #game-menu .gm-sub { margin: 2px 0 8px; } }
 
 /* the game speed slider: a fine gilt rule, filled to the speed, a small round handle */
