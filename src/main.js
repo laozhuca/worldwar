@@ -178,7 +178,7 @@ document.addEventListener('dblclick', (e) => { if (!e.target.closest('#view')) e
 // ---- the battlefield: ten fields, each with a preview drawn from the map itself
 const FIELD_COL = { grass: [96, 104, 62], snow: [222, 226, 230], scree: [170, 166, 154], wheat: [196, 166, 92], sand: [206, 186, 140], mud: [78, 64, 48], earth: [112, 96, 74] };
 function drawFieldPreview(cv, bf) {
-  const map = buildBattlefieldMap(bf, FIELD_SEED, PLAYER), extra = map._extra;
+  const map = buildBattlefieldMap(bf, app.fieldSeed ?? FIELD_SEED, PLAYER), extra = map._extra;
   const W = cv.width = 400, H = cv.height = 236, g = cv.getContext('2d');
   const sw = bf.A * 64, sh = bf.B * 32, k = Math.min((W - 8) / sw, (H - 8) / sh), ox = W / 2, oy = H / 2, R = map.r, M = bf.mirror ? -1 : 1;
   const snow = bf.season === 'winter' ? 0.85 : bf.season === 'thaw' ? 0.45 : 0;
@@ -316,8 +316,8 @@ byId('btn-start').addEventListener('click', async () => {
   sound.startMusic();
   const sameNations = app.side !== 'random' && app.state.nations.join() === app.nations.join();
   const sameStart = app.start !== 'random' && app.state.start === app.start;
-  if (app.state.time >= 1 || app.state.battlefield !== app.battlefield || !sameNations || !sameStart || app.state.difficulty !== app.difficulty) {
-    app.state = createBattlefieldGame(app.battlefield, { nations: chosenNations(), start: chosenStart(), difficulty: app.difficulty });
+  if (app.state.time >= 1 || app.state.battlefield !== app.battlefield || app.state.fieldSeed !== app.fieldSeed || !sameNations || !sameStart || app.state.difficulty !== app.difficulty) {
+    app.state = createBattlefieldGame(app.battlefield, { seed: app.fieldSeed, nations: chosenNations(), start: chosenStart(), difficulty: app.difficulty });
     useArmies(app.state);
     renderer.groundDrawn = false;
     ui.selected.clear();
@@ -332,7 +332,7 @@ byId('btn-start').addEventListener('click', async () => {
   resumeBattle();
 });
 byId('btn-restart').addEventListener('click', async () => {
-  app.state = createBattlefieldGame(app.state.battlefield || app.battlefield, { nations: chosenNations(), start: chosenStart(), difficulty: app.state.difficulty || app.difficulty });
+  app.state = createBattlefieldGame(app.state.battlefield || app.battlefield, { seed: Math.floor(Math.random() * 1e6), nations: chosenNations(), start: chosenStart(), difficulty: app.state.difficulty || app.difficulty });
   useArmies(app.state);
   ui.selected.clear();
   ui.setMode(null);
@@ -618,7 +618,8 @@ function showPanel(id, back = 'menu') {
   document.getElementById('overlay').classList.toggle('menu-mode', id === 'menu-panel');
   document.getElementById('overlay').classList.toggle('loading-mode', id === 'loading-panel' || id === 'boot-panel');
   document.getElementById('overlay').classList.toggle('setup-mode', id === 'setup-panel');
-  if (id === 'setup-panel') renderFields();
+  // a fresh lie of the land on each visit to New Game: the previews show it, and the battle is fought on it
+  if (id === 'setup-panel') { app.fieldSeed = Math.floor(Math.random() * 1e6); previewsDrawn = false; renderFields(); }
   document.getElementById('overlay').classList.toggle('save-mode', id === 'save-panel');
   // leaving the game: one of the two photographs of a quiet trench (German, British) at random
   if (id === 'exit-panel' && lastExit !== id) document.getElementById('overlay').style.setProperty('--exit-bg', `url('assets/art/${Math.random() < 0.5 ? 'exit-german' : 'exit-british'}.webp')`);

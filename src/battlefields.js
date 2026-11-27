@@ -97,7 +97,7 @@ export const BATTLEFIELDS = [
   },
 ];
 BATTLEFIELDS.forEach((b, i) => { b.mirror = i % 2 === 1; }); // (alternating: the fronts lean one way, then the other)
-/** The seed every battlefield is laid out from (its preview, and every battle on it). */
+/** A seed to lay a battlefield out from (the default preview's). */
 export const FIELD_SEED = 1916;
 export const battlefieldOf = (id) => BATTLEFIELDS.find((b) => b.id === id) || BATTLEFIELDS[0];
 
@@ -376,15 +376,15 @@ function deployOnField(state) {
 /** A new skirmish on a battlefield. opts: seed, nations, start ('west' / 'east'), difficulty. */
 export function createBattlefieldGame(id, opts = {}) {
   const bf = battlefieldOf(id);
-  // the field is always laid out the same way (the one its preview shows), whichever headquarters the player
-  // starts at: choosing A or B changes only which side is ours, never the ground
-  const seed = opts.seed ?? FIELD_SEED;
+  // each battle a new lie of the land, unless a seed is given (the New Game screen gives the one its previews
+  // show, so the field is the one the player saw: choosing A or B changes only which side is ours)
+  const seed = opts.seed ?? Math.floor(Math.random() * 1e6);
   const map = buildBattlefieldMap(bf, seed, opts.start === 'east' ? ENEMY : PLAYER);
   const extra = map._extra; delete map._extra;
   return createGame({
     ...opts, seed, map, season: bf.season,
     prepare(state) {
-      state.battlefield = bf.id;
+      state.battlefield = bf.id; state.fieldSeed = seed;
       state.weather = { ...bf.weather, phase: (seed % 628) / 100 };
       state.objectives = extra.objectives.map((o) => ({ ...o, owner: -1 }));
       if (extra.buildings.length) {
