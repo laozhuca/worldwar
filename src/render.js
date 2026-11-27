@@ -2982,14 +2982,18 @@ export class Renderer {
 
   drawMinimap(mctx, state, w, h) {
     this.mmCanvas = mctx.canvas;
-    if (!state.map.band && this.mmBase && mctx.canvas.height !== this.mmBase) { mctx.canvas.height = this.mmBase; mctx.canvas.style.height = ''; return; }
+    // (only a valley level's minimap takes its own proportions; every other keeps the usual box)
+    if ((!state.map.band || state.map.bandW) && this.mmBase && mctx.canvas.height !== this.mmBase) { mctx.canvas.height = this.mmBase; mctx.canvas.style.height = ''; return; }
     if (!this.mmBase) this.mmBase = mctx.canvas.height;
     mctx.setTransform(this.M, 0, 0, 1, this.M < 0 ? w : 0, 0); // (a level shown mirrored: its minimap too)
     mctx.fillStyle = '#121309'; mctx.fillRect(0, 0, w, h);
     // the part of the world shown: a valley level's own rectangle, stretched to fill the box; otherwise the
     // whole battlefield, at its own proportions
     let m;
-    if (state.map.band) {
+    if (state.map.bandW) { // a skirmish battlefield in its own format: fitted into the usual box, centred
+      const r = this.bandRect(state.map), sc = Math.min(w / (r.x1 - r.x0), h / (r.y1 - r.y0));
+      m = { x0: r.x0, y0: r.y0, sx: sc, sy: sc, ox: (w - (r.x1 - r.x0) * sc) / 2, oy: (h - (r.y1 - r.y0) * sc) / 2 };
+    } else if (state.map.band) {
       const r = this.bandRect(state.map), sc = Math.min(w / (r.x1 - r.x0), h / (r.y1 - r.y0));
       m = { x0: r.x0, y0: r.y0, sx: sc, sy: sc, ox: 0, oy: 0 };
       // the minimap box takes the valley's own proportions (long and low), so there is no empty margin
@@ -3005,7 +3009,7 @@ export class Renderer {
     this.mini = m;
     const k = this.ground.width / this.gw; // the ground image's pixels per world unit
     const vw = w / m.sx, vh = h / m.sy; // the world area that fits the box
-    if (state.map.band) { const rw = (w - 2 * m.ox) / m.sx, rh = Math.min(vh, this.gh - (m.y0 + this.OY)); mctx.drawImage(this.ground, (m.x0 + this.OX) * k, (m.y0 + this.OY) * k, rw * k, rh * k, m.ox, 0, rw * m.sx, rh * m.sy); }
+    if (state.map.band) { const rw = (w - 2 * m.ox) / m.sx, rh = Math.min((h - 2 * m.oy) / m.sy, this.gh - (m.y0 + this.OY)); mctx.drawImage(this.ground, (m.x0 + this.OX) * k, (m.y0 + this.OY) * k, rw * k, rh * k, m.ox, m.oy, rw * m.sx, rh * m.sy); }
     else mctx.drawImage(this.ground, m.ox, m.oy, this.gw * m.sx, this.gh * m.sy);
     const P = (x, y) => [m.ox + (x - m.x0) * m.sx, m.oy + (y - m.y0) * m.sy];
     for (const u of state.units) {
