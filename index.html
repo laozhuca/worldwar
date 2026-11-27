@@ -9,7 +9,7 @@
   <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="assets/icon/apple-touch-icon.png">
   <meta name="theme-color" content="#15120d">
-  <link rel="stylesheet" href="style.css?v=b6e42b4e" />
+  <link rel="stylesheet" href="style.css?v=ac4b8ab1" />
   <!-- stamp:begin (scripts/stamp.mjs) -->
   <script type="importmap">
   {
@@ -21,7 +21,7 @@
       "./src/campaign.js": "./src/campaign.js?v=1b95cce1",
       "./src/config.js": "./src/config.js?v=fea29c56",
       "./src/game.js": "./src/game.js?v=5cfddb20",
-      "./src/main.js": "./src/main.js?v=dc45b71d",
+      "./src/main.js": "./src/main.js?v=8683843a",
       "./src/map.js": "./src/map.js?v=99de9315",
       "./src/model-view.js": "./src/model-view.js?v=50bbd868",
       "./src/path.js": "./src/path.js?v=23c490f7",
@@ -64,6 +64,7 @@
         <button id="gm-load" class="gm-big">Load game</button>
         <div class="gm-row"><span>Game speed</span><div class="gm-speed"><input type="range" id="gm-speed" min="0.5" max="3" step="0.25" value="1" aria-label="Game speed"><b id="gm-speed-v">1×</b></div></div>
         <div class="gm-row"><span>Film look</span><div class="gm-seg" id="gm-film"><button data-film="0">Colour</button><button data-film="1">Sepia</button><button data-film="2" title="Black and white">B&amp;W</button></div></div>
+        <div class="gm-row gm-preview-row"><span></span><canvas id="gm-preview" width="440" height="240" aria-label="The battlefield in the chosen film look"></canvas></div>
         <div class="gm-row"><span>Soldier voices</span><button class="gm-tog" id="gm-voice"></button></div>
         <div class="gm-row"><span>Music</span><button class="gm-tog" id="gm-music"></button></div>
         <div class="gm-row"><span>Sound</span><button class="gm-tog" id="gm-sound"></button></div>
@@ -374,6 +375,6 @@
       document.getElementById('boot-reload').onclick = function () { location.reload(); };
     }, 20000);
   </script>
-  <script type="module" src="src/main.js?v=dc45b71d"></script>
+  <script type="module" src="src/main.js?v=8683843a"></script>
 </body>
 </html>

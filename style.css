@@ -1208,9 +1208,11 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
    its darkened left, plain text items with the line that slides in on hover; the settings as text choices, the chosen
    one underlined, as on the New Game screen */
 #game-menu { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; background: #0b0c0e; isolation: isolate; }
-/* the photograph shows the film look chosen (set from the menu: --gm-photo and --gm-filter): the colour print,
-   the colour print toned sepia, or the black-and-white print; the darkened left over it, under the lettering */
-#game-menu::before { content: ''; position: absolute; inset: 0; z-index: -2; background: var(--gm-photo, url('assets/art/menu-truce-snow.webp')) right center / cover no-repeat; filter: var(--gm-filter, none); transition: filter 0.3s; }
+/* the main menu's photograph, the darkened left over it, under the lettering */
+#game-menu::before { content: ''; position: absolute; inset: 0; z-index: -2; background: url('assets/art/menu-truce-grey.webp') right center / cover no-repeat; } /* (the main menu's photograph) */
+/* the film look's preview: a piece of the battlefield in the chosen look, in a fine frame */
+#game-menu .gm-preview-row { padding-top: 2px; }
+#game-menu #gm-preview { width: 220px; height: 120px; margin-left: 7px; border: 1px solid rgba(239, 228, 203, 0.45); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6); background: #111; transition: filter 0.25s; }
 /* (darkened round the lettering, as on the exit screen, so it reads on the colour print too) */
 #game-menu::after { content: ''; position: absolute; inset: 0; z-index: -1;
   background: radial-gradient(ellipse 42% 75% at 22% 50%, rgba(8, 9, 11, 0.8), rgba(8, 9, 11, 0.5) 55%, rgba(8, 9, 11, 0) 100%), linear-gradient(to right, rgba(10, 8, 6, 0.5), rgba(10, 8, 6, 0.25) 38%, rgba(10, 8, 6, 0) 62%); }

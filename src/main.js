@@ -376,18 +376,26 @@ function paintGameMenu() {
   const sp = document.getElementById('gm-speed'); sp.value = app.speed; document.getElementById('gm-speed-v').textContent = `${app.speed}×`;
   sp.style.setProperty('--fill', `${((app.speed - 0.5) / 2.5) * 100}%`);
   gm.querySelectorAll('[data-film]').forEach((b) => b.classList.toggle('active', +b.dataset.film === film));
-  // the menu's photograph in the chosen look: the colour print, toned sepia (the battle's own sepia), or the black-and-white print
-  gm.style.setProperty('--gm-photo', `url('assets/art/${film === 2 ? 'menu-truce-grey' : 'menu-truce-snow'}.webp')`);
-  gm.style.setProperty('--gm-filter', film === 1 ? FILM[1] : 'none');
+  // the preview of the battlefield in the chosen look
+  const pv = document.getElementById('gm-preview'); if (pv) pv.style.filter = FILM[film] || 'none';
   for (const [id, on] of [['gm-voice', voices.on], ['gm-music', sound.musicOn], ['gm-sound', sound.enabled]]) { const b = document.getElementById(id); b.textContent = on ? 'On' : 'Off'; b.classList.toggle('off', !on); }
   const L = app.state.campaign && levelById(app.state.campaign.id);
   document.getElementById('gm-sub').textContent = app.state.tutorial ? 'Tutorial' : L ? `Campaign ${L.n} · ${L.title}` : app.state.battlefield ? battlefieldOf(app.state.battlefield).name : '';
 }
 /** In a battle the title and ☰ open the game menu (the battle waits while it is open); elsewhere, the main menu. */
+/** The film look's preview: a piece of the battlefield as it is on screen now (the middle of the view), framed. */
+function snapPreview() {
+  const pv = document.getElementById('gm-preview'); if (!pv) return;
+  const g = pv.getContext('2d'), W = canvas.width, H = canvas.height;
+  const k = Math.min(W * 0.7 / pv.width, H * 0.7 / pv.height); // (most of the view, so the trenches and men are in it)
+  const sw = pv.width * k, sh = pv.height * k;
+  try { g.drawImage(canvas, (W - sw) / 2, (H - sh) / 2 - H * 0.04, sw, sh, 0, 0, pv.width, pv.height); } catch { /* (nothing drawn yet) */ }
+}
 function openGameMenu() {
   if (!app.started || app.state.winner >= 0 || app.overlayOpen()) { showPanel('menu-panel'); return; }
   gmWasPaused = app.paused;
   if (!app.paused) app.togglePause();
+  snapPreview();
   paintGameMenu();
   gm.classList.remove('hidden');
 }
