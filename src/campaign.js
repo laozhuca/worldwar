@@ -3,7 +3,7 @@
 // state.campaign as plain data, so a campaign battle saves and loads like any other.
 import { PLAYER, ENEMY, DIFFICULTY } from './config.js';
 import { createGame, spawnUnit, pushMessage, orderMove, orderBarrage, HQ_HOLD } from './game.js';
-import { makeDestructible } from './battlefields.js';
+import { makeDestructible, campaignHouse } from './battlefields.js';
 import { frontLine, teamDir, tileAt, noSquares, makesSquare } from './map.js';
 
 const DAY_LENGTH = 420; // seconds of game time per 24 hours (as atmosphere.js)
@@ -472,6 +472,36 @@ export const LEVELS = [
       state.buildingsAll = [town, ...state.buildings];
       for (const b of state.buildingsAll) blockBuilding(state, b);
       delete state.buildingsAll;
+      // (after the town's own buildings and the trenches dug round them are settled) the rest of the town behind the
+      // French lines: houses and the odd warehouse on whatever ground is free of
+      // the trenches, headquarters and the buildings already standing - shelled, but most still standing
+      {
+        let sd = 1914; const rnd = () => ((sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0) / 4294967296);
+        const map = state.map, taken = [town, ...state.buildings], bases = ['dawn', 'home', 'cottage', 'home', 'cottage', 'dawn', 'station'];
+        const clear = (b) => {
+          if (taken.some((q) => Math.abs(q.x - b.x) < q.hx + b.hx + 1.2 && Math.abs(q.y - b.y) < q.hy + b.hy + 1.2)) return false;
+          if (Math.hypot(b.x - hq.x - 0.5, b.y - hq.y - 0.5) < 4) return false;
+          const f = frontLine(map, PLAYER)[Math.floor(b.y)]; if (f >= 0 && (f - b.x) * dd < b.hx + 2) return false; // (behind the fire trench)
+          // (never on our trenches - the lines stay exactly as dug, though one may run along its wall - nor on wire,
+          // a unit or the field's edge)
+          for (let y = Math.floor(b.y - b.hy - 1); y <= b.y + b.hy + 1; y++) for (let x = Math.floor(b.x - b.hx - 1); x <= b.x + b.hx + 1; x++) {
+            const t = tileAt(map, x + 0.5, y + 0.5), inside = Math.abs(x + 0.5 - b.x) <= b.hx + 0.5 && Math.abs(y + 0.5 - b.y) <= b.hy + 0.5;
+            if (!t || t.wire || t.block || (inside && t.trench)) return false;
+          }
+          if (state.units.some((u) => Math.abs(u.x - b.x) <= b.hx + 1 && Math.abs(u.y - b.y) <= b.hy + 1)) return false;
+          return true;
+        };
+        let placed = 0;
+        for (let n = 0; n < 4000 && placed < 12; n++) {
+          const ox = -9 + rnd() * 20, oy = (rnd() - 0.5) * 56; // (about headquarters and up behind our line, along the whole of our side)
+          const r = rnd(), st = r < 0.5 ? 0 : r < 0.82 ? 2 : 1;
+          const b = campaignHouse(bases[Math.floor(rnd() * bases.length)], Math.floor(rnd() * 4), st, Math.round(X(ox)) + 0.5, Math.round(Y(oy)) + 0.5);
+          if (!clear(b)) continue;
+          state.buildings.push(b); taken.push(b); placed++;
+          for (const t of map.tiles) if (!t.off && Math.abs(t.x + 0.5 - b.x) <= b.hx && Math.abs(t.y + 0.5 - b.y) <= b.hy) { t.block = 1; t.decor = null; t.crater = 0; } // (its ground impassable: no trench is touched)
+        }
+      }
+
       state.map.rocks = true;
       state.map.extraTop = 120; // a strip of ground beyond the map's top edge, for the bell tower to rise against
       // strong works: our trenches sandbagged
@@ -489,6 +519,34 @@ export const LEVELS = [
       spawnUnit(state, 'mg', PLAYER, q.x + 0.5 + d * 2, q.y + 0.5);
       spawnUnit(state, 'mg', PLAYER, q.x + 0.5 + d * 2, q.y + 2.5); // and a second gun covering headquarters
       noSquares(state.map); // the trenches dug round the buildings keep the usual shape
+      // small muddy swamps out in no man's land: the low ground of the Yser flooding, shell holes run together into
+      // pools of brown water no one can cross, with marshy banks round them
+      {
+        let sd = 1018; const rnd = () => ((sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0) / 4294967296);
+        const map = state.map, W = map.w, fP = frontLine(map, PLAYER), fE = frontLine(map, ENEMY);
+        const at = (x, y) => tileAt(map, x + 0.5, y + 0.5);
+        let made = 0;
+        for (let n = 0; n < 300 && made < 6; n++) {
+          const y = Math.floor(rnd() * map.h);
+          if (fP[y] < 0 || fE[y] < 0) continue;
+          const a = Math.min(fP[y], fE[y]) + 4, b = Math.max(fP[y], fE[y]) - 4;
+          if (b - a < 3) continue;
+          const cx = a + rnd() * (b - a), cy = y + 0.5, rx = 1.2 + rnd() * 1.4, ry = 1 + rnd() * 1.3, ph = rnd() * 6.3;
+          const cells = [];
+          for (let yy = Math.floor(cy - ry - 1); yy <= cy + ry + 1; yy++) for (let xx = Math.floor(cx - rx - 1); xx <= cx + rx + 1; xx++) {
+            const t = at(xx, yy); if (!t) continue;
+            const ang = Math.atan2(yy + 0.5 - cy, xx + 0.5 - cx), wob = 1 + 0.25 * Math.sin(ang * 3 + ph);
+            if (Math.hypot((xx + 0.5 - cx) / rx, (yy + 0.5 - cy) / ry) <= wob) cells.push(t);
+          }
+          // (clear of the works: no trench or wire in it or beside it, nor a unit standing there)
+          const near = (t) => [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const q = at(t.x + dx, t.y + dy); return q && (q.trench || q.wire || q.block); });
+          if (cells.length < 3 || cells.some(near) || state.units.some((u) => cells.some((t) => Math.hypot(u.x - t.x - 0.5, u.y - t.y - 0.5) < 1.2))) continue;
+          for (const t of cells) Object.assign(t, { pond: 1, sea: 1, block: 1, mud: 1, decor: null, crater: 0, ground: 0 });
+          for (const t of cells) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const q = at(t.x + dx, t.y + dy); if (q && !q.pond) { q.mud = 1; q.decor = null; } } // (the marshy bank)
+          made++;
+        }
+        map.dirty = true;
+      }
       state.campaign.front = frontTiles(state);
     },
     events: [

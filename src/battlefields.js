@@ -46,6 +46,17 @@ export function makeDestructible(state) {
   }
 }
 
+/**
+ * A house for a campaign level to set down (base: dawn, home, cottage or station; side 0-3; state 0 standing,
+ * 2 half-destroyed, 1 ruined): its image, anchor, footprint, and the later states shells will bring it to.
+ */
+export function campaignHouse(base, side, state, x, y, snow = false) {
+  const foot = BUILDINGS[base].find((q) => q[0] === side && q[1] === 0) || BUILDINGS[base][0];
+  const b = { ...buildingImage(base, side, state, snow), k: 0.5, x, y, hx: Math.min(foot[4], 2.4), hy: Math.min(foot[5], 2.4) };
+  if (state !== 1) { b.ruin = buildingImage(base, side, 1, snow); b.hp = b.full = BUILDING_HP; if (state === 2) b.hp = BUILDING_HP / 2; else b.half = buildingImage(base, side, 2, snow); }
+  return b;
+}
+
 /** The buildings also rendered under snow (bld-...-snow.webp, the same anchors): those of the winter fields. */
 const SNOWY = new Set(['dawn', 'home', 'cottage']);
 /**
