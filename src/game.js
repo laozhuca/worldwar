@@ -278,6 +278,43 @@ export function buyUnit(state, team, type, prepaid = false) {
   return spot && spot !== door ? march(u, spot.x + 0.5, spot.y + 0.5) : u;
 }
 
+/** How close two tanks' centres may come (tiles): a hull's width and a little. */
+export const TANK_ROOM = 1.3;
+/**
+ * Tanks take up room: no two overlap, nor a tank and a burnt-out hulk. Each pair too close is pushed apart
+ * along the line between them (half each, or all of it for the one beside a hulk or a tank standing still
+ * while the other drives), never onto rock or off the field; a tank whose destination is taken stops
+ * just short of it instead of grinding against the other.
+ */
+function separateTanks(state) {
+  const tanks = state.units.filter((u) => u.type === 'tank' && !u.dead);
+  if (!tanks.length) return;
+  const solid = [...tanks, ...(state.hulks || []).map((h) => ({ x: h.x, y: h.y, hulk: true }))];
+  const free = (x, y) => !rockAt(state.map, x, y) && !!tileAt(state.map, x, y);
+  const shove = (u, x, y) => { const p = clampToMap(x, y); if (free(p.x, p.y)) { u.x = p.x; u.y = p.y; } };
+  for (let pass = 0; pass < 2; pass++) for (let i = 0; i < tanks.length; i++) for (const o of solid) {
+    const u = tanks[i];
+    if (o === u || (!o.hulk && solid.indexOf(o) < i)) continue; // (each pair of tanks once)
+    let dx = u.x - o.x, dy = u.y - o.y, d = Math.hypot(dx, dy);
+    if (d >= TANK_ROOM) continue;
+    if (d < 1e-3) { dx = teamDir(u.team); dy = 0.3; d = Math.hypot(dx, dy); } // (exactly on top: part them anyway)
+    const over = TANK_ROOM - d, nx = dx / d, ny = dy / d;
+    // who gives way: a hulk never moves; between two tanks, the one driving into a stationary one
+    const share = o.hulk ? 1 : !!u.order === !!o.order ? 0.5 : u.order ? 1 : 0;
+    // (two driving into each other also edge sideways, each to its own right, so they slide past rather than lock)
+    const side = !o.hulk && u.order && o.order ? over * 0.35 : 0;
+    if (share > 0) shove(u, u.x + (nx * over - ny * side) * share, u.y + (ny * over + nx * side) * share);
+    if (!o.hulk && share < 1) shove(o, o.x - (nx * over - ny * side) * (1 - share), o.y - (ny * over + nx * side) * (1 - share));
+    // its destination taken by another tank (or a hulk): it halts where it is, short of it; a point on its
+    // way that is taken it passes by (it drives on round the other rather than circling back to it)
+    for (const [a, b] of [[u, o], [o, u]]) {
+      if (a.hulk || !a.order) continue;
+      while (a.path && a.path.length && Math.hypot(a.path[0][0] - b.x, a.path[0][1] - b.y) < TANK_ROOM) { a.path.shift(); if (!a.path.length) a.path = null; }
+      if (Math.hypot(a.order.x - b.x, a.order.y - b.y) < TANK_ROOM) { a.order = null; a.path = null; a.moving = false; }
+    }
+  }
+}
+
 /** Where new infantry gather: a tile of the team's own trench 2-8 tiles from its HQ, the least crowded. */
 function musterSpot(state, team, hq = state.map.hq[team]) {
   const { map } = state;
@@ -389,6 +426,7 @@ export function update(state, dt) {
   for (const ai of state.ais) (ai.update || updateAI)(state, ai, dt); // (an experiment may give one side another commander)
 
   for (const u of state.units) if (!u.dead) updateUnit(state, u, dt);
+  separateTanks(state);
 
   for (const s of state.shells) {
     s.t -= dt;
