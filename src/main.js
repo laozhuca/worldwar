@@ -391,6 +391,14 @@ function openGameMenu() {
   paintGameMenu();
   gm.classList.remove('hidden');
 }
+/** Back to the game menu from a screen it opened: the battle still waiting, as it was when the menu first opened. */
+function reopenGameMenu() {
+  document.getElementById('overlay').classList.add('hidden');
+  for (const p of PANELS) document.getElementById(p).classList.add('hidden');
+  if (!app.paused) app.togglePause();
+  paintGameMenu();
+  gm.classList.remove('hidden');
+}
 function closeGameMenu(resume = true) {
   if (gm.classList.contains('hidden')) return;
   gm.classList.add('hidden');
@@ -403,9 +411,10 @@ byId('gm-music').addEventListener('click', toggleMusic);
 byId('gm-sound').addEventListener('click', toggleSound);
 byId('m-music').addEventListener('click', toggleMusic);
 byId('gm-resume').addEventListener('click', () => closeGameMenu());
-byId('gm-save').addEventListener('click', () => { closeGameMenu(false); openSlots('game', 'save'); });
-byId('gm-load').addEventListener('click', () => { closeGameMenu(false); openSlots('game', 'load'); });
-byId('gm-help').addEventListener('click', () => { closeGameMenu(false); app.toggleHelp(); });
+// (a screen opened from the game menu comes back to it: its Back, or saving, returns to the menu over the battle)
+byId('gm-save').addEventListener('click', () => { closeGameMenu(false); openSlots('gamemenu', 'save'); });
+byId('gm-load').addEventListener('click', () => { closeGameMenu(false); openSlots('gamemenu', 'load'); });
+byId('gm-help').addEventListener('click', () => { closeGameMenu(false); showPanel('help-panel', 'gamemenu'); });
 byId('gm-main').addEventListener('click', () => {
   closeGameMenu(false);
   if (app.started && app.state.winner < 0) saveGame('auto'); // (the battle stays: "Resume battle" on the main menu, or Continue)
@@ -691,7 +700,8 @@ function resumeBattle() {
   document.getElementById('btn-pause').textContent = '❚❚';
 }
 function goBack() {
-  if (backTo === 'game' && app.started && app.state.winner < 0) resumeBattle();
+  if (backTo === 'gamemenu' && app.started && app.state.winner < 0) reopenGameMenu(); // (opened from the game menu: back to it)
+  else if (backTo === 'game' && app.started && app.state.winner < 0) resumeBattle();
   else showPanel('menu-panel');
 }
 document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', goBack));
