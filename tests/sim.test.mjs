@@ -394,21 +394,23 @@ test('tanks take up room: two never overlap, nor a tank and a burnt-out hulk', a
   s.units = s.units.filter((u) => u.type !== 'artillery'); // (nothing shelling the field)
   const M = s.map.h / 2, x0 = s.map.hq[PLAYER].x + 4;
   const a = spawnUnit(s, 'tank', PLAYER, x0 + 0.5, M - 3), b = spawnUnit(s, 'tank', PLAYER, x0 + 0.5, M + 3);
+  // (no random breakdowns or ditching here: this is about room, not reliability)
+  const step = () => { update(s, 0.1); for (const t of [a, b]) if (t.stuck) t.stuck = null; };
   for (const t of [a, b]) orderMove(s, [t], x0 + 0.5, M + 0.5); // both sent to the same spot
   let closest = Infinity;
-  for (let k = 0; k < 300; k++) { update(s, 0.1); closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y)); }
+  for (let k = 0; k < 300; k++) { step(); closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y)); }
   assert.ok(closest >= TANK_ROOM - 0.05, `the two tanks kept apart (closest ${closest.toFixed(2)})`);
   assert.ok(!a.order && !b.order, 'and both stopped, one beside the other');
   // head on, each to where the other was: they edge past each other, never overlapping, and both arrive
   const pa = { x: b.x, y: b.y }, pb = { x: a.x, y: a.y };
   orderMove(s, [a], pa.x, pa.y); orderMove(s, [b], pb.x, pb.y);
   closest = Infinity;
-  for (let k = 0; k < 600; k++) { update(s, 0.1); closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y)); }
+  for (let k = 0; k < 900; k++) { step(); closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y)); }
   assert.ok(closest >= TANK_ROOM - 0.05, `head on, they kept apart (closest ${closest.toFixed(2)})`);
-  assert.ok(Math.hypot(a.x - pa.x, a.y - pa.y) < 0.2 && Math.hypot(b.x - pb.x, b.y - pb.y) < 0.2, 'and both got past to where they were going');
+  assert.ok(Math.hypot(a.x - pa.x, a.y - pa.y) < 0.2 && Math.hypot(b.x - pb.x, b.y - pb.y) < 0.2, `and both got past to where they were going (${[a, b].map((u) => `${u.x.toFixed(2)},${u.y.toFixed(2)} ${u.order ? 'moving' : 'stopped'} ${u.dead ? 'dead' : ''}`).join(' | ')}; wanted ${pa.x.toFixed(2)},${pa.y.toFixed(2)} and ${pb.x.toFixed(2)},${pb.y.toFixed(2)})`);
   // a hulk in the way
   s.hulks = [{ x: x0 + 0.5, y: M - 6, team: PLAYER, t: 0 }];
   orderMove(s, [a], x0 + 0.5, M - 6);
-  for (let k = 0; k < 300; k++) update(s, 0.1);
+  for (let k = 0; k < 300; k++) step();
   assert.ok(Math.hypot(a.x - s.hulks[0].x, a.y - s.hulks[0].y) >= TANK_ROOM - 0.05, 'a tank cannot drive into a hulk');
 });

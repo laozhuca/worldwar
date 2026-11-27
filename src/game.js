@@ -310,7 +310,10 @@ function separateTanks(state) {
     for (const [a, b] of [[u, o], [o, u]]) {
       if (a.hulk || !a.order) continue;
       while (a.path && a.path.length && Math.hypot(a.path[0][0] - b.x, a.path[0][1] - b.y) < TANK_ROOM) { a.path.shift(); if (!a.path.length) a.path = null; }
-      if (Math.hypot(a.order.x - b.x, a.order.y - b.y) < TANK_ROOM) { a.order = null; a.path = null; a.moving = false; }
+      // (a tank standing there, or a hulk; or one driving for the same spot and nearer it: that one goes on)
+      const taken = b.hulk || !b.order ? Math.hypot(a.order.x - b.x, a.order.y - b.y) < TANK_ROOM
+        : Math.hypot(a.order.x - b.order.x, a.order.y - b.order.y) < TANK_ROOM && Math.hypot(a.x - a.order.x, a.y - a.order.y) > Math.hypot(b.x - b.order.x, b.y - b.order.y);
+      if (taken) { a.order = null; a.path = null; a.moving = false; }
     }
   }
 }
