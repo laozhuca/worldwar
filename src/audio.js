@@ -240,7 +240,7 @@ export class Sound {
   }
 
   /**
-   * Interface sounds, kept quiet under the battle: 'click' a soft tick of a button pressed, 'blocked' a
+   * Interface sounds, a little quieter than a rifle shot: 'click' a soft tick of a button pressed, 'blocked' a
    * low muted double knock when something cannot be done (a greyed-out button, an order refused).
    */
   ui(kind) {
@@ -257,11 +257,11 @@ export class Sound {
       o.connect(f); f.connect(g); g.connect(this.master); o.start(t0 + at); o.stop(t0 + at + dur + 0.02);
     };
     if (kind === 'click') { // a dry tick and a little body under it, like a brass switch
-      this.burst({ dur: 0.028, freq: 3200, type: 'bandpass', q: 1.4, vol: 0.09 });
-      tone(420, 0, 0.05, 0.035);
+      this.burst({ dur: 0.03, freq: 3000, type: 'bandpass', q: 1.4, vol: 0.34 });
+      tone(420, 0, 0.055, 0.14);
     } else if (kind === 'blocked') { // two low muted knocks, falling
-      tone(150, 0, 0.09, 0.07, 'triangle');
-      tone(118, 0.1, 0.11, 0.06, 'triangle');
+      tone(150, 0, 0.09, 0.3, 'triangle');
+      tone(118, 0.1, 0.11, 0.26, 'triangle');
     }
   }
 
