@@ -373,7 +373,8 @@ const toggleSound = () => {
 };
 function paintGameMenu() {
   if (!gm) return;
-  gm.querySelectorAll('[data-speed]').forEach((b) => b.classList.toggle('active', +b.dataset.speed === app.speed));
+  const sp = document.getElementById('gm-speed'); sp.value = app.speed; document.getElementById('gm-speed-v').textContent = `${app.speed}×`;
+  sp.style.setProperty('--fill', `${((app.speed - 0.5) / 2.5) * 100}%`);
   gm.querySelectorAll('[data-film]').forEach((b) => b.classList.toggle('active', +b.dataset.film === film));
   for (const [id, on] of [['gm-voice', voices.on], ['gm-music', sound.musicOn], ['gm-sound', sound.enabled]]) { const b = document.getElementById(id); b.textContent = on ? 'On' : 'Off'; b.classList.toggle('off', !on); }
   const L = app.state.campaign && levelById(app.state.campaign.id);
@@ -392,14 +393,15 @@ function closeGameMenu(resume = true) {
   gm.classList.add('hidden');
   if (resume && !gmWasPaused && app.paused) app.togglePause();
 }
-gm.querySelectorAll('[data-speed]').forEach((b) => b.addEventListener('click', () => setSpeed(+b.dataset.speed)));
+byId('gm-speed').addEventListener('input', (e) => setSpeed(+e.target.value)); // (a slider: half speed to three times)
 gm.querySelectorAll('[data-film]').forEach((b) => b.addEventListener('click', () => setFilm(+b.dataset.film)));
 byId('gm-voice').addEventListener('click', toggleVoices);
 byId('gm-music').addEventListener('click', toggleMusic);
 byId('gm-sound').addEventListener('click', toggleSound);
 byId('m-music').addEventListener('click', toggleMusic);
 byId('gm-resume').addEventListener('click', () => closeGameMenu());
-byId('gm-save').addEventListener('click', () => { closeGameMenu(false); openSlots('game'); });
+byId('gm-save').addEventListener('click', () => { closeGameMenu(false); openSlots('game', 'save'); });
+byId('gm-load').addEventListener('click', () => { closeGameMenu(false); openSlots('game', 'load'); });
 byId('gm-help').addEventListener('click', () => { closeGameMenu(false); app.toggleHelp(); });
 byId('gm-main').addEventListener('click', () => {
   closeGameMenu(false);
@@ -592,9 +594,13 @@ function showContinue() {
 }
 /** The save / load panel: one row per slot. Saving is offered only during a battle. */
 let panelFrom = 'game'; // 'game' (from the 💾 button) or 'menu' (from the start screen)
+// the slots, to save the battle into (mode 'save') or to load one from (mode 'load')
+let slotMode = 'load';
 function showSlots() {
-  const canSave = app.state.time >= 1 && app.state.winner < 0; // a battle is under way
-  const rows = ['auto', ...SLOTS].map((k) => {
+  const canSave = slotMode === 'save' && app.state.time >= 1 && app.state.winner < 0; // a battle is under way
+  const loading = slotMode === 'load';
+  const h = document.querySelector('#save-panel h1'); if (h) h.textContent = loading ? 'Load game' : 'Save game';
+  const rows = (loading ? ['auto', ...SLOTS] : SLOTS).map((k) => {
     const info = infoOf(k);
     const row = document.createElement('div');
     row.className = 'slot';
@@ -608,14 +614,14 @@ function showSlots() {
         if (saveGame(k)) closeSlots(true);
       });
     }
-    if (info) btn('Load', () => loadGame(k));
-    if (info && k !== 'auto') btn('Delete', () => { if (confirm(`Delete the battle in slot ${k}?`)) { store.del(slotKey(k)); showContinue(); showSlots(); } }, 'danger');
+    if (info && loading) btn('Load', () => loadGame(k));
+    if (info && loading && k !== 'auto') btn('Delete', () => { if (confirm(`Delete the battle in slot ${k}?`)) { store.del(slotKey(k)); showContinue(); showSlots(); } }, 'danger');
     return row;
   });
   document.getElementById('save-slots').replaceChildren(...rows);
 }
-function openSlots(from) {
-  panelFrom = from;
+function openSlots(from, mode = 'load') {
+  panelFrom = from; slotMode = mode;
   showSlots();
   showPanel('save-panel', from);
 }
