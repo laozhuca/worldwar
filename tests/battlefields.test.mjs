@@ -19,3 +19,18 @@ test('every skirmish battlefield builds in its own format, deploys both armies a
     assert.equal(back.map.tiles.filter((t) => !t.off).length, map.tiles.filter((t) => !t.off).length, `${bf.id} save keeps the field's shape`);
   }
 });
+
+test('shells bring an intact building down to its ruin; its ground stays impassable', async () => {
+  const { update } = await import('../src/game.js');
+  let s = null, b = null;
+  for (let seed = 1; seed < 40 && !b; seed++) { s = createBattlefieldGame('dixmude', { seed }); b = (s.buildings || []).find((q) => q.ruin && !q.ruined); }
+  assert.ok(b, 'a battlefield with an intact building');
+  const img = b.img, tiles = s.map.tiles.filter((t) => t.block && Math.abs(t.x + 0.5 - b.x) <= b.hx && Math.abs(t.y + 0.5 - b.y) <= b.hy);
+  assert.ok(tiles.length > 0, 'its ground is blocked');
+  let shells = 0;
+  while (!b.ruined && shells < 20) { s.shells.push({ x: b.x, y: b.y, t: 0, team: 0 }); update(s, 0.05); shells++; }
+  assert.ok(b.ruined, 'it falls');
+  assert.ok(shells >= 3 && shells <= 6, `after a few direct hits (${shells})`);
+  assert.notEqual(b.img, img); assert.ok(b.img.endsWith('-ruin.webp'), 'drawn as its ruin');
+  assert.ok(tiles.every((t) => t.block), 'and its ground is still impassable');
+});

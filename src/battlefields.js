@@ -8,7 +8,7 @@
 // run along tile columns (diagonals on screen); every field after the first is shown mirrored in turn.
 import { PLAYER, ENEMY } from './config.js';
 import { setMapRadius, setWestTeam, tileAt, noSquares, mulberry32, frontLine, teamDir } from './map.js';
-import { createGame, spawnUnit } from './game.js';
+import { createGame, spawnUnit, BUILDING_HP } from './game.js';
 import { blockBuilding } from './campaign.js';
 
 // Buildings, from the 3D models of the Dixmude houses, the station and the Galicia church, each rendered from
@@ -237,6 +237,7 @@ export function buildBattlefieldMap(bf, seed, westTeam = PLAYER) {
       const v = list.find((q) => q[0] === side && q[1] === ruined) || list[0];
       const [, , ax, ay, hx, hy] = v;
       const b = { img: `assets/art/bld-${base}-${side}${ruined ? '-ruin' : ''}.webp`, ax, ay, k: 0.5, x: x + 0.5, y: y + 0.5, hx: Math.min(hx, 2.4), hy: Math.min(hy, 2.4) };
+      if (!ruined) { const r = list.find((q) => q[0] === side && q[1] === 1); if (r) { b.ruin = { img: `assets/art/bld-${base}-${side}-ruin.webp`, ax: r[2], ay: r[3] }; b.hp = BUILDING_HP; } } // (shells can still bring it down)
       for (let yy = Math.floor(b.y - b.hy - 1); yy <= b.y + b.hy + 1; yy++) for (let xx = Math.floor(b.x - b.hx - 1); xx <= b.x + b.hx + 1; xx++) {
         const t = T(xx, yy); if (!t || t.pond || t.rock || t.sea || t.house || ctx.nearHq(t, 3)) return null;
       }
@@ -248,6 +249,7 @@ export function buildBattlefieldMap(bf, seed, westTeam = PLAYER) {
       const ruined = rnd() < (ctx.nml(T(Math.round(x), Math.round(y)) || { x, y }, -2) ? 0.8 : 0.35) ? 1 : 0, side = Math.floor(rnd() * 4);
       const [, , ax, ay, hx, hy] = BUILDINGS.church.find((q) => q[0] === side && q[1] === ruined);
       const b = { img: `assets/art/bld-church-${side}${ruined ? '-ruin' : ''}.webp`, ax, ay, k: 0.5, x: x + 0.5, y: y + 0.5, hx: Math.min(hx, 2.8), hy: Math.min(hy, 2.8), name: 'The church' };
+      if (!ruined) { const r = BUILDINGS.church.find((q) => q[0] === side && q[1] === 1); b.ruin = { img: `assets/art/bld-church-${side}-ruin.webp`, ax: r[2], ay: r[3] }; b.hp = BUILDING_HP * 2; } // (a stout church takes twice the shelling)
       for (let yy = Math.floor(b.y - 4); yy <= b.y + 4; yy++) for (let xx = Math.floor(b.x - 3); xx <= b.x + 3; xx++) { const t = T(xx, yy); if (!t || t.pond || t.house || ctx.nearHq(t, 3)) return null; }
       for (let yy = Math.floor(b.y - b.hy); yy <= b.y + b.hy; yy++) for (let xx = Math.floor(b.x - b.hx); xx <= b.x + b.hx; xx++) { const t = T(xx, yy); if (t) { t.house = 1; t.decor = null; } }
       ctx.buildings.push(b);

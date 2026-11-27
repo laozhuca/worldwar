@@ -1221,6 +1221,32 @@ function explode(state, s) {
   }
   state.effects.push({ type: 'dirt', x: s.x, y: s.y, age: 0, life: 1.1, parts });
   state.events.push({ type: 'boom', x: s.x, y: s.y });
+  shellBuildings(state, s, K);
+}
+
+/** A building's strength: a shell bursting on it takes about BUILDING_HIT, one bursting close beside it a quarter. */
+export const BUILDING_HP = 100, BUILDING_HIT = 30;
+/**
+ * Shells wreck buildings: an intact one (one that has a ruined version, s.ruin) loses strength to each shell
+ * landing on or right beside it, and at none it falls in - drawn from then on as its ruin, in a cloud of dust
+ * and flying rubble with a crash. Its ground stays impassable (the rubble of it).
+ */
+function shellBuildings(state, s, K) {
+  for (const b of state.buildings || []) {
+    if (!b.ruin || b.ruined) continue;
+    const ox = Math.max(0, Math.abs(s.x - b.x) - b.hx), oy = Math.max(0, Math.abs(s.y - b.y) - b.hy), d = Math.hypot(ox, oy);
+    if (d > 1.2 * K) continue;
+    b.hp = (b.hp ?? BUILDING_HP) - (d < 0.15 ? BUILDING_HIT * (0.8 + rand() * 0.4) : BUILDING_HIT * 0.25) * K;
+    if (b.hp > 0) continue;
+    b.ruined = true; b.img = b.ruin.img; b.ax = b.ruin.ax; b.ay = b.ruin.ay; // (its footprint stays as it was)
+    for (let i = 0; i < 5; i++) {
+      const x = b.x + (rand() - 0.5) * b.hx * 1.6, y = b.y + (rand() - 0.5) * b.hy * 1.6;
+      state.effects.push({ type: 'debris', x, y, age: 0, life: 1.1 + i * 0.1 });
+      state.effects.push({ type: 'smoke', x, y, age: 0, life: 14 + rand() * 8, shell: true, scale: 1.6 });
+    }
+    state.events.push({ type: 'boom', x: b.x, y: b.y }, { type: 'crash', x: b.x, y: b.y });
+    if (b.name) pushMessage(state, `${b.name} has been shelled to ruins.`, 'info');
+  }
 }
 
 function updateEffects(state, dt) {

@@ -750,7 +750,7 @@ async function loadBattle(state) {
     [`The ${nat(state.nations[1])} army`, renderer.loadAtlas('soldiers-' + state.nations[1])],
     ...((state.campaign && levelById(state.campaign.id).allies) || []).map((n) => [`The ${nat(n)} army`, renderer.loadAtlas('soldiers-' + n)]),
     ...(state.backdrop ? [[state.backdrop.name || 'The town', renderer.loadBackdrop(state.backdrop)]] : []),
-    ...(state.buildings && state.buildings.length ? [['The town', Promise.all(state.buildings.map((b) => renderer.loadBackdrop(b)))]] : []),
+    ...(state.buildings && state.buildings.length ? [['The town', Promise.all(state.buildings.flatMap((b) => [b, ...(b.ruin && !b.ruined ? [b.ruin] : [])]).map((b) => renderer.loadBackdrop(b)))]] : []),
     ...((state.campaign && levelById(state.campaign.id).pictures) || []).map((src) => ['Pictures', new Promise((r) => { const i = new Image(); i.onload = i.onerror = r; i.src = src; })]),
     ['Shell bursts', renderer.loadImpact()],
     ['Sounds of battle', sound.sampleLoad],
