@@ -57,6 +57,89 @@ export function campaignHouse(base, side, state, x, y, snow = false) {
   return b;
 }
 
+/**
+ * The campaign's battlefields dressed with the scenery made for the skirmish fields (after a level's own setup):
+ * reeds round water, duckboard tracks and cart tracks behind the lines, hedgerows, dry-stone walls, thorn scrub,
+ * rubble heaps, a telegraph line, and farms and cottages (destructible) behind the lines - each level what suits
+ * it. Only on open ground: never on trenches, wire, water, rock, a building or a road, and clear of the men, so
+ * nothing in the level's own design moves; and sparing, so the going changes little.
+ */
+export function dressLevel(state, id) {
+  const map = state.map;
+  let sd = [...id].reduce((a, c) => Math.imul(a ^ c.charCodeAt(0), 16777619), 2166136261) >>> 0;
+  const rnd = () => ((sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0) / 4294967296);
+  const T = (x, y) => tileAt(map, x + 0.5, y + 0.5);
+  const near = (t, r) => state.units.some((u) => Math.abs(u.x - t.x - 0.5) <= r && Math.abs(u.y - t.y - 0.5) <= r);
+  const free = (t) => t && !t.off && !t.trench && !t.wire && !t.block && !t.rock && !t.pond && !t.sea && !t.decor && !t.road && !t.build && !t.hidden && !near(t, 1.2);
+  const fP = frontLine(map, PLAYER), fE = frontLine(map, ENEMY);
+  const behind = (t, team, d) => { const f = (team === PLAYER ? fP : fE)[t.y]; return f >= 0 && (t.x - f) * teamDir(team) <= -d; };
+  const nml = (t, d = 1) => fP[t.y] >= 0 && fE[t.y] >= 0 && (t.x - fP[t.y]) * teamDir(PLAYER) > d && (fE[t.y] - t.x) * teamDir(PLAYER) > d;
+  const tiles = map.tiles.filter((t) => !t.off);
+  const scatter = (p, ok, kind) => { for (const t of tiles) if (rnd() < p && free(t) && ok(t)) t.decor = kind; };
+  const byWater = (t) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => { const n = T(t.x + a, t.y + b); return n && n.pond; });
+  // a winding way between two points, 4-connected; f on each tile
+  const walk = (x0, y0, x1, y1, f, wob = 0.25) => {
+    let x = Math.round(x0), y = Math.round(y0), drift = rnd() < 0.5 ? -1 : 1; const out = [];
+    for (let n = 0; n < 6 * map.w && (x !== Math.round(x1) || y !== Math.round(y1)); n++) {
+      const t = T(x, y); if (t) { out.push(t); f(t); }
+      const dx = Math.round(x1) - x, dy = Math.round(y1) - y, sx = dx !== 0 && (dy === 0 || rnd() < Math.abs(dx) / (Math.abs(dx) + Math.abs(dy)));
+      if (rnd() < 0.2) drift = -drift;
+      if (rnd() < wob * 0.5) { if (sx) y += drift; else x += drift; } else if (sx) x += Math.sign(dx); else y += Math.sign(dy);
+    }
+    return out;
+  };
+  const road = (kind) => (t) => { if (free(t)) { t.road = kind; t.mud = kind === 1 ? t.mud : 0; } };
+  // a run of wall or hedge, along x or y, with gaps
+  const run = (t0, len, alongY, kind) => { for (let k = 0; k < len; k++) { const t = T(t0.x + (alongY ? 0 : k), t0.y + (alongY ? k : 0)); if (free(t) && rnd() < 0.85) { t.decor = kind; if (kind === 'wall') t.wallY = alongY ? 1 : 0; } } };
+  const pick = (ok, tries = 600) => { for (let n = 0; n < tries; n++) { const t = tiles[Math.floor(rnd() * tiles.length)]; if (free(t) && ok(t)) return t; } return null; };
+  // houses on open ground behind a side's lines: never on a trench, a unit or another building, away from headquarters
+  const houses = (team, n, bases) => {
+    let placed = 0;
+    for (let k = 0; k < 2000 && placed < n; k++) {
+      const c = pick((t) => behind(t, team, 5), 1); if (!c) continue;
+      const b = campaignHouse(bases[Math.floor(rnd() * bases.length)], Math.floor(rnd() * 4), rnd() < 0.55 ? 0 : rnd() < 0.7 ? 2 : 1, c.x + 0.5, c.y + 0.5);
+      if ([...(state.buildings || []), state.backdrop].filter(Boolean).some((q) => Math.abs(q.x - b.x) < q.hx + b.hx + 1.5 && Math.abs(q.y - b.y) < q.hy + b.hy + 1.5)) continue;
+      if (map.hq.some((q) => q && Math.hypot(q.x + 0.5 - b.x, q.y + 0.5 - b.y) < 6)) continue;
+      let ok = true;
+      for (let y = Math.floor(b.y - b.hy - 1); y <= b.y + b.hy + 1 && ok; y++) for (let x = Math.floor(b.x - b.hx - 1); x <= b.x + b.hx + 1; x++) {
+        const t = T(x, y), inside = Math.abs(x + 0.5 - b.x) <= b.hx + 0.5 && Math.abs(y + 0.5 - b.y) <= b.hy + 0.5;
+        if (!t || t.wire || t.block || t.rock || t.pond || t.sea || (inside && t.trench) || near(t, 0.6)) { ok = false; break; }
+      }
+      if (!ok) continue;
+      for (const t of tiles) if (Math.abs(t.x + 0.5 - b.x) <= b.hx && Math.abs(t.y + 0.5 - b.y) <= b.hy) { t.block = 1; t.decor = null; t.crater = 0; t.road = 0; }
+      (state.buildings || (state.buildings = [])).push(b); placed++;
+    }
+  };
+  // a telegraph line along a road: a pole every few tiles beside it, the wires slung from one to the next
+  const poles = (way) => { let prev = null; for (let i = 0; i < way.length; i += 4) { const t = way[i], q = T(t.x, t.y - 1); if (!free(q)) continue; q.decor = 'pole'; if (prev) prev.wireTo = [q.x, q.y]; prev = q; } };
+  const rows = (n) => { const ys = tiles.filter((t) => fP[t.y] >= 0).map((t) => t.y); const lo = Math.min(...ys), hi = Math.max(...ys); return Array.from({ length: n }, (_, i) => Math.round(lo + ((i + 0.5) / n) * (hi - lo))); };
+  const dP = teamDir(PLAYER), dE = teamDir(ENEMY);
+
+  if (id === 'ypres') { // the flooded Yser front: reeds round the swamps, duckboards up to the lines, rubble of the town
+    scatter(0.55, byWater, 'reeds');
+    for (const y of rows(4)) { const f = fP[y]; if (f >= 0) walk(f - dP * 11, y + Math.round((rnd() - 0.5) * 6), f - dP, y, road(2), 0.3); }
+    scatter(0.012, (t) => behind(t, PLAYER, 3) || nml(t, 3), 'ruin');
+  } else if (id === 'isonzo') { // the Karst: dry-stone walls across the slopes, thorn scrub in the soft ground
+    for (let k = 0; k < 9; k++) { const t = pick(() => true); if (t) run(t, 4 + Math.floor(rnd() * 6), rnd() < 0.5, 'wall'); }
+    scatter(0.05, (t) => t.ground !== 2, 'scrub');
+  } else if (id === 'brusilov') { // Galicia: dirt roads through the wheat, a telegraph line, wooden cottages
+    const ways = rows(2).map((y) => walk(0, y, map.w - 1, y + Math.round((rnd() - 0.5) * 16), road(1), 0.2));
+    poles(ways[0].filter((t) => behind(t, PLAYER, 3)));
+    houses(PLAYER, 4, ['cottage', 'cottage', 'home']); houses(ENEMY, 3, ['cottage', 'dawn']);
+  } else if (id === 'helles') { // above V Beach: thorn scrub on the slopes, walls round the Turkish fields
+    scatter(0.06, (t) => t.ground !== 5, 'scrub');
+    for (let k = 0; k < 6; k++) { const t = pick((t) => behind(t, PLAYER, 4)); if (t) run(t, 4 + Math.floor(rnd() * 5), rnd() < 0.5, 'wall'); }
+  } else if (id === 'amiens') { // the Somme farmland: reeds by the broken river, hedges and a cart track, farms, rubble
+    scatter(0.45, byWater, 'reeds');
+    for (const team of [PLAYER, ENEMY]) for (let k = 0; k < 10; k++) { const t = pick((t) => behind(t, team, 6)); if (t) run(t, 5 + Math.floor(rnd() * 8), rnd() < 0.5, 'hedge'); }
+    for (const y of rows(2)) { const f = fP[y]; if (f >= 0) walk(f - dP * 18, y, f - dP * 2, y + Math.round((rnd() - 0.5) * 6), road(1), 0.25); }
+    houses(PLAYER, 4, ['home', 'dawn', 'cottage']); houses(ENEMY, 3, ['home', 'cottage']);
+    scatter(0.008, (t) => nml(t, 3), 'ruin');
+  }
+  void dE;
+  map.dirty = true;
+}
+
 /** The buildings also rendered under snow (bld-...-snow.webp, the same anchors): those of the winter fields. */
 const SNOWY = new Set(['dawn', 'home', 'cottage']);
 /**
