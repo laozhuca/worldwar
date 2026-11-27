@@ -295,6 +295,8 @@ export class Renderer {
     this.geoKey = key;
     this.R = map.r ?? MAP_R;
     this.setGeometry(map.r ?? MAP_R, map.bandW ? this.bandRect(map) : null);
+    // a field cut to its own rectangle: that is the camera's limit from the start (before the first frame)
+    if (map.band) this.view = this.baseView = this.bandRect(map);
     this.relief = null; this.rcv = null; this.groundDrawn = false; this._rocks = null;
   }
 
@@ -1038,6 +1040,9 @@ export class Renderer {
     if (band) {
       this.view = this.bandRect(state.map); // exactly the map's own rectangle, so nothing beyond it ever shows
     }
+    // the camera's limits changed (a new battle, the strip above a town): keep the view inside them
+    const vk = `${this.view.x0}|${this.view.x1}|${this.view.y0}|${this.view.y1}`;
+    if (vk !== this._viewKey) { this._viewKey = vk; this.clampCam(); }
     const z = this.cam.zoom, d = this.dpr;
     const sh = this.atmo.shake;
     const shx = (Math.random() - 0.5) * sh, shy = (Math.random() - 0.5) * sh;
