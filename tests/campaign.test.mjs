@@ -415,15 +415,23 @@ test('Planks can be shelled away, and a battery on them is lost with them', asyn
   createGame();
 });
 
-test('New infantry and machine guns muster in the trenches by headquarters; batteries on firm ground', async () => {
-  const { buyUnit } = await import('../src/game.js');
+test('New units come out of headquarters and go to their places: infantry and machine guns in the trenches, batteries on firm ground', async () => {
+  const { buyUnit, update } = await import('../src/game.js');
   const s = createGame(); s.ais.length = 0;
   s.resources[PLAYER] = { men: 999, ammo: 999, supplies: 999 };
-  const made = [];
-  for (const type of ['rifle', 'rifle', 'rifle', 'mg', 'artillery']) { made.push(buyUnit(s, PLAYER, type)); s.time += 1.1; }
+  const hq = s.map.hq[PLAYER], made = [];
+  for (const type of ['rifle', 'rifle', 'rifle', 'mg', 'artillery']) {
+    const u = buyUnit(s, PLAYER, type);
+    assert.ok(Math.hypot(u.x - hq.x - 0.5, u.y - hq.y - 0.5) < 2.5, `${type} comes out at headquarters`);
+    assert.ok(u.order, 'and sets off for its place');
+    made.push(u);
+    for (let k = 0; k < 11; k++) update(s, 0.1);
+  }
+  for (let k = 0; k < 400; k++) update(s, 0.1); // (40 s: everyone has arrived)
   const tile = (u) => s.map.tiles[Math.floor(u.y) * s.map.w + Math.floor(u.x)];
   for (const u of made.slice(0, 4)) {
-    assert.ok(tile(u).trench && tile(u).owner === PLAYER, `${u.type} starts in our trench`);
+    assert.ok(tile(u).trench && tile(u).owner === PLAYER, `${u.type} ends up in our trench`);
+    assert.ok(Math.hypot(u.x - hq.x - 0.5, u.y - hq.y - 0.5) >= 1.5, 'beside headquarters, not on it');
     assert.equal(u.order, null, 'and stays there');
   }
   assert.ok(new Set(made.slice(0, 3).map((u) => `${Math.floor(u.x)},${Math.floor(u.y)}`)).size >= 2, 'spread along the trench, not piled up');

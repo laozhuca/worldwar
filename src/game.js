@@ -247,11 +247,14 @@ export function buyUnit(state, team, type, prepaid = false) {
   const hqs = workingHqs(state, team), around = (q) => state.units.filter((u) => u.team === team && !u.dead && Math.hypot(u.x - q.x - 0.5, u.y - q.y - 0.5) < 8).length;
   const hq = hqs.reduce((a, q) => (around(q) + rand() * 0.5 < around(a) ? q : a), hqs[0]);
   const dir = teamDir(team);
+  // a new unit comes out of headquarters and goes to its place nearby (fresh: nothing to pack up first)
+  const march = (u, x, y) => { orderMove(state, [u], x, y); u.packing = 0; return u; };
   if (type !== 'artillery' && type !== 'tank') {
     // infantry and machine guns muster in the trenches near headquarters (not on the open ground beside
     // them, to climb in again at once): the least crowded spot of our own trench within a few tiles
     const spot = musterSpot(state, team, hq);
-    if (spot) return spawnUnit(state, type, team, spot.x + 0.5, spot.y + 0.5);
+    const u = spawnUnit(state, type, team, hq.x + 0.5, hq.y + 0.5);
+    return spot ? march(u, spot.x + 0.5, spot.y + 0.5) : u;
   }
   // a battery is placed on firm ground beside headquarters and waits there (it never goes down into a trench):
   // the open tile nearest a spot a little in front of the HQ, a few rows to one side or the other
@@ -260,10 +263,19 @@ export function buyUnit(state, team, type, prepaid = false) {
   for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) {
     const t = tileAt(state.map, hq.x + dx + 0.5, hq.y + dy + 0.5);
     if (!t || t.trench || t.rock || t.block || t.wire || (dx === 0 && dy === 0)) continue;
-    const d = Math.hypot(t.x + 0.5 - want.x, t.y + 0.5 - want.y) + state.units.filter((q) => !q.dead && Math.hypot(q.x - t.x - 0.5, q.y - t.y - 0.5) < 1).length * 2;
+    const d = Math.hypot(t.x + 0.5 - want.x, t.y + 0.5 - want.y) + state.units.filter((q) => !q.dead && (Math.hypot(q.x - t.x - 0.5, q.y - t.y - 0.5) < 1 || (q.order && Math.hypot(q.order.x - t.x - 0.5, q.order.y - t.y - 0.5) < 1))).length * 2;
     if (d < bd) { bd = d; spot = t; }
   }
-  return spawnUnit(state, type, team, spot ? spot.x + 0.5 : hq.x + 0.5 + dir * 0.8, spot ? spot.y + 0.5 : hq.y + 0.5);
+  // (a battery or a tank never goes down into a trench: it comes out beside headquarters, on the open ground nearest it)
+  let door = null, dd = Infinity;
+  for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+    const t = tileAt(state.map, hq.x + dx + 0.5, hq.y + dy + 0.5);
+    if (!t || t.trench || t.rock || t.block || t.wire || t.pond) continue;
+    const d = Math.hypot(dx, dy) - (dx * dir > 0 ? 0.3 : 0);
+    if (d < dd) { dd = d; door = t; }
+  }
+  const u = spawnUnit(state, type, team, door ? door.x + 0.5 : hq.x + 0.5 + dir * 0.8, door ? door.y + 0.5 : hq.y + 0.5);
+  return spot && spot !== door ? march(u, spot.x + 0.5, spot.y + 0.5) : u;
 }
 
 /** Where new infantry gather: a tile of the team's own trench 2-8 tiles from its HQ, the least crowded. */
@@ -276,7 +288,7 @@ function musterSpot(state, team, hq = state.map.hq[team]) {
     const d = Math.hypot(dx, dy);
     if (d < 2 || d > 8) continue;
     let crowd = 0;
-    for (const u of state.units) if (!u.dead && Math.hypot(u.x - t.x - 0.5, u.y - t.y - 0.5) < 1.2) crowd++;
+    for (const u of state.units) if (!u.dead && (Math.hypot(u.x - t.x - 0.5, u.y - t.y - 0.5) < 1.2 || (u.order && Math.hypot(u.order.x - t.x - 0.5, u.order.y - t.y - 0.5) < 1.2))) crowd++; // (or on the way there)
     const score = crowd * 10 + d * 0.5 + rand() * 0.8; // empty first, then near headquarters
     if (score < bs) { bs = score; best = t; }
   }
