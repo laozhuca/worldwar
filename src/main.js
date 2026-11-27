@@ -170,18 +170,19 @@ document.addEventListener('dblclick', (e) => { if (!e.target.closest('#view')) e
 const FIELD_COL = { grass: [96, 104, 62], snow: [222, 226, 230], scree: [170, 166, 154], wheat: [196, 166, 92], sand: [206, 186, 140], mud: [78, 64, 48], earth: [112, 96, 74] };
 function drawFieldPreview(cv, bf) {
   const map = buildBattlefieldMap(bf, 1916, PLAYER), extra = map._extra;
-  const W = cv.width = 220, H = cv.height = 130, g = cv.getContext('2d');
-  const sw = bf.A * 64, sh = bf.B * 32, k = Math.min(W / sw, H / sh), ox = W / 2, oy = H / 2, R = map.r;
+  const W = cv.width = 400, H = cv.height = 236, g = cv.getContext('2d');
+  const sw = bf.A * 64, sh = bf.B * 32, k = Math.min((W - 8) / sw, (H - 8) / sh), ox = W / 2, oy = H / 2, R = map.r, M = bf.mirror ? -1 : 1;
   const snow = bf.season === 'winter' ? 0.85 : bf.season === 'thaw' ? 0.45 : 0;
+  const at = (x, y) => [ox + M * (x - y) * 32 * k, oy + (x + y - 2 * R) * 16 * k];
   g.clearRect(0, 0, W, H);
-  g.save(); g.translate(ox, oy); if (bf.mirror) g.scale(-1, 1);
   for (const t of map.tiles) {
     if (t.off) continue;
-    const px = (t.x - t.y) * 32 * k, py = (t.x + t.y - 2 * R) * 16 * k;
+    const [px, py] = at(t.x + 0.5, t.y + 0.5);
     let c = t.ground === 2 ? FIELD_COL.snow : t.ground === 3 ? FIELD_COL.scree : t.ground === 4 ? FIELD_COL.wheat : t.ground === 5 ? FIELD_COL.sand : t.ground === 1 ? FIELD_COL.grass : t.mud ? FIELD_COL.mud : FIELD_COL.earth;
+    if (t.hard && t.ground !== 1) c = [168, 164, 150];
     if (snow && t.ground !== 1 && !t.pond) c = c.map((v, i) => v + (FIELD_COL.snow[i] - v) * snow * (t.mud ? 0.6 : 1));
     if (t.crater) c = c.map((v) => v * 0.8);
-    if (t.road) c = t.road === 2 ? [128, 100, 66] : t.road === 3 ? [70, 66, 62] : [150, 128, 96];
+    if (t.road) c = t.road === 2 ? [128, 100, 66] : t.road === 3 ? [70, 66, 62] : t.road === 4 ? [104, 100, 94] : [150, 128, 96];
     if (t.sea) c = map.frozen && !t.block ? [200, 212, 220] : t.pond ? (map.frozen ? [150, 168, 182] : map.waterTint || [70, 60, 44]) : [56, 98, 118];
     else if (t.pond) c = [196, 208, 216];
     if (t.rock) c = t.knoll ? [44, 62, 44] : [120, 116, 108];
@@ -192,45 +193,109 @@ function drawFieldPreview(cv, bf) {
     g.fillRect(px - 32 * k, py - 16 * k, 64 * k + 0.6, 32 * k + 0.6);
   }
   g.fillStyle = '#2a2420';
-  for (const b of extra.buildings) { const px = (b.x - b.y) * 32 * k - R * 0, py = (b.x + b.y - 2 * R - 1) * 16 * k; g.fillRect(px - 3, py - 3, 6, 6); }
-  for (const o of extra.objectives) { const px = (o.x - o.y) * 32 * k, py = (o.x + o.y - 2 * R - 1) * 16 * k; g.strokeStyle = '#7fd3ff'; g.lineWidth = 1.5; g.beginPath(); g.arc(px, py, 4, 0, Math.PI * 2); g.stroke(); }
-  g.restore();
+  for (const b of extra.buildings) { const [px, py] = at(b.x, b.y); g.fillRect(px - 3, py - 3, 6, 6); }
+  for (const o of extra.objectives) { const [px, py] = at(o.x, o.y); g.strokeStyle = '#7fd3ff'; g.lineWidth = 1.5; g.beginPath(); g.arc(px, py, 4, 0, Math.PI * 2); g.stroke(); }
   g.strokeStyle = 'rgba(240,200,120,0.6)'; g.lineWidth = 1; g.strokeRect(ox - sw * k / 2 + 0.5, oy - sh * k / 2 + 0.5, sw * k - 1, sh * k - 1);
+  // keep the picture, and where the two headquarters stand on it (A: the west one, B: the east)
+  const base = document.createElement('canvas'); base.width = W; base.height = H; base.getContext('2d').drawImage(cv, 0, 0);
+  cv._base = base;
+  cv._hq = { west: at(map.hq[PLAYER].x + 0.5, map.hq[PLAYER].y + 0.5), east: at(map.hq[ENEMY].x + 0.5, map.hq[ENEMY].y + 0.5) };
 }
-/** Which way each starting position lies on screen for this field (its shape and mirroring). */
-function startLabels(bf) {
-  const h = bf.front + Math.max(6, Math.min(13, Math.floor((bf.A + bf.B - 8) / 2) - bf.front)), kk = (2 * h) / (bf.A + bf.B - 8);
-  const sx = -(bf.A - 4) * kk * 32 * (bf.mirror ? -1 : 1), sy = -(bf.B - 4) * kk * 16;
-  const ang = Math.atan2(sy, sx), names = [['→', 'Right'], ['↘', 'Lower right'], ['↓', 'Bottom'], ['↙', 'Lower left'], ['←', 'Left'], ['↖', 'Upper left'], ['↑', 'Top'], ['↗', 'Upper right']];
-  const at = (a) => names[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8];
-  const [wa, wn] = at(ang), [ea, en] = at(ang + Math.PI);
-  return { west: `${wa} ${wn}`, east: `${ea} ${en}` };
+/**
+ * The headquarters on a preview: markers lettered A and B; the one the player would start at (hovered,
+ * else chosen; both for random) ringed and pulsing.
+ */
+function drawStartMarks(cv, lit) {
+  if (!cv._base) return;
+  const g = cv.getContext('2d'), t = performance.now() / 1000;
+  g.clearRect(0, 0, cv.width, cv.height); g.drawImage(cv._base, 0, 0);
+  for (const [key, letter] of [['west', 'A'], ['east', 'B']]) {
+    const [x, y] = cv._hq[key], on = lit === key || lit === 'random';
+    if (on) {
+      const p = (t * 1.2) % 1;
+      g.strokeStyle = `rgba(255,236,170,${0.9 * (1 - p)})`; g.lineWidth = 2;
+      g.beginPath(); g.arc(x, y, 9 + p * 16, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = 'rgba(255,226,140,0.28)'; g.beginPath(); g.arc(x, y, 12, 0, Math.PI * 2); g.fill();
+    }
+    g.fillStyle = on ? '#f6dc8c' : 'rgba(24,22,20,0.85)'; g.strokeStyle = on ? '#2a2216' : 'rgba(240,220,170,0.8)'; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(x, y, 8, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = on ? '#2a2216' : '#efe2c2'; g.font = 'bold 11px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(letter, x, y + 0.5);
+  }
 }
-let previewsDrawn = false;
+let previewsDrawn = false, hoverStart = null, marksRaf = 0;
+const fieldIndex = () => Math.max(0, BATTLEFIELDS.findIndex((b) => b.id === app.battlefield));
+function chooseField(i) {
+  const n = BATTLEFIELDS.length, bf = BATTLEFIELDS[((i % n) + n) % n];
+  app.battlefield = bf.id;
+  try { localStorage.setItem('ww-field', bf.id); } catch {}
+  renderFields();
+}
+/** Keep the chosen battlefield's card in the middle of the carousel. */
+function placeCarousel() {
+  const view = document.getElementById('field-view'), track = document.getElementById('field-btns');
+  if (!view || !track) return;
+  const card = track.children[fieldIndex()];
+  if (!card) return;
+  track.style.transform = `translateX(${view.clientWidth / 2 - (card.offsetLeft + card.offsetWidth / 2)}px)`;
+}
+/** The headquarters marks on the middle card, pulsing while the New Game screen is open. */
+function animateMarks() {
+  cancelAnimationFrame(marksRaf);
+  const panel = document.getElementById('setup-panel');
+  const tick = () => {
+    if (!panel || panel.classList.contains('hidden')) return;
+    const box = document.getElementById('field-btns');
+    for (const [i, b] of [...box.children].entries()) drawStartMarks(b.querySelector('canvas'), i === fieldIndex() ? hoverStart || app.start : null);
+    marksRaf = requestAnimationFrame(tick);
+  };
+  tick();
+}
 function renderFields() {
   const box = document.getElementById('field-btns');
   if (!box) return;
   if (!box.children.length) {
-    for (const bf of BATTLEFIELDS) {
+    BATTLEFIELDS.forEach((bf, i) => {
       const b = document.createElement('button');
       b.dataset.field = bf.id;
       b.innerHTML = `<canvas></canvas><span class="f-name">${bf.name}</span><small>${bf.format}</small>`;
-      b.addEventListener('click', () => { app.battlefield = bf.id; try { localStorage.setItem('ww-field', bf.id); } catch {} renderFields(); });
+      b.addEventListener('click', () => chooseField(i));
       box.appendChild(b);
-    }
+    });
+    byId('field-prev').addEventListener('click', () => chooseField(fieldIndex() - 1));
+    byId('field-next').addEventListener('click', () => chooseField(fieldIndex() + 1));
+    // a swipe on a touch screen, and the arrow keys
+    let sx = null;
+    const view = byId('field-view');
+    view.addEventListener('pointerdown', (e) => { sx = e.clientX; });
+    view.addEventListener('pointerup', (e) => { if (sx !== null && Math.abs(e.clientX - sx) > 40) chooseField(fieldIndex() + (e.clientX < sx ? 1 : -1)); sx = null; });
+    window.addEventListener('keydown', (e) => {
+      if (byId('setup-panel').classList.contains('hidden') || !(e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
+      e.preventDefault(); chooseField(fieldIndex() + (e.key === 'ArrowRight' ? 1 : -1));
+    });
+    window.addEventListener('resize', placeCarousel);
   }
   if (!previewsDrawn) {
     previewsDrawn = true;
     try { for (const b of box.children) drawFieldPreview(b.querySelector('canvas'), battlefieldOf(b.dataset.field)); } finally { useGeometry(app.state.map); } // (building a preview moves the map geometry: put the battle's back)
   }
-  const bf = battlefieldOf(app.battlefield);
-  for (const b of box.children) b.classList.toggle('active', b.dataset.field === bf.id);
+  const bf = battlefieldOf(app.battlefield), idx = fieldIndex();
+  [...box.children].forEach((b, i) => { b.classList.toggle('active', i === idx); b.classList.toggle('near', Math.abs(i - idx) === 1); });
+  byId('field-count').textContent = `${idx + 1} / ${BATTLEFIELDS.length}`;
   const W = bf.weather, wx = [W.rainy ? (W.rainy > 0.6 ? 'heavy rain' : 'showers') : '', W.snowy ? (W.snowy > 0.8 ? 'drifting snow' : 'snow') : '', W.dusty ? 'dust storms' : '', W.windK > 1.5 ? 'strong wind' : W.windK > 1.05 ? 'brisk wind' : ''].filter(Boolean).join(', ') || 'dry, light wind';
   const info = document.getElementById('field-info');
   if (info) info.innerHTML = `<b>${bf.name}</b> <i>${bf.place} · ${bf.format} · ${wx}</i><span>${bf.about}</span><em>${bf.features.join(' · ')}</em>`;
-  const L = startLabels(bf);
-  for (const b of document.querySelectorAll('[data-start]')) if (b.dataset.start !== 'random') { b.textContent = L[b.dataset.start]; b.title = 'Start: ' + L[b.dataset.start].slice(2).toLowerCase(); }
+  requestAnimationFrame(placeCarousel);
+  animateMarks();
 }
+// the starting position: headquarters A or B (marked on the map), or drawn at random; hovering a choice
+// shows where it is
+document.querySelectorAll('[data-start]').forEach((b) => {
+  b.addEventListener('mouseenter', () => { hoverStart = b.dataset.start; });
+  b.addEventListener('mouseleave', () => { hoverStart = null; });
+  b.addEventListener('focus', () => { hoverStart = b.dataset.start; });
+  b.addEventListener('blur', () => { hoverStart = null; });
+});
 byId('btn-start').addEventListener('click', async () => {
   sound.init();
   voices.prepare();

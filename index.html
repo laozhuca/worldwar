@@ -9,7 +9,7 @@
   <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="assets/icon/apple-touch-icon.png">
   <meta name="theme-color" content="#15120d">
-  <link rel="stylesheet" href="style.css?v=665f3fbe" />
+  <link rel="stylesheet" href="style.css?v=d2b4af32" />
   <!-- stamp:begin (scripts/stamp.mjs) -->
   <script type="importmap">
   {
@@ -21,7 +21,7 @@
       "./src/campaign.js": "./src/campaign.js?v=9c076c22",
       "./src/config.js": "./src/config.js?v=fea29c56",
       "./src/game.js": "./src/game.js?v=a7e055dd",
-      "./src/main.js": "./src/main.js?v=35a182c0",
+      "./src/main.js": "./src/main.js?v=e1bb723b",
       "./src/map.js": "./src/map.js?v=99de9315",
       "./src/model-view.js": "./src/model-view.js?v=50bbd868",
       "./src/path.js": "./src/path.js?v=23c490f7",
@@ -163,14 +163,19 @@
         <div class="camp-weather">
           <div class="start-line"><span class="start-title">Starting position</span>
             <div id="start-btns" class="start-seg">
-              <button data-start="west" class="active" title="Start in the upper left">↖ Upper left</button>
-              <button data-start="east" title="Start in the lower right">↘ Lower right</button>
-              <button data-start="random" title="Random starting position">🎲 Random</button>
+              <button data-start="west" class="active" title="Start at headquarters A (marked on the map)">Point A</button>
+              <button data-start="east" title="Start at headquarters B (marked on the map)">Point B</button>
+              <button data-start="random" title="Start at A or B, drawn at random">🎲 Random</button>
             </div>
           </div>
           <div class="camp-group">
           <div class="weather-label"><span>Battlefield</span></div>
-          <div id="field-btns"></div>
+          <div id="field-carousel">
+            <button id="field-prev" class="field-arrow" title="Previous battlefield (←)" aria-label="Previous battlefield">‹</button>
+            <div id="field-view"><div id="field-btns"></div></div>
+            <button id="field-next" class="field-arrow" title="Next battlefield (→)" aria-label="Next battlefield">›</button>
+          </div>
+          <div id="field-count"></div>
           <div id="field-info"></div>
           </div>
         </div>
@@ -362,6 +367,6 @@
       document.getElementById('boot-reload').onclick = function () { location.reload(); };
     }, 20000);
   </script>
-  <script type="module" src="src/main.js?v=35a182c0"></script>
+  <script type="module" src="src/main.js?v=e1bb723b"></script>
 </body>
 </html>

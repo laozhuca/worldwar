@@ -1158,28 +1158,37 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 /* the recruiting queue: how many of each kind are waiting, in a small gilt badge on its button (right-click: remove one) */
 .group button[data-recruit].queued::before { content: '+' attr(data-queued); position: absolute; top: 3px; right: 4px; z-index: 2; padding: 0 5px; border-radius: 8px;
   font: bold 10px/15px Georgia, serif; color: #1a140c; background: #e0c27a; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
-/* ---- New Game: the battlefield picker (ten fields, each a preview drawn from its map) */
-#field-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: min(1500px, 96vw); }
+/* ---- New Game: the battlefield carousel (the chosen field large in the middle, its neighbours either side) */
+#field-carousel { display: flex; align-items: center; gap: 6px; width: min(1040px, 96vw); }
+#field-view { flex: 1; overflow: hidden; position: relative; padding: 6px 0;
+  mask-image: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent); }
+#field-btns { display: flex; gap: 0; width: max-content; transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); }
 #field-btns button {
-  width: clamp(104px, 9.2vw, 142px); padding: 4px 4px 5px; display: flex; flex-direction: column; align-items: center; gap: 2px;
-  background: rgba(14, 15, 17, 0.55); border: 1px solid rgba(239, 228, 203, 0.25); border-radius: 0; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --w: clamp(220px, 26vw, 340px);
+  width: var(--w); margin: 0 calc(var(--w) * -0.12); padding: 6px 6px 7px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: rgba(14, 15, 17, 0.6); border: 1px solid rgba(239, 228, 203, 0.22); border-radius: 0; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+  transform: scale(0.62); opacity: 0.25; transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.45s, border-color 0.3s;
+  position: relative; z-index: 1;
 }
-#field-btns button canvas { width: 100%; aspect-ratio: 220 / 130; display: block; filter: saturate(0.85) brightness(0.8); }
-#field-btns button .f-name { font-size: 12px; letter-spacing: 1px; color: #d9ccb2; line-height: 1.15; text-align: center; min-height: 2.3em; display: flex; align-items: center; }
-#field-btns button small { font-size: 10px; color: #a99c82; letter-spacing: 1px; }
-#field-btns button:hover { background: rgba(30, 31, 34, 0.7); }
-#field-btns button:hover canvas { filter: none; }
-#field-btns button.active { border-color: rgba(255, 246, 225, 0.85); background: rgba(40, 36, 28, 0.75); }
-#field-btns button.active canvas { filter: none; }
-#field-btns button.active .f-name { color: #fff3d6; text-decoration: underline; text-underline-offset: 3px; }
+#field-btns button.near { opacity: 0.6; z-index: 2; }
+#field-btns button.active { transform: scale(1); opacity: 1; z-index: 3; border-color: rgba(255, 246, 225, 0.85); background: rgba(34, 31, 25, 0.88); }
+#field-btns button:not(.active):hover { opacity: 0.85; }
+#field-btns button canvas { width: 100%; aspect-ratio: 400 / 236; display: block; }
+#field-btns button:not(.active) canvas { filter: saturate(0.7) brightness(0.8); }
+#field-btns button .f-name { font-size: 15px; letter-spacing: 2px; text-transform: uppercase; color: #efe3c8; }
+#field-btns button small { font-size: 11px; color: #a99c82; letter-spacing: 2px; }
+.field-arrow { flex: none; width: 42px; height: 64px; font-size: 40px; line-height: 1; color: #efe3c8; background: rgba(16, 17, 20, 0.6); border: 1px solid rgba(239, 228, 203, 0.3); border-radius: 0; padding: 0; }
+.field-arrow:hover { background: rgba(60, 52, 36, 0.8); border-color: var(--gold); }
+#field-count { font-size: 11px; letter-spacing: 3px; color: #a99c82; margin-top: -2px; }
 #field-info { max-width: min(900px, 94vw); text-align: center; color: #d9ccb2; font-size: 13px; line-height: 1.4; text-shadow: 0 1px 3px #000; min-height: 4.2em; }
 #field-info b { color: #fff3d6; letter-spacing: 1px; margin-right: 6px; }
 #field-info i { color: #bfb194; }
 #field-info span { display: block; margin-top: 2px; }
 #field-info em { display: block; font-style: normal; font-size: 11px; letter-spacing: 1px; color: #a99c82; text-transform: uppercase; margin-top: 2px; }
 @media (max-width: 860px), (max-height: 600px) {
-  #field-btns { gap: 4px; }
-  #field-btns button { width: clamp(76px, 18vw, 110px); }
-  #field-btns button .f-name { font-size: 10px; }
+  #field-btns button { --w: clamp(160px, 40vw, 240px); }
+  #field-btns button .f-name { font-size: 12px; }
+  .field-arrow { width: 32px; height: 48px; font-size: 30px; }
   #field-info { font-size: 11px; }
 }
+#start-btns button { white-space: nowrap; }
