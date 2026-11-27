@@ -414,3 +414,15 @@ test('tanks take up room: two never overlap, nor a tank and a burnt-out hulk', a
   for (let k = 0; k < 300; k++) step();
   assert.ok(Math.hypot(a.x - s.hulks[0].x, a.y - s.hulks[0].y) >= TANK_ROOM - 0.05, 'a tank cannot drive into a hulk');
 });
+
+test('headquarters keeps watch like a unit: an enemy near it is seen with none of our men about', async () => {
+  const { spawnUnit, HQ_SIGHT } = await import('../src/game.js');
+  const s = createGame({ aiTeams: [] });
+  const q = s.map.hq[PLAYER];
+  s.units = s.units.filter((u) => u.team === ENEMY || Math.hypot(u.x - q.x, u.y - q.y) > 25); // (none of ours anywhere near)
+  const near = spawnUnit(s, 'rifle', ENEMY, q.x + 0.5 + teamDir(PLAYER) * (HQ_SIGHT - 2), q.y + 0.5);
+  const far = spawnUnit(s, 'rifle', ENEMY, q.x + 0.5 + teamDir(PLAYER) * (HQ_SIGHT + 6), q.y + 0.5);
+  update(s, 0.3);
+  assert.ok(near.visible, 'within its sight: seen');
+  assert.ok(!far.visible || s.units.some((u) => u.team === PLAYER && Math.hypot(u.x - far.x, u.y - far.y) < 10), 'beyond it: not seen from headquarters');
+});

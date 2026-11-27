@@ -1305,13 +1305,29 @@ function inWoods(map, u) {
   return n >= 2;
 }
 
+/** How far a headquarters sees (tiles): its observers, up in whatever height it has, see a little further than a squad. */
+export const HQ_SIGHT = 10;
+/**
+ * Everything that watches for a side: its units, each as far as it sees, and every headquarters or command post
+ * it holds (not a hidden rally point), as far as HQ_SIGHT. [{ x, y, sight }]
+ */
+export function lookouts(state, team) {
+  const out = state.units.filter((u) => u.team === team && !u.dead).map((u) => ({ x: u.x, y: u.y, sight: UNIT_TYPES[u.type].sight }));
+  const hq = state.map.hq[team];
+  if (hq && !hq.hidden) for (const q of [hq, ...(hq.posts || [])]) {
+    const t = tileAt(state.map, q.x + 0.5, q.y + 0.5);
+    if (t && t.owner === team) out.push({ x: q.x + 0.5, y: q.y + 0.5, sight: HQ_SIGHT });
+  }
+  return out;
+}
+
 function refreshVisibility(state) {
-  const mine = state.units.filter((u) => u.team === PLAYER && !u.dead);
+  const mine = lookouts(state, PLAYER);
   for (const e of state.units) {
     if (e.team === PLAYER) { e.visible = true; continue; }
     // (a skirmish battlefield: the weather closes the view in, and men among the trees are seen only close to)
     const k = !state.weather ? 1 : state.weather.sight * (inWoods(state.map, e) ? 0.6 : 1);
-    e.visible = !!e.afloat || !!e.onShip || mine.some((u) => Math.hypot(u.x - e.x, u.y - e.y) <= UNIT_TYPES[u.type].sight * k);
+    e.visible = !!e.afloat || !!e.onShip || mine.some((u) => Math.hypot(u.x - e.x, u.y - e.y) <= u.sight * k);
   }
 }
 

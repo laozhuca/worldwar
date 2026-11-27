@@ -1,7 +1,7 @@
 // Isometric (2:1, "45 degree") canvas renderer.
 import { TILE_W as TW, TILE_H as TH, MAP_W, MAP_H, MAP_R, PLAYER, ENEMY, UNIT_TYPES, SEASONS } from './config.js';
 import { tileAt, teamDir } from './map.js';
-import { canBuild, MG_PACK, GUN_LIMBER, CLIMB_D } from './game.js';
+import { canBuild, MG_PACK, GUN_LIMBER, CLIMB_D, lookouts } from './game.js';
 import { Atmosphere } from './atmosphere.js';
 import { Relief } from './relief.js';
 
@@ -1331,9 +1331,10 @@ export class Renderer {
   }
 
   drawBuildSites(ctx, state) {
+    let eyes = null; // (our units and headquarters: gathered once a frame, only if there are enemy works to look at)
     for (const t of state.map.tiles) {
       if (!t.build) continue;
-      if (t.build.team !== PLAYER && !isTileSeen(state, t)) continue;
+      if (t.build.team !== PLAYER && !isTileSeen(state, t, eyes || (eyes = lookouts(state, PLAYER)))) continue;
       const f = Math.min(1, t.build.progress / t.build.work);
       const color = t.build.team === PLAYER ? '220,200,120' : '170,190,210';
       this.diamondPath(ctx, t.x, t.y, 2);
@@ -3180,8 +3181,8 @@ function idleAt(k, time) {
   return { anim, frame: seq[Math.floor(at / (anim === 'clean' ? 0.35 : 0.3)) % 4], puff: 0 };
 }
 
-function isTileSeen(state, t) {
-  return state.units.some((u) => u.team === PLAYER && Math.hypot(u.x - t.x, u.y - t.y) < UNIT_TYPES[u.type].sight);
+function isTileSeen(state, t, eyes = lookouts(state, PLAYER)) {
+  return eyes.some((u) => Math.hypot(u.x - t.x, u.y - t.y) < u.sight); // (our units and our headquarters)
 }
 
 function drawMan(ctx, x, y, team, pose, facing, phase, digging) {
