@@ -598,7 +598,7 @@ export class UI {
     for (const [type, t] of Object.entries(UNIT_TYPES)) {
       const b = document.querySelector(`[data-recruit="${type}"]`);
       const waiting = q.filter((x) => x === type).length; // (how many of this kind are queued)
-      if (b.dataset.queued !== String(waiting)) { b.dataset.queued = String(waiting); b.classList.toggle('queued', waiting > 0); }
+      if (b.dataset.queued !== String(waiting)) { b.dataset.queued = String(waiting); b.dataset.qlabel = waiting > 9 ? String(waiting) : `+${waiting}`; b.classList.toggle('queued', waiting > 0); } // (two digits: the number alone)
       if (t.special) b.classList.toggle('hidden', !(s.special && s.special[type])); // (only in a battle that provides it)
       b.disabled = threatened || !(res.men >= t.cost.men && res.ammo >= t.cost.ammo && res.supplies >= t.cost.supplies);
       b.title = threatened ? 'Enemy troops are at our HQ: no new units can be raised until they are driven off' : t.desc;
