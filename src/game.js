@@ -211,7 +211,7 @@ export function orderBarrage(state, units, tx, ty) {
 export function canAfford(res, cost) {
   return res.men >= (cost.men || 0) && res.ammo >= (cost.ammo || 0) && res.supplies >= (cost.supplies || 0);
 }
-function pay(res, cost) {
+export function pay(res, cost) {
   res.men -= cost.men || 0; res.ammo -= cost.ammo || 0; res.supplies -= cost.supplies || 0;
 }
 
@@ -232,16 +232,17 @@ function workingHqs(state, team) {
   });
 }
 
-export function buyUnit(state, team, type) {
+/** prepaid: the unit was paid for when it joined the recruiting queue (it costs nothing more now). */
+export function buyUnit(state, team, type, prepaid = false) {
   const t = UNIT_TYPES[type];
   const res = state.resources[team];
   if (hqThreatened(state, team)) return 'HQ under attack, no recruiting';
   if (t.special && !(state.special && state.special[type])) return 'Not available in this battle';
-  if (!canAfford(res, t.cost)) return 'Not enough resources';
+  if (!prepaid && !canAfford(res, t.cost)) return 'Not enough resources';
   const last = (state.recruitAt || (state.recruitAt = [-1e9, -1e9]))[team];
   if (state.time - last < RECRUIT_COOLDOWN) return 'Still raising the last unit';
   state.recruitAt[team] = state.time;
-  pay(res, t.cost);
+  if (!prepaid) pay(res, t.cost);
   // at whichever working headquarters has fewest of our men round it (each command post raises units, where a side has several)
   const hqs = workingHqs(state, team), around = (q) => state.units.filter((u) => u.team === team && !u.dead && Math.hypot(u.x - q.x - 0.5, u.y - q.y - 0.5) < 8).length;
   const hq = hqs.reduce((a, q) => (around(q) + rand() * 0.5 < around(a) ? q : a), hqs[0]);

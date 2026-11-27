@@ -1,6 +1,6 @@
 // DOM HUD + mouse/keyboard input.
 import { PLAYER, UNIT_TYPES, BUILD, MAP_W, MAP_H } from './config.js';
-import { orderMove, orderBarrage, orderHalt, buyUnit, hqThreatened, placeBuild, cancelBuild, territory, pushMessage, RECRUIT_COOLDOWN } from './game.js';
+import { orderMove, orderBarrage, orderHalt, buyUnit, canAfford, pay, hqThreatened, placeBuild, cancelBuild, territory, pushMessage, RECRUIT_COOLDOWN } from './game.js';
 import { frontLine, teamDir } from './map.js';
 
 const $ = (id) => document.getElementById(id);
@@ -145,18 +145,34 @@ export class UI {
   doRecruit(type) {
     const s = this.state, q = s.recruitQueue || (s.recruitQueue = []);
     // within the cool-down (or behind others already waiting): into the queue, raised in turn (up to eight waiting)
+    // a queued unit is paid for at once (so the stores show what is left to spend); removing it refunds it
     if (q.length || s.time - ((s.recruitAt && s.recruitAt[PLAYER]) ?? -1e9) < RECRUIT_COOLDOWN) {
-      if (q.length < 8) q.push(type); else pushMessage(s, 'The recruiting queue is full', 'warn');
+      const t = UNIT_TYPES[type];
+      if (q.length >= 8) { pushMessage(s, 'The recruiting queue is full', 'warn'); return; }
+      if (t.special && !(s.special && s.special[type])) return;
+      if (!canAfford(s.resources[PLAYER], t.cost)) { pushMessage(s, `${t.name}: Not enough resources`, 'warn'); return; }
+      pay(s.resources[PLAYER], t.cost);
+      q.push(type);
       return;
     }
     this.raise(type);
   }
-  /** Raise one unit now (from a button, a key or the queue). */
-  raise(type) {
-    const r = buyUnit(this.state, PLAYER, type);
-    if (r === 'Still raising the last unit') return; // (pressed again within the cool-down: nothing to say)
-    if (typeof r === 'string') pushMessage(this.state, `${UNIT_TYPES[type].name}: ${r}`, 'warn');
-    else { pushMessage(this.state, `${UNIT_TYPES[type].name} raised at HQ`, 'info'); this.speak('recruit', [r]); }
+  /** Take one waiting unit of this kind off the end of the queue, and give back what it cost. */
+  unqueue(type) {
+    const s = this.state, q = s.recruitQueue || [], i = q.lastIndexOf(type);
+    if (i < 0) return;
+    q.splice(i, 1);
+    const res = s.resources[PLAYER], c = UNIT_TYPES[type].cost;
+    for (const k of Object.keys(c)) res[k] += c[k];
+  }
+  /** Raise one unit now (from a button or a key, or prepaid from the queue). Returns true if it was raised. */
+  raise(type, prepaid = false) {
+    const r = buyUnit(this.state, PLAYER, type, prepaid);
+    if (r === 'Still raising the last unit') return false; // (pressed again within the cool-down: nothing to say)
+    if (typeof r === 'string') { if (!prepaid || !this._heldMsg) pushMessage(this.state, `${UNIT_TYPES[type].name}: ${r}`, 'warn'); this._heldMsg = prepaid; return false; }
+    this._heldMsg = false;
+    pushMessage(this.state, `${UNIT_TYPES[type].name} raised at HQ`, 'info'); this.speak('recruit', [r]);
+    return true;
   }
 
   paint(x, y) {
@@ -478,7 +494,7 @@ export class UI {
     document.querySelectorAll('[data-recruit]').forEach((b) => {
       b.addEventListener('click', () => this.doRecruit(b.dataset.recruit));
       // right-click: take one of this kind off the queue
-      b.addEventListener('contextmenu', (e) => { e.preventDefault(); const q = this.state.recruitQueue || []; const i = q.lastIndexOf(b.dataset.recruit); if (i >= 0) q.splice(i, 1); });
+      b.addEventListener('contextmenu', (e) => { e.preventDefault(); this.unqueue(b.dataset.recruit); });
     });
     document.querySelectorAll('[data-build]').forEach((b) => b.addEventListener('click', () => {
       const m = 'build:' + b.dataset.build;
@@ -555,7 +571,8 @@ export class UI {
   recruitCooldown() {
     const s = this.state, q = s.recruitQueue || (s.recruitQueue = []);
     const since = () => s.time - ((s.recruitAt && s.recruitAt[PLAYER]) ?? -1e9);
-    if (q.length && since() >= RECRUIT_COOLDOWN) this.raise(q.shift());
+    // (a paid-for unit that cannot be raised yet, headquarters under attack, keeps its place at the front)
+    if (q.length && since() >= RECRUIT_COOLDOWN && this.raise(q[0], true)) q.shift();
     const cd = Math.max(0, Math.min(1, 1 - since() / RECRUIT_COOLDOWN));
     if (cd === this._cd) return;
     this._cd = cd;

@@ -1156,8 +1156,9 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 .group button[data-recruit].cooling { cursor: progress; }
 
 /* the recruiting queue: how many of each kind are waiting, in a small gilt badge on its button (right-click: remove one) */
-.group button[data-recruit].queued::before { content: '+' attr(data-queued); position: absolute; top: 3px; right: 4px; z-index: 2; padding: 0 5px; border-radius: 8px;
-  font: bold 10px/15px Georgia, serif; color: #1a140c; background: #e0c27a; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+.group button[data-recruit].queued::before { content: '+' attr(data-queued); position: absolute; top: 0; bottom: 0; right: 0; z-index: 2; min-width: 1.4em; padding: 0 6px;
+  display: flex; align-items: center; justify-content: center;
+  font: bold 24px/1 Georgia, serif; color: #1a140c; background: linear-gradient(90deg, rgba(224, 194, 122, 0.88), #e8cc86); box-shadow: -2px 0 6px rgba(0, 0, 0, 0.5); } /* (the whole height of the button) */
 /* ---- New Game: the battlefield carousel (the chosen field large in the middle, its neighbours either side) */
 #field-carousel { display: flex; align-items: center; gap: 6px; width: min(1040px, 96vw); }
 #field-view { flex: 1; overflow: hidden; position: relative; padding: 6px 0;
