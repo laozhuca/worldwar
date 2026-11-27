@@ -49,3 +49,12 @@ belts themselves: band [0.22, 0.56], below ymax 0.35 (not the roof rails), and b
 (y 0.17-0.27) and bottom run (y < -0.3) facing up or down (not the sponsons or roof boxes):
 `TREAD='{"band":[0.22,0.56],"ymax":0.35,"xin":0.62,"ytop":0.17,"ytopmax":0.27,"ybot":-0.3}'`. The game steps
 through f backwards as it rolls forward.
+
+## Skirmish battlefields
+
+`bld-<name>-<side>.webp` and `bld-<name>-<side>-ruin.webp` (in `assets/art`): each building seen from its four
+sides (side 0-3: `--yaw 0`, `1.5708`, `3.1416`, `-1.5708`), intact and shelled to a ruin (`--ruin <seed>`: the
+walls broken off at ragged heights over a grid of columns, a corner blown in nearly to the ground, the rest
+soot-blackened, rubble heaped about the foot). Names and scales: `dawn`, `home`, `cottage` (Ashes of Dawn /
+of Home / Beyond the Cottage, `--scale 1.6`), `station` (Dixmude Station, `--scale 2.4`), `church` (Autumn
+Sanctuary, `--scale 3`). The anchors and footprints printed go into `BUILDINGS` in `src/battlefields.js`.

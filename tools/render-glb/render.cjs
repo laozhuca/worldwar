@@ -9,6 +9,7 @@
 //   --px     pixels per tile at the game's 1x scale (drawn in the game with k = 1 / px)
 //   --sat    colour saturation, toned to the battlefield's grey light (1 = as rendered)
 //   --cut    boxes in the model's own coordinates to leave out (JSON: [[[x0,y0,z0],[x1,y1,z1]], ...])
+//   --ruin   a seed: the building shelled to a ruin (walls broken off ragged, a corner blown in, soot, rubble)
 //
 // Prints the sprite's ground anchor (ax, ay: where the model's centre on the ground falls in the cropped
 // image) and its footprint in tiles (hx, hy: half-widths along the map's x and y), for the level's setup.
@@ -21,7 +22,8 @@ const opt = (k, d) => { const i = args.indexOf('--' + k); return i >= 0 ? Number
 const [glb, out] = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));
 if (!glb || !out) { console.error('usage: node render.cjs <model.glb> <out.webp> [--yaw r] [--scale s] [--px p] [--sat k]'); process.exit(1); }
 const job = { yaw: opt('yaw', Math.PI), S: opt('scale', 1.6), P: opt('px', 2) }, sat = opt('sat', 0.75);
-{ const i = args.indexOf('--cut'); if (i >= 0) job.cut = JSON.parse(args[i + 1]); } // boxes of the model to leave out: '[[[x0,y0,z0],[x1,y1,z1]], ...]'
+{ const i = args.indexOf('--cut'); if (i >= 0) job.cut = JSON.parse(args[i + 1]); }
+if (args.includes('--ruin')) job.ruin = opt('ruin', 1); // (a seed: the building shelled to a ruin, rubble about it) // boxes of the model to leave out: '[[[x0,y0,z0],[x1,y1,z1]], ...]'
 
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.glb': 'model/gltf-binary' };
 const server = http.createServer((req, res) => {

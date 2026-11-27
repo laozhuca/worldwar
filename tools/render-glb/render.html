@@ -8,10 +8,57 @@ const L = new THREE.Vector3(-0.38, -0.62, 0.69).normalize(); // the game's sun (
 let model;
 window.load = async (f) => { model = (await new GLTFLoader().loadAsync(f)).scene; window.model = model; return true; };
 // render: yaw (rad), S = tiles per model unit, P = px per tile; returns { url, ax, ay } (ax, ay: where the model's centre on the ground lands)
-window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null, cut = null }) => {
+window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null, cut = null, ruin = null }) => {
   const scene = new THREE.Scene();
   const root = new THREE.Group(); scene.add(root);
   const m = model.clone(true);
+  // ruin (a seed): the building shelled to a shell of itself - the walls broken off at ragged heights (strips
+  // along its length cut away above a different height each), a corner blown in down to the ground, what is
+  // left blackened with soot, and rubble heaped about its foot
+  let rubble = null, ruinCut = null;
+  if (ruin !== null) {
+    let sd = (ruin * 2654435761) >>> 0; const rnd = () => ((sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0) / 4294967296);
+    m.updateMatrixWorld(true);
+    const bb0 = new THREE.Box3().setFromObject(m), h = bb0.max.y - bb0.min.y, lx = bb0.max.x - bb0.min.x, lz = bb0.max.z - bb0.min.z;
+    // the walls broken off: over a grid of columns, each stands to its own ragged height (low at a blown-in corner)
+    const G = 6, tops = [];
+    const bc = [rnd() < 0.5 ? 0 : G - 1, rnd() < 0.5 ? 0 : G - 1];
+    for (let i = 0; i < G; i++) for (let j = 0; j < G; j++) {
+      const near = Math.hypot(i - bc[0], j - bc[1]) < 2.2;
+      tops.push(bb0.min.y + h * (near ? 0.04 + rnd() * 0.12 : 0.22 + rnd() * 0.33));
+    }
+    ruinCut = (x, y, z) => {
+      const i = Math.max(0, Math.min(G - 1, Math.floor(((x - bb0.min.x) / lx) * G))), j = Math.max(0, Math.min(G - 1, Math.floor(((z - bb0.min.z) / lz) * G)));
+      return y > tops[i * G + j];
+    };
+    // rubble: broken masonry and a few beams, heaped along the walls and spilling from the breach
+    rubble = new THREE.Group();
+    const mats = [0x4e4943, 0x57514a, 0x625a51, 0x4a3c34].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 1 })), beam = new THREE.MeshStandardMaterial({ color: 0x2e241c, roughness: 1 });
+    const s = Math.max(lx, lz), cx = bb0.min.x + (bc[0] + 0.5) / G * lx, cz = bb0.min.z + (bc[1] + 0.5) / G * lz;
+    for (let k = 0; k < 110; k++) {
+      const breach = rnd() < 0.45;
+      const px = breach ? cx + (rnd() - 0.5) * lx * 0.45 : bb0.min.x - lx * 0.05 + rnd() * lx * 1.1, pz = breach ? cz + (rnd() - 0.5) * lz * 0.45 : bb0.min.z - lz * 0.05 + rnd() * lz * 1.1;
+      const isBeam = rnd() < 0.08, sz = s * (0.012 + rnd() * 0.02);
+      const g = isBeam ? new THREE.BoxGeometry(s * (0.07 + rnd() * 0.08), sz * 0.45, sz * 0.45) : new THREE.BoxGeometry(sz * (1 + rnd()), sz * (0.5 + rnd() * 0.6), sz * (1 + rnd()));
+      const q = new THREE.Mesh(g, isBeam ? beam : mats[Math.floor(rnd() * mats.length)]);
+      q.position.set(px, bb0.min.y + sz * 0.25, pz); q.rotation.set((rnd() - 0.5) * 0.8, rnd() * 6.28, (rnd() - 0.5) * 0.6);
+      q.castShadow = true; q.receiveShadow = true;
+      rubble.add(q);
+    }
+    // the cut, in the model's own space (each mesh's vertices through its transform within the model)
+    const v = new THREE.Vector3();
+    m.traverse((o) => {
+      if (!o.isMesh) return;
+      const g = o.geometry = o.geometry.clone(), pos = g.attributes.position;
+      const idx = g.index ? Array.from(g.index.array) : Array.from({ length: pos.count }, (_, i) => i), keep = [];
+      for (let i = 0; i < idx.length; i += 3) {
+        let cx2 = 0, cy2 = 0, cz2 = 0;
+        for (let k = 0; k < 3; k++) { v.fromBufferAttribute(pos, idx[i + k]).applyMatrix4(o.matrixWorld); cx2 += v.x; cy2 += v.y; cz2 += v.z; }
+        if (!ruinCut(cx2 / 3, cy2 / 3, cz2 / 3)) keep.push(idx[i], idx[i + 1], idx[i + 2]);
+      }
+      g.setIndex(keep);
+    });
+  }
   // cut: boxes in the model's own coordinates ([[x0, y0, z0], [x1, y1, z1]], ...) whose triangles are left out
   // (stray geometry baked into a model, e.g. a slab of ground stuck to a ship's bow)
   if (cut) m.traverse((o) => {
@@ -25,6 +72,7 @@ window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null, cut = null }
     }
     g.setIndex(keep);
   });
+  if (rubble) m.add(rubble);
   m.rotation.x = Math.PI / 2; // glTF Y up -> Z up
   const holder = new THREE.Group(); holder.add(m); holder.rotation.z = yaw; holder.scale.setScalar(S);
   root.add(holder);
@@ -34,7 +82,7 @@ window.renderTown = ({ yaw, S, P, marker, ground = 0, tread = null, cut = null }
   holder.position.set(-c.x, -c.y, -bb.min.z);
   holder.updateMatrixWorld(true);
   const b2 = new THREE.Box3().setFromObject(holder);
-  m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; const mt = o.material = o.material.clone(); mt.metalness = 0; mt.roughness = 0.9; mt.metalnessMap = null; mt.roughnessMap = null;
+  m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; const mt = o.material = o.material.clone(); mt.metalness = 0; mt.roughness = 0.9; mt.metalnessMap = null; mt.roughnessMap = null; if (ruin !== null && !(rubble && rubble.children.includes(o))) { mt.color.multiply(new THREE.Color(0.62, 0.59, 0.56)); mt.side = THREE.DoubleSide; } // (soot-blackened; the inside of a broken wall shows)
     // tread: { band: [a, b], hw, ax, ay, period, phase } - the track belts (surfaces facing out of the side
     // profile, within the band of the half-width) painted with tread links shifted by phase: a frame of the
     // tracks running (for a model whose tracks are not separate parts)

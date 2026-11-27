@@ -11,13 +11,17 @@ import { setMapRadius, setWestTeam, tileAt, noSquares, mulberry32, frontLine, te
 import { createGame, spawnUnit } from './game.js';
 import { blockBuilding } from './campaign.js';
 
-// the ruined houses of the Dixmude level, reused as farms, cabins and town blocks: image, anchor, half-size
-const HOUSES = {
-  dawn: [175, 157, 1.25, 1.45], 'dawn-b': [152, 188, 1.45, 1.25], 'dawn-c': [154, 171, 1.25, 1.45],
-  home: [101, 170, 0.8, 1.45], 'home-b': [129, 165, 1.45, 0.8], 'home-c': [136, 133, 0.8, 1.45],
-  cottage: [123, 156, 1.4, 0.8], station: [165, 213, 2.2, 1.1],
+// Buildings, from the 3D models of the Dixmude houses, the station and the Galicia church, each rendered from
+// its four sides, intact and shelled to a ruin (tools/render-glb, --ruin): [side, ruined, ax, ay, hx, hy]
+// (assets/art/bld-<name>-<side>[-ruin].webp; ax, ay the ground anchor, hx, hy the footprint's half-widths)
+const BUILDINGS = {
+  dawn: [[0, 0, 154, 171, 1.29, 1.51], [0, 1, 206, 129, 1.6, 1.86], [1, 0, 152, 188, 1.51, 1.29], [1, 1, 199, 163, 1.88, 1.52], [2, 0, 175, 157, 1.29, 1.51], [2, 1, 204, 121, 1.58, 1.88], [3, 0, 162, 140, 1.51, 1.29], [3, 1, 181, 124, 1.84, 1.67]],
+  home: [[0, 0, 136, 133, 0.82, 1.52], [0, 1, 148, 103, 1.07, 1.87], [1, 0, 135, 136, 1.52, 0.82], [1, 1, 142, 97, 1.87, 1.04], [2, 0, 101, 170, 0.82, 1.52], [2, 1, 154, 118, 1.03, 1.81], [3, 0, 129, 165, 1.52, 0.82], [3, 1, 179, 119, 1.87, 1.07]],
+  cottage: [[0, 0, 118, 146, 0.81, 1.42], [0, 1, 155, 116, 1.02, 1.65], [1, 0, 123, 156, 1.42, 0.81], [1, 1, 155, 135, 1.61, 0.97], [2, 0, 121, 159, 0.81, 1.42], [2, 1, 144, 124, 1.03, 1.68], [3, 0, 115, 150, 1.42, 0.81], [3, 1, 134, 116, 1.76, 1.02]],
+  station: [[0, 0, 191, 190, 1.13, 2.27], [0, 1, 234, 151, 1.38, 2.78], [1, 0, 165, 213, 2.27, 1.13], [1, 1, 222, 178, 2.72, 1.58], [2, 0, 202, 177, 1.13, 2.27], [2, 1, 200, 138, 1.43, 2.83], [3, 0, 181, 157, 2.27, 1.13], [3, 1, 226, 138, 2.72, 1.45]],
+  church: [[0, 0, 219, 356, 2.85, 2.19], [0, 1, 314, 284, 3.47, 2.72], [1, 0, 219, 388, 2.19, 2.85], [1, 1, 311, 250, 2.72, 3.48], [2, 0, 261, 387, 2.85, 2.19], [2, 1, 301, 295, 3.47, 2.75], [3, 0, 261, 355, 2.19, 2.85], [3, 1, 357, 233, 2.67, 3.49]],
 };
-const SMALL = ['dawn', 'dawn-b', 'dawn-c', 'home', 'home-b', 'home-c', 'cottage'];
+const SMALL = ['dawn', 'home', 'cottage', 'home', 'cottage'];
 
 /**
  * The battlefields. A, B: the half-extents of the field (tiles of u and v); front: how far each front
@@ -220,19 +224,30 @@ export function buildBattlefieldMap(bf, seed, westTeam = PLAYER) {
     },
     /** A random tile on the field meeting `ok`, or null. */
     pick(ok, tries = 400) { for (let n = 0; n < tries; n++) { const t = tiles[Math.floor(rnd() * tiles.length)]; if (!t.off && ok(t)) return t; } return null; },
-    /** A building (one of the ruined houses) at (x, y), unless something is in the way. */
+    /**
+     * A building at (x, y), unless something is in the way: a house (or the station), seen from a side drawn at
+     * random, and shelled to a ruin more often the nearer it stands to the fighting (in no man's land nearly
+     * always, far behind the lines seldom).
+     */
     house(name, x, y) {
-      const [ax, ay, hx, hy] = HOUSES[name];
-      const b = { img: `assets/art/town-dixmude-${name}.webp`, ax, ay, k: 0.5, x: x + 0.5, y: y + 0.5, hx, hy };
-      for (let yy = Math.floor(b.y - hy - 1); yy <= b.y + hy + 1; yy++) for (let xx = Math.floor(b.x - hx - 1); xx <= b.x + hx + 1; xx++) {
+      const base = name.replace(/-[bc]$/, ''), list = BUILDINGS[base] || BUILDINGS.dawn;
+      const t0 = T(Math.round(x), Math.round(y));
+      const ruinP = !t0 ? 0.5 : ctx.nml(t0, -2) ? 0.9 : ctx.onLines(t0, 7) ? 0.65 : 0.3;
+      const ruined = rnd() < ruinP ? 1 : 0, side = Math.floor(rnd() * 4);
+      const v = list.find((q) => q[0] === side && q[1] === ruined) || list[0];
+      const [, , ax, ay, hx, hy] = v;
+      const b = { img: `assets/art/bld-${base}-${side}${ruined ? '-ruin' : ''}.webp`, ax, ay, k: 0.5, x: x + 0.5, y: y + 0.5, hx: Math.min(hx, 2.4), hy: Math.min(hy, 2.4) };
+      for (let yy = Math.floor(b.y - b.hy - 1); yy <= b.y + b.hy + 1; yy++) for (let xx = Math.floor(b.x - b.hx - 1); xx <= b.x + b.hx + 1; xx++) {
         const t = T(xx, yy); if (!t || t.pond || t.rock || t.sea || t.house || ctx.nearHq(t, 3)) return null;
       }
-      for (let yy = Math.floor(b.y - hy); yy <= b.y + hy; yy++) for (let xx = Math.floor(b.x - hx); xx <= b.x + hx; xx++) { const t = T(xx, yy); if (t) { t.house = 1; t.decor = null; } }
+      for (let yy = Math.floor(b.y - b.hy); yy <= b.y + b.hy; yy++) for (let xx = Math.floor(b.x - b.hx); xx <= b.x + b.hx; xx++) { const t = T(xx, yy); if (t) { t.house = 1; t.decor = null; } }
       ctx.buildings.push(b);
       return b;
     },
     church(x, y) {
-      const b = { img: 'assets/art/church-galicia.webp', ax: 219, ay: 388, k: 0.5, x: x + 0.5, y: y + 0.5, hx: 2.2, hy: 2.8, name: 'The church' };
+      const ruined = rnd() < (ctx.nml(T(Math.round(x), Math.round(y)) || { x, y }, -2) ? 0.8 : 0.35) ? 1 : 0, side = Math.floor(rnd() * 4);
+      const [, , ax, ay, hx, hy] = BUILDINGS.church.find((q) => q[0] === side && q[1] === ruined);
+      const b = { img: `assets/art/bld-church-${side}${ruined ? '-ruin' : ''}.webp`, ax, ay, k: 0.5, x: x + 0.5, y: y + 0.5, hx: Math.min(hx, 2.8), hy: Math.min(hy, 2.8), name: 'The church' };
       for (let yy = Math.floor(b.y - 4); yy <= b.y + 4; yy++) for (let xx = Math.floor(b.x - 3); xx <= b.x + 3; xx++) { const t = T(xx, yy); if (!t || t.pond || t.house || ctx.nearHq(t, 3)) return null; }
       for (let yy = Math.floor(b.y - b.hy); yy <= b.y + b.hy; yy++) for (let xx = Math.floor(b.x - b.hx); xx <= b.x + b.hx; xx++) { const t = T(xx, yy); if (t) { t.house = 1; t.decor = null; } }
       ctx.buildings.push(b);
@@ -497,7 +512,14 @@ function dixmude(ctx) {
   const ry = rnd() < 0.5 ? ys[0] - 3 : ys[5] + 3;
   const rail = ctx.trail(0, ry, w - 1, ry, null, 0);
   for (const t of rail) if (!t.pond) ctx.road(t, 3); else { t.pond = 0; t.sea = 0; t.block = 0; t.mud = 0; ctx.road(t, 3); } // (a rail bridge over the canal)
-  for (const team of [ctx.WT, ctx.ET]) { const x = R - ctx.dir(team) * (ctx.dF + 8 + Math.floor(rnd() * 6)); ctx.house('station', x, ry + (rnd() < 0.5 ? 3 : -3)); }
+  // (a warehouse by the siding behind each side's lines: tried at several places along it until one is clear)
+  // (by the railway on that side of the canal - the line only crosses a corner of the field - set off it
+  // towards the middle of the field)
+  for (const team of [ctx.WT, ctx.ET]) {
+    let along = rail.filter((t) => (t.x - cx) * ctx.dir(team) < -3);
+    if (!along.length) along = rail;
+    for (let n = 0; n < 16 && along.length; n++) { const t = along[Math.floor(rnd() * along.length)], off = (t.x + t.y < 2 * R ? 1 : -1) * (3 + Math.floor(rnd() * 2)); if (ctx.house('station', t.x + off * 0.5, t.y + off * 0.5)) break; }
+  }
   ctx.each((t) => { if (!t.decor && !t.road && !t.pond && rnd() < 0.008) ctx.decor(t, 'ruin'); });
   map.waterTint = [60, 72, 70];
 }
