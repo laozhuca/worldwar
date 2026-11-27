@@ -691,8 +691,12 @@ async function boot() {
     ['Music', new Promise((r) => { const a = new Audio('assets/music/ombra-di-guerra.mp3'); a.preload = 'auto'; a.oncanplaythrough = a.onerror = r; a.load(); })],
   ];
   let done = 0;
+  const bar = smoothBar(fill);
+  bar.progress(0, 1 / jobs.length);
   const limit = (p) => Promise.race([Promise.resolve(p).catch(() => {}), new Promise((r) => setTimeout(r, 20000))]);
-  await Promise.all(jobs.map(([label, p]) => limit(p).then(() => { done++; fill.style.width = `${Math.round((done / jobs.length) * 100)}%`; item.textContent = `${label} ✓`; })));
+  await Promise.all(jobs.map(([label, p]) => limit(p).then(() => { done++; bar.progress(done / jobs.length, Math.min(1, (done + 1) / jobs.length)); item.textContent = `${label} ✓`; })));
+  await bar.runTo(1);
+  bar.stop();
   item.textContent = 'Ready';
   const enter = document.getElementById('btn-enter');
   enter.classList.remove('hidden');
@@ -736,6 +740,34 @@ async function showLoading() {
   document.getElementById('load-item').textContent = 'Preparing the battlefield…';
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 0))));
 }
+/**
+ * A loading bar that moves at a steady pace, never in jumps: it runs at a constant speed up to the share of
+ * the work done, and while waiting on the next piece creeps slowly on towards (never past) where that piece
+ * would take it. Drawn as a scale of the fill (smooth on the GPU), driven by the animation frame.
+ */
+function smoothBar(fill) {
+  let shown = 0, done = 0, next = 0, raf = 0, last = performance.now(), onDone = null, aim = null;
+  fill.style.transition = 'none'; fill.style.width = '100%'; fill.style.transformOrigin = '0 50%'; fill.style.transform = 'scaleX(0)';
+  const RUN = 0.55, CREEP = 0.035; // (per second: catching up with work done; edging on while waiting)
+  const tick = (now) => {
+    const dt = Math.min(0.04, (now - last) / 1000); last = now; // (after the page was held for a moment it carries on at its pace: no leap)
+    const cap = aim ?? done + (next - done) * 0.85;
+    if (shown < done || (aim !== null && shown < aim)) shown = Math.min(aim ?? done, shown + RUN * dt);
+    else if (shown < cap) shown = Math.min(cap, shown + CREEP * dt);
+    fill.style.transform = `scaleX(${shown.toFixed(4)})`;
+    if (onDone && shown >= onDone.at - 1e-4) { const f = onDone.fn; onDone = null; f(); }
+    raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+  return {
+    /** Work done so far (0-1), and where the piece being waited on would take it. */
+    progress(d, n = d) { done = Math.max(done, d); next = Math.max(next, n, done); },
+    /** Run on to `to` at the steady pace; resolves on arriving. */
+    runTo(to) { aim = to; done = Math.max(done, to); return new Promise((r) => { onDone = { at: to, fn: r }; }); },
+    stop() { cancelAnimationFrame(raf); },
+  };
+}
+
 async function loadBattle(state) {
   loading = true;
   showPanel('loading-panel');
@@ -757,19 +789,29 @@ async function loadBattle(state) {
     ['Voices', voices.prepare(state.nations[PLAYER])],
   ];
   const fill = document.getElementById('load-fill'), item = document.getElementById('load-item');
-  let done = 0;
-  const total = jobs.length + 1;
-  const step = (label) => { done++; fill.style.width = `${Math.round((done / total) * 100)}%`; item.textContent = label; };
-  fill.style.width = '0%';
+  const bar = smoothBar(fill);
+  // the share of the bar each piece is worth: sprite sheets are the heavy part; the last stretch is the ground
+  // being built (it holds the page for a moment, so the bar runs on through that once it is done)
+  const weight = (label) => (/army|scenery|Guns/.test(label) ? 3 : /town|Pictures|Ground/.test(label) ? 2 : 1);
+  const GROUND = 0.12, sum = jobs.reduce((a, [l]) => a + weight(l), 0);
+  let got = 0;
+  bar.progress(0, (1 - GROUND) * Math.min(1, 3 / sum));
   const limit = (p) => Promise.race([Promise.resolve(p).catch(() => {}), new Promise((r) => setTimeout(r, 25000))]);
-  await Promise.all(jobs.map(([label, p]) => limit(p).then(() => step(`${label} ✓`))));
+  await Promise.all(jobs.map(([label, p]) => limit(p).then(() => {
+    got += weight(label);
+    bar.progress((1 - GROUND) * (got / sum), (1 - GROUND) * Math.min(1, (got + 3) / sum));
+    item.textContent = `${label} ✓`;
+  })));
+  await bar.runTo(1 - GROUND); // (catch up, at the same steady pace, before the page is held)
   // let the battlefield ground be built behind the loading screen before the curtain goes up
   item.textContent = 'Preparing the battlefield…';
   renderer.groundDrawn = false;
   loading = false; // (now the ground is built, behind the loading screen)
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 60))));
-  step('Ready');
-  await new Promise((r) => setTimeout(r, 250));
+  item.textContent = 'Ready';
+  await bar.runTo(1);
+  bar.stop();
+  await new Promise((r) => setTimeout(r, 120));
 }
 
 // ------------------------------------------------------------ tutorial: 1 July 1916
