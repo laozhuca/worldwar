@@ -1135,3 +1135,17 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 .cmd-ico .sq { stroke-linecap: square; stroke-linejoin: miter; }
 .cmd-ico .thin { stroke-width: 1.5; } .cmd-ico .hel { stroke-width: 1.1; }
 .cmd-ico .cut { fill: none; stroke: #1a1612; stroke-width: 0.9; stroke-linecap: round; }
+/* the command panel on one line: the cards, the minimap and the first row of buttons all start just under the headings
+   (24 px down), and everything fits the panel - no scroll bar for a single row of units */
+@media (min-width: 701px) and (min-height: 501px) {
+  #bottom { --row-top: 24px; }
+  #selection-info { overflow-y: auto; scrollbar-width: thin; }
+  #selection-info .ucard { height: 132px; margin-top: var(--row-top); }
+  #selection-info > .muted { margin-top: var(--row-top); }
+  #minimap { height: 132px; margin-top: var(--row-top); }
+  .group h4 { height: 19px; margin-bottom: 5px; box-sizing: border-box; }
+  .group button.pic { min-height: 0; height: 42px; }
+  .group button.pic img { width: 34px; height: 34px; }
+  .group button.sq { width: 42px; height: 42px; min-height: 42px; }
+  .group .btns:has(> button.sq) { grid-template-columns: repeat(3, 42px); gap: 3px; }
+}
