@@ -143,12 +143,13 @@ export class UI {
   }
 
   doRecruit(type) {
+    const RECRUIT_QUEUE = 99; // (how many units may wait in the recruiting queue)
     const s = this.state, q = s.recruitQueue || (s.recruitQueue = []);
-    // within the cool-down (or behind others already waiting): into the queue, raised in turn (up to eight waiting)
+    // within the cool-down (or behind others already waiting): into the queue, raised in turn (up to RECRUIT_QUEUE waiting)
     // a queued unit is paid for at once (so the stores show what is left to spend); removing it refunds it
     if (q.length || s.time - ((s.recruitAt && s.recruitAt[PLAYER]) ?? -1e9) < RECRUIT_COOLDOWN) {
       const t = UNIT_TYPES[type];
-      if (q.length >= 8) { pushMessage(s, 'The recruiting queue is full', 'warn'); return; }
+      if (q.length >= RECRUIT_QUEUE) { pushMessage(s, 'The recruiting queue is full', 'warn'); return; }
       if (t.special && !(s.special && s.special[type])) return;
       if (!canAfford(s.resources[PLAYER], t.cost)) { pushMessage(s, `${t.name}: Not enough resources`, 'warn'); return; }
       pay(s.resources[PLAYER], t.cost);
