@@ -1131,3 +1131,7 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 .cmd-ico .thick { stroke-width: 2.4; } .cmd-ico .stock { stroke-width: 4.2; }
 .group button[data-cmd]:hover .cmd-ico .s, .group button[data-cmd].active .cmd-ico .s { stroke: #fff3d6; }
 .group button[data-cmd]:hover .cmd-ico .f, .group button[data-cmd].active .cmd-ico .f { fill: #fff3d6; }
+/* (after the supplied references: stencil-like, square-cut frames, the riflemen's rifles cut into them) */
+.cmd-ico .sq { stroke-linecap: square; stroke-linejoin: miter; }
+.cmd-ico .thin { stroke-width: 1.5; } .cmd-ico .hel { stroke-width: 1.1; }
+.cmd-ico .cut { fill: none; stroke: #1a1612; stroke-width: 0.9; stroke-linecap: round; }
