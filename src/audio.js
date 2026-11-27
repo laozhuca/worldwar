@@ -239,6 +239,32 @@ export class Sound {
     }
   }
 
+  /**
+   * Interface sounds, kept quiet under the battle: 'click' a soft tick of a button pressed, 'blocked' a
+   * low muted double knock when something cannot be done (a greyed-out button, an order refused).
+   */
+  ui(kind) {
+    if (!this.ctx || !this.enabled) return;
+    const now = performance.now();
+    if (now - (this.last['ui-' + kind] || 0) < (kind === 'blocked' ? 160 : 40)) return;
+    this.last['ui-' + kind] = now;
+    const c = this.ctx, t0 = c.currentTime;
+    const tone = (freq, at, dur, vol, type = 'sine') => {
+      const o = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter();
+      o.type = type; o.frequency.setValueAtTime(freq, t0 + at); o.frequency.exponentialRampToValueAtTime(freq * 0.8, t0 + at + dur);
+      f.type = 'lowpass'; f.frequency.value = 900;
+      g.gain.setValueAtTime(0.0001, t0 + at); g.gain.exponentialRampToValueAtTime(vol, t0 + at + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + dur);
+      o.connect(f); f.connect(g); g.connect(this.master); o.start(t0 + at); o.stop(t0 + at + dur + 0.02);
+    };
+    if (kind === 'click') { // a dry tick and a little body under it, like a brass switch
+      this.burst({ dur: 0.028, freq: 3200, type: 'bandpass', q: 1.4, vol: 0.09 });
+      tone(420, 0, 0.05, 0.035);
+    } else if (kind === 'blocked') { // two low muted knocks, falling
+      tone(150, 0, 0.09, 0.07, 'triangle');
+      tone(118, 0.1, 0.11, 0.06, 'triangle');
+    }
+  }
+
   play(type, vol = 1, id, delay = 0) {
     if (!this.ctx || !this.enabled || vol <= 0.02) return;
     if (type === 'mg' && this.samples.mg && id !== undefined) { this.playGun(id, vol); return; }

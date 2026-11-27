@@ -51,6 +51,12 @@ export class UI {
 
   get state() { return this.app.state; }
 
+  /** Something the player asked for cannot be done: say why, with a low muted knock. */
+  refuse(text) {
+    pushMessage(this.state, text, 'warn');
+    this.sound.ui('blocked');
+  }
+
   playerUnits() { return this.state.units.filter((u) => u.team === PLAYER && !u.dead && !u.ally); } // (allied divisions fight on our side under their own command)
   selectedUnits() { return this.playerUnits().filter((u) => this.selected.has(u.id)); }
 
@@ -91,15 +97,15 @@ export class UI {
     const n = orderBarrage(this.state, use, x, y);
     if (n) this.speak('bombard', use);
     if (n) pushMessage(this.state, `${n} batter${n > 1 ? 'ies' : 'y'} opening fire`, 'info');
-    else if (this.state.barrageLimit && this.state.barrageLimit[PLAYER] <= 0) pushMessage(this.state, 'The guns have no shells left', 'warn');
-    else if (!cands.length) pushMessage(this.state, 'We have no artillery', 'warn');
-    else if (cands.every((u) => Math.hypot(u.x - x, u.y - y) < UNIT_TYPES.artillery.artyMinRange)) pushMessage(this.state, `Too close for the guns (minimum ${UNIT_TYPES.artillery.artyMinRange} tiles)`, 'warn');
-    else pushMessage(this.state, 'No battery ready and in range', 'warn');
+    else if (this.state.barrageLimit && this.state.barrageLimit[PLAYER] <= 0) this.refuse('The guns have no shells left');
+    else if (!cands.length) this.refuse('We have no artillery');
+    else if (cands.every((u) => Math.hypot(u.x - x, u.y - y) < UNIT_TYPES.artillery.artyMinRange)) this.refuse(`Too close for the guns (minimum ${UNIT_TYPES.artillery.artyMinRange} tiles)`);
+    else this.refuse('No battery ready and in range');
   }
 
   doCharge(x, y) {
     const units = this.selectedUnits().filter((u) => u.type === 'rifle');
-    if (!units.length) { pushMessage(this.state, 'Only rifle squads can charge', 'warn'); return; }
+    if (!units.length) { this.refuse('Only rifle squads can charge'); return; }
     orderMove(this.state, units, x, y, 'charge');
     this.speak('charge', units);
   }
@@ -168,9 +174,9 @@ export class UI {
     // a queued unit is paid for at once (so the stores show what is left to spend); removing it refunds it
     if (q.length || s.time - ((s.recruitAt && s.recruitAt[PLAYER]) ?? -1e9) < RECRUIT_COOLDOWN) {
       const t = UNIT_TYPES[type];
-      if (q.length >= RECRUIT_QUEUE) { pushMessage(s, 'The recruiting queue is full', 'warn'); return; }
+      if (q.length >= RECRUIT_QUEUE) { this.refuse('The recruiting queue is full'); return; }
       if (t.special && !(s.special && s.special[type])) return;
-      if (!canAfford(s.resources[PLAYER], t.cost)) { pushMessage(s, `${t.name}: Not enough resources`, 'warn'); return; }
+      if (!canAfford(s.resources[PLAYER], t.cost)) { this.refuse(`${t.name}: Not enough resources`); return; }
       pay(s.resources[PLAYER], t.cost);
       q.push(type);
       return;
@@ -189,9 +195,18 @@ export class UI {
   raise(type, prepaid = false) {
     const r = buyUnit(this.state, PLAYER, type, prepaid);
     if (r === 'Still raising the last unit') return false; // (pressed again within the cool-down: nothing to say)
-    if (typeof r === 'string') { if (!prepaid || !this._heldMsg) pushMessage(this.state, `${UNIT_TYPES[type].name}: ${r}`, 'warn'); this._heldMsg = prepaid; return false; }
+    if (typeof r === 'string') {
+      if (!prepaid) this.refuse(`${UNIT_TYPES[type].name}: ${r}`); // (pressed just now: refused)
+      else if (!this._heldMsg) pushMessage(this.state, `${UNIT_TYPES[type].name}: ${r}`, 'warn'); // (the queue waiting: said once, quietly)
+      this._heldMsg = prepaid; return false;
+    }
     this._heldMsg = false;
-    pushMessage(this.state, `${UNIT_TYPES[type].name} raised at HQ`, 'info'); this.speak('recruit', [r]);
+    pushMessage(this.state, `${UNIT_TYPES[type].name} raised at HQ`, 'info');
+    // a unit from the queue with more still waiting behind it reports in only when nobody is speaking and no new
+    // unit has for a few seconds (a long queue is not a chorus); the last one out always does
+    const more = prepaid && (this.state.recruitQueue || []).length > 1;
+    const now = performance.now();
+    if (!more || (!(this.voices && this.voices.talking(now)) && now - (this._recruitVoice || 0) > 4000)) { this.speak('recruit', [r]); this._recruitVoice = now; }
     return true;
   }
 
@@ -201,7 +216,7 @@ export class UI {
     if (this.lastPainted === key) return;
     this.lastPainted = key;
     const r = placeBuild(this.state, PLAYER, type, x, y);
-    if (!r.ok && !this.painting) pushMessage(this.state, r.reason, 'warn');
+    if (!r.ok && !this.painting) this.refuse(r.reason);
   }
 
   selectAt(sx, sy, additive) {
@@ -268,7 +283,7 @@ export class UI {
     const units = this.selectedUnits();
     if (!units.length) return false;
     const mv = kind === 'charge' ? units.filter((u) => u.type === 'rifle') : units;
-    if (!mv.length) { pushMessage(this.state, 'Only rifle squads can charge', 'warn'); return true; }
+    if (!mv.length) { this.refuse('Only rifle squads can charge'); return true; }
     orderMove(this.state, mv, x, y, kind);
     // a third of infantry move orders are answered by marching boots (crunching snow in winter) instead
     // of a voice; charges always get their shout, whistle and battle cry
@@ -491,7 +506,7 @@ export class UI {
           case '-': case '_': case 'pagedown': e.preventDefault(); this.zoomBy(1 / 1.18); break;
           case 'p': this.app.togglePause(); break;
           case 'escape': if (this.mode) this.setMode(null); else this.selected.clear(); break;
-          case 'c': if (this.selectedUnits().some((u) => u.type === 'rifle')) this.setMode('charge'); else pushMessage(this.state, 'Select rifle squads to charge', 'warn'); break;
+          case 'c': if (this.selectedUnits().some((u) => u.type === 'rifle')) this.setMode('charge'); else this.refuse('Select rifle squads to charge'); break;
           case 'b': this.setMode('bombard'); break;
           case 't': this.setMode('build:trench'); break;
           case 'u': this.setMode('build:upgrade'); break;

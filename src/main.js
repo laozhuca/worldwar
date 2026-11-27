@@ -158,6 +158,15 @@ window.addEventListener('resize', () => renderer.resize());
 // the map has its own area between the top bar and the command panel: follow its size as they change
 if (window.ResizeObserver) new ResizeObserver(() => { renderer.resize(); renderer.clampCam(); }).observe(canvas);
 window.worldwar = { app, renderer, ui, sound };
+// interface sounds: a soft tick for every button pressed (and a unit card), a low knock for one that is greyed
+// out (a disabled button gets no events of its own: it is found under the pointer)
+document.addEventListener('pointerdown', (e) => {
+  if (e.button > 0) return;
+  const hit = document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.tagName === 'BUTTON' || el.classList.contains('ucard'));
+  if (!hit || hit.closest('.hidden')) return;
+  sound.init();
+  sound.ui(hit.disabled ? 'blocked' : 'click');
+}, true);
 // no browser right-click menu anywhere in the game, and no page zoom on phones (double-tap or pinch outside
 // the map; the map's own pinch zoom is handled in ui.js)
 window.addEventListener('contextmenu', (e) => e.preventDefault());
