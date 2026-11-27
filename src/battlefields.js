@@ -97,6 +97,8 @@ export const BATTLEFIELDS = [
   },
 ];
 BATTLEFIELDS.forEach((b, i) => { b.mirror = i % 2 === 1; }); // (alternating: the fronts lean one way, then the other)
+/** The seed every battlefield is laid out from (its preview, and every battle on it). */
+export const FIELD_SEED = 1916;
 export const battlefieldOf = (id) => BATTLEFIELDS.find((b) => b.id === id) || BATTLEFIELDS[0];
 
 /** Put the map module's geometry back for a battle (building a map for a preview changes it). */
@@ -374,7 +376,9 @@ function deployOnField(state) {
 /** A new skirmish on a battlefield. opts: seed, nations, start ('west' / 'east'), difficulty. */
 export function createBattlefieldGame(id, opts = {}) {
   const bf = battlefieldOf(id);
-  const seed = opts.seed ?? Math.floor(Math.random() * 1e6);
+  // the field is always laid out the same way (the one its preview shows), whichever headquarters the player
+  // starts at: choosing A or B changes only which side is ours, never the ground
+  const seed = opts.seed ?? FIELD_SEED;
   const map = buildBattlefieldMap(bf, seed, opts.start === 'east' ? ENEMY : PLAYER);
   const extra = map._extra; delete map._extra;
   return createGame({

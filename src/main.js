@@ -10,7 +10,7 @@ import { Sound } from './audio.js';
 import { PLAYER, ENEMY, NATIONS } from './config.js';
 import { AI_VERSION } from './ai.js';
 import { hourOf } from './atmosphere.js';
-import { BATTLEFIELDS, battlefieldOf, createBattlefieldGame, buildBattlefieldMap, useGeometry } from './battlefields.js';
+import { BATTLEFIELDS, battlefieldOf, createBattlefieldGame, buildBattlefieldMap, useGeometry, FIELD_SEED } from './battlefields.js';
 
 // An element by id, or a detached stand-in, so one missing element (an old cached page) cannot stop the rest of the wiring.
 const byId = (id) => document.getElementById(id) || document.createElement('div');
@@ -178,7 +178,7 @@ document.addEventListener('dblclick', (e) => { if (!e.target.closest('#view')) e
 // ---- the battlefield: ten fields, each with a preview drawn from the map itself
 const FIELD_COL = { grass: [96, 104, 62], snow: [222, 226, 230], scree: [170, 166, 154], wheat: [196, 166, 92], sand: [206, 186, 140], mud: [78, 64, 48], earth: [112, 96, 74] };
 function drawFieldPreview(cv, bf) {
-  const map = buildBattlefieldMap(bf, 1916, PLAYER), extra = map._extra;
+  const map = buildBattlefieldMap(bf, FIELD_SEED, PLAYER), extra = map._extra;
   const W = cv.width = 400, H = cv.height = 236, g = cv.getContext('2d');
   const sw = bf.A * 64, sh = bf.B * 32, k = Math.min((W - 8) / sw, (H - 8) / sh), ox = W / 2, oy = H / 2, R = map.r, M = bf.mirror ? -1 : 1;
   const snow = bf.season === 'winter' ? 0.85 : bf.season === 'thaw' ? 0.45 : 0;
@@ -332,7 +332,7 @@ byId('btn-start').addEventListener('click', async () => {
   resumeBattle();
 });
 byId('btn-restart').addEventListener('click', async () => {
-  app.state = createBattlefieldGame(app.state.battlefield || app.battlefield, { seed: Math.floor(Math.random() * 1e6), nations: chosenNations(), start: chosenStart(), difficulty: app.state.difficulty || app.difficulty });
+  app.state = createBattlefieldGame(app.state.battlefield || app.battlefield, { nations: chosenNations(), start: chosenStart(), difficulty: app.state.difficulty || app.difficulty });
   useArmies(app.state);
   ui.selected.clear();
   ui.setMode(null);
