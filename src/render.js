@@ -2181,10 +2181,11 @@ export class Renderer {
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(p.x - 18, by, 36, 7);
     ctx.fillStyle = '#e8c35a'; ctx.fillRect(p.x - 17, by + 1, 34 * Math.max(0, (u.shells || 0) / t.shells), 2);
     ctx.fillStyle = '#c9c4b2'; ctx.fillRect(p.x - 17, by + 4, 34 * Math.max(0, (u.mgRounds || 0) / t.mgRounds), 2);
-    this.drawGroupBadge(ctx, u, p.x - 37, by - 1); // (the group number, then the kind mark, then the bars)
+    // (the group number, then the kind mark, then the bars: on the left on screen, a mirrored field too)
+    this.drawGroupBadge(ctx, u, p.x - 35.5 * this.M - 1.5, by - 1);
     const label = u.stuck === 'ditched' ? 'DITCHED' : u.stuck === 'broken' ? 'BROKEN DOWN' : !(u.shells > 0) && !(u.mgRounds > 0) ? 'NO AMMUNITION' : '';
     if (label) { ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffb060'; this.wtext(ctx, label, p.x, by - 2); }
-    if (selected) this.drawTypeMark(ctx, 'tank', p.x - 23, by + 3.5); // (just left of its bars)
+    if (selected) this.drawTypeMark(ctx, 'tank', p.x - 23 * this.M, by + 3.5); // (just left of its bars, on screen)
   }
 
   /** Howitzer from the supplied art: a faces -x, b faces +y; mirrored for -y / +x. */
@@ -2546,8 +2547,9 @@ export class Renderer {
     // status bars
     const maxHp = t.men * t.hpPerMan;
     const by = p.y - 30;
-    this.drawGroupBadge(ctx, u, p.x - 30, by - 3); // (the group number, then the kind mark, then the bar)
-    if (selected && u.team === PLAYER) this.drawTypeMark(ctx, u.type, p.x - 18, by + 2); // (just left of the bar)
+    // (the group number, then the kind mark, then the bar: on the left on screen, a mirrored field too)
+    this.drawGroupBadge(ctx, u, p.x - 28.5 * this.M - 1.5, by - 3);
+    if (selected && u.team === PLAYER) this.drawTypeMark(ctx, u.type, p.x - 18 * this.M, by + 2);
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(p.x - 13, by, 26, 4);
     const f = u.hp / maxHp;
     ctx.fillStyle = u.team === PLAYER ? (f > 0.5 ? '#8fd16a' : f > 0.25 ? '#e0c050' : '#e06040') : '#c97a6a';
