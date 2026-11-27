@@ -350,43 +350,65 @@ let film = 0;
 // the top bar's height (it may wrap on a narrow screen): what sits under it follows (--top-h)
 { const tb = document.getElementById('topbar'), set = () => document.documentElement.style.setProperty('--top-h', tb.offsetHeight + 'px');
   if (window.ResizeObserver) new ResizeObserver(set).observe(tb); window.addEventListener('resize', set); set(); }
-// small screens: the less used switches in a drop-down behind ⚙ (closed again by a tap anywhere else)
-byId('btn-more').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('topbar-extra').classList.toggle('open'); });
-document.addEventListener('pointerdown', (e) => { const x = document.getElementById('topbar-extra'); if (x.classList.contains('open') && !x.contains(e.target) && e.target.id !== 'btn-more') x.classList.remove('open'); });
 // the campaign tracker folds to its heading at a tap (on a phone it takes much of the screen)
 byId('objectives').addEventListener('click', (e) => e.currentTarget.classList.toggle('folded'));
-byId('btn-film').addEventListener('click', () => {
-  film = (film + 1) % FILM.length;
-  canvas.style.filter = FILM[film];
-});
 byId('btn-pause').addEventListener('click', () => app.togglePause());
 byId('btn-help').addEventListener('click', () => app.toggleHelp());
-byId('btn-speed').addEventListener('click', (e) => {
-  app.speed = app.speed === 1 ? 2 : app.speed === 2 ? 3 : 1;
-  e.target.textContent = app.speed + '×';
-});
-const voiceBtn = document.getElementById('btn-voice');
-const showVoice = () => { voiceBtn.style.opacity = voices.on ? '1' : '0.4'; };
-showVoice();
-voiceBtn.addEventListener('click', () => { voices.setOn(!voices.on); showVoice(); });
-const musicBtn = document.getElementById('btn-music');
+// ---- the game menu: the switches that used to sit along the top bar, and the way back to the main menu
+const gm = document.getElementById('game-menu');
+let gmWasPaused = false;
+const setFilm = (i) => { film = i; canvas.style.filter = FILM[film]; paintGameMenu(); };
+const setSpeed = (v) => { app.speed = v; paintGameMenu(); };
 const menuMusic = document.getElementById('m-music'); // the same switch on the main menu
-const showMusic = () => {
-  musicBtn.style.opacity = sound.musicOn ? '1' : '0.4';
-  if (menuMusic) { menuMusic.textContent = sound.musicOn ? '♪ Music on' : '♪ Music off'; menuMusic.classList.toggle('off', !sound.musicOn); }
-};
-showMusic();
+const showMusic = () => { if (menuMusic) { menuMusic.textContent = sound.musicOn ? '♪ Music on' : '♪ Music off'; menuMusic.classList.toggle('off', !sound.musicOn); } paintGameMenu(); };
 const toggleMusic = () => { sound.init(); sound.startMusic(); sound.setMusic(!sound.musicOn); showMusic(); };
-musicBtn.addEventListener('click', toggleMusic);
-byId('m-music').addEventListener('click', toggleMusic);
-byId('btn-sound').addEventListener('click', (e) => {
+const toggleVoices = () => { voices.setOn(!voices.on); paintGameMenu(); };
+const toggleSound = () => {
   sound.init();
   sound.setEnabled(!sound.enabled);
   voices.enabled = sound.enabled;
   if (!sound.enabled && voices.synth) voices.synth.cancel();
   if (!sound.enabled) voices.stopClip();
-  e.target.textContent = sound.enabled ? '🔊' : '🔇';
+  paintGameMenu();
+};
+function paintGameMenu() {
+  if (!gm) return;
+  gm.querySelectorAll('[data-speed]').forEach((b) => b.classList.toggle('active', +b.dataset.speed === app.speed));
+  gm.querySelectorAll('[data-film]').forEach((b) => b.classList.toggle('active', +b.dataset.film === film));
+  for (const [id, on] of [['gm-voice', voices.on], ['gm-music', sound.musicOn], ['gm-sound', sound.enabled]]) { const b = document.getElementById(id); b.textContent = on ? 'On' : 'Off'; b.classList.toggle('off', !on); }
+  const L = app.state.campaign && levelById(app.state.campaign.id);
+  document.getElementById('gm-sub').textContent = app.state.tutorial ? 'Tutorial' : L ? `Campaign ${L.n} · ${L.title}` : app.state.battlefield ? battlefieldOf(app.state.battlefield).name : '';
+}
+/** In a battle the title and ☰ open the game menu (the battle waits while it is open); elsewhere, the main menu. */
+function openGameMenu() {
+  if (!app.started || app.state.winner >= 0 || app.overlayOpen()) { showPanel('menu-panel'); return; }
+  gmWasPaused = app.paused;
+  if (!app.paused) app.togglePause();
+  paintGameMenu();
+  gm.classList.remove('hidden');
+}
+function closeGameMenu(resume = true) {
+  if (gm.classList.contains('hidden')) return;
+  gm.classList.add('hidden');
+  if (resume && !gmWasPaused && app.paused) app.togglePause();
+}
+gm.querySelectorAll('[data-speed]').forEach((b) => b.addEventListener('click', () => setSpeed(+b.dataset.speed)));
+gm.querySelectorAll('[data-film]').forEach((b) => b.addEventListener('click', () => setFilm(+b.dataset.film)));
+byId('gm-voice').addEventListener('click', toggleVoices);
+byId('gm-music').addEventListener('click', toggleMusic);
+byId('gm-sound').addEventListener('click', toggleSound);
+byId('m-music').addEventListener('click', toggleMusic);
+byId('gm-resume').addEventListener('click', () => closeGameMenu());
+byId('gm-save').addEventListener('click', () => { closeGameMenu(false); openSlots('game'); });
+byId('gm-help').addEventListener('click', () => { closeGameMenu(false); app.toggleHelp(); });
+byId('gm-main').addEventListener('click', () => {
+  closeGameMenu(false);
+  if (app.started && app.state.winner < 0) saveGame('auto'); // (the battle stays: "Resume battle" on the main menu, or Continue)
+  showPanel('menu-panel');
 });
+gm.addEventListener('click', (e) => { if (e.target === gm) closeGameMenu(); }); // (a click outside the card)
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !gm.classList.contains('hidden')) { e.preventDefault(); e.stopPropagation(); closeGameMenu(); } }, true);
+showMusic();
 
 let endShown = false;
 function showEnd(state) {
@@ -601,10 +623,6 @@ function closeSlots() { goBack(); }
 showContinue();
 byId('btn-continue').addEventListener('click', (e) => loadGame(e.currentTarget.dataset.slot));
 byId('btn-load').addEventListener('click', () => openSlots('menu'));
-byId('btn-save').addEventListener('click', () => {
-  if (!document.getElementById('save-panel').classList.contains('hidden')) closeSlots();
-  else openSlots(app.overlayOpen() ? 'menu' : 'game');
-});
 byId('btn-save-close').addEventListener('click', () => closeSlots());
 
 // ------------------------------------------------------------ menus
@@ -676,8 +694,9 @@ byId('m-new').addEventListener('click', () => {
 byId('m-help').addEventListener('click', () => showPanel('help-panel'));
 byId('m-credits').addEventListener('click', () => showPanel('credits-panel'));
 byId('btn-menu').addEventListener('click', () => {
-  if (app.overlayOpen() && !document.getElementById('menu-panel').classList.contains('hidden') && app.started) resumeBattle();
-  else showPanel('menu-panel');
+  if (!gm.classList.contains('hidden')) closeGameMenu();
+  else if (app.overlayOpen() && !document.getElementById('menu-panel').classList.contains('hidden') && app.started) resumeBattle();
+  else openGameMenu();
 });
 // the WORLDWAR title in the top bar opens the menu too, like ☰
 document.querySelector('#topbar .title').addEventListener('click', () => document.getElementById('btn-menu').click());
