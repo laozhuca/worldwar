@@ -1167,17 +1167,18 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
   --w: clamp(220px, 26vw, 340px);
   width: var(--w); margin: 0 calc(var(--w) * -0.12); padding: 6px 6px 7px; display: flex; flex-direction: column; align-items: center; gap: 3px;
   background: rgba(14, 15, 17, 0.6); border: 1px solid rgba(239, 228, 203, 0.22); border-radius: 0; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
-  transform: scale(0.62); opacity: 0.25; transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.45s, border-color 0.3s;
+  transform: scale(0.62); opacity: 0; visibility: hidden; transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.45s, visibility 0.45s, border-color 0.3s; /* (only the chosen field and its two neighbours show) */
   position: relative; z-index: 1;
 }
-#field-btns button.near { opacity: 0.6; z-index: 2; }
-#field-btns button.active { transform: scale(1); opacity: 1; z-index: 3; border-color: rgba(255, 246, 225, 0.85); background: rgba(34, 31, 25, 0.88); }
+#field-btns button.near { opacity: 0.6; visibility: visible; z-index: 2; }
+#field-btns button.active { transform: scale(1); opacity: 1; visibility: visible; z-index: 3; border-color: rgba(255, 246, 225, 0.85); background: rgba(34, 31, 25, 0.88); }
 #field-btns button:not(.active):hover { opacity: 0.85; }
 #field-btns button canvas { width: 100%; aspect-ratio: 400 / 236; display: block; }
 #field-btns button:not(.active) canvas { filter: saturate(0.7) brightness(0.8); }
 #field-btns button .f-name { font-size: 15px; letter-spacing: 2px; text-transform: uppercase; color: #efe3c8; }
 #field-btns button small { font-size: 11px; color: #a99c82; letter-spacing: 2px; }
-.field-arrow { flex: none; width: 42px; height: 64px; font-size: 40px; line-height: 1; color: #efe3c8; background: rgba(16, 17, 20, 0.6); border: 1px solid rgba(239, 228, 203, 0.3); border-radius: 0; padding: 0; }
+.field-arrow { flex: none; width: 42px; height: 64px; display: flex; align-items: center; justify-content: center; padding: 0; min-height: 0; color: #efe3c8; background: rgba(16, 17, 20, 0.6); border: 1px solid rgba(239, 228, 203, 0.3); border-radius: 0; }
+.field-arrow svg { display: block; }
 .field-arrow:hover { background: rgba(60, 52, 36, 0.8); border-color: var(--gold); }
 #field-count { font-size: 11px; letter-spacing: 3px; color: #a99c82; margin-top: -2px; }
 #field-info { max-width: min(900px, 94vw); text-align: center; color: #d9ccb2; font-size: 13px; line-height: 1.4; text-shadow: 0 1px 3px #000; min-height: 4.2em; }
@@ -1188,7 +1189,7 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 @media (max-width: 860px), (max-height: 600px) {
   #field-btns button { --w: clamp(160px, 40vw, 240px); }
   #field-btns button .f-name { font-size: 12px; }
-  .field-arrow { width: 32px; height: 48px; font-size: 30px; }
+  .field-arrow { width: 32px; height: 48px; }
   #field-info { font-size: 11px; }
 }
 #start-btns button { white-space: nowrap; }

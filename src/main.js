@@ -209,17 +209,19 @@ function drawStartMarks(cv, lit) {
   if (!cv._base) return;
   const g = cv.getContext('2d'), t = performance.now() / 1000;
   g.clearRect(0, 0, cv.width, cv.height); g.drawImage(cv._base, 0, 0);
-  for (const [key, letter] of [['west', 'A'], ['east', 'B']]) {
-    const [x, y] = cv._hq[key], on = lit === key || lit === 'random';
+  // A in blue, B in violet: neither is used anywhere else on the preview (gold and red are the two armies' trenches)
+  for (const [key, letter, col] of [['west', 'A', [64, 156, 255]], ['east', 'B', [196, 96, 255]]]) {
+    const [x, y] = cv._hq[key], on = lit === key || lit === 'random', c = col.join(',');
     if (on) {
       const p = (t * 1.2) % 1;
-      g.strokeStyle = `rgba(255,236,170,${0.9 * (1 - p)})`; g.lineWidth = 2;
-      g.beginPath(); g.arc(x, y, 9 + p * 16, 0, Math.PI * 2); g.stroke();
-      g.fillStyle = 'rgba(255,226,140,0.28)'; g.beginPath(); g.arc(x, y, 12, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = `rgba(${c},${0.95 * (1 - p)})`; g.lineWidth = 3;
+      g.beginPath(); g.arc(x, y, 11 + p * 18, 0, Math.PI * 2); g.stroke();
     }
-    g.fillStyle = on ? '#f6dc8c' : 'rgba(24,22,20,0.85)'; g.strokeStyle = on ? '#2a2216' : 'rgba(240,220,170,0.8)'; g.lineWidth = 1.5;
-    g.beginPath(); g.arc(x, y, 8, 0, Math.PI * 2); g.fill(); g.stroke();
-    g.fillStyle = on ? '#2a2216' : '#efe2c2'; g.font = 'bold 11px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const r = on ? 10 : 8;
+    g.fillStyle = 'rgba(0,0,0,0.45)'; g.beginPath(); g.arc(x + 1, y + 1.5, r + 2, 0, Math.PI * 2); g.fill(); // (a drop shadow, to lift it off any ground)
+    g.fillStyle = `rgb(${c})`; g.strokeStyle = '#ffffff'; g.lineWidth = on ? 2.5 : 1.8;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = '#ffffff'; g.font = `bold ${on ? 13 : 11}px Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(letter, x, y + 0.5);
   }
 }
