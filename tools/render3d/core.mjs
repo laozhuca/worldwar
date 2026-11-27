@@ -133,7 +133,7 @@ export function render(scene, scale) {
         for (let k = 0; k < 48 && st < 2.5; k++) {
           const h = sdf(sox + LX * st, soy + LY * st, soz + LZ * st);
           if (h < 0.0004) { sh = 0; break; }
-          sh = Math.min(sh, (10 * h) / st);
+          sh = Math.min(sh, ((scene.shadowK || 10) * h) / st); // (a crisper shadow for a scene that asks: a palm's fronds)
           st += clamp(h, 0.003, 0.08);
         }
         sh = clamp(sh, 0, 1);
@@ -149,7 +149,7 @@ export function render(scene, scale) {
         if (m.kind === 'catcher' && (nz < 0.8 || pz < -0.002)) continue; // (a grazing ray entering the volume below the ground plane hits nothing real)
         if (m.kind === 'catcher') {
           // transparent ground that only receives shadow and contact occlusion
-          const a = clamp((1 - sh) * 0.5 + (1 - ao) * 0.55, 0, 0.72);
+          const a = clamp((1 - sh) * 0.5 + (1 - ao) * 0.55, 0, 0.72) * (m.fade ?? 1); // (fade: a soft edge to the ground the shadow falls on)
           accR += 0.03 * a; accG += 0.035 * a; accB += 0.05 * a; accA += a;
           continue;
         }

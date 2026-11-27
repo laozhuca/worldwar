@@ -681,7 +681,7 @@ export function birchScene(variant, snow) {
  * in scree, snow lying in every ledge and on the tops. Impassable in the game. Footprint ~1.2 tiles.
  * heavy: deep winter snow (the snow sheet); otherwise snow only on the upper ledges.
  */
-export function rockScene(variant, heavy) {
+export function rockScene(variant, heavy, dry = false) {
   const blocks = [];
   const n = 3 + (variant % 3);
   for (let k = 0; k < n; k++) {
@@ -713,7 +713,7 @@ export function rockScene(variant, heavy) {
     if (!isRock && r > 0.98) return { kind: 'catcher' };
     // snow lies on every upward-facing ledge, more of it higher up and in the heavy-snow version
     const lie = nz - (heavy ? 0.3 : 0.5) - (isRock ? 0 : heavy ? 0.25 : 0.6) + z * (heavy ? 0.5 : 0.4) + (fbm(x * 26, y * 26, z * 26, 3) - 0.5) * 0.4;
-    if (lie > 0.25) return { kind: 'solid', col: mix3(C.snow, [0.7, 0.74, 0.8], clamp(0.6 - lie, 0, 0.5)), spec: 0.12, alpha: isRock ? 1 : clamp((0.98 - r) * 3, 0.05, 1) };
+    if (!dry && lie > 0.25) return { kind: 'solid', col: mix3(C.snow, [0.7, 0.74, 0.8], clamp(0.6 - lie, 0, 0.5)), spec: 0.12, alpha: isRock ? 1 : clamp((0.98 - r) * 3, 0.05, 1) };
     const n = fbm(x * 30, y * 30, z * 30, 4);
     if (!isRock) return { kind: 'solid', col: mix3([0.16, 0.155, 0.15], [0.36, 0.35, 0.33], n), spec: 0.05, alpha: clamp((0.98 - r) * 3, 0.05, 1) };
     let col = mix3([0.34, 0.33, 0.31], [0.62, 0.61, 0.58], n); // pale karst limestone
@@ -919,7 +919,7 @@ export function cragScene(variant, size, heavy, wooded = false, dry = false) {
         const t = trees.reduce((a, q) => (Math.hypot(q.x - x, q.y - y) < Math.hypot(a.x - x, a.y - y) ? q : a));
         const lz = z - t.z, n = fbm(x * 30, y * 30, z * 30, 3);
         if (Math.hypot(x - t.x, y - t.y) < 0.02 * Math.sqrt(size) && lz < t.ht * 0.2) return { kind: 'solid', col: [0.22, 0.16, 0.11], spec: 0.02 };
-        if (nz > (heavy ? 0.35 : 0.55) && fbm(x * 20 + 3, y * 20, z * 20, 2) > (heavy ? 0.42 : 0.55)) return { kind: 'solid', col: C.snow, spec: 0.1, aoMin: 0.45 };
+        if (!dry && nz > (heavy ? 0.35 : 0.55) && fbm(x * 20 + 3, y * 20, z * 20, 2) > (heavy ? 0.42 : 0.55)) return { kind: 'solid', col: C.snow, spec: 0.1, aoMin: 0.45 };
         const base = t.larch ? mix3([0.2, 0.24, 0.12], [0.36, 0.38, 0.18], n) : mix3([0.06, 0.11, 0.08], [0.14, 0.2, 0.12], n);
         return { kind: 'solid', col: base, spec: 0.03, aoMin: 0.4, fill: 1.25 };
       }
@@ -1017,7 +1017,7 @@ export function knollScene(variant, size, heavy) {
  * Loose stones and flat slabs lying on the ground: scree fallen from the crags. Passable (it slows men
  * down). Footprint one tile; low.
  */
-export function screeScene(variant, heavy) {
+export function screeScene(variant, heavy, dry = false) {
   const stones = [];
   const n = 12 + Math.floor(hash(variant, 1) * 8);
   for (let k = 0; k < n; k++) {
@@ -1039,7 +1039,7 @@ export function screeScene(variant, heavy) {
     const isStone = stone(x, y, z) < z * 0.7 + 0.002;
     if (!isStone) return z < -0.004 || Math.hypot(x, y) > 0.5 ? { kind: 'none' } : { kind: 'catcher' };
     const n = fbm(x * 25, y * 25, z * 25, 3);
-    if (nz > (heavy ? 0.7 : 0.85) && fbm(x * 12 + 3, y * 12, 1, 2) > (heavy ? 0.55 : 0.68)) return { kind: 'solid', col: C.snow, spec: 0.12, aoMin: 0.5 };
+    if (!dry && nz > (heavy ? 0.7 : 0.85) && fbm(x * 12 + 3, y * 12, 1, 2) > (heavy ? 0.55 : 0.68)) return { kind: 'solid', col: C.snow, spec: 0.12, aoMin: 0.5 };
     let col = mix3([0.36, 0.35, 0.33], [0.62, 0.6, 0.55], n);
     col = mix3(col, [0.33, 0.36, 0.26], clamp(fbm(x * 30 + 7, y * 30, z * 30, 2) * 2 - 1.2, 0, 0.4));
     return { kind: 'solid', col, spec: 0.06, aoMin: 0.5 };

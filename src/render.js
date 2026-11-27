@@ -425,6 +425,12 @@ export class Renderer {
     layer('grass', gm, 8);
     const RR = rf.R;
     layer('earth', this.rcv.earth.cv, RR);
+    if (map.tiles.some((t) => t.road === 1)) { // dirt roads and tracks: packed earth, ragged at the edges
+      const roadA = new Float32Array(map.w * map.h);
+      for (const t of map.tiles) roadA[t.y * map.w + t.x] = t.road === 1 && !t.trench ? 1 : 0;
+      const rm = this.buildMask(map, roadA, 2, 0.55, tb); rm.__data = this._maskImg;
+      layer('earth', rm, 8);
+    }
     if (S > 0) layer('snow', this.rcv.snow.cv, RR);
     layer(S > 0.3 ? 'ice' : 'water', this.rcv.water.cv, RR);
 
@@ -526,9 +532,9 @@ export class Renderer {
   }
 
   /**
-   * Roads (a skirmish battlefield): dirt roads and cart tracks as a smooth band of packed earth (rutted,
-   * pale where snow lies on them), duckboards as planks laid across the way, a railway as ballast with its
-   * two rails, paving as grey setts.
+   * Dirt roads and cart tracks (a skirmish battlefield): over the packed-earth texture laid along them, a
+   * drier, paler tone (and pale where snow lies on them). Duckboards, the railway and paving are
+   * pre-rendered tiles, baked in with the trenches.
    */
   drawRoads(g, map, tb, cover) {
     const W = map.w, H = map.h;
@@ -536,11 +542,11 @@ export class Renderer {
     cv.width = W; cv.height = H;
     const c = cv.getContext('2d'), img = c.createImageData(W, H), d = img.data;
     for (const t of map.tiles) {
-      if (!t.road || t.road >= 2 || t.trench) continue; // (planks, rails and setts are laid tile by tile below)
+      if (t.road !== 1 || t.trench) continue; // (planks, rails and setts are pre-rendered tiles, baked with the trenches)
       const i = (t.y * W + t.x) * 4, v = hash(t.x * 0.61, t.y * 0.37) * 16, sn = cover[t.y * W + t.x] * 0.6;
-      const col = t.road === 3 ? [104, 98, 90] : t.road === 4 ? [128, 124, 116] : [118, 96, 70];
+      const col = [126, 104, 78];
       for (let k = 0; k < 3; k++) d[i + k] = col[k] + v + (226 - col[k]) * sn;
-      d[i + 3] = t.crater ? 90 : 235;
+      d[i + 3] = t.crater ? 40 : 150;
     }
     c.putImageData(img, 0, 0);
     const TWh = TW / 2, THh = TH / 2;
@@ -548,38 +554,8 @@ export class Renderer {
     g.setTransform(TWh, THh, -TWh, THh, this.OX, this.OY);
     if (tb) { g.beginPath(); g.rect(tb.x0, tb.y0, tb.x1 - tb.x0 + 1, tb.y1 - tb.y0 + 1); g.clip(); }
     g.imageSmoothingEnabled = true;
-    g.globalAlpha = 0.85; g.drawImage(cv, 0, 0);
-    g.restore();
-    // planks, rails and setts, tile by tile, along the way the road runs
-    g.save();
-    g.setTransform(1, 0, 0, 1, this.OX, this.OY);
-    const R = (x, y, k) => { const n = x >= 0 && y >= 0 && x < W && y < H ? map.tiles[y * W + x] : null; return n && n.road === k; };
-    for (const t of map.tiles) {
-      if (!t.road || t.trench || t.off || (tb && (t.x < tb.x0 - 1 || t.x > tb.x1 + 1 || t.y < tb.y0 - 1 || t.y > tb.y1 + 1))) continue;
-      const alongX = R(t.x - 1, t.y, t.road) || R(t.x + 1, t.y, t.road), alongY = R(t.x, t.y - 1, t.road) || R(t.x, t.y + 1, t.road);
-      const dirs = alongX && alongY ? [[1, 0], [0, 1]] : alongY ? [[0, 1]] : [[1, 0]];
-      for (const [ax, ay] of dirs) {
-        const p = (u, w) => iso(t.x + 0.5 + ax * u - ay * w, t.y + 0.5 + ay * u + ax * w); // u along the road, w across it
-        if (t.road === 2) { // duckboards: slats across a pair of runners
-          g.fillStyle = 'rgba(0,0,0,0.3)';
-          for (let k = -0.45; k < 0.5; k += 0.16) { const a = p(k, -0.22), b = p(k, 0.22), a2 = p(k + 0.1, 0.22), b2 = p(k + 0.1, -0.22); g.beginPath(); g.moveTo(a.x, a.y + 1.5); g.lineTo(b.x, b.y + 1.5); g.lineTo(a2.x, a2.y + 1.5); g.lineTo(b2.x, b2.y + 1.5); g.fill(); }
-          for (let k = -0.45; k < 0.5; k += 0.16) { const v = hash(t.x * 3 + k, t.y), a = p(k, -0.22), b = p(k, 0.22), a2 = p(k + 0.1, 0.22), b2 = p(k + 0.1, -0.22); g.fillStyle = `rgb(${112 + v * 30},${88 + v * 24},${60 + v * 16})`; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.lineTo(a2.x, a2.y); g.lineTo(b2.x, b2.y); g.fill(); }
-        } else if (t.road === 3) { // the railway: ballast, sleepers and two rails
-          if (ax === dirs[0][0] && ay === dirs[0][1]) { const q = [p(-0.5, -0.4), p(0.5, -0.4), p(0.5, 0.4), p(-0.5, 0.4)]; g.fillStyle = 'rgba(96,90,84,0.9)'; g.beginPath(); g.moveTo(q[0].x, q[0].y); for (const r of q) g.lineTo(r.x, r.y); g.fill(); }
-          g.fillStyle = '#3e342b';
-          for (let k = -0.45; k < 0.5; k += 0.2) { const a = p(k, -0.28), b = p(k, 0.28), a2 = p(k + 0.07, 0.28), b2 = p(k + 0.07, -0.28); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.lineTo(a2.x, a2.y); g.lineTo(b2.x, b2.y); g.fill(); }
-          g.strokeStyle = '#8f8d88'; g.lineWidth = 1.6;
-          for (const w of [-0.15, 0.15]) { const a = p(-0.5, w), b = p(0.5, w); g.beginPath(); g.moveTo(a.x, a.y - 1); g.lineTo(b.x, b.y - 1); g.stroke(); }
-        } else if (t.road === 4) { // setts: the paved tile, its stones in rows
-          if (ax === dirs[0][0] && ay === dirs[0][1]) { const v = hash(t.x * 1.3, t.y * 0.7) * 14, q = [iso(t.x, t.y), iso(t.x + 1, t.y), iso(t.x + 1, t.y + 1), iso(t.x, t.y + 1)]; g.fillStyle = `rgb(${92 + v},${88 + v},${82 + v})`; g.beginPath(); g.moveTo(q[0].x, q[0].y); for (const r of q) g.lineTo(r.x, r.y); g.fill(); }
-          g.strokeStyle = 'rgba(60,56,50,0.35)'; g.lineWidth = 0.8;
-          for (let k = -0.4; k < 0.5; k += 0.2) { const a = p(k, -0.5), b = p(k, 0.5); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
-        } else { // ruts
-          g.strokeStyle = 'rgba(60,44,30,0.3)'; g.lineWidth = 1.4;
-          for (const w of [-0.18, 0.18]) { const a = p(-0.5, w), b = p(0.5, w); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
-        }
-      }
-    }
+    g.globalCompositeOperation = 'soft-light'; g.globalAlpha = 0.9; g.drawImage(cv, 0, 0); // (over the packed earth laid by the texture layer: lighter, drier)
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 0.3; g.drawImage(cv, 0, 0);
     g.restore();
   }
 
@@ -986,7 +962,16 @@ export class Renderer {
     for (const t of map.tiles) {
       if (t.ground !== 3 || t.off || t.trench || !this.inClip(t.x, t.y, 1)) continue;
       const h = hash(t.x * 4.1, t.y * 2.7), p = iso(t.x + 0.5 + (h - 0.5) * 0.3, t.y + 0.5 + (t.shade - 0.5) * 0.3);
-      this.drawProp(g, `scree${Math.floor(h * 4) % 4}${snow}`, p.x, p.y, h > 0.5);
+      this.drawProp(g, `scree${Math.floor(h * 4) % 4}${this.dryRocks(map) ? '_d' : snow}`, p.x, p.y, h > 0.5);
+    }
+    // roads laid tile by tile (a skirmish battlefield): duckboards, the railway, paving, pre-rendered
+    for (const t of map.tiles) {
+      if (!t.road || t.road === 1 || t.off || t.trench || !this.inClip(t.x, t.y, 1)) continue;
+      const p = iso(t.x + 0.5, t.y + 0.5), h = hash(t.x * 2.3, t.y * 1.7);
+      if (t.road === 4) { this.drawProp(g, `setts${Math.floor(h * 3) % 3}${snow}`, p.x, p.y); continue; }
+      const R2 = (x, y) => { const n = T(x, y); return n && n.road === t.road; };
+      const ax = R2(t.x - 1, t.y) || R2(t.x + 1, t.y), ay = R2(t.x, t.y - 1) || R2(t.x, t.y + 1);
+      for (const d of ax && ay ? ['x', 'y'] : ay ? ['y'] : ['x']) this.drawProp(g, t.road === 2 ? `duck_${d}${Math.floor(h * 2) % 2}${snow}` : `rail_${d}${snow}`, p.x, p.y);
     }
     // trench tiles by connectivity, back to front
     const trenches = map.tiles.filter((t) => t.trench && this.inClip(t.x, t.y, 2)).sort((a, b) => a.x + a.y - (b.x + b.y) || a.x - b.x);
@@ -1104,7 +1089,7 @@ export class Renderer {
       if (o.kind === 'decor') this.drawDecor(ctx, o.t);
       else if (o.kind === 'hq') this.drawHQ(ctx, state, o.q, o.team);
       else if (o.kind === 'rock') this.drawRock(ctx, o.r);
-      else if (o.kind === 'giant') { const c = iso(o.gi.x, o.gi.y); this.drawFrame(ctx, this.propGroup(), `giant${o.gi.v}${(this.S ?? 1) > 0.7 ? '_s' : ''}`, c.x, c.y, 1, o.gi.m); }
+      else if (o.kind === 'giant') { const c = iso(o.gi.x, o.gi.y); this.drawFrame(ctx, this.propGroup(), `giant${o.gi.v}${(this.S ?? 1) > 0.7 ? '_s' : this.dryRocks(state.map) ? '_d' : ''}`, c.x, c.y, 1, o.gi.m); }
       else if (o.kind === 'town') this.drawBackdrop(ctx, o.bd);
       else if (o.kind === 'float') { // floating in the sea, bobbing, sinking from sight at the end
         const f = o.f, c = iso(f.x, f.y), age = state.time - f.t, a = Math.min(1, age / 0.6) * Math.min(1, (f.life - age) / 6);
@@ -1394,7 +1379,7 @@ export class Renderer {
   }
 
   drawDecor(ctx, t) {
-    if (VECTOR_DECOR[t.decor]) { VECTOR_DECOR[t.decor](ctx, t, this.S ?? 1); return; }
+    if (VECTOR_DECOR[t.decor]) { if (this.drawScenery(ctx, t)) return; VECTOR_DECOR[t.decor](ctx, t, this.S ?? 1); return; } // (drawn in vector only until the sprites are in)
     if (this.props && t.decor !== 'ruin') {
       const snow = (this.S ?? 1) > 0.7 ? '_s' : '';
       const h = hash(t.x * 2.3, t.y * 5.1);
@@ -1483,6 +1468,31 @@ export class Renderer {
       ctx.fillStyle = S > 0.2 ? '#dde2e7' : '#6d6a64';
       ctx.fillRect(c.x - 10, c.y - 14, 6, 2); ctx.fillRect(c.x - 4, c.y - 8, 10, 1.5);
     }
+  }
+
+  /** The skirmish battlefields' scenery, pre-rendered: hedges, scrub, reeds, palms, poles, walls, the water tower. */
+  drawScenery(ctx, t) {
+    if (!this.props) return false;
+    const snow = (this.S ?? 1) > 0.7 ? '_s' : '', h = hash(t.x * 2.3, t.y * 5.1), m = hash(t.y * 1.1, t.x * 3.7) > 0.5;
+    const centre = iso(t.x + 0.5, t.y + 0.5), loose = iso(t.x + 0.3 + t.shade * 0.4, t.y + 0.3 + h * 0.4);
+    switch (t.decor) {
+      case 'hedge': return this.drawProp(ctx, `hedge${Math.floor(h * 4) % 4}${snow}`, centre.x, centre.y, m);
+      case 'scrub': return this.drawProp(ctx, `scrub${Math.floor(h * 4) % 4}${snow}`, loose.x, loose.y, m);
+      case 'reeds': return this.drawProp(ctx, `reeds${Math.floor(h * 3) % 3}${snow}`, centre.x, centre.y, m);
+      case 'palm': return this.drawProp(ctx, `palm${Math.floor(h * 4) % 4}`, loose.x, loose.y, m);
+      case 'tower': return this.drawProp(ctx, 'tower', centre.x, centre.y);
+      case 'wall': return this.drawProp(ctx, `wall_${t.wallY ? 'y' : 'x'}${Math.floor(h * 3) % 3}${snow}`, centre.x, centre.y);
+      case 'pole': {
+        if (!this.drawProp(ctx, `pole${Math.floor(h * 2) % 2}${snow}`, centre.x, centre.y)) return false;
+        if (t.wireTo) { // the wires sag from its crossarm to the next pole's
+          const n = iso(t.wireTo[0] + 0.5, t.wireTo[1] + 0.5), top = 44;
+          ctx.strokeStyle = 'rgba(28,24,20,0.55)'; ctx.lineWidth = 0.7;
+          for (const o of [-6.5, -2.5, 2.5, 6.5]) { ctx.beginPath(); ctx.moveTo(centre.x - o, centre.y - top - o * 0.5); ctx.quadraticCurveTo((centre.x + n.x) / 2 - o, (centre.y + n.y) / 2 - top + 12 - o * 0.5, n.x - o, n.y - top - o * 0.5); ctx.stroke(); }
+        }
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -1575,13 +1585,19 @@ export class Renderer {
     return list;
   }
 
+  /**
+   * Rocks with no snow on them: a dry country (Gallipoli), or a skirmish battlefield whose season has no
+   * snow lying (the plain 'bare' rock sprites keep the Isonzo's light snow on their ledges).
+   */
+  dryRocks(map) { return !!map && (this.S ?? 1) <= 0.7 && (map.dry || !!map.battlefield); }
+
   /** A snow-capped Alpine boulder (pre-rendered) over its block of rock tiles. */
   drawRock(ctx, r) {
     const h = hash(r.x * 3.7, r.y * 1.9), c = iso(r.x + r.size / 2 + (h - 0.5) * 0.15, r.y + r.size / 2 + (hash(r.y, r.x) - 0.5) * 0.15);
     const snow = (this.S ?? 1) > 0.7 ? '_s' : '';
     // jagged crags and rounded boulders mixed, as they fall in the mountains; or a knoll of dwarf pine
     const kind = r.knoll ? 'knoll' : hash(r.x * 2.9 + 1.7, r.y * 5.3) < 0.42 ? 'round' : 'boulder';
-    const dry = this.map && this.map.dry && kind !== 'knoll' ? '_d' : ''; // (a dry, snowless country: Gallipoli)
+    const dry = this.dryRocks(this.map) ? '_d' : ''; // (a snowless country: rocks without the Isonzo's snow on their ledges)
     if (this.drawFrame(ctx, this.propGroup(), `${kind}${r.size}_${r.v}${dry || snow}`, c.x, c.y, 1.22 + h * 0.2, h > 0.5)) return;
     if (this.drawFrame(ctx, this.propGroup(), `boulder${r.size}_${r.v}${snow}`, c.x, c.y, 1.22 + h * 0.2, h > 0.5)) return;
     if (this.drawFrame(ctx, this.propGroup(), `rock${r.v}${snow}`, c.x, c.y, (1.4 + h * 0.35) * r.size, h > 0.5)) return;
