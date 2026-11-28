@@ -189,12 +189,12 @@ export function runTutorial(state, ctx) {
     look(pair.x + 2, pair.y, 2.4);
     await after(1.2);
     await say('', 'The Somme. 1 July 1916, 07:20. Ten minutes to zero hour.', TRENCH);
-    await say(ARCHER, 'Seven days the guns have been going. Can\'t be a German left alive over there.');
-    await say(HALE, 'That\'s what the officers say. Wire\'s all cut. We just walk across.');
-    await say(ARCHER, 'Walk. With sixty pounds on our backs.');
-    await say(HALE, 'Will... if I don\'t come back, give this letter to my mum.', LETTER);
-    await say(ARCHER, 'Give it her yourself. We\'ll be in their trench by breakfast.');
-    await say(LT, 'The guns open the attack, lads. Stand to.');
+    await say(ARCHER, 'Larks are up. You can hear them, between the guns.');
+    await say(HALE, 'Seven days of shelling. They say the wire is cut, and we\'re to walk across.');
+    await say(ARCHER, 'At walking pace. They were very particular about that.');
+    await say(HALE, 'I wrote to Mother last night. Nothing much. The weather, the food.', LETTER);
+    await say(ARCHER, 'Post it yourself tomorrow. Tell her about the larks.');
+    await say(LT, 'Stand to. The guns go first.');
 
     // 0. moving the map: look around the line, then back
     const cam0 = { x: renderer.cam.x, y: renderer.cam.y };
@@ -236,11 +236,11 @@ export function runTutorial(state, ctx) {
     });
     // the men wait in the trench while the shells fall
     follow = { get x() { return pair.x + (objective.x - pair.x) * 0.4; }, get y() { return pair.y; } };
-    await say(ARCHER, 'Go on, give it to \'em!');
-    await say(HALE, 'Nothing could live through that.');
-    await say(LT, 'Two minutes, lads. Fix bayonets.');
+    await say(ARCHER, 'You can feel it through the duckboards.');
+    await say(HALE, 'They keep telling us nothing can live under it.');
+    await say(LT, 'Two minutes. Fix bayonets.');
     // the barrage must be lifted before the men go: the player halts the battery (H), and the rest of the guns with it
-    await say(LT, 'Cease fire! Lift the barrage!');
+    await say(LT, 'Signal the guns. Lift the barrage.');
     if (gun.barrage) {
       if (!ui.selected.has(gun.id)) {
         state.marker = { unit: gun.id, label: 'Field battery' };
@@ -260,7 +260,7 @@ export function runTutorial(state, ctx) {
     state.marker = { unit: pair.id, label: 'Hale & Archer' };
     look(pair.x + 2, pair.y, 2.4);
     sound.play('whistle', 1);
-    await say(LT, 'Over the top!');
+    await say('', 'Whistles, all along the line.');
     await selectPair();
     state.marker = { ...out, label: 'Shell hole' };
     look(pair.x + 3.5, pair.y, 2.1);
@@ -268,15 +268,15 @@ export function runTutorial(state, ctx) {
     orderMove(state, [pair], out.x, out.y); // to the shell hole, wherever the click landed
     for (const u of company) orderMove(state, [u], u.x + 7, u.y);
     follow = pair;
-    await say(HALE, 'Stay close, Will.');
+    await say(HALE, 'Walking pace, Will. Just as they said.');
     // halting: once they are out in the open, stop them while the rest of the line comes up, then go on
     await waitFor(() => !pair.order || (!pair.inTrench && !pair.climb && !pair.overTop));
     if (!ui.selected.has(pair.id)) { ui.selected.clear(); ui.selected.add(pair.id); }
-    await say(LT, 'Halt! Wait for the line!');
+    await say(LT, 'Halt. Let the line dress.');
     glow('[data-cmd="halt"]');
     await step(touch ? 'Press the glowing Halt button to stop them where they are.' : 'Press H (or the glowing Halt button) to stop them where they are.', () => !pair.order, { kind: 'key', key: 'H' });
-    await say(ARCHER, 'Quiet as a church out here...');
-    await say(LT, 'Line\'s dressed. Forward!');
+    await say(ARCHER, 'Strange. Not a shot from them.');
+    await say(LT, 'Forward. Steady.');
     if (!ui.selected.has(pair.id)) { ui.selected.clear(); ui.selected.add(pair.id); }
     state.marker = { ...out, label: 'Shell hole' };
     await step(`${rclick} the shell hole again to go on.`, () => pair.order && pair.order.kind === 'move', { kind: 'mouse', button: 2 });
@@ -309,8 +309,8 @@ export function runTutorial(state, ctx) {
     for (const u of company) u.invulnerable = false;
     mg.target = pair;
     pair.invulnerable = false;
-    await say(HALE, 'Machine gun! Get down —');
-    if (!pair.dead) await say(ARCHER, 'Tom!');
+    await say(HALE, 'On their parapet. They were never gone.');
+    if (!pair.dead) await say(ARCHER, 'Tom.');
     await waitFor(() => pair.dead);
   }
 
