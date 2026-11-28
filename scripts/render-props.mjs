@@ -41,6 +41,7 @@ function jobs() {
     for (const ax of ['x', 'y']) list.push({ name: `bridge_${ax}${s}`, kind: 'bridge', args: [ax, snow] });
     // the skirmish battlefields' scenery
     for (let v = 0; v < 4; v++) list.push({ name: `hedge${v}${s}`, kind: 'hedge', args: [v, snow] });
+    if (!snow) for (let v = 0; v < 4; v++) for (const t of [1, 2, 3]) list.push({ name: `hedge${v}t${t}`, kind: 'hedge', args: [v, false, t] }); // (other leaf: olive, dark, turning with berries)
     for (let v = 0; v < 4; v++) list.push({ name: `scrub${v}${s}`, kind: 'scrub', args: [v, snow] });
     for (let v = 0; v < 3; v++) list.push({ name: `reeds${v}${s}`, kind: 'reeds', args: [v, snow] });
     for (let v = 0; v < 2; v++) list.push({ name: `pole${v}${s}`, kind: 'pole', args: [v, snow] });

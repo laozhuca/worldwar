@@ -37,7 +37,15 @@ function shadowGround(height, r) {
  * A stretch of thick hedge (hawthorn and hazel) filling its tile: lumpy masses of leaf on a few stems,
  * gaps showing at the foot. snow: bare twigs and snow on top in winter.
  */
-export function hedgeScene(variant, snow) {
+/** tone: 0 mid green (hawthorn), 1 olive and yellow-green (hazel, field maple), 2 dark blue-green (blackthorn, holly),
+ *  3 green turning rust in patches, with red hawthorn berries. */
+const HEDGE_TONES = [
+  { lo: [0.12, 0.19, 0.07], hi: [0.3, 0.4, 0.14], patch: [0.36, 0.36, 0.16] },
+  { lo: [0.2, 0.23, 0.07], hi: [0.46, 0.48, 0.17], patch: [0.55, 0.5, 0.2] },
+  { lo: [0.05, 0.11, 0.07], hi: [0.17, 0.26, 0.15], patch: [0.22, 0.3, 0.22] },
+  { lo: [0.13, 0.18, 0.07], hi: [0.32, 0.38, 0.13], patch: [0.46, 0.25, 0.09] },
+];
+export function hedgeScene(variant, snow, tone = 0) {
   const H = (k, j = 0) => hash(variant * 23 + 7, j, k);
   const lumps = [];
   for (let k = 0; k < 9; k++) {
@@ -65,7 +73,10 @@ export function hedgeScene(variant, snow) {
       if (nz > 0.35 && fbm(x * 14 + 3, y * 14, z * 14, 2) > 0.38) return { kind: 'solid', col: snowCol(0.5 - nz * 0.5), spec: 0.1, aoMin: 0.5 };
       return { kind: 'solid', col: mix3([0.17, 0.14, 0.11], [0.32, 0.27, 0.21], n), spec: 0.02, aoMin: 0.35 }; // bare twigs
     }
-    return { kind: 'solid', col: mix3(mix3([0.12, 0.19, 0.07], [0.3, 0.4, 0.14], n), [0.36, 0.36, 0.16], clamp(n2 * 1.6 - 0.9, 0, 0.5)), spec: 0.03, aoMin: 0.4, fill: 1.15 };
+    const P = HEDGE_TONES[tone] || HEDGE_TONES[0];
+    if (tone === 3 && vnoise(x * 140, y * 140, z * 140) > 0.9 && nz > -0.2) return { kind: 'solid', col: [0.55, 0.07, 0.05], spec: 0.25, shin: 30 }; // (berries)
+    const amt = tone === 3 ? clamp(n2 * 2.2 - 0.95, 0, 0.75) : clamp(n2 * 1.6 - 0.9, 0, 0.5);
+    return { kind: 'solid', col: mix3(mix3(P.lo, P.hi, n), P.patch, amt), spec: 0.03, aoMin: 0.4, fill: 1.15 };
   };
   return { bounds: [-0.62, -0.62, -0.05, 0.62, 0.62, top + 0.12], sdf, shade, supersample: 2 };
 }

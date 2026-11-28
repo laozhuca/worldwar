@@ -1492,7 +1492,11 @@ export class Renderer {
     const snow = (this.S ?? 1) > 0.7 ? '_s' : '', h = hash(t.x * 2.3, t.y * 5.1), m = hash(t.y * 1.1, t.x * 3.7) > 0.5;
     const centre = iso(t.x + 0.5, t.y + 0.5), loose = iso(t.x + 0.3 + t.shade * 0.4, t.y + 0.3 + h * 0.4);
     switch (t.decor) {
-      case 'hedge': return this.drawProp(ctx, `hedge${Math.floor(h * 4) % 4}${snow}`, centre.x, centre.y, m);
+      case 'hedge': { // a mixed hedgerow: each bush its own leaf (mostly green, some olive, dark or turning) and size
+        const r = hash(t.x * 7.7, t.y * 3.3), tone = snow ? '' : r < 0.38 ? '' : r < 0.6 ? 't1' : r < 0.8 ? 't2' : 't3';
+        const k = 0.85 + hash(t.y * 5.1, t.x * 1.9) * 0.3;
+        return this.drawFrame(ctx, this.propGroup(), `hedge${Math.floor(h * 4) % 4}${tone}${snow}`, centre.x, centre.y, k, m) || this.drawProp(ctx, `hedge${Math.floor(h * 4) % 4}${snow}`, centre.x, centre.y, m);
+      }
       case 'scrub': return this.drawProp(ctx, `scrub${Math.floor(h * 4) % 4}${snow}`, loose.x, loose.y, m);
       case 'reeds': return this.drawProp(ctx, `reeds${Math.floor(h * 3) % 3}${snow}`, centre.x, centre.y, m);
       case 'palm': return this.drawProp(ctx, `palm${Math.floor(h * 4) % 4}`, loose.x, loose.y, m);
