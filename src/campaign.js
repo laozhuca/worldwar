@@ -1494,7 +1494,7 @@ export const levelById = (id) => LEVELS.find((l) => l.id === id);
 /** The prologue: the tutorial, briefed like a campaign battle (it is played by tutorial.js). */
 export const PROLOGUE = {
   id: 'prologue', title: 'Over the Top', place: 'The Somme, France', date: '1 July 1916', nations: ['uk', 'germany'],
-  history: 'Before dawn on 1 July 1916, the first day of the Battle of the Somme. For a week the British guns have shelled the German line without pause, and the men in the trenches have been told that nothing could live through it. Two privates of the same company, Hale and Archer, wait in the front line for the whistle. This is where you learn your trade: how to bombard, how to go over the top, and what a machine gun does to men in the open.',
+  history: 'Before dawn on 1 July 1916, the first day of the Battle of the Somme. For a week the British guns have shelled the German line without pause, and the men in the trenches have been told that nothing could live through it. A young second lieutenant, Edward Lisle, finishes a letter to his mother while two of his men, Hale and Archer, wait beside him for the whistle. This is where you learn your trade: how to bombard, how to go over the top, and what a machine gun does to men in the open.',
   objectives: ['Follow the orders as they come.', 'Bring your battery to bear on the enemy trench.', 'Lead the company over the top and across no man\'s land.'],
   rules: ['The battle waits for your orders: take your time.', 'Highlighted buttons and markers show what to do next.', 'Some lessons of the Somme can only be learned the hard way.'],
 };

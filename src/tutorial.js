@@ -1,13 +1,16 @@
 // The tutorial: "1 July 1916". A scripted scene in the ordinary engine that teaches selecting, moving,
-// bombarding and charging through a short story: two privates talk in the trench, the whistle blows,
-// they go over the top, the guns open up, they charge, and a machine gun the barrage missed kills them.
+// bombarding and charging through a short story: a young lieutenant's letter to his mother, read between
+// the guns; he and two of his men go over the top, he leads the charge, and a machine gun the barrage missed
+// kills them in front of the German wire. The letter's last lines close the scene.
 // The scene is a script of awaits on what the player does; captions show dialogue and instructions.
 import { PLAYER, ENEMY, UNIT_TYPES } from './config.js';
 import { createGame, spawnUnit, damageUnit, orderMove, orderBarrage } from './game.js';
 import { frontLine } from './map.js';
 import { iso } from './render.js';
 
-const HALE = 'Pte. Tom Hale', ARCHER = 'Pte. Will Archer', LT = 'Lieutenant';
+const HALE = 'Pte. Tom Hale', ARCHER = 'Pte. Will Archer', LT = '2nd Lt. Edward Lisle';
+const HIS_LETTER = 'Edward, to his mother'; // the letter, read over the scene
+
 // pictures shown above a speaker's lines (the letter replaces Hale's face when he speaks of it)
 const FACES = { [HALE]: 'assets/art/story-hale.webp', [ARCHER]: 'assets/art/story-archer.webp' };
 const LETTER = 'assets/art/story-letter.webp';
@@ -25,9 +28,9 @@ export function createTutorialGame() {
   s.units = [];
   const M = Math.floor(s.map.h / 2);
   const ours = frontLine(s.map, PLAYER), theirs = frontLine(s.map, ENEMY);
-  // the section: just the two of them
+  // the section: the lieutenant and two of his men
   const pair = spawnUnit(s, 'rifle', PLAYER, ours[M] + 0.5, M + 0.5);
-  pair.men = 2; pair.hp = 2 * UNIT_TYPES.rifle.hpPerMan; pair.invulnerable = true; pair.story = 'pair';
+  pair.men = 3; pair.hp = 3 * UNIT_TYPES.rifle.hpPerMan; pair.invulnerable = true; pair.story = 'pair';
   // the rest of the company along the trench either side: they go over the top with them
   for (let dy = -12; dy <= 12; dy += 2) {
     if (Math.abs(dy) < 2 || ours[M + dy] < 0 || theirs[M + dy] < 0) continue;
@@ -182,18 +185,19 @@ export function runTutorial(state, ctx) {
 
   const out = { x: pair.x + 7, y: pair.y }; // a shell hole out in no man's land
   const objective = { x: mg.x, y: mg.y };
-  const selectPair = () => step(`${click} Hale and Archer to select them.`, () => ui.selected.has(pair.id), { kind: 'mouse', button: 0 });
+  const selectPair = () => step(`${click} Lieutenant Lisle and his two men to select them.`, () => ui.selected.has(pair.id), { kind: 'mouse', button: 0 });
 
   async function script() {
     ui.selected.clear();
     look(pair.x + 2, pair.y, 2.4);
     await after(1.2);
     await say('', 'The Somme. 1 July 1916, 07:20. Ten minutes to zero hour.', TRENCH);
-    await say(ARCHER, 'Larks are up. You can hear them, between the guns.');
-    await say(HALE, 'Seven days of shelling. They say the wire is cut, and we\'re to walk across.');
-    await say(ARCHER, 'At walking pace. They were very particular about that.');
-    await say(HALE, 'I wrote to Mother last night. Nothing much. The weather, the food.', LETTER);
-    await say(ARCHER, 'Post it yourself tomorrow. Tell her about the larks.');
+    await say(HIS_LETTER, '\u201cDearest Mother, it is very early. The larks have started, as they do at home.\u201d', LETTER);
+    await say(HIS_LETTER, '\u201cDo you remember the river at Marlow, the summer I was nine? I keep thinking of the light on the water.\u201d', LETTER);
+    await say(HIS_LETTER, '\u201cWe go over this morning. The men are steady. They are better than I am, and kinder.\u201d', LETTER);
+    await say(ARCHER, 'Ten minutes, sir.');
+    await say(HALE, 'They say the wire is cut, sir.');
+    await say(LT, 'So they tell me. We walk, Hale. Slowly. They were very particular about that.');
     await say(LT, 'Stand to. The guns go first.');
 
     // 0. moving the map: look around the line, then back
@@ -236,6 +240,7 @@ export function runTutorial(state, ctx) {
     });
     // the men wait in the trench while the shells fall
     follow = { get x() { return pair.x + (objective.x - pair.x) * 0.4; }, get y() { return pair.y; } };
+    await say(HIS_LETTER, '\u201cThe guns have gone on for a week. One stops hearing them, the way one stops hearing the sea.\u201d', LETTER);
     await say(ARCHER, 'You can feel it through the duckboards.');
     await say(HALE, 'They keep telling us nothing can live under it.');
     await say(LT, 'Two minutes. Fix bayonets.');
@@ -257,10 +262,10 @@ export function runTutorial(state, ctx) {
 
     // 2. the whistle: select the section, and the whole company goes over the top
     ui.selected.clear();
-    state.marker = { unit: pair.id, label: 'Hale & Archer' };
+    state.marker = { unit: pair.id, label: 'Lisle\'s section' };
     look(pair.x + 2, pair.y, 2.4);
     sound.play('whistle', 1);
-    await say('', 'Whistles, all along the line.');
+    await say('', 'He blows his whistle. Along the line, the others answer.');
     await selectPair();
     state.marker = { ...out, label: 'Shell hole' };
     look(pair.x + 3.5, pair.y, 2.1);
@@ -268,14 +273,15 @@ export function runTutorial(state, ctx) {
     orderMove(state, [pair], out.x, out.y); // to the shell hole, wherever the click landed
     for (const u of company) orderMove(state, [u], u.x + 7, u.y);
     follow = pair;
-    await say(HALE, 'Walking pace, Will. Just as they said.');
+    await say(HALE, 'Walking pace, Will. Just as he said.');
     // halting: once they are out in the open, stop them while the rest of the line comes up, then go on
     await waitFor(() => !pair.order || (!pair.inTrench && !pair.climb && !pair.overTop));
     if (!ui.selected.has(pair.id)) { ui.selected.clear(); ui.selected.add(pair.id); }
     await say(LT, 'Halt. Let the line dress.');
     glow('[data-cmd="halt"]');
     await step(touch ? 'Press the glowing Halt button to stop them where they are.' : 'Press H (or the glowing Halt button) to stop them where they are.', () => !pair.order, { kind: 'key', key: 'H' });
-    await say(ARCHER, 'Strange. Not a shot from them.');
+    await say(ARCHER, 'Strange, sir. Not a shot from them.');
+    await say(HIS_LETTER, '\u201cIf anything should happen, don\u2019t be sad for long. It was a lovely summer, all of it.\u201d', LETTER);
     await say(LT, 'Forward. Steady.');
     if (!ui.selected.has(pair.id)) { ui.selected.clear(); ui.selected.add(pair.id); }
     state.marker = { ...out, label: 'Shell hole' };
@@ -287,10 +293,11 @@ export function runTutorial(state, ctx) {
     follow = null;
     if (!ui.selected.has(pair.id) || ui.selected.size > 1) {
       ui.selected.clear();
-      state.marker = { unit: pair.id, label: 'Hale & Archer' };
+      state.marker = { unit: pair.id, label: 'Lisle\'s section' };
       look(pair.x + 2, pair.y, 2.1);
       await selectPair();
     }
+    await say(LT, 'Now, lads. Follow me.');
     glow('[data-cmd="charge"]');
     await step(touch ? 'Press the glowing Charge button.' : 'Press C (or the glowing Charge button).', () => ui.mode === 'charge', { kind: 'key', key: 'C' });
     state.marker = { ...objective, label: 'Enemy trench' };
@@ -310,8 +317,10 @@ export function runTutorial(state, ctx) {
     mg.target = pair;
     pair.invulnerable = false;
     await say(HALE, 'On their parapet. They were never gone.');
-    if (!pair.dead) await say(ARCHER, 'Tom.');
+    if (!pair.dead) await say(ARCHER, 'Sir \u2014');
     await waitFor(() => pair.dead);
+    await after(3);
+    await say(HIS_LETTER, '\u201cGive my love to the garden. Your loving son, Edward.\u201d', LETTER);
   }
 
   // the kill is certain: if the gun has not finished it in a few seconds, it does now
