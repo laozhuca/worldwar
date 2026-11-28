@@ -164,8 +164,8 @@ export const START_RES = { men: 30, ammo: 350, supplies: 200 };
 export const DIFFICULTY = {
   easy: { name: 'Easy', income: 0.75, start: 0.8, think: 2, aim: 0.85, routes: false, double: false, rested: false, prep: 'light', counterBattery: false, concentrate: false, support: false, fallBack: false, repair: false,
     firstAttack: 360, attackGap: [300, 380], force: 5, guns: 1, topUp: false, steps: 2, rifleCap: 13, defensiveGap: 20 },
-  medium: { name: 'Medium', income: 1, start: 1, think: 1, aim: 1, routes: true, double: false, rested: true, prep: 'full', counterBattery: true, concentrate: false, support: false, fallBack: true, repair: true,
-    firstAttack: 240, attackGap: [190, 260], force: 6, guns: 3, topUp: true, steps: 4, rifleCap: 18, defensiveGap: 12 },
+  medium: { name: 'Medium', income: 0.9, start: 1, think: 1.2, aim: 0.95, routes: true, double: false, rested: true, prep: 'full', counterBattery: true, concentrate: false, support: false, fallBack: true, repair: true,
+    firstAttack: 280, attackGap: [220, 290], force: 5, guns: 2, topUp: true, steps: 3, rifleCap: 16, defensiveGap: 14 },
   hard: { name: 'Hard', income: 1.25, start: 1.25, think: 0.5, aim: 1.12, routes: true, double: true, rested: true, prep: 'full', counterBattery: true, concentrate: true, support: true, fallBack: true, repair: true,
     firstAttack: 170, attackGap: [120, 180], force: 8, guns: 9, topUp: true, steps: 7, rifleCap: 22, defensiveGap: 9 },
 };
