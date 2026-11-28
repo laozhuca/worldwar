@@ -47,11 +47,11 @@ export const UNIT_TYPES = {
     hitChance: 0.2,
     damage: 6,
     suppressPerShot: 2.2,
-    ammoPerShot: 0.07,
+    ammoPerShot: 0.1,
     speed: 0.6,
     setup: 3,
     melee: 0.8,
-    cost: { men: 4, ammo: 30, supplies: 25 },
+    cost: { men: 4, ammo: 40, supplies: 25 },
     hotkey: 'M',
     desc: 'Heavy machine gun. Murderous against troops in the open. Needs 3s to set up.',
   },
@@ -70,8 +70,8 @@ export const UNIT_TYPES = {
     setup: 4, // the guns must be unlimbered before they can fire again after moving
     shellInterval: 6, // a gun fires every ~6 s (was 1.2)
     cooldown: 14,
-    shellAmmo: 4,
-    cost: { men: 6, ammo: 0, supplies: 60 },
+    shellAmmo: 6,
+    cost: { men: 6, ammo: 40, supplies: 60 },
     hotkey: 'F',
     desc: 'Field guns. Bombard a target area: kills, suppresses, cuts wire and wrecks trenches.',
   },
@@ -137,7 +137,7 @@ export const DIG_RADIUS = 3.5;
 export const DIG_RATE = 0.1; // work per man per second
 
 export const SUPPLY_INTERVAL = 20; // seconds between supply convoys
-export const BASE_INCOME = { men: 14, ammo: 70, supplies: 45 };
+export const BASE_INCOME = { men: 14, ammo: 50, supplies: 45 };
 export const CAPTURE_BONUS = { men: 0.5, ammo: 2, supplies: 1.5 }; // per captured enemy trench tile
 export const START_RES = { men: 30, ammo: 350, supplies: 200 };
 
