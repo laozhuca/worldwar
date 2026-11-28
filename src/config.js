@@ -137,7 +137,7 @@ export const DIG_RADIUS = 3.5;
 export const DIG_RATE = 0.1; // work per man per second
 
 export const SUPPLY_INTERVAL = 20; // seconds between supply convoys
-export const BASE_INCOME = { men: 14, ammo: 50, supplies: 45 };
+export const BASE_INCOME = { men: 14, ammo: 50, supplies: 60 };
 export const CAPTURE_BONUS = { men: 0.5, ammo: 2, supplies: 1.5 }; // per captured enemy trench tile
 export const START_RES = { men: 30, ammo: 350, supplies: 200 };
 
