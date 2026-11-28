@@ -946,7 +946,8 @@ html, body, button, #overlay, #bottom, #topbar { touch-action: manipulation; }
 
 /* the tutorial's pictures at the campaign's size: the trench whole (4:3), the letter large */
 #story.opening .pic.wide.natural { aspect-ratio: 4 / 3; width: min(760px, 92vw, calc((100vh - 300px) * 4 / 3)); }
-#story.opening .pic.letter { width: min(560px, 80vw, calc((100vh - 300px) * 1.46)); height: auto; aspect-ratio: auto; }
+#story.opening .pic.letter { width: min(760px, 88vw, calc((100vh - 300px) * 1.83)); height: auto; aspect-ratio: auto; }
+#story.opening .pic.tall { width: auto; height: min(560px, calc(100vh - 300px)); aspect-ratio: 3 / 4; object-fit: cover; }
 
 /* leaving the game ("The front is quiet"): a quiet trench, German or British, darkened behind the words */
 #overlay.plain-mode.exit-mode {

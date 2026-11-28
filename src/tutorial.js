@@ -11,11 +11,15 @@ import { iso } from './render.js';
 const HALE = 'Pte. Tom Hale', ARCHER = 'Pte. Will Archer', LT = '2nd Lt. Edward Lisle';
 const HIS_LETTER = 'Edward, to his mother'; // the letter, read over the scene
 
-// pictures shown above a speaker's lines (the letter replaces Hale's face when he speaks of it)
-const FACES = { [HALE]: 'assets/art/story-hale.webp', [ARCHER]: 'assets/art/story-archer.webp' };
-const LETTER = 'assets/art/story-letter.webp';
+// the speakers' portraits, and the pictures shown with the letter's lines
+const FACES = { [LT]: 'assets/art/story-lisle.webp', [HALE]: 'assets/art/story-hale.webp', [ARCHER]: 'assets/art/story-archer.webp' };
+const LETTER = 'assets/art/story-letter.webp'; // his letter, half written, by candlelight
 const TRENCH = 'assets/art/story-trench.webp'; // the opening scene: the front line before zero hour
-for (const src of [...Object.values(FACES), LETTER]) { const i = new Image(); i.src = src; } // ready before they are needed
+const DUGOUT = 'assets/art/story-dugout.webp'; // Lisle at his table in the dugout (a tall picture)
+const MARLOW = 'assets/art/story-marlow.webp'; // the river at Marlow, the summer he was nine
+const GARDEN = 'assets/art/story-garden.webp'; // her garden in July
+const NATURAL = [TRENCH, MARLOW, GARDEN]; // 4:3 scenes, shown whole
+for (const src of [...Object.values(FACES), LETTER, DUGOUT, MARLOW, GARDEN]) { const i = new Image(); i.src = src; } // ready before they are needed
 
 /** The battlefield for the scene: our section in the front trench, a battery behind, the enemy waiting. */
 export function createTutorialGame() {
@@ -115,12 +119,15 @@ export function runTutorial(state, ctx) {
   // line in a speech bubble beside its speaker; the lieutenant's orders and the narration between them; the scene
   // pictures (the trench, the letter) large in the middle of the screen
   const duo = document.getElementById('duo'), sides = [...duo.querySelectorAll('.side')], bubble = duo.querySelector('.bubble'), narr = duo.querySelector('.narr'), duoHint = duo.querySelector('.hint');
-  const PAIR = [ARCHER, HALE];
-  sides.forEach((sd, k) => { sd.classList.remove('away'); const im = sd.querySelector('img'); im.src = FACES[PAIR[k]]; im.classList.toggle('flip', k === 0); sd.querySelector('.name').textContent = PAIR[k]; });
+  // Lisle on the left; on the right whichever of his two men is speaking with him
+  const PAIR = [LT, ARCHER];
+  const setSide = (k, who) => { PAIR[k] = who; const sd = sides[k], im = sd.querySelector('img'); im.src = FACES[who]; im.classList.remove('flip'); sd.querySelector('.name').textContent = who; };
+  sides.forEach((sd, k) => { sd.classList.remove('away'); setSide(k, PAIR[k]); });
   const showDuo = (speaker, text) => {
     box.classList.add('hidden');
     duo.classList.remove('hidden');
     duo.style.bottom = (document.getElementById('bottom')?.offsetHeight || 0) + 'px'; // (above the command panel)
+    if ((speaker === HALE || speaker === ARCHER) && PAIR[1] !== speaker) setSide(1, speaker);
     const k = PAIR.indexOf(speaker);
     sides.forEach((sd, j) => sd.classList.toggle('quiet', j !== k));
     bubble.classList.toggle('hidden', k < 0); narr.classList.toggle('hidden', k >= 0);
@@ -137,8 +144,9 @@ export function runTutorial(state, ctx) {
     const src = image || (text ? FACES[speaker] : null);
     pic.classList.toggle('hidden', !src);
     pic.classList.toggle('letter', src === LETTER);
-    pic.classList.toggle('wide', src === TRENCH);
-    pic.classList.toggle('natural', src === TRENCH); // (a 4:3 picture: shown whole)
+    pic.classList.toggle('wide', NATURAL.includes(src));
+    pic.classList.toggle('natural', NATURAL.includes(src)); // (a 4:3 picture: shown whole)
+    pic.classList.toggle('tall', src === DUGOUT);
     if (src && pic.getAttribute('src') !== src) pic.setAttribute('src', src);
     who.textContent = speaker || '';
     line.textContent = text || '';
@@ -192,8 +200,8 @@ export function runTutorial(state, ctx) {
     look(pair.x + 2, pair.y, 2.4);
     await after(1.2);
     await say('', 'The Somme. 1 July 1916, 07:20. Ten minutes to zero hour.', TRENCH);
-    await say(HIS_LETTER, '\u201cDearest Mother, it is very early. The larks have started, as they do at home.\u201d', LETTER);
-    await say(HIS_LETTER, '\u201cDo you remember the river at Marlow, the summer I was nine? I keep thinking of the light on the water.\u201d', LETTER);
+    await say(HIS_LETTER, '\u201cDearest Mother, it is very early. The larks have started, as they do at home.\u201d', DUGOUT);
+    await say(HIS_LETTER, '\u201cDo you remember the river at Marlow, the summer I was nine? I keep thinking of the light on the water.\u201d', MARLOW);
     await say(HIS_LETTER, '\u201cWe go over this morning. The men are steady. They are better than I am, and kinder.\u201d', LETTER);
     await say(ARCHER, 'Ten minutes, sir.');
     await say(HALE, 'They say the wire is cut, sir.');
@@ -320,7 +328,7 @@ export function runTutorial(state, ctx) {
     if (!pair.dead) await say(ARCHER, 'Sir \u2014');
     await waitFor(() => pair.dead);
     await after(3);
-    await say(HIS_LETTER, '\u201cGive my love to the garden. Your loving son, Edward.\u201d', LETTER);
+    await say(HIS_LETTER, '\u201cGive my love to the garden. Your loving son, Edward.\u201d', GARDEN);
   }
 
   // the kill is certain: if the gun has not finished it in a few seconds, it does now
